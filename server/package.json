@@ -1,0 +1,14 @@
+{
+  "name": "catchcount-server",
+  "private": true,
+  "type": "module",
+  "description": "The backend itself runs on Deno (deno task dev/start — see deno.json). This package.json exists only for the Node-based migration convenience script (scripts/migrate.mjs), for people who don't have Deno installed yet.",
+  "scripts": {
+    "dev": "deno run --watch --allow-net --allow-env --allow-read=. main.ts",
+    "start": "deno run --allow-net --allow-env --allow-read=. main.ts",
+    "migrate": "node scripts/migrate.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}

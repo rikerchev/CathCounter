@@ -1,0 +1,174 @@
+// Drop-in replacement for the removed `@base44/sdk`. It exposes the exact
+// same shape (`base44.entities.X.list/filter/create/update/delete`,
+// `base44.auth.*`, `base44.functions.invoke`, `base44.integrations.Core.*`,
+// `base44.users.inviteUser`) so the ~45 files that import `{ base44 }` from
+// here did not need to change. Only this file talks to the network.
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8787";
+const TOKEN_KEY = "token";
+
+// A Google-login redirect comes back as a full-page navigation to
+// `/...#access_token=...` (see server/routes/auth.ts google/callback) since
+// there's no XHR to hand the token back through. Capture it once on boot.
+(function captureTokenFromUrlHash() {
+  if (typeof window === "undefined") return;
+  const match = window.location.hash.match(/access_token=([^&]+)/);
+  if (match) {
+    localStorage.setItem(TOKEN_KEY, decodeURIComponent(match[1]));
+    const url = new URL(window.location.href);
+    url.hash = "";
+    window.history.replaceState({}, document.title, url.toString());
+  }
+})();
+
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
+  const token = getToken();
+  const finalHeaders = { ...headers };
+  let finalBody = body;
+  if (body !== undefined && !raw) {
+    finalHeaders["Content-Type"] = "application/json";
+    finalBody = JSON.stringify(body);
+  }
+  if (token) finalHeaders["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE}${path}`, { method, headers: finalHeaders, body: finalBody });
+
+  let data = null;
+  const text = await res.text();
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!res.ok) {
+    const err = new Error((data && data.error) || res.statusText || "Request failed");
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+function makeEntityClient(entityName) {
+  return {
+    list: (sort, limit) => {
+      const params = new URLSearchParams();
+      if (sort) params.set("sort", sort);
+      if (limit) params.set("limit", String(limit));
+      const qs = params.toString();
+      return apiFetch(`/api/entities/${entityName}${qs ? `?${qs}` : ""}`);
+    },
+    filter: (criteria = {}) =>
+      apiFetch(`/api/entities/${entityName}/filter`, { method: "POST", body: criteria }),
+    get: (id) => apiFetch(`/api/entities/${entityName}/${id}`),
+    create: (data) => apiFetch(`/api/entities/${entityName}`, { method: "POST", body: data }),
+    update: (id, data) => apiFetch(`/api/entities/${entityName}/${id}`, { method: "PUT", body: data }),
+    delete: (id) => apiFetch(`/api/entities/${entityName}/${id}`, { method: "DELETE" }),
+    bulkCreate: (records) =>
+      apiFetch(`/api/entities/${entityName}/bulk-create`, { method: "POST", body: { records } }),
+    bulkUpdate: (records) =>
+      apiFetch(`/api/entities/${entityName}/bulk-update`, { method: "PUT", body: { records } }),
+  };
+}
+
+// Lazily builds an entities.<Name> client for any name accessed — new
+// entities added to server/schema/entities.generated.ts work automatically,
+// no change needed here.
+const entities = new Proxy(
+  {},
+  { get: (_target, name) => makeEntityClient(String(name)) },
+);
+
+async function uploadFile(file, { isPublic = false } = {}) {
+  const data = await apiFetch(`/api/uploads?public=${isPublic}`, {
+    method: "POST",
+    raw: true,
+    body: file,
+    headers: { "Content-Type": file.type || "application/octet-stream" },
+  });
+  return { file_url: data.file_url };
+}
+
+export const base44 = {
+  entities,
+  // The original SDK's `asServiceRole` bypassed row-level security; here an
+  // admin account already gets that same full access on every normal
+  // endpoint (see server/middleware/authorize.ts), so this is just an alias.
+  asServiceRole: { entities },
+
+  auth: {
+    isAuthenticated: async () => {
+      if (!getToken()) return false;
+      try {
+        await apiFetch("/api/auth/me");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    me: () => apiFetch("/api/auth/me"),
+    updateMe: (patch) => apiFetch("/api/auth/me", { method: "PUT", body: patch }),
+    loginViaEmailPassword: async (email, password) => {
+      const data = await apiFetch("/api/auth/login", { method: "POST", body: { email, password } });
+      setToken(data.access_token);
+      return data;
+    },
+    loginWithProvider: (provider, returnTo) => {
+      if (provider !== "google") throw new Error(`Unsupported provider: ${provider}`);
+      const params = new URLSearchParams({ returnTo: returnTo || "/" });
+      window.location.href = `${API_BASE}/api/auth/google?${params.toString()}`;
+    },
+    register: (payload) => apiFetch("/api/auth/register", { method: "POST", body: payload }),
+    verifyOtp: (payload) => apiFetch("/api/auth/verify-otp", { method: "POST", body: payload }),
+    resendOtp: (email) => apiFetch("/api/auth/resend-otp", { method: "POST", body: { email } }),
+    resetPasswordRequest: (email) =>
+      apiFetch("/api/auth/reset-password-request", { method: "POST", body: { email } }),
+    resetPassword: (payload) => apiFetch("/api/auth/reset-password", { method: "POST", body: payload }),
+    setToken,
+    logout: (redirectUrl) => {
+      setToken(null);
+      if (redirectUrl) window.location.href = redirectUrl;
+    },
+    redirectToLogin: (returnTo) => {
+      const params = new URLSearchParams({ returnTo: returnTo || "/" });
+      window.location.href = `/login?${params.toString()}`;
+    },
+  },
+
+  functions: {
+    invoke: (name, payload) => apiFetch(`/api/functions/${name}`, { method: "POST", body: payload }),
+  },
+
+  integrations: {
+    Core: {
+      UploadFile: ({ file }) => uploadFile(file, { isPublic: false }),
+      UploadPublicFile: ({ file }) => uploadFile(file, { isPublic: true }),
+      SendEmail: (payload) => apiFetch("/api/integrations/send-email", { method: "POST", body: payload }),
+      InvokeLLM: (payload) => apiFetch("/api/integrations/invoke-llm", { method: "POST", body: payload }),
+    },
+  },
+
+  users: {
+    inviteUser: (email, role) => apiFetch("/api/auth/invite", { method: "POST", body: { email, role } }),
+  },
+
+  // Not part of the original base44 SDK surface — powers the in-app Setup
+  // Wizard (Admin → Setup) for optional integrations (Google OAuth, photo
+  // storage, email, Stripe, LLM).
+  admin: {
+    getSettingsStatus: () => apiFetch("/api/admin/settings"),
+    updateSettings: (patch) => apiFetch("/api/admin/settings", { method: "PUT", body: patch }),
+  },
+};

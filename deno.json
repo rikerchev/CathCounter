@@ -1,0 +1,11 @@
+{
+  "tasks": {
+    "dev": "deno run -A npm:vite",
+    "build": "deno run -A npm:vite build",
+    "preview": "deno run -A npm:vite preview",
+    "server:dev": "deno task --cwd server dev",
+    "server:start": "deno task --cwd server start",
+    "server:migrate": "deno task --cwd server migrate"
+  },
+  "nodeModulesDir": "auto"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "Bait",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "category": {
+      "type": "enum",
+      "default": "bait",
+      "enum": [
+        "rod",
+        "groundbait",
+        "bait",
+        "hook",
+        "line",
+        "other"
+      ],
+      "title": "Category"
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": "read: created_by_id={{user.id}}; create: created_by_id={{user.id}}; update: created_by_id={{user.id}}; delete: created_by_id={{user.id}}"
+}

@@ -1,0 +1,167 @@
+[
+  {
+    "path": "/login",
+    "component": "Login",
+    "auth": false
+  },
+  {
+    "path": "/register",
+    "component": "Register",
+    "auth": false
+  },
+  {
+    "path": "/forgot-password",
+    "component": "ForgotPassword",
+    "auth": false
+  },
+  {
+    "path": "/reset-password",
+    "component": "ResetPassword",
+    "auth": false
+  },
+  {
+    "path": "/",
+    "component": "Home",
+    "auth": true
+  },
+  {
+    "path": "/active-session",
+    "component": "ActiveSession",
+    "auth": true
+  },
+  {
+    "path": "/log-catch",
+    "component": "LogCatch",
+    "auth": true
+  },
+  {
+    "path": "/catch-history",
+    "component": "CatchHistory",
+    "auth": true
+  },
+  {
+    "path": "/sessions",
+    "component": "Sessions",
+    "auth": true
+  },
+  {
+    "path": "/catch-details",
+    "component": "CatchDetails",
+    "auth": true
+  },
+  {
+    "path": "/edit-catch",
+    "component": "EditCatch",
+    "auth": true
+  },
+  {
+    "path": "/statistics",
+    "component": "Statistics",
+    "auth": true
+  },
+  {
+    "path": "/locations",
+    "component": "Locations",
+    "auth": true
+  },
+  {
+    "path": "/personal-best",
+    "component": "PersonalBest",
+    "auth": true
+  },
+  {
+    "path": "/bait-inventory",
+    "component": "BaitInventory",
+    "auth": true
+  },
+  {
+    "path": "/profile",
+    "component": "Profile",
+    "auth": true
+  },
+  {
+    "path": "/advertise",
+    "component": "Advertise",
+    "auth": true
+  },
+  {
+    "path": "/custom-ads",
+    "component": "CustomAds",
+    "auth": true
+  },
+  {
+    "path": "/admin-users",
+    "component": "AdminUsers",
+    "auth": true
+  },
+  {
+    "path": "/water-bodies",
+    "component": "WaterBodies",
+    "auth": true
+  },
+  {
+    "path": "/water-body-request",
+    "component": "WaterBodyRequest",
+    "auth": true
+  },
+  {
+    "path": "/competitions",
+    "component": "Competitions",
+    "auth": true
+  },
+  {
+    "path": "/water-body-management",
+    "component": "WaterBodyManagement",
+    "auth": true
+  },
+  {
+    "path": "/admin-water-bodies",
+    "component": "AdminWaterBodies",
+    "auth": true
+  },
+  {
+    "path": "/admin-role-requests",
+    "component": "AdminRoleRequests",
+    "auth": true
+  },
+  {
+    "path": "/admin-ad-slots",
+    "component": "AdminAdSlots",
+    "auth": true
+  },
+  {
+    "path": "/admin-ad-requests",
+    "component": "AdminAdRequests",
+    "auth": true
+  },
+  {
+    "path": "/my-ad-requests",
+    "component": "MyAdRequests",
+    "auth": true
+  },
+  {
+    "path": "/sector-reservations",
+    "component": "SectorReservations",
+    "auth": true
+  },
+  {
+    "path": "/admin-data-export",
+    "component": "AdminDataExport",
+    "auth": true
+  },
+  {
+    "path": "/inventory/base-items",
+    "component": "BaseItems",
+    "auth": true
+  },
+  {
+    "path": "/inventory/my-inventory",
+    "component": "UserInventoryPage",
+    "auth": true
+  },
+  {
+    "path": "/admin-translations",
+    "component": "AdminTranslations",
+    "auth": true
+  }
+]

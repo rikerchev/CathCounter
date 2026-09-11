@@ -1,0 +1,36 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string",
+      "title": "Full Name (built-in)"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email (built-in)"
+    },
+    "role": {
+      "type": "string",
+      "default": "user",
+      "enum": [
+        "admin",
+        "user",
+        "water_owner",
+        "advertiser"
+      ],
+      "title": "Role"
+    },
+    "country": {
+      "type": "string",
+      "title": "Country (ISO code)"
+    },
+    "menu_group_id": {
+      "type": "string",
+      "title": "Menu Group ID"
+    }
+  },
+  "required": [],
+  "rls": "Built-in: admins can list/update/delete other users. Regular users read/update only themselves."
+}

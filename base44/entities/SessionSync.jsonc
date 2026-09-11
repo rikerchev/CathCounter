@@ -1,0 +1,23 @@
+{
+  "name": "SessionSync",
+  "type": "object",
+  "properties": {
+    "session_data": {
+      "type": "string",
+      "title": "Session state (JSON)"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": "true",
+      "title": "Active"
+    },
+    "device_id": {
+      "type": "string",
+      "title": "Device ID"
+    }
+  },
+  "required": [
+    "session_data"
+  ],
+  "rls": "read/create/update/delete: created_by_id={{user.id}}"
+}

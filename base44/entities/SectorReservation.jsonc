@@ -1,0 +1,66 @@
+{
+  "name": "SectorReservation",
+  "type": "object",
+  "properties": {
+    "water_body_id": {
+      "type": "string",
+      "title": "Водоем"
+    },
+    "water_body_name": {
+      "type": "string",
+      "title": "Име на водоема"
+    },
+    "availability_id": {
+      "type": "string",
+      "title": "Наличност"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Дата"
+    },
+    "sector_number": {
+      "type": "integer",
+      "title": "Номер на сектор"
+    },
+    "reserved_by_name": {
+      "type": "string",
+      "title": "Име на резервиращия"
+    },
+    "reserved_by_phone": {
+      "type": "string",
+      "title": "Телефон"
+    },
+    "fee": {
+      "type": "number",
+      "default": "0",
+      "title": "Такса (€)"
+    },
+    "payment_status": {
+      "type": "enum",
+      "default": "pending",
+      "enum": [
+        "pending",
+        "paid",
+        "refunded"
+      ],
+      "title": "Статус плащане"
+    },
+    "status": {
+      "type": "enum",
+      "default": "active",
+      "enum": [
+        "active",
+        "cancelled"
+      ],
+      "title": "Статус"
+    }
+  },
+  "required": [
+    "water_body_id",
+    "date",
+    "sector_number",
+    "reserved_by_name"
+  ],
+  "rls": "read: public; create: created_by_id={{user.id}}; update: owner, admin, or water_owner; delete: owner or admin"
+}

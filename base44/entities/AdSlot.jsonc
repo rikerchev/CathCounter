@@ -1,0 +1,61 @@
+{
+  "name": "AdSlot",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Име на банера"
+    },
+    "placement": {
+      "type": "enum",
+      "default": "all",
+      "enum": [
+        "all",
+        "home",
+        "session",
+        "log_catch",
+        "history",
+        "sessions",
+        "statistics",
+        "locations",
+        "personal_best",
+        "bait_inventory",
+        "water_bodies",
+        "competitions",
+        "sector_reservations",
+        "advertise",
+        "profile"
+      ],
+      "title": "Позиция"
+    },
+    "price_per_month": {
+      "type": "number",
+      "default": "0",
+      "title": "Цена на месец (€)"
+    },
+    "country_pricing": {
+      "type": "string",
+      "title": "Цени по държави (JSON)"
+    },
+    "is_available": {
+      "type": "boolean",
+      "default": "true",
+      "title": "Достъпен за наем"
+    },
+    "status": {
+      "type": "enum",
+      "default": "available",
+      "enum": [
+        "available",
+        "rented"
+      ],
+      "title": "Статус"
+    }
+  },
+  "required": [
+    "name",
+    "placement",
+    "price_per_month"
+  ],
+  "rls": "read: public; create/update/delete: admin only"
+}

@@ -1,0 +1,116 @@
+{
+  "name": "CustomAd",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "description": {
+      "type": "string",
+      "title": "Description"
+    },
+    "cta": {
+      "type": "string",
+      "title": "Call to Action Text"
+    },
+    "link": {
+      "type": "string",
+      "title": "Link URL"
+    },
+    "logo_url": {
+      "type": "string",
+      "format": "uri",
+      "title": "Logo URL"
+    },
+    "logo_size": {
+      "type": "enum",
+      "default": "auto",
+      "enum": [
+        "16x16",
+        "32x16",
+        "48x16",
+        "auto"
+      ],
+      "title": "Logo Size"
+    },
+    "bg_class": {
+      "type": "string",
+      "default": "bg-gradient-to-r from-cyan-600 to-blue-600",
+      "title": "Background CSS Class"
+    },
+    "text_class": {
+      "type": "string",
+      "default": "text-white",
+      "title": "Text CSS Class"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": "true",
+      "title": "Active"
+    },
+    "placement": {
+      "type": "enum",
+      "default": "all",
+      "enum": [
+        "all",
+        "home",
+        "session",
+        "log_catch",
+        "history",
+        "sessions",
+        "statistics",
+        "locations",
+        "personal_best",
+        "bait_inventory",
+        "water_bodies",
+        "competitions",
+        "sector_reservations",
+        "advertise",
+        "profile"
+      ],
+      "title": "Placement"
+    },
+    "sort_order": {
+      "type": "integer",
+      "default": "0",
+      "title": "Sort Order"
+    },
+    "ad_slot_id": {
+      "type": "string",
+      "title": "Ad Slot ID"
+    },
+    "advertiser_id": {
+      "type": "string",
+      "title": "Advertiser User ID"
+    },
+    "countries": {
+      "type": "string",
+      "default": "all",
+      "title": "Target Countries"
+    },
+    "country_content": {
+      "type": "string",
+      "title": "Title/Description per country (JSON)"
+    },
+    "language_content": {
+      "type": "string",
+      "title": "Title/Description/CTA per language (JSON)"
+    },
+    "status": {
+      "type": "enum",
+      "default": "active",
+      "enum": [
+        "active",
+        "pending_review"
+      ],
+      "title": "Status"
+    }
+  },
+  "required": [
+    "title",
+    "description",
+    "link"
+  ],
+  "rls": "read: public; create: admin only; update: admin or advertiser_id={{user.id}}; delete: admin only"
+}

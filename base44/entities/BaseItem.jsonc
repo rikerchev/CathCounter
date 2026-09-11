@@ -1,0 +1,53 @@
+{
+  "name": "BaseItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Име на артикула"
+    },
+    "category": {
+      "type": "enum",
+      "default": "groundbait",
+      "enum": [
+        "groundbait",
+        "bait"
+      ],
+      "title": "Категория"
+    },
+    "brand": {
+      "type": "string",
+      "title": "Бранд"
+    },
+    "shop_url": {
+      "type": "string",
+      "format": "uri",
+      "title": "Линк към търговеца"
+    },
+    "image_url": {
+      "type": "string",
+      "format": "uri",
+      "title": "Снимка URL"
+    },
+    "description": {
+      "type": "string",
+      "title": "Описание"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": "true",
+      "title": "Активен"
+    },
+    "sort_order": {
+      "type": "integer",
+      "default": "0",
+      "title": "Ред на сортиране"
+    }
+  },
+  "required": [
+    "name",
+    "category",
+    "brand"
+  ],
+  "rls": "read: public; create/update/delete: admin only"
+}

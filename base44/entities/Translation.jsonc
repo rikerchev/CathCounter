@@ -1,0 +1,19 @@
+{
+  "name": "Translation",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "title": "Translation Key"
+    },
+    "values": {
+      "type": "string",
+      "default": "{}",
+      "title": "Values (JSON: {\"bg\":\"...\",\"en\":\"...\",\"de\":\"...\"})"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": "read: public; create/update/delete: admin only"
+}
