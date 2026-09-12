@@ -67,7 +67,7 @@ export const sql: typeof client = new Proxy(client, {
 
     return Promise.race([
       queryPromise,
-      new Promise((_, reject) => {
+      new Promise((resolve, reject) => {
         setTimeout(() => {
           if (client === current) {
             // Deliberately NOT calling `client.end()` here. Several queries
@@ -84,7 +84,14 @@ export const sql: typeof client = new Proxy(client, {
             // max_lifetime instead of being torn down synchronously.
             client = createClient();
           }
-          reject(new Error("Database query timed out"));
+          // Retry the same query once on the replacement connection instead
+          // of just failing — a stale connection is exactly the case this
+          // whole mechanism exists to recover from, so the caller should
+          // only ever see an error if the retry ALSO fails (e.g. the DB is
+          // genuinely unreachable), not on every ordinary stale-connection
+          // hiccup. A brand-new connection is bounded by `connect_timeout`
+          // (10s) on its own, so this can't hang forever either.
+          Reflect.apply(client, client, args).then(resolve, reject);
         }, QUERY_TIMEOUT_MS);
       }),
     ]);
