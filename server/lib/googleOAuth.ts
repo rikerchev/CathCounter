@@ -1,5 +1,5 @@
-import { getConfig } from "./settings.ts";
-import { env } from "../env.ts";
+import { getConfig } from "./settings";
+import { env } from "../env";
 
 export async function isGoogleConfigured(): Promise<boolean> {
   const clientId = await getConfig("GOOGLE_CLIENT_ID");
