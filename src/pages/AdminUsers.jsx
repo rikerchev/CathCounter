@@ -114,6 +114,17 @@ export default function AdminUsers() {
     }
   }
 
+  async function deleteUser(u) {
+    if (!confirm(t("menuGroup.confirmDeleteUser").replace("{email}", u.email))) return;
+    try {
+      await base44.entities.User.delete(u.id);
+      toast({ title: t("menuGroup.userDeleted") });
+      await loadUsers();
+    } catch (e) {
+      toast({ title: t("awb.error"), description: e.message, variant: "destructive" });
+    }
+  }
+
   if (user && !hasRole(user, "admin")) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
@@ -203,9 +214,20 @@ export default function AdminUsers() {
                         </p>
                         <p className="text-xs text-slate-400 truncate">{u.email}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400 whitespace-nowrap">
-                        {ROLE_LABELS[u.role] || u.role || "user"}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className="text-xs px-2 py-1 rounded-full font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400 whitespace-nowrap">
+                          {ROLE_LABELS[u.role] || u.role || "user"}
+                        </span>
+                        {u.id !== user?.id && (
+                          <button
+                            onClick={() => deleteUser(u)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-slate-50 dark:hover:bg-accent"
+                            aria-label={t("menuGroup.deleteUser")}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     {/* Group assignment */}
