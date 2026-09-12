@@ -1,4 +1,5 @@
 import { sql } from "../db.js";
+import { absoluteUrl } from "../lib/url.js";
 import { env } from "../env.js";
 import type { AuthUser } from "../middleware/auth.js";
 
@@ -51,7 +52,7 @@ export async function handleCatchPhotosRoute(
       RETURNING id
     `;
     const photoId = rows[0].id;
-    const origin = env.PUBLIC_API_URL || new URL(req.url).origin;
+    const origin = env.PUBLIC_API_URL || absoluteUrl(req).origin;
     return json({ file_url: `${origin}/api/catch-photos/${photoId}` });
   }
 
