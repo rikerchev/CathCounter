@@ -1,10 +1,10 @@
-import { sql } from "../db.ts";
-import { ENTITIES } from "../schema/entities.generated.ts";
-import type { EntityDef } from "../schema/entities.generated.ts";
-import type { AuthUser } from "../middleware/auth.ts";
-import { isAdmin } from "../middleware/auth.ts";
-import { isAllowed } from "../middleware/authorize.ts";
-import { handleUserEntityRoute } from "./userEntity.ts";
+import { sql } from "../db";
+import { ENTITIES } from "../schema/entities.generated";
+import type { EntityDef } from "../schema/entities.generated";
+import type { AuthUser } from "../middleware/auth";
+import { isAdmin } from "../middleware/auth";
+import { isAllowed } from "../middleware/authorize";
+import { handleUserEntityRoute } from "./userEntity";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
