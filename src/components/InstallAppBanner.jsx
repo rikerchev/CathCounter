@@ -26,13 +26,14 @@ export default function InstallAppBanner() {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{t("install.title")}</p>
-        <p className="text-xs text-slate-300 truncate">
-          {canPromptNatively
-            ? t("install.desc")
-            : isIos
-              ? t("install.iosInstructions")
-              : t("install.manualInstructions")}
-        </p>
+        {/* Only iOS gets a description line — Apple gives no installable-app
+            API at all, so the Share-sheet step is unavoidable there. On
+            Android/Chrome the button below is a genuine one-tap action, so
+            no extra text (and definitely no "open this menu" instructions)
+            is needed. */}
+        {!canPromptNatively && isIos && (
+          <p className="text-xs text-slate-300 truncate">{t("install.iosInstructions")}</p>
+        )}
       </div>
       {canPromptNatively && (
         <button

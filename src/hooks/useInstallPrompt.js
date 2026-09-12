@@ -65,15 +65,12 @@ export function useInstallPrompt() {
   }, []);
 
   const ios = isIos();
-  // Always show the banner once the app isn't installed and hasn't been
-  // dismissed — do NOT gate this on `deferredPrompt` being set. Chrome only
-  // fires beforeinstallprompt once its own engagement heuristics are met
-  // (varies by visit, browser history, etc.), so waiting for it meant the
-  // banner silently never appeared for most people. Instead: show the
-  // one-tap native button when the event *has* fired, and fall back to
-  // manual "how to install" instructions (Android menu, or iOS Share sheet)
-  // when it hasn't — see InstallAppBanner.jsx.
-  const canShow = !installed && !dismissed;
+  // Only show the banner when there's a genuine one-tap path: Chrome/Edge
+  // has actually handed us the native install event, or we're on iOS where
+  // the Share-sheet step is unavoidable (no install API exists there at
+  // all). Otherwise stay hidden rather than show a button with no menu
+  // instructions attached to it that wouldn't actually do anything yet.
+  const canShow = !installed && !dismissed && (deferredPrompt != null || ios);
 
   const promptInstall = useCallback(async () => {
     if (!deferredPrompt) return;
