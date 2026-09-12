@@ -32,13 +32,29 @@ const SECRET_KEYS = new Set<SettingKey>([
 let cache: Map<string, string> | null = null;
 let cacheLoadedAt = 0;
 const CACHE_TTL_MS = 15_000;
+// sendEmail() reads 6 keys via Promise.all — with a cold/expired cache that
+// used to fire 6 near-simultaneous, near-identical `SELECT * FROM
+// app_settings` queries on the single shared DB connection. That was one of
+// the things that could push a slow connection over the edge (and, worse,
+// made a timeout on any one of them take out the others too — see the
+// comment in db.ts). Reusing a single in-flight load for all concurrent
+// callers means only one query ever goes out at a time.
+let loadingPromise: Promise<Map<string, string>> | null = null;
 
 async function loadCache(): Promise<Map<string, string>> {
   if (cache && Date.now() - cacheLoadedAt < CACHE_TTL_MS) return cache;
-  const rows = await sql<{ key: string; value: string }[]>`SELECT key, value FROM app_settings`;
-  cache = new Map(rows.map((r) => [r.key, r.value]));
-  cacheLoadedAt = Date.now();
-  return cache;
+  if (loadingPromise) return loadingPromise;
+  loadingPromise = (async () => {
+    const rows = await sql<{ key: string; value: string }[]>`SELECT key, value FROM app_settings`;
+    cache = new Map(rows.map((r) => [r.key, r.value]));
+    cacheLoadedAt = Date.now();
+    return cache;
+  })();
+  try {
+    return await loadingPromise;
+  } finally {
+    loadingPromise = null;
+  }
 }
 
 function isSettingKey(key: string): key is SettingKey {
