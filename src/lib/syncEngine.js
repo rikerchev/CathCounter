@@ -21,9 +21,16 @@ let isOnline = navigator.onLine;
 
 // Initialize online status listeners
 if (typeof window !== "undefined") {
+  // A flaky mobile connection can fire several "online" events in a quick
+  // burst while it reconnects. Without debouncing, each one queued its own
+  // full syncAll() right after the previous one finished, so the
+  // "Синхронизиране..." pill could stay visible far longer than a single
+  // sync actually takes, and the app felt stuck/slow.
+  let onlineDebounceId = null;
   window.addEventListener("online", () => {
     isOnline = true;
-    syncAll();
+    clearTimeout(onlineDebounceId);
+    onlineDebounceId = setTimeout(() => syncAll(), 300);
   });
   window.addEventListener("offline", () => {
     isOnline = false;
@@ -171,10 +178,15 @@ export async function syncAll() {
   notifyListeners();
 
   try {
-    // 1. Push local changes first
-    await pushPendingCatches();
-    await pushPendingBait();
-    await pushPendingDeletions();
+    // 1. Push local changes first — these touch independent local stores, so
+    // run them in parallel instead of one after another. On a slow/mobile
+    // connection this alone can cut the visible "Синхронизиране..." time
+    // roughly in half to a third.
+    await Promise.all([
+      pushPendingCatches(),
+      pushPendingBait(),
+      pushPendingDeletions(),
+    ]);
 
     // 2. Upload pending photos (sets photo_url on local catches, marks them unsynced)
     try {
@@ -188,9 +200,11 @@ export async function syncAll() {
     // 2b. Push catches that got photo_url from photo uploads (pushOnly was blocked by syncing flag)
     await pushPendingCatches();
 
-    // 3. Pull remote updates
-    await pullRemoteCatches();
-    await pullRemoteBait();
+    // 3. Pull remote updates — also independent, also parallel
+    await Promise.all([
+      pullRemoteCatches(),
+      pullRemoteBait(),
+    ]);
   } catch (e) {
     console.error("syncAll error:", e);
   } finally {
