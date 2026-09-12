@@ -1,12 +1,12 @@
-import { sql } from "../db.ts";
-import { env } from "../env.ts";
-import { hashPassword, verifyPassword } from "../lib/password.ts";
-import { signToken } from "../lib/jwt.ts";
-import { randomOtpCode, randomToken, sha256Hex } from "../lib/hash.ts";
-import { sendEmail } from "../lib/email.ts";
-import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../lib/googleOAuth.ts";
-import type { AuthUser } from "../middleware/auth.ts";
-import { isAdmin } from "../middleware/auth.ts";
+import { sql } from "../db";
+import { env } from "../env";
+import { hashPassword, verifyPassword } from "../lib/password";
+import { signToken } from "../lib/jwt";
+import { randomOtpCode, randomToken, sha256Hex } from "../lib/hash";
+import { sendEmail } from "../lib/email";
+import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../lib/googleOAuth";
+import type { AuthUser } from "../middleware/auth";
+import { isAdmin } from "../middleware/auth";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
