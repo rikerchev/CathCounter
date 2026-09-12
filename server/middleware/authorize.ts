@@ -1,7 +1,7 @@
-import { sql } from "../db.ts";
-import type { AccessRule, EntityDef } from "../schema/entities.generated.ts";
-import type { AuthUser } from "./auth.ts";
-import { isAdmin } from "./auth.ts";
+import { sql } from "../db";
+import type { AccessRule, EntityDef } from "../schema/entities.generated";
+import type { AuthUser } from "./auth";
+import { isAdmin } from "./auth";
 
 /**
  * Mirrors the access described in each base44/entities/*.jsonc `rls` string.
