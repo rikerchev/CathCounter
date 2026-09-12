@@ -1,4 +1,5 @@
 import { sql } from "../db.js";
+import { absoluteUrl } from "../lib/url.js";
 import { ENTITIES } from "../schema/entities.generated.js";
 import type { EntityDef } from "../schema/entities.generated.js";
 import type { AuthUser } from "../middleware/auth.js";
@@ -66,7 +67,7 @@ export async function handleEntitiesRoute(
   // ---- LIST: GET /api/entities/:name ----
   if (req.method === "GET" && !sub) {
     if (!(await isAllowed(entity, "read", user))) return json({ error: "Forbidden" }, 403);
-    const url = new URL(req.url);
+    const url = absoluteUrl(req);
     const sort = parseSort(url.searchParams.get("sort"));
     const limit = Math.min(Number(url.searchParams.get("limit")) || 200, 1000);
 
