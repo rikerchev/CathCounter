@@ -70,7 +70,18 @@ export const sql: typeof client = new Proxy(client, {
       new Promise((_, reject) => {
         setTimeout(() => {
           if (client === current) {
-            client.end({ timeout: 0 }).catch(() => {});
+            // Deliberately NOT calling `client.end()` here. Several queries
+            // can be in flight at once on this one `max: 1` connection
+            // (e.g. sendEmail's Promise.all of getConfig() calls) — forcing
+            // the connection closed cascades a CONNECTION_DESTROYED
+            // rejection into every one of those *other* in-flight queries,
+            // and some of those rejections turned out to be unreachable by
+            // any of our own .catch()es, crashing the whole function
+            // (confirmed in production logs — this used to call
+            // client.end({ timeout: 0 }) and that is what caused it).
+            // Just stop using this connection for anything new; the old
+            // one is abandoned and cleans itself up via idle_timeout /
+            // max_lifetime instead of being torn down synchronously.
             client = createClient();
           }
           reject(new Error("Database query timed out"));
