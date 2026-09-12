@@ -3,5 +3,8 @@
     { "src": "^/api/.*$", "dest": "/api/[...path].ts" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/keep-alive", "schedule": "0 3 * * *" }
   ]
 }
