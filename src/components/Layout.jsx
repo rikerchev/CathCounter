@@ -244,11 +244,11 @@ export default function Layout() {
     };
   }, [mobileOpen]);
 
+  // No overflow-x-hidden on the root div below — it's on html/body
+  // (src/index.css) instead. An overflow value other than "visible" on a
+  // wrapper div like this one breaks position:sticky for descendants (the
+  // ad banner), even though the div never visibly scrolls on its own.
   return (
-    {/* No overflow-x-hidden here — it's on html/body (src/index.css) instead.
-        An overflow value other than "visible" on a wrapper div like this one
-        breaks position:sticky for descendants (the ad banner below), even
-        though the div never visibly scrolls on its own. */}
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-cyan-50 dark:from-background dark:via-background dark:to-background">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col bg-white border-r border-slate-100 dark:bg-card dark:border-border">
