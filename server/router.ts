@@ -1,4 +1,5 @@
 import { env } from "./env.js";
+import { absoluteUrl } from "./lib/url.js";
 import { getUserFromRequest } from "./middleware/auth.js";
 import { handleAuthRoute } from "./routes/auth.js";
 import { handleEntitiesRoute } from "./routes/entities.js";
@@ -26,7 +27,7 @@ function withCors(res: Response): Response {
 }
 
 async function route(req: Request): Promise<Response> {
-  const url = new URL(req.url);
+  const url = absoluteUrl(req);
   const segments = url.pathname.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean);
   // e.g. ["api", "entities", "Catch", "abc-123"]
 
