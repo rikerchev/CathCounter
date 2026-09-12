@@ -86,6 +86,15 @@
     @apply border-border outline-ring/50;
   }
 
+  /* overflow-x:hidden lives here (on html/body — the real scrolling root),
+     not on a wrapper div inside the page: a non-viewport ancestor with
+     overflow other than "visible" silently breaks position:sticky for
+     everything inside it (this is what was keeping the ad banner in
+     Layout.jsx from staying pinned to the top while scrolling). */
+  html, body {
+    @apply overflow-x-hidden;
+  }
+
   body {
     @apply bg-background text-foreground font-body;
   }
