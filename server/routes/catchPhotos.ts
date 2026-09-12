@@ -1,6 +1,6 @@
-import { sql } from "../db.ts";
-import { env } from "../env.ts";
-import type { AuthUser } from "../middleware/auth.ts";
+import { sql } from "../db";
+import { env } from "../env";
+import type { AuthUser } from "../middleware/auth";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
