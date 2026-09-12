@@ -35,6 +35,15 @@ function setToken(token) {
   else localStorage.removeItem(TOKEN_KEY);
 }
 
+// A flaky mobile connection can leave a fetch() neither resolving nor
+// rejecting for a long time (the browser is still waiting on a stalled
+// socket). Without a cap, that hangs whatever awaited it forever — e.g. the
+// background sync engine's "Синхронизиране..." indicator never clears,
+// because its own try/catch/finally never gets to run. 20s is generous for
+// a slow mobile network but still short enough that the app recovers and
+// reports a normal, catchable error instead of hanging indefinitely.
+const REQUEST_TIMEOUT_MS = 20000;
+
 async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
   const token = getToken();
   const finalHeaders = { ...headers };
@@ -45,7 +54,27 @@ async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
   }
   if (token) finalHeaders["Authorization"] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { method, headers: finalHeaders, body: finalBody });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: finalHeaders,
+      body: finalBody,
+      signal: controller.signal,
+    });
+  } catch (e) {
+    if (e.name === "AbortError") {
+      const err = new Error("Request timed out");
+      err.status = 0;
+      throw err;
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   let data = null;
   const text = await res.text();
