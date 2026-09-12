@@ -39,10 +39,11 @@ function setToken(token) {
 // rejecting for a long time (the browser is still waiting on a stalled
 // socket). Without a cap, that hangs whatever awaited it forever — e.g. the
 // background sync engine's "Синхронизиране..." indicator never clears,
-// because its own try/catch/finally never gets to run. 20s is generous for
-// a slow mobile network but still short enough that the app recovers and
-// reports a normal, catchable error instead of hanging indefinitely.
-const REQUEST_TIMEOUT_MS = 20000;
+// because its own try/catch/finally never gets to run. 12s is still
+// generous for a slow mobile network, but short enough that a single bad
+// request doesn't make the whole sync (which makes several requests) feel
+// like it hung for a very long time.
+const REQUEST_TIMEOUT_MS = 12000;
 
 async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
   const token = getToken();
