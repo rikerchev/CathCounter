@@ -74,5 +74,21 @@ export async function handleUserEntityRoute(
     return json(rows[0]);
   }
 
+  // ---- DELETE: DELETE /api/entities/User/:id (admin only) ----
+  if (req.method === "DELETE" && sub) {
+    if (!isAdminUser) return json({ error: "Forbidden" }, 403);
+    if (sub === user.id) {
+      // Never let an admin delete their own account through this screen —
+      // that could lock everyone out of admin access with no way back in.
+      return json({ error: "Не можете да изтриете собствения си акаунт" }, 400);
+    }
+    // Every other table's created_by_id is `ON DELETE SET NULL` (see
+    // schema.sql), so this is safe: the user's catches/bait/etc. are kept,
+    // just no longer attributed to a (now-deleted) account.
+    const rows = await sql`DELETE FROM users WHERE id = ${sub} RETURNING id`;
+    if (!rows.length) return json({ error: "Not found" }, 404);
+    return json({ success: true });
+  }
+
   return json({ error: "Not found" }, 404);
 }
