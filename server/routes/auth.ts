@@ -96,26 +96,23 @@ export async function handleAuthRoute(
 
     const first = await isFirstUser();
     const passwordHash = await hashPassword(password);
+    // Email verification is temporarily switched off (SMTP sender not fully
+    // sorted out yet — see server/lib/email.ts) — every new account is
+    // created already verified and logged in immediately, the same way the
+    // "first admin" account always was. To turn verification back on later:
+    // change `TRUE` below back to `first`, and restore the issueOtp +
+    // trySendEmail + `return json({ success: true })` branch this replaced
+    // (still intact in git history / the "resend-otp" and "verify-otp"
+    // routes below, which were left in place and keep working unchanged).
     const rows = await sql<AuthUser[]>`
       INSERT INTO users (email, password_hash, role, email_verified)
-      VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first})
+      VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, TRUE)
       RETURNING *
     `;
 
-    if (first) {
-      // Skip the OTP step and log straight in as admin.
-      const u = rows[0];
-      const token = signToken({ sub: u.id, email: u.email, role: u.role });
-      return json({ access_token: token, user: publicUser(u) });
-    }
-
-    const code = await issueOtp(email, "verify_email");
-    await trySendEmail({
-      to: email,
-      subject: "Потвърдете имейла си — CatchCount",
-      text: `Вашият код за потвърждение е: ${code} (валиден ${OTP_TTL_MINUTES} минути)`,
-    });
-    return json({ success: true });
+    const u = rows[0];
+    const token = signToken({ sub: u.id, email: u.email, role: u.role });
+    return json({ access_token: token, user: publicUser(u) });
   }
 
   // ---- POST /api/auth/resend-otp { email } ----
