@@ -38,6 +38,26 @@ const QUERY_TIMEOUT_MS = 8000;
 
 export const sql: typeof client = new Proxy(client, {
   apply(_target, _thisArg, args) {
+    // `sql` is called two very different ways in this codebase:
+    //  1. `` sql`SELECT ...` `` — a real tagged-template query. JS itself
+    //     guarantees `args[0]` is the frozen strings array with a `.raw`
+    //     property in this case, and only this case.
+    //  2. `sql(set, ...keys)` — postgres.js's *helper* form (used in
+    //     auth.ts to build a dynamic `SET col = val, ...` fragment for
+    //     embedding inside an outer tagged-template query). This does NOT
+    //     return a real query — it returns a Helper/Identifier object whose
+    //     `.then` is a misuse guard that THROWS "NOT_TAGGED_CALL" the
+    //     moment anything calls `.then`/awaits it directly (Promise.race,
+    //     Promise.resolve(...).catch(...), etc. all do exactly that).
+    // Wrapping case 2 the same way as case 1 crashed the whole process
+    // with an unhandled rejection (discovered in production via Vercel
+    // logs) — so only real tagged-template calls get the timeout/
+    // reconnect treatment; helper calls pass straight through untouched.
+    const isTaggedTemplateCall = Array.isArray(args[0]) && Array.isArray((args[0] as { raw?: unknown }).raw);
+    if (!isTaggedTemplateCall) {
+      return Reflect.apply(client, client, args);
+    }
+
     const current = client;
     const queryPromise = Reflect.apply(current, current, args);
     // The original query may still settle later even though we've stopped
