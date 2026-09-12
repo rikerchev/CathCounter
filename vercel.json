@@ -1,5 +1,7 @@
 {
-  "rewrites": [
-    { "source": "/:path((?!api/).*)", "destination": "/index.html" }
+  "routes": [
+    { "src": "^/api/.*$", "dest": "/api/[...path].ts" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
