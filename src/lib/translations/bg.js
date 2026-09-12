@@ -42,6 +42,7 @@ export const bg = {
     "install.installButton": "Инсталирай",
     "install.iosInstructions": "Натисни Споделяне, после \"Добави към начален екран\".",
     "install.close": "Затвори",
+    "install.unavailableToast": "Браузърът все още не предлага инсталиране на този сайт. Виж менюто ⋮ на браузъра за \"Инсталирай приложение\".",
     "common.hours": "ч",
     "common.min": "мин",
     "common.sec": "сек",

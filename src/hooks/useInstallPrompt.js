@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
+import { getDeferredPrompt, clearDeferredPrompt, subscribe } from "@/lib/pwaInstallBus";
 
 const DISMISS_KEY = "installPromptDismissedAt";
 const DISMISS_DAYS = 14;
@@ -37,50 +38,50 @@ function wasDismissedRecently() {
  * once the app is added to the home screen, the browser's own address bar
  * is gone entirely — that's the only fix that works the same on every
  * device, unlike a per-browser setting the user can't set on someone else's
- * phone. Chrome/Edge/Android fire `beforeinstallprompt`, which lets us show
- * our own "Install" button and trigger the native install flow
- * programmatically. iOS Safari never fires that event and has no equivalent
- * API — there we just show the manual "Share → Add to Home Screen" steps.
+ * phone.
+ *
+ * `deferredPrompt` comes from src/lib/pwaInstallBus.js, which starts
+ * listening for `beforeinstallprompt` at module-load time (imported first
+ * thing in main.jsx) — not from a listener attached here in a useEffect —
+ * so we still catch the event even if Chrome fires it before this hook's
+ * component ever mounts (e.g. before <Layout> renders).
+ *
+ * canShow is intentionally NOT gated on "do we already have a deferred
+ * prompt". A button that only appears once Chrome has decided to hand us
+ * the event is invisible for anyone Chrome hasn't made that decision for
+ * yet — or ever, e.g. once an origin is marked "already installed", which
+ * is sticky per-origin in Chrome and can outlive the user removing the
+ * home-screen icon (only a full Settings → Apps → Uninstall resets it).
+ * No page code can force that event to fire. So instead the button is
+ * always offered to any not-yet-installed, not-dismissed visitor;
+ * promptInstall() reports back whether it actually had a native prompt to
+ * trigger, so the banner can react instead of the button silently doing
+ * nothing (see InstallAppBanner.jsx).
  */
 export function useInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const deferredPrompt = useSyncExternalStore(subscribe, getDeferredPrompt, () => null);
   const [dismissed, setDismissed] = useState(wasDismissedRecently);
   const [installed, setInstalled] = useState(isStandalone);
 
   useEffect(() => {
-    const handleBeforeInstall = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    };
-    const handleInstalled = () => {
-      setInstalled(true);
-      setDeferredPrompt(null);
-    };
-    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    const handleInstalled = () => setInstalled(true);
     window.addEventListener("appinstalled", handleInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
+    return () => window.removeEventListener("appinstalled", handleInstalled);
   }, []);
 
   const ios = isIos();
-  // Only show the banner when there's a genuine one-tap path: Chrome/Edge
-  // has actually handed us the native install event, or we're on iOS where
-  // the Share-sheet step is unavoidable (no install API exists there at
-  // all). Otherwise stay hidden rather than show a button with no menu
-  // instructions attached to it that wouldn't actually do anything yet.
-  const canShow = !installed && !dismissed && (deferredPrompt != null || ios);
+  const canShow = !installed && !dismissed;
 
   const promptInstall = useCallback(async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) return "unavailable";
     deferredPrompt.prompt();
     try {
       await deferredPrompt.userChoice;
     } catch {
       // ignore — user dismissed the native dialog
     }
-    setDeferredPrompt(null);
+    clearDeferredPrompt();
+    return "prompted";
   }, [deferredPrompt]);
 
   const dismiss = useCallback(() => {

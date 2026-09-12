@@ -1,6 +1,7 @@
 import { X, Download } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
+import { useToast } from "@/components/ui/use-toast";
 
 /**
  * Prompts the user to add the app to their home screen. Not sticky on
@@ -12,12 +13,25 @@ import { useInstallPrompt } from "@/hooks/useInstallPrompt";
  * declares display:standalone), the address bar disappears entirely — the
  * only fix that behaves the same on every visitor's device, rather than a
  * per-browser setting each person would have to find themselves.
+ *
+ * The button is always shown (not just once Chrome hands us a native
+ * prompt) — see useInstallPrompt.js for why. Tapping it either triggers the
+ * real native install dialog, or — on a browser that hasn't offered one —
+ * shows a single short toast instead of doing nothing silently.
  */
 export default function InstallAppBanner() {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { canShow, isIos, canPromptNatively, promptInstall, dismiss } = useInstallPrompt();
 
   if (!canShow) return null;
+
+  const handleInstallClick = async () => {
+    const result = await promptInstall();
+    if (result === "unavailable") {
+      toast({ title: t("install.unavailableToast") });
+    }
+  };
 
   return (
     <div className="relative flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-card dark:to-card text-white rounded-xl px-3 py-2 mx-2 mt-2">
@@ -27,18 +41,15 @@ export default function InstallAppBanner() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{t("install.title")}</p>
         {/* Only iOS gets a description line — Apple gives no installable-app
-            API at all, so the Share-sheet step is unavoidable there. On
-            Android/Chrome the button below is a genuine one-tap action, so
-            no extra text (and definitely no "open this menu" instructions)
-            is needed. */}
+            API at all, so the Share-sheet step is unavoidable there. */}
         {!canPromptNatively && isIos && (
           <p className="text-xs text-slate-300 truncate">{t("install.iosInstructions")}</p>
         )}
       </div>
-      {canPromptNatively && (
+      {!isIos && (
         <button
           type="button"
-          onClick={promptInstall}
+          onClick={handleInstallClick}
           className="text-xs font-semibold bg-white text-slate-900 px-3 py-2 rounded-lg flex-shrink-0 min-h-[36px]"
         >
           {t("install.installButton")}

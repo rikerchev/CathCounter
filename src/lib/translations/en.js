@@ -42,6 +42,7 @@ export const en = {
     "install.installButton": "Install",
     "install.iosInstructions": "Tap Share, then \"Add to Home Screen\".",
     "install.close": "Close",
+    "install.unavailableToast": "Your browser isn't offering to install this site yet. Check the browser's ⋮ menu for \"Install app\".",
     "common.hours": "h",
     "common.min": "min",
     "common.sec": "sec",

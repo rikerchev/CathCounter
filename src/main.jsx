@@ -1,3 +1,9 @@
+// Imported first and on its own, before React does anything: it attaches
+// the `beforeinstallprompt` listener at the very moment this script runs,
+// so we can never miss the event just because a component's useEffect
+// attached its own listener too late. See the file itself for why.
+import '@/lib/pwaInstallBus.js'
+
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from '@/App.jsx'
