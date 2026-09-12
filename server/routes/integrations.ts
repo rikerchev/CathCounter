@@ -1,7 +1,7 @@
-import { sendEmail } from "../lib/email.ts";
-import { invokeLLM } from "../lib/llm.ts";
-import type { AuthUser } from "../middleware/auth.ts";
-import { isAdmin } from "../middleware/auth.ts";
+import { sendEmail } from "../lib/email";
+import { invokeLLM } from "../lib/llm";
+import type { AuthUser } from "../middleware/auth";
+import { isAdmin } from "../middleware/auth";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
