@@ -37,6 +37,16 @@ export async function sendEmail(opts: {
     port: Number(port) || 587,
     secure: secure === "true", // true for port 465, false for 587/25 (STARTTLS)
     auth: user ? { user, pass: password } : undefined,
+    // nodemailer's own default timeouts are very generous (multiple
+    // minutes). A wrong host/port, a firewall silently dropping the
+    // connection, or a slow mail server can then leave sendMail() hanging
+    // far longer than any caller expects — e.g. it blocked user
+    // registration entirely, well past the frontend's own request timeout.
+    // Fail fast instead so callers can decide what to do (see auth.ts,
+    // which no longer lets a registration succeed-or-fail hinge on SMTP).
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 8000,
   });
 
   await transporter.sendMail({
