@@ -45,6 +45,20 @@ function publicUser(u: AuthUser) {
   return u;
 }
 
+// A misconfigured or unreachable SMTP server must never block an auth flow
+// that has already committed its real work (account created, OTP/token
+// stored in the DB). Without this, e.g. registration would time out and
+// look completely broken to the user just because email delivery is
+// broken/slow — the account still needs to exist so a fixed SMTP config or
+// a manual admin action can recover it later.
+async function trySendEmail(opts: Parameters<typeof sendEmail>[0]) {
+  try {
+    await sendEmail(opts);
+  } catch (e) {
+    console.error(`[auth] Failed to send email to ${opts.to}:`, e);
+  }
+}
+
 export async function handleAuthRoute(
   req: Request,
   path: string[],
@@ -58,8 +72,27 @@ export async function handleAuthRoute(
     const { email, password } = await req.json();
     if (!email || !password) return json({ error: "Missing email or password" }, 400);
 
-    const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
-    if (existing.length) return json({ error: "Този имейл вече е регистриран" }, 409);
+    const existing = await sql<{ id: string; email_verified: boolean }[]>`
+      SELECT id, email_verified FROM users WHERE email = ${email}
+    `;
+    if (existing.length) {
+      if (existing[0].email_verified) {
+        return json({ error: "Този имейл вече е регистриран" }, 409);
+      }
+      // An unverified account for this email already exists — most likely
+      // a previous registration whose confirmation code never arrived (bad
+      // SMTP config) or whose response the client never saw (a timeout).
+      // Re-send a fresh code instead of dead-ending the user with
+      // "already registered" and no way forward. The stored password is
+      // left untouched — only the emailed OTP can actually unlock it.
+      const code = await issueOtp(email, "verify_email");
+      await trySendEmail({
+        to: email,
+        subject: "Потвърдете имейла си — CatchCount",
+        text: `Вашият код за потвърждение е: ${code} (валиден ${OTP_TTL_MINUTES} минути)`,
+      });
+      return json({ success: true });
+    }
 
     const first = await isFirstUser();
     const passwordHash = await hashPassword(password);
@@ -77,7 +110,7 @@ export async function handleAuthRoute(
     }
 
     const code = await issueOtp(email, "verify_email");
-    await sendEmail({
+    await trySendEmail({
       to: email,
       subject: "Потвърдете имейла си — CatchCount",
       text: `Вашият код за потвърждение е: ${code} (валиден ${OTP_TTL_MINUTES} минути)`,
@@ -89,7 +122,7 @@ export async function handleAuthRoute(
   if (action === "resend-otp" && req.method === "POST") {
     const { email } = await req.json();
     const code = await issueOtp(email, "verify_email");
-    await sendEmail({
+    await trySendEmail({
       to: email,
       subject: "Нов код за потвърждение — CatchCount",
       text: `Вашият нов код е: ${code} (валиден ${OTP_TTL_MINUTES} минути)`,
@@ -188,7 +221,7 @@ export async function handleAuthRoute(
         VALUES (${email}, ${hash}, 'password_reset', ${expires})
       `;
       const link = `${env.PUBLIC_APP_URL}/reset-password?token=${token}`;
-      await sendEmail({
+      await trySendEmail({
         to: email,
         subject: "Възстановяване на парола — CatchCount",
         html: `<p>Натиснете <a href="${link}">тук</a>, за да зададете нова парола. Линкът е валиден ${RESET_TTL_MINUTES} минути.</p>`,
@@ -253,7 +286,7 @@ export async function handleAuthRoute(
       VALUES (${email}, ${hash}, 'password_reset', ${expires})
     `;
     const link = `${env.PUBLIC_APP_URL}/reset-password?token=${token}`;
-    await sendEmail({
+    await trySendEmail({
       to: email,
       subject: "Поканени сте в CatchCount",
       html: `<p>Създаден Ви е акаунт в CatchCount. Натиснете <a href="${link}">тук</a>, за да зададете парола (валидно 24 часа).</p>`,
