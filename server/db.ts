@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { env } from "./env";
+import { env } from "./env.js";
 
 // A single shared connection. `postgres` (porsager/postgres) manages
 // pooling internally and works the same whether this module is loaded once

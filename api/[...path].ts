@@ -1,4 +1,4 @@
-import { handleRequest } from "../server/router";
+import { handleRequest } from "../server/router.js";
 
 // Vercel Functions entry point (Node.js runtime — needed for a raw TCP
 // connection to Postgres; the Edge runtime can't do that). This single

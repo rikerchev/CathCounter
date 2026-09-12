@@ -1,11 +1,11 @@
-import { env } from "./env";
-import { getUserFromRequest } from "./middleware/auth";
-import { handleAuthRoute } from "./routes/auth";
-import { handleEntitiesRoute } from "./routes/entities";
-import { handleFunctionsRoute } from "./routes/functions";
-import { handleCatchPhotosRoute } from "./routes/catchPhotos";
-import { handleIntegrationsRoute } from "./routes/integrations";
-import { handleAdminSettingsRoute } from "./routes/adminSettings";
+import { env } from "./env.js";
+import { getUserFromRequest } from "./middleware/auth.js";
+import { handleAuthRoute } from "./routes/auth.js";
+import { handleEntitiesRoute } from "./routes/entities.js";
+import { handleFunctionsRoute } from "./routes/functions.js";
+import { handleCatchPhotosRoute } from "./routes/catchPhotos.js";
+import { handleIntegrationsRoute } from "./routes/integrations.js";
+import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
 // handler. Deliberately has no opinion about HOW it's served — main.ts wraps

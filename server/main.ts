@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { createServer } from "node:http";
 import { createServerAdapter } from "@whatwg-node/server";
-import { env } from "./env";
-import { handleRequest } from "./router";
+import { env } from "./env.js";
+import { handleRequest } from "./router.js";
 
 // Standalone entry point — only needed if you ever want to self-host this
 // backend as one long-running process (a VPS, Render, Railway, ...) instead

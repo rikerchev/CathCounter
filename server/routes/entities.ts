@@ -1,10 +1,10 @@
-import { sql } from "../db";
-import { ENTITIES } from "../schema/entities.generated";
-import type { EntityDef } from "../schema/entities.generated";
-import type { AuthUser } from "../middleware/auth";
-import { isAdmin } from "../middleware/auth";
-import { isAllowed } from "../middleware/authorize";
-import { handleUserEntityRoute } from "./userEntity";
+import { sql } from "../db.js";
+import { ENTITIES } from "../schema/entities.generated.js";
+import type { EntityDef } from "../schema/entities.generated.js";
+import type { AuthUser } from "../middleware/auth.js";
+import { isAdmin } from "../middleware/auth.js";
+import { isAllowed } from "../middleware/authorize.js";
+import { handleUserEntityRoute } from "./userEntity.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

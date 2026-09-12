@@ -1,4 +1,4 @@
-import { getConfig } from "./settings";
+import { getConfig } from "./settings.js";
 
 /**
  * Replaces base44's `integrations.Core.InvokeLLM`. Since this feature isn't

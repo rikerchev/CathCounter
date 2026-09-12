@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { getConfig } from "./settings";
+import { getConfig } from "./settings.js";
 
 /**
  * Sends email via a plain SMTP server — no paid third-party email API

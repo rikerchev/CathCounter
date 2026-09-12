@@ -1,5 +1,5 @@
 import postgres from "postgres";
-import { env } from "../env";
+import { env } from "../env.js";
 
 const schemaPath = new URL("../schema/schema.sql", import.meta.url);
 const schema = await Deno.readTextFile(schemaPath);

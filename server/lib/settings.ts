@@ -1,5 +1,5 @@
-import { sql } from "../db";
-import { env } from "../env";
+import { sql } from "../db.js";
+import { env } from "../env.js";
 
 // Every key that can be set through the Setup Wizard instead of server/.env.
 // DATABASE_URL, JWT_SECRET, PORT, and PUBLIC_APP_URL are deliberately absent —

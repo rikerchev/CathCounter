@@ -1,12 +1,12 @@
-import { sql } from "../db";
-import { env } from "../env";
-import { hashPassword, verifyPassword } from "../lib/password";
-import { signToken } from "../lib/jwt";
-import { randomOtpCode, randomToken, sha256Hex } from "../lib/hash";
-import { sendEmail } from "../lib/email";
-import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../lib/googleOAuth";
-import type { AuthUser } from "../middleware/auth";
-import { isAdmin } from "../middleware/auth";
+import { sql } from "../db.js";
+import { env } from "../env.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+import { signToken } from "../lib/jwt.js";
+import { randomOtpCode, randomToken, sha256Hex } from "../lib/hash.js";
+import { sendEmail } from "../lib/email.js";
+import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../lib/googleOAuth.js";
+import type { AuthUser } from "../middleware/auth.js";
+import { isAdmin } from "../middleware/auth.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
