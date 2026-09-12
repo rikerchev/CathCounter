@@ -1,5 +1,5 @@
 import { env } from "./env.js";
-import { sql } from "./db.js";
+import { sql, reconnect } from "./db.js";
 import { absoluteUrl } from "./lib/url.js";
 import { getUserFromRequest } from "./middleware/auth.js";
 import { handleAuthRoute } from "./routes/auth.js";
@@ -69,8 +69,8 @@ async function route(req: Request): Promise<Response> {
     // activity toward Supabase's free-tier "pause after 7 days with no
     // database activity" rule — see docs on that pausing behavior:
     // https://supabase.com/docs/guides/platform/free-project-pausing
-    // This is unrelated to (and does not replace) the query-timeout /
-    // auto-reconnect logic in db.ts, which is what actually fixed the
+    // This is unrelated to (and does not replace) the request-level
+    // timeout/reconnect below, which is what actually fixed the
     // registration/login hangs — this cron only prevents the separate,
     // much rarer case of the whole project going fully inactive.
     if (segments[1] === "cron" && segments[2] === "keep-alive") {
@@ -99,7 +99,46 @@ async function route(req: Request): Promise<Response> {
   });
 }
 
+// Vercel can freeze a function's container between requests and thaw it
+// later with a TCP socket that looks alive locally but was silently
+// dropped on the wire during the freeze (a NAT/load balancer timeout) — the
+// very first query sent over a now-stale connection can then hang forever
+// with no error at all, which is what made registration/login hang
+// indefinitely before this existed.
+//
+// Rather than intercepting individual `sql` calls (tried before — it broke
+// postgres.js's own dynamic-query helpers in production, see db.ts), the
+// whole request is raced against a timeout here. If it fires: the caller
+// gets a clean error instead of hanging, and the DB connection is thrown
+// away so the *next* request gets a fresh one instead of reusing the
+// (probably dead) one — `sql` is a live-reassignable export (`export let`),
+// so every file importing it automatically picks up the replacement.
+const REQUEST_TIMEOUT_MS = 20000;
+
 export async function handleRequest(req: Request): Promise<Response> {
-  const res = await route(req);
-  return withCors(res);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const workPromise = route(req).then(withCors);
+  // If the real work finishes late anyway, don't let that become an
+  // unhandled rejection just because we stopped waiting on it below.
+  workPromise.catch(() => {});
+
+  const timeoutPromise = new Promise<Response>((resolve) => {
+    timeoutId = setTimeout(() => {
+      reconnect();
+      resolve(
+        withCors(
+          new Response(JSON.stringify({ error: "Заявката отне твърде дълго време" }), {
+            status: 504,
+            headers: { "content-type": "application/json" },
+          }),
+        ),
+      );
+    }, REQUEST_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([workPromise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
