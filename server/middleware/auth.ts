@@ -1,5 +1,5 @@
-import { sql } from "../db.ts";
-import { verifyToken } from "../lib/jwt.ts";
+import { sql } from "../db";
+import { verifyToken } from "../lib/jwt";
 
 export interface AuthUser {
   id: string;
