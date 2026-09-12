@@ -16,4 +16,15 @@ export const sql = postgres(env.DATABASE_URL, {
   ssl: "prefer",
   max: 1,
   prepare: false,
+  // Vercel can freeze a function's container between requests and thaw it
+  // later with a TCP socket that looks fine locally but was silently
+  // dropped on the wire during the freeze (a NAT/load balancer timeout) —
+  // `postgres` then tries to reuse that dead connection and a query can
+  // hang forever with no error, which is exactly what was blocking
+  // registration (and anything else touching the DB) intermittently.
+  // Closing idle connections quickly and capping connect time means a
+  // stale connection gets replaced with a fresh one instead of hanging.
+  idle_timeout: 20,
+  connect_timeout: 10,
+  max_lifetime: 60 * 5,
 });
