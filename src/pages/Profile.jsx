@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Download, Upload, Database } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
 import { useAuth } from "@/lib/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
+import { exportUserData, importUserData } from "@/lib/dataPortability";
 
 const loadLocations = () => {
   try {
@@ -27,6 +28,9 @@ export default function Profile() {
   const [upgrading, setUpgrading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false);
+  const [exportingData, setExportingData] = useState(false);
+  const [importingData, setImportingData] = useState(false);
+  const importFileRef = useRef(null);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -43,6 +47,54 @@ export default function Profile() {
       toast({ title: t("profile.passwordEmailSent") });
     } finally {
       setSendingPasswordEmail(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExportingData(true);
+    try {
+      const result = await exportUserData(user?.id);
+      if (result.catchesCount === 0) {
+        toast({ title: t("profile.noDataToExport") });
+      } else {
+        toast({
+          title: t("profile.exportSuccess")
+            .replace("{catches}", result.catchesCount)
+            .replace("{photos}", result.photosCount),
+        });
+      }
+    } catch (err) {
+      toast({ title: t("profile.exportFailed"), description: err.message, variant: "destructive" });
+    } finally {
+      setExportingData(false);
+    }
+  };
+
+  const handleImportFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setImportingData(true);
+    try {
+      const result = await importUserData(file, {
+        onConfirm: ({ catchesCount, photosCount }) =>
+          window.confirm(
+            t("profile.importConfirm")
+              .replace("{catches}", catchesCount)
+              .replace("{photos}", photosCount),
+          ),
+      });
+      if (result) {
+        toast({
+          title: t("profile.importSuccess")
+            .replace("{catches}", result.catchesCount)
+            .replace("{photos}", result.photosCount),
+        });
+      }
+    } catch (err) {
+      toast({ title: t("profile.importFailed"), description: err.message, variant: "destructive" });
+    } finally {
+      setImportingData(false);
     }
   };
 
@@ -326,6 +378,42 @@ export default function Profile() {
             <Plus className="w-4 h-4 mr-1" /> {t("profile.requestNewRole")}
           </Button>
         )}
+      </div>
+
+      {/* Export / Import data */}
+      <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-cyan-600" />
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("profile.dataTitle")}</h2>
+        </div>
+        <p className="text-xs text-slate-400">{t("profile.dataDesc")}</p>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={handleExportData}
+            disabled={exportingData}
+          >
+            {exportingData ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+            {t("profile.exportData")}
+          </Button>
+          <Button
+            variant="outline"
+            className="h-11"
+            onClick={() => importFileRef.current?.click()}
+            disabled={importingData}
+          >
+            {importingData ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+            {t("profile.importData")}
+          </Button>
+          <input
+            ref={importFileRef}
+            type="file"
+            accept=".zip"
+            className="hidden"
+            onChange={handleImportFileChange}
+          />
+        </div>
       </div>
 
       {/* Logout */}
