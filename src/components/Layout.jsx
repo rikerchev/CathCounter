@@ -285,8 +285,12 @@ export default function Layout() {
         </header>
 
       {/* Mobile menu */}
+      {/* z-[60]: must render above the fixed "Синхронизиране..." pill
+          (SyncStatus, z-50) — otherwise that pill, which is centered at the
+          bottom of the screen, visually sits on top of this panel's bottom
+          area (where the language selector lives) and blocks clicks on it. */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-40">
+        <div className="lg:hidden fixed inset-0 z-[60]">
           <div className="absolute inset-0 bg-black/30" onClick={() => setMobileOpen(false)} />
           <div className="absolute right-0 top-0 bottom-0 w-64 bg-white shadow-xl dark:bg-card flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-border flex-shrink-0">
