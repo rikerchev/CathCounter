@@ -20,7 +20,8 @@ import { Camera, Fish, Loader2, Thermometer, Cloud, Wind } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { fetchWeather } from "@/lib/weather";
 import { saveCatch } from "@/lib/catchRepository";
-import { uploadPhotoToCloud } from "@/lib/pendingPhotos";
+import { savePendingPhoto } from "@/lib/pendingPhotos";
+import { syncAll } from "@/lib/syncEngine";
 import SpeciesSelector from "@/components/SpeciesSelector";
 
 const formatDuration = (s) => {
@@ -39,9 +40,8 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fetchingWeather, setFetchingWeather] = useState(false);
   const fileInputRef = useRef(null);
@@ -56,7 +56,6 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
       setCloudiness("");
       setWindSpeed("");
       setPhotoPreview(null);
-      setPhotoUrl(null);
       setPhotoFile(null);
     }
   }, [open]);
@@ -82,36 +81,26 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Show the local preview immediately — no network involved at all. The
+    // photo itself is only compressed and written to the local pending-
+    // photos gallery (see handleSave), then uploaded in the background by
+    // the sync engine (src/lib/syncEngine.js) whenever the device has a
+    // connection — never something the "Save" tap has to wait on.
     setPhotoPreview(URL.createObjectURL(file));
-    setPhotoFile(file);
-    setPhotoUrl(null);
-
-    // Upload immediately
-    setUploading(true);
+    setProcessingPhoto(true);
     try {
-      const cloudUrl = await uploadPhotoToCloud(file);
-      setPhotoUrl(cloudUrl);
-    } catch (err) {
-      // Keep the file — we'll retry on save
-      console.error("Photo upload failed, will retry on save:", err);
+      const { compressImage } = await import("@/lib/imageCompression");
+      setPhotoFile(await compressImage(file));
+    } catch {
+      setPhotoFile(file); // never lose the photo — fall back to the original
     } finally {
-      setUploading(false);
+      setProcessingPhoto(false);
     }
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // If photo exists but wasn't uploaded yet, upload now
-      let finalPhotoUrl = photoUrl;
-      if (photoFile && !finalPhotoUrl) {
-        try {
-          finalPhotoUrl = await uploadPhotoToCloud(photoFile);
-        } catch (err) {
-          console.error("Photo upload retry failed:", err);
-        }
-      }
-
       const payload = {
         ...catchData,
         species: species === "other" ? (customSpecies.trim() || undefined) : (species || undefined),
@@ -120,22 +109,26 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         air_temperature: airTemp ? parseFloat(airTemp) : undefined,
         cloudiness: cloudiness || undefined,
         wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
-        photo_url: finalPhotoUrl || undefined,
+        // photo_url intentionally left unset — the photo (if any) is saved
+        // locally below, linked to the catch's id, and gets its photo_url
+        // filled in once the background upload completes.
         latitude: catchData.lat != null ? catchData.lat : undefined,
         longitude: catchData.lng != null ? catchData.lng : undefined,
         date: new Date().toISOString(),
       };
 
-      if (onSave) {
-        const created = await onSave(payload);
-        // If photo was uploaded but catch was created without it, update now
-        if (finalPhotoUrl && created && !created.photo_url) {
-          const { updateCatchPhoto } = await import("@/lib/catchRepository");
-          await updateCatchPhoto(created.id, created.created_date, finalPhotoUrl);
-        }
-      } else {
-        await saveCatch(payload);
+      const created = onSave ? await onSave(payload) : await saveCatch(payload);
+
+      if (photoFile && created?.id) {
+        // Local write only (IndexedDB) — fast and works offline. Never
+        // awaited past this point, so it can't slow down or block Save. The
+        // background sync wakes up right after and picks up the upload
+        // whenever there's a connection.
+        savePendingPhoto(photoFile, null, created.id)
+          .then(() => syncAll())
+          .catch(() => {});
       }
+
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -200,7 +193,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
                 <div className="text-center text-slate-400">
                   <Camera className="w-8 h-8 mx-auto mb-1" />
                   <span className="text-xs">
-                    {uploading ? t("saveCatch.uploading") : t("saveCatch.tapToUpload")}
+                    {processingPhoto ? t("saveCatch.uploading") : t("saveCatch.tapToUpload")}
                   </span>
                 </div>
               )}
@@ -335,7 +328,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         <DialogFooter>
           <Button
             onClick={handleSave}
-            disabled={saving || uploading}
+            disabled={saving || processingPhoto}
             className="w-full bg-cyan-600 hover:bg-cyan-700 h-11"
           >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t("saveCatch.save")}

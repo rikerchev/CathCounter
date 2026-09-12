@@ -10,7 +10,7 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-// The client compresses every photo to roughly 400-500KB before it ever gets
+// The client compresses every photo to roughly 100-150KB before it ever gets
 // here (see src/lib/imageCompression.js) so a large number of catches still
 // fit comfortably inside a free Supabase Postgres database. This cap is just
 // a safety net against a client that skipped compression — not the target.

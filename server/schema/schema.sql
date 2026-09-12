@@ -158,7 +158,7 @@ CREATE INDEX idx_catches_created_by ON catches(created_by_id);
 -- Catch photos are stored directly in the database (BYTEA) instead of an
 -- external object store (S3/R2/B2/...) — no separate paid file-storage
 -- account is needed. The client compresses every photo to roughly
--- 400-500KB before upload (src/lib/imageCompression.js) specifically so a
+-- 100-150KB before upload (src/lib/imageCompression.js) specifically so a
 -- large number of catches still fit inside a free-tier Postgres database
 -- (e.g. Supabase's free plan). catches.photo_url holds the URL
 -- (/api/catch-photos/:id) that serves the bytes below.

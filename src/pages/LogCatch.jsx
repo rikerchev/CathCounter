@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +16,9 @@ import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation } from "@/lib/geolocation";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch } from "@/lib/catchRepository";
+import { savePendingPhoto } from "@/lib/pendingPhotos";
+import { compressImage } from "@/lib/imageCompression";
+import { syncAll } from "@/lib/syncEngine";
 
 export default function LogCatch() {
   const { t, lang } = useLanguage();
@@ -43,11 +45,10 @@ export default function LogCatch() {
   const [windSpeed, setWindSpeed] = useState("");
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [processingPhoto, setProcessingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
-  const uploadPromiseRef = useRef(null);
+  const photoFileRef = useRef(null);
 
   const loadTackle = useCallback(async () => {
     try {
@@ -74,19 +75,21 @@ export default function LogCatch() {
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Local preview only — no network call here at all. The photo is
+    // compressed on-device (while the user is still filling in the rest of
+    // the form) and held until Save, which writes it straight to the local
+    // pending-photos gallery; the background sync engine
+    // (src/lib/syncEngine.js) uploads it whenever the device is online,
+    // exactly like the catch record itself.
     setPhotoPreview(URL.createObjectURL(file));
-    setUploading(true);
-    uploadPromiseRef.current = (async () => {
-      try {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        setPhotoUrl(file_url);
-        return file_url;
-      } catch {
-        return null;
-      } finally {
-        setUploading(false);
-      }
-    })();
+    setProcessingPhoto(true);
+    try {
+      photoFileRef.current = await compressImage(file);
+    } catch {
+      photoFileRef.current = file; // never lose the photo — fall back to the original
+    } finally {
+      setProcessingPhoto(false);
+    }
   };
 
   const handleGetLocation = async () => {
@@ -131,17 +134,21 @@ export default function LogCatch() {
         cloudiness: cloudiness || undefined,
         wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
         notes: notes || undefined,
-        photo_url: photoUrl || undefined,
+        // photo_url intentionally left unset — the photo (if any) is linked
+        // to the catch's id right below instead, and gets its photo_url
+        // filled in once the background upload completes.
         date: new Date().toISOString(),
       });
-      // If photo upload is still in progress, update the catch in the background
-      if (uploadPromiseRef.current && created?.id) {
-        const catchId = created.id;
-        uploadPromiseRef.current.then((url) => {
-          if (url) {
-            base44.entities.Catch.update(catchId, { photo_url: url }).catch(() => {});
-          }
-        });
+      if (photoFileRef.current && created?.id) {
+        // Local write only (IndexedDB) — fast and works offline. Never
+        // awaited, so it can't slow down or block the save/navigation below.
+        // The background sync kicked off right after picks the photo up and
+        // uploads it (and anything else pending) whenever there's a
+        // connection — this call is just what wakes that up sooner instead
+        // of waiting for the next app launch or reconnect event.
+        savePendingPhoto(photoFileRef.current, null, created.id)
+          .then(() => syncAll())
+          .catch(() => {});
       }
       toast({ title: t("logCatch.saved") });
       navigate(`/catch-details?id=${created.id}`);
@@ -325,7 +332,7 @@ export default function LogCatch() {
               <div className="text-center text-slate-400">
                 <Camera className="w-8 h-8 mx-auto mb-1" />
                 <span className="text-xs">
-                  {uploading ? t("saveCatch.uploading") : t("saveCatch.tapToUpload")}
+                  {processingPhoto ? t("saveCatch.uploading") : t("saveCatch.tapToUpload")}
                 </span>
               </div>
             )}

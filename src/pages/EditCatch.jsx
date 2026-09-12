@@ -18,7 +18,8 @@ import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation } from "@/lib/geolocation";
 import { listBait, saveBait } from "@/lib/baitRepository";
 import { getCatch, saveCatch } from "@/lib/catchRepository";
-import { savePendingPhoto, getPendingPhotosByCatch, uploadPendingPhoto, uploadPhotoToCloud } from "@/lib/pendingPhotos";
+import { savePendingPhoto, getPendingPhotosByCatch, uploadPendingPhoto } from "@/lib/pendingPhotos";
+import { syncAll } from "@/lib/syncEngine";
 import SpeciesSelector from "@/components/SpeciesSelector";
 
 const cloudOptions = ["clear", "partly_cloudy", "cloudy", "overcast"];
@@ -121,15 +122,19 @@ export default function EditCatch() {
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Local-first, same as logging a new catch: no network call here. The
+    // photo is compressed and written straight to the local pending-photos
+    // gallery, linked to this catch's id — the background sync engine
+    // (src/lib/syncEngine.js) uploads it whenever the device is online, and
+    // photo_url updates itself once that finishes (see updateCatchPhoto in
+    // src/lib/catchRepository.js). The existing photo_url (if any) is left
+    // untouched here on purpose, so nothing is lost if Save happens before
+    // the new photo finishes uploading in the background.
     setPhotoPreview(URL.createObjectURL(file));
     setUploading(true);
-    // Try cloud upload first, then save to local gallery — linked to catch by ID
     try {
-      const cloudUrl = await uploadPhotoToCloud(file);
-      pendingPhotoIdRef.current = await savePendingPhoto(file, cloudUrl, id);
-      setPhotoUrl(cloudUrl);
-    } catch {
       pendingPhotoIdRef.current = await savePendingPhoto(file, null, id);
+      syncAll().catch(() => {}); // wake the background sync up sooner
     } finally {
       setUploading(false);
     }

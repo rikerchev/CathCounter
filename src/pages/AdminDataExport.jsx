@@ -1,19 +1,25 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Loader2, Database } from "lucide-react";
+import { Download, Upload, Loader2, Database, Fish } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportWithHints, parseMultiSheetExcel, rowToEntity } from "@/lib/excelUtils";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { EXPORT_GROUPS } from "@/lib/exportSchemas";
 import { calculateCountryPrice } from "@/lib/pricing";
 import { getStructureSheets } from "@/lib/appStructure";
+import { useAuth } from "@/lib/AuthContext";
+import { exportUserData, importUserData } from "@/lib/dataPortability";
 
 export default function AdminDataExport() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [exporting, setExporting] = useState("");
   const [importing, setImporting] = useState("");
+  const [exportingCatches, setExportingCatches] = useState(false);
+  const [importingCatches, setImportingCatches] = useState(false);
   const fileInputRef = useRef(null);
+  const catchesFileInputRef = useRef(null);
   const pendingGroup = useRef(null);
 
   const safeList = async (entity, limit = 500) => {
@@ -183,6 +189,60 @@ export default function AdminDataExport() {
       setImporting("");
       pendingGroup.current = null;
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // ── Catches & Photos (personal export/import) ────────────
+  // Separate from the admin bulk-entity export above: every user's own
+  // fishing catches (their "sessions" reappear automatically once catches
+  // are re-imported — see src/pages/Sessions.jsx, sessions have no
+  // separate stored record) together with attached photos, as a single
+  // .zip via src/lib/dataPortability.js. Reuses the same saveCatch() /
+  // savePendingPhoto() / syncAll() primitives the rest of the app uses, so
+  // imported data behaves exactly like normally-logged catches.
+
+  const handleExportCatches = async () => {
+    setExportingCatches(true);
+    try {
+      const result = await exportUserData(user?.id);
+      if (result.catchesCount === 0) {
+        toast({ title: "Нямате улови за експортиране" });
+      } else {
+        toast({ title: `Готово — изтеглени ${result.catchesCount} улова и ${result.photosCount} снимки` });
+      }
+    } catch (e) {
+      toast({ title: "Грешка при експорт", description: e.message, variant: "destructive" });
+    } finally {
+      setExportingCatches(false);
+    }
+  };
+
+  const handleImportCatchesClick = () => {
+    if (catchesFileInputRef.current) {
+      catchesFileInputRef.current.value = "";
+      catchesFileInputRef.current.click();
+    }
+  };
+
+  const handleImportCatchesFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingCatches(true);
+    try {
+      const result = await importUserData(file, {
+        onConfirm: ({ catchesCount, photosCount }) =>
+          window.confirm(
+            `Файлът съдържа ${catchesCount} улова и ${photosCount} снимки. Ще бъдат добавени като нови записи (повторен импорт на същия файл ще създаде дубликати). Продължавате ли?`
+          ),
+      });
+      if (result) {
+        toast({ title: `Готово — добавени ${result.catchesCount} улова и ${result.photosCount} снимки` });
+      }
+    } catch (e) {
+      toast({ title: "Грешка при импорт", description: e.message, variant: "destructive" });
+    } finally {
+      setImportingCatches(false);
+      if (catchesFileInputRef.current) catchesFileInputRef.current.value = "";
     }
   };
 
@@ -378,6 +438,48 @@ export default function AdminDataExport() {
           </div>
         </div>
       </div>
+
+      {/* Catches & Photos — personal backup (own catches + attached photos) */}
+      <div className="p-4 rounded-xl bg-white border border-slate-100 dark:bg-card dark:border-border shadow-sm flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center">
+            <Fish className="w-5 h-5 text-cyan-600" />
+          </div>
+          <div>
+            <p className="font-medium text-slate-700 dark:text-foreground">Улови и снимки</p>
+            <p className="text-xs text-slate-400">Резервно копие на вашите улови и прикачените снимки (сесиите се виждат автоматично от тях)</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCatches}
+            disabled={exportingCatches || importingCatches}
+            className="min-h-[44px]"
+          >
+            {exportingCatches ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+            Експорт
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleImportCatchesClick}
+            disabled={exportingCatches || importingCatches}
+            className="min-h-[44px]"
+          >
+            {importingCatches ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+            Импорт
+          </Button>
+        </div>
+      </div>
+      <input
+        ref={catchesFileInputRef}
+        type="file"
+        accept=".zip"
+        onChange={handleImportCatchesFileChange}
+        className="hidden"
+      />
 
       {/* Source-code ZIP export was a Base44-hosting convenience (it recreated
           the app's package.json/vite.config.js/etc. as a downloadable zip —

@@ -1,13 +1,16 @@
 // Client-side photo compression: every catch photo is resized/re-encoded in
 // the browser (canvas) BEFORE it ever leaves the device, so what actually
 // gets stored (in Postgres, see server/routes/catchPhotos.ts) lands in the
-// ~400-500KB range. That keeps a free Supabase database able to hold a large
-// number of catches instead of a handful of full-resolution phone photos.
+// ~100-150KB range. That keeps a free Supabase database able to hold a large
+// number of catches, and keeps every photo small enough to write to and read
+// back from IndexedDB quickly on the local-first save path (see
+// src/lib/pendingPhotos.js) — nothing about compression itself needs network
+// access, it all happens on-device before the file ever touches a queue.
 
-const TARGET_MAX_BYTES = 500 * 1024; // upper end of the 400-500KB target
-const TARGET_MIN_BYTES = 350 * 1024; // don't over-compress past this if avoidable
-const MAX_DIMENSION = 1920; // long edge, in pixels — plenty for a catch photo
-const MIN_DIMENSION = 480; // never shrink smaller than this while chasing size
+const TARGET_MAX_BYTES = 150 * 1024; // upper end of the 100-150KB target
+const TARGET_MIN_BYTES = 100 * 1024; // don't over-compress past this if avoidable
+const MAX_DIMENSION = 1600; // long edge, in pixels — still plenty for a catch photo
+const MIN_DIMENSION = 400; // never shrink smaller than this while chasing size
 
 function loadImage(file) {
   return new Promise((resolve, reject) => {
@@ -65,15 +68,17 @@ export async function compressImage(file, opts = {}) {
     let height = Math.max(1, Math.round(img.naturalHeight * scale));
 
     let canvas = drawToCanvas(img, width, height);
-    let quality = 0.85;
+    let quality = 0.8;
     let blob = await canvasToBlob(canvas, quality);
     if (!blob) return file;
 
     // Step 1: reduce JPEG quality first (cheapest way to cut size without
-    // losing resolution).
+    // losing resolution). A ~100-150KB target needs quality pushed lower and
+    // more iterations than the previous ~400-500KB target did to reliably
+    // converge.
     let guard = 0;
-    while (blob.size > targetMaxBytes && quality > 0.35 && guard < 8) {
-      quality = Math.round((quality - 0.1) * 100) / 100;
+    while (blob.size > targetMaxBytes && quality > 0.22 && guard < 10) {
+      quality = Math.round((quality - 0.08) * 100) / 100;
       blob = await canvasToBlob(canvas, quality);
       guard++;
     }
@@ -81,19 +86,19 @@ export async function compressImage(file, opts = {}) {
     // Step 2: if quality alone can't get there, shrink dimensions too and
     // retry at a slightly higher quality each time.
     guard = 0;
-    while (blob.size > targetMaxBytes && Math.max(width, height) > MIN_DIMENSION && guard < 6) {
+    while (blob.size > targetMaxBytes && Math.max(width, height) > MIN_DIMENSION && guard < 8) {
       width = Math.round(width * 0.85);
       height = Math.round(height * 0.85);
       canvas = drawToCanvas(img, width, height);
-      quality = Math.min(0.75, quality + 0.05);
+      quality = Math.min(0.6, quality + 0.05);
       blob = await canvasToBlob(canvas, quality);
       guard++;
     }
 
     // Optional: if we ended up much smaller than the target range, nudge
     // quality back up once — nice-to-have, never worth failing over.
-    if (blob.size < targetMinBytes && quality < 0.85) {
-      const better = await canvasToBlob(canvas, Math.min(0.85, quality + 0.15));
+    if (blob.size < targetMinBytes && quality < 0.8) {
+      const better = await canvasToBlob(canvas, Math.min(0.8, quality + 0.15));
       if (better && better.size <= targetMaxBytes) blob = better;
     }
 
