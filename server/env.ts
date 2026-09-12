@@ -53,4 +53,11 @@ export const env = {
   // --- llm (stubbed unless a key is supplied) ---
   LLM_PROVIDER: optional("LLM_PROVIDER", "none"), // "anthropic" | "openai" | "none"
   LLM_API_KEY: optional("LLM_API_KEY"),
+
+  // --- keep-alive cron (server/router.ts /api/cron/keep-alive) ---
+  // Not required. If set, Vercel Cron automatically sends it back as
+  // "Authorization: Bearer <value>" on the scheduled request, and the
+  // endpoint checks it. Left empty, the endpoint just accepts any request —
+  // acceptable since all it does is run a trivial read-only query.
+  CRON_SECRET: optional("CRON_SECRET"),
 };
