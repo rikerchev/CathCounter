@@ -58,12 +58,12 @@ export default function EditCatch() {
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
   const pendingPhotoIdRef = useRef(null);
-  const [hasPendingPhoto, setHasPendingPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
-    getCatch(id)
-      .then((c) => {
+    (async () => {
+      try {
+        const c = await getCatch(id);
         setRod(String(c.rod || 1));
         setRodModel(c.rod_model || "");
         setBait(c.bait || "");
@@ -89,9 +89,32 @@ export default function EditCatch() {
         setNotes(c.notes || "");
         setPhotoUrl(c.photo_url || null);
         setPhotoPreview(c.photo_url || null);
-      })
-      .catch(() => toast({ title: t("editCatch.notFound"), variant: "destructive" }))
-      .finally(() => setLoading(false));
+
+        if (!c.photo_url) {
+          // The photo may still be sitting locally, waiting for the
+          // background sync to upload it (src/lib/pendingPhotos.js) — show
+          // it from the local copy right away and finish the upload
+          // automatically here, no extra tap needed.
+          const pending = await getPendingPhotosByCatch(id);
+          if (pending.length > 0) {
+            setPhotoPreview(URL.createObjectURL(pending[0].blob));
+            setUploading(true);
+            for (const p of pending) {
+              const url = await uploadPendingPhoto(p);
+              if (url) {
+                setPhotoUrl(url);
+                setPhotoPreview(url);
+              }
+            }
+            setUploading(false);
+          }
+        }
+      } catch {
+        toast({ title: t("editCatch.notFound"), variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [id, toast, t]);
 
   const loadTackle = useCallback(async () => {
@@ -103,14 +126,6 @@ export default function EditCatch() {
   }, []);
 
   useEffect(() => { loadTackle(); }, [loadTackle]);
-
-  // Check for pending photos linked to this catch
-  useEffect(() => {
-    if (!id) return;
-    getPendingPhotosByCatch(id).then(photos => {
-      setHasPendingPhoto(photos.length > 0);
-    });
-  }, [id]);
 
   const baits = tackle.filter((b) => b.category === "bait" || b.category === "groundbait");
   const hooks = tackle.filter((b) => b.category === "hook");
@@ -165,18 +180,6 @@ export default function EditCatch() {
     setPhotoUrl(null);
     pendingPhotoIdRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleUploadPending = async () => {
-    const photos = await getPendingPhotosByCatch(id);
-    for (const p of photos) {
-      const url = await uploadPendingPhoto(p);
-      if (url) {
-        setPhotoUrl(url);
-        setPhotoPreview(url);
-        setHasPendingPhoto(false);
-      }
-    }
   };
 
   const handleSubmit = async (e) => {

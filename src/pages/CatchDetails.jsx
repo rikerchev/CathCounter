@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Loader2, ChevronLeft, MapPin, Clock, Tag, Ruler, Weight, Fish, Trash2, Calendar, Anchor, Thermometer, Cloud, Wind, Waves, Pencil, Upload, ImageIcon } from "lucide-react";
+import { Loader2, ChevronLeft, MapPin, Clock, Tag, Ruler, Weight, Fish, Trash2, Calendar, Anchor, Thermometer, Cloud, Wind, Waves, Pencil, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Image } from "@/components/ui/image";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import CatchMap from "@/components/CatchMap";
@@ -26,7 +25,8 @@ export default function CatchDetails() {
   const [catchItem, setCatchItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingPhotos, setPendingPhotos] = useState([]);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState(null);
+  const [syncingPhoto, setSyncingPhoto] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,23 +40,41 @@ export default function CatchDetails() {
       .finally(() => setLoading(false));
   }, [id, toast, t]);
 
-  const handleUploadPending = async () => {
-    setUploadingPhoto(true);
-    try {
+  // Show the locally-saved photo immediately (no need to wait for the
+  // upload) so opening a catch never looks like the photo is missing.
+  useEffect(() => {
+    if (pendingPhotos.length === 0) {
+      setPendingPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingPhotos[0].blob);
+    setPendingPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingPhotos]);
+
+  // Finish uploading it automatically in the background — same local-first
+  // flow used everywhere a catch photo is saved (SaveCatchDialog / LogCatch /
+  // EditCatch). Nothing here requires the user to tap anything; opening the
+  // catch is enough to kick the sync off.
+  useEffect(() => {
+    if (pendingPhotos.length === 0 || catchItem?.photo_url) return;
+    let cancelled = false;
+    setSyncingPhoto(true);
+    (async () => {
       for (const p of pendingPhotos) {
         const url = await uploadPendingPhoto(p);
+        if (cancelled) return;
         if (url) {
-          setCatchItem(prev => prev ? { ...prev, photo_url: url } : prev);
+          setCatchItem((prev) => (prev ? { ...prev, photo_url: url } : prev));
         }
       }
-      setPendingPhotos([]);
-      toast({ title: "Снимката е качена" });
-    } catch {
-      toast({ title: "Грешка при качване", variant: "destructive" });
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
+      if (!cancelled) {
+        setPendingPhotos([]);
+        setSyncingPhoto(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pendingPhotos, catchItem?.photo_url]);
 
   const handleDelete = async () => {
     if (!catchItem) return;
@@ -113,26 +131,29 @@ export default function CatchDetails() {
         <ChevronLeft className="w-4 h-4" /> {t("common.back")}
       </Link>
 
-      {catchItem.photo_url && (
-        <Image src={catchItem.photo_url} alt="catch" className="w-full h-64 rounded-2xl object-cover" />
-      )}
-      {pendingPhotos.length > 0 && !catchItem.photo_url && (
-        <div className="rounded-2xl bg-amber-50 border border-amber-200 p-4 flex items-center gap-3">
-          <ImageIcon className="w-8 h-8 text-amber-500 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-medium text-amber-800">Има снимка за качване</p>
-            <p className="text-xs text-amber-600">Снимката е запазена локално и чака качване</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-amber-300 text-amber-700 hover:bg-amber-100 min-h-[44px]"
-            onClick={handleUploadPending}
-            disabled={uploadingPhoto}
-          >
-            {uploadingPhoto ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
-            Качи
-          </Button>
+      {(catchItem.photo_url || pendingPreviewUrl) && (
+        <div className="relative">
+          {/* object-contain (not object-cover) — a fixed-height cropped box
+              was cutting off the top/bottom of portrait photos. This shows
+              the whole photo, letterboxed on a neutral background instead. */}
+          <img
+            src={catchItem.photo_url || pendingPreviewUrl}
+            alt="catch"
+            className="w-full max-h-[70vh] rounded-2xl object-contain bg-slate-100"
+          />
+          {!catchItem.photo_url && pendingPreviewUrl && (
+            <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">
+              {syncingPhoto ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" /> Синхронизиране...
+                </>
+              ) : (
+                <>
+                  <ImageIcon className="w-3 h-3" /> Изчаква интернет
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -13,7 +13,7 @@ import { compressImage } from "@/lib/imageCompression";
 
 // Save a photo to the local gallery (IndexedDB) — returns the pending photo ID
 // catchId links the photo to a catch upfront (no timestamp matching needed)
-// The file is compressed first (~400-500KB target) so the local copy and the
+// The file is compressed first (~100-150KB target) so the local copy and the
 // eventual cloud copy are the same small size — see imageCompression.js.
 export async function savePendingPhoto(file, cloudUrl = null, catchId = null) {
   const compact = await compressImage(file);
@@ -31,7 +31,7 @@ export async function savePendingPhoto(file, cloudUrl = null, catchId = null) {
 }
 
 // Try to upload a photo to the cloud, return URL or null. Compresses to
-// ~400-500KB first — the photo is stored directly in Postgres server-side
+// ~100-150KB first — the photo is stored directly in Postgres server-side
 // (server/routes/catchPhotos.ts), so keeping it small matters for fitting a
 // large number of catches inside a free-tier database.
 export async function uploadPhotoToCloud(file) {
