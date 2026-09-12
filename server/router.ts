@@ -1,4 +1,5 @@
 import { env } from "./env.js";
+import { sql } from "./db.js";
 import { absoluteUrl } from "./lib/url.js";
 import { getUserFromRequest } from "./middleware/auth.js";
 import { handleAuthRoute } from "./routes/auth.js";
@@ -60,6 +61,27 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "health") {
       return new Response(JSON.stringify({ ok: true }), {
+        headers: { "content-type": "application/json" },
+      });
+    }
+    // Hit once a day by a Vercel Cron job (see vercel.json). Actually
+    // touches the database (not just a static "ok") so it counts as real
+    // activity toward Supabase's free-tier "pause after 7 days with no
+    // database activity" rule — see docs on that pausing behavior:
+    // https://supabase.com/docs/guides/platform/free-project-pausing
+    // This is unrelated to (and does not replace) the query-timeout /
+    // auto-reconnect logic in db.ts, which is what actually fixed the
+    // registration/login hangs — this cron only prevents the separate,
+    // much rarer case of the whole project going fully inactive.
+    if (segments[1] === "cron" && segments[2] === "keep-alive") {
+      if (env.CRON_SECRET && req.headers.get("authorization") !== `Bearer ${env.CRON_SECRET}`) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      await sql`SELECT 1`;
+      return new Response(JSON.stringify({ ok: true, pinged: true }), {
         headers: { "content-type": "application/json" },
       });
     }
