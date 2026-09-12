@@ -67,7 +67,7 @@ export const sql: typeof client = new Proxy(client, {
 
     return Promise.race([
       queryPromise,
-      new Promise((resolve, reject) => {
+      new Promise((_, reject) => {
         setTimeout(() => {
           if (client === current) {
             // Deliberately NOT calling `client.end()` here. Several queries
@@ -84,14 +84,16 @@ export const sql: typeof client = new Proxy(client, {
             // max_lifetime instead of being torn down synchronously.
             client = createClient();
           }
-          // Retry the same query once on the replacement connection instead
-          // of just failing — a stale connection is exactly the case this
-          // whole mechanism exists to recover from, so the caller should
-          // only ever see an error if the retry ALSO fails (e.g. the DB is
-          // genuinely unreachable), not on every ordinary stale-connection
-          // hiccup. A brand-new connection is bounded by `connect_timeout`
-          // (10s) on its own, so this can't hang forever either.
-          Reflect.apply(client, client, args).then(resolve, reject);
+          // NOTE: this used to retry the same query on the replacement
+          // connection instead of just failing. That retry reused the same
+          // `args` (the tagged-template strings array) a second time and
+          // that corrupted query construction — Postgres came back with
+          // "syntax error at or near $1" (confirmed in production logs).
+          // postgres.js apparently caches per-query state keyed by that
+          // exact strings array reference, so replaying it is not safe.
+          // Simple failure here is correct and safe; the *next* fresh call
+          // (new `args`) on the new connection works fine.
+          reject(new Error("Database query timed out"));
         }, QUERY_TIMEOUT_MS);
       }),
     ]);
