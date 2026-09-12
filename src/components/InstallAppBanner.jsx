@@ -27,7 +27,11 @@ export default function InstallAppBanner() {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{t("install.title")}</p>
         <p className="text-xs text-slate-300 truncate">
-          {isIos && !canPromptNatively ? t("install.iosInstructions") : t("install.desc")}
+          {canPromptNatively
+            ? t("install.desc")
+            : isIos
+              ? t("install.iosInstructions")
+              : t("install.manualInstructions")}
         </p>
       </div>
       {canPromptNatively && (

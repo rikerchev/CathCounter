@@ -42,6 +42,7 @@ export const bg = {
     "install.desc": "Добави на началния екран — без адресна лента, по-бързо зареждане.",
     "install.installButton": "Инсталирай",
     "install.iosInstructions": "Натисни Споделяне, после \"Добави към начален екран\".",
+    "install.manualInstructions": "Отвори менюто ⋮ на браузъра и избери \"Инсталирай приложение\" / \"Добави към начален екран\".",
     "install.close": "Затвори",
     "common.hours": "ч",
     "common.min": "мин",

@@ -42,6 +42,7 @@ export const en = {
     "install.desc": "Add it to your home screen — no address bar, faster loading.",
     "install.installButton": "Install",
     "install.iosInstructions": "Tap Share, then \"Add to Home Screen\".",
+    "install.manualInstructions": "Open the browser's ⋮ menu and choose \"Install app\" / \"Add to Home Screen\".",
     "install.close": "Close",
     "common.hours": "h",
     "common.min": "min",
