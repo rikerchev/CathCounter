@@ -1,144 +1,123 @@
-# CatchCount backend (Deno + PostgreSQL)
+# CatchCount backend (plain Node.js + PostgreSQL)
 
-Platform-independent by design: plain `Deno.serve`, no Deno Deploy–only or
-Docker-only APIs. Runs the same way locally, in a container, on a VPS behind
-systemd, or on Deno Deploy.
+No Deno anywhere. The whole backend is written as plain
+`(Request) => Response` functions (`server/router.ts` + `server/routes/*`),
+so it can run two different ways without any code changes:
 
-## 0. Two separate processes — this trips people up
+1. **As Vercel Functions** (the actual deployment) — `api/[...path].ts` at
+   the repo root imports `server/router.ts` directly. Same Vercel project as
+   the frontend, no separate hosting account needed. This is what `npm run
+   build`/the Vercel deploy actually uses.
+2. **As a standalone process** (`server/main.ts`) — only if you want to
+   self-host outside Vercel (a VPS, Render, Railway, ...). Wraps the same
+   `router.ts` in a plain `node:http` server.
 
-The frontend (`npm run dev`, port 5173) and this backend (port 8787) are two
-independent services. There's no single command that starts both — you need
-**two terminal windows**:
+## 0. Local development
 
+Use the Vercel CLI so the frontend and `/api/*` run together on one port,
+exactly like production:
+
+```bash
+npm i -g vercel     # once
+npm install         # repo root — installs the deps api/[...path].ts needs too
+vercel dev
 ```
-# Terminal 1 — from the project root
-npm run dev
 
-# Terminal 2 — from server/
-deno task dev
-```
+If you'd rather run the backend as its own process (option 2 above) instead
+of `vercel dev`:
 
-If you only run the first one, every API call in the browser console fails
-with `ERR_CONNECTION_REFUSED` on `:8787` — that's not a bug, it just means
-the second terminal hasn't been started yet.
-
-## 1. Database
-
-Any PostgreSQL works — a managed free tier (Neon, Supabase) or a local
-install both work identically. Pick one:
-
-### Option A — local PostgreSQL (Windows)
-
-1. Download the installer from https://www.postgresql.org/download/windows/
-   and run it (remember the password you set for the `postgres` user).
-2. Or, if you have Docker Desktop: `docker run --name catchcount-db -e POSTGRES_PASSWORD=yourpassword -p 5432:5432 -d postgres`
-3. Create a database for the app — easiest via pgAdmin (installed alongside
-   Postgres) or:
-   ```
-   psql -U postgres -c "CREATE DATABASE catchcount;"
-   ```
-4. Your connection string is:
-   ```
-   DATABASE_URL=postgres://postgres:yourpassword@localhost:5432/catchcount
-   ```
-
-### Option B — managed (Neon, generous free tier, zero local install)
-
-1. https://neon.tech → sign up → **Create a project**.
-2. Copy the connection string from the dashboard.
-
-### Applying the schema
-
-You need `server/.env` set up first either way:
-```
+```bash
 cd server
-cp .env.example .env       # paste DATABASE_URL in, plus a JWT_SECRET
-```
-
-Then apply `schema/schema.sql` — **pick whichever runtime you already have,
-you don't need both**:
-
-```bash
-# With Deno (recommended — same runtime the server itself uses):
-deno task migrate
-
-# With Node instead, if you don't want to install Deno just for this:
 npm install
-npm run migrate
+npm run dev          # tsx --watch main.ts, listens on :8787
 ```
 
-Either one does the same thing: creates every table once. Re-running it on
-an already-migrated database will error on `CREATE TABLE` — that's expected
-and harmless (it means it already ran).
+## 1. Database (Supabase, or any Postgres)
 
-`schema/schema.sql` and `schema/entities.generated.ts` were generated from
-`base44/entities/*.jsonc`. If you need to change an entity's fields later,
-edit `schema/entities.generated.ts` and write the matching `ALTER TABLE` by
-hand — it's no longer auto-regenerated from the `.jsonc` files.
+1. Create a project at https://supabase.com (free tier).
+2. Project Settings → Database → copy the **connection pooler** string
+   (Transaction mode, port `6543`) — not the direct connection on port 5432.
+   Vercel Functions are short-lived and spin up many of them; the pooler
+   (PgBouncer) is what keeps that from exhausting Postgres's connection
+   limit. `server/db.ts` already sets `prepare: false`, which is required
+   for PgBouncer transaction-mode pooling.
+3. `cd server && cp .env.example .env`, paste it in as `DATABASE_URL`, plus a
+   random `JWT_SECRET`.
+4. Apply the schema once:
+   ```bash
+   npm install
+   npm run migrate    # runs scripts/migrate.mjs against DATABASE_URL
+   ```
+   Re-running it on an already-migrated database will error on
+   `CREATE TABLE` — expected and harmless (means it already ran).
 
-## 2. Run the server
+Any other Postgres (Neon, RDS, local) works identically — just skip the
+pooler-string step and use the plain connection string.
 
-**Running the server itself (`main.ts`) needs Deno** — it uses `Deno.serve`,
-`Deno.env`, and `npm:` import specifiers directly, none of which exist in
-Node. The migration script above is the one piece that has a Node fallback;
-the API server does not. Install Deno from https://deno.com if you don't
-have it yet — one installer, no separate runtime config needed.
+`schema/schema.sql` and `schema/entities.generated.ts` were originally
+generated from `base44/entities/*.jsonc` (kept only as a historical
+reference now, not read at runtime). To add fields to an entity later, edit
+`schema/entities.generated.ts` and write the matching `ALTER TABLE` by hand.
 
-```bash
-deno task dev      # --watch, for local development
-deno task start    # plain run, for production
-```
+## 2. Deploying (Vercel)
 
-Listens on `PORT` (default 8787). All routes are under `/api/*`.
+Set these in Vercel → Project Settings → Environment Variables (no
+`server/.env` file exists in production — Vercel injects them directly):
 
+- `DATABASE_URL` — the Supabase pooler string from step 1
+- `JWT_SECRET` — a random long string
+- `PUBLIC_APP_URL` — the Vercel project's own public URL (used for CORS and
+  for building links in emails)
+- optional: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`,
+  `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`
 
-## 3. Google OAuth (social login)
+`VITE_API_URL` is **not** needed — the frontend calls `/api/...` on the same
+origin by default (see `src/api/base44Client.js`).
+
+Any of the optional integrations above can also be set later from **Admin →
+Настройка на интеграциите** in the running app instead of as env vars — they
+save to the `app_settings` table (`server/lib/settings.ts`) and apply
+immediately, no redeploy needed.
+
+## 3. Google OAuth (social login, optional)
 
 1. Create OAuth 2.0 credentials at
    https://console.cloud.google.com/apis/credentials
 2. Add an **Authorized redirect URI** matching `GOOGLE_REDIRECT_URI` exactly,
-   e.g. `https://api.yourdomain.com/api/auth/google/callback`
+   e.g. `https://your-app.vercel.app/api/auth/google/callback`
 3. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
 
-Without these set, `loginWithProvider("google")` on the frontend returns a 501
-rather than crashing — every other auth flow (email/password, OTP, reset)
-works independently of Google being configured.
+Without these, `loginWithProvider("google")` returns a 501 instead of
+crashing — email/password, OTP, and reset flows all work independently of
+Google being configured.
 
-## 4. Photo storage (generic S3-compatible)
+## 4. Email (plain SMTP — no paid API)
 
-`server/lib/s3.ts` doesn't hardcode a provider — it talks to any S3-compatible
-endpoint. You said you don't have an account yet, so nothing will upload until
-you set these:
+Set `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/
+`EMAIL_FROM` (`server/lib/email.ts`, via `nodemailer`). Any SMTP server
+works — your own mail server, a free-tier transactional sender, or Gmail
+SMTP for local testing. Without `SMTP_HOST` set, emails are skipped with a
+console warning instead of throwing — fine for local dev, not for
+production (registration/reset flows depend on these emails arriving).
 
-- `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` — from whichever provider you pick
-- `S3_ENDPOINT` — leave empty for real AWS S3; set it for anything else, e.g.:
-  - Cloudflare R2: `https://<account_id>.r2.cloudflarestorage.com`
-  - Backblaze B2: `https://s3.<region>.backblazeb2.com`
-  - MinIO (self-hosted): `http://localhost:9000`
-- `S3_BUCKET` — bucket name (create it on the provider first)
-- `S3_PUBLIC_BASE_URL` — if the bucket sits behind a public domain/CDN, photo
-  URLs are built directly from it; otherwise the server falls back to signed
-  URLs valid for 7 days (fine to start with, but re-fetch before they expire
-  if you display old photos)
+## 5. Photos (stored in Postgres, not S3)
 
-Until these are set, uploads fail with a clear "Object storage is not
-configured yet" error rather than silently no-op-ing.
+`server/routes/catchPhotos.ts` stores catch photos directly as `BYTEA` in
+the `catch_photos` table — no object storage account (S3/R2/B2/...) needed
+at all. The client compresses every photo to ~400-500KB first
+(`src/lib/imageCompression.js`) specifically so a large number of catches
+still fit inside a free-tier Postgres database.
 
-## 5. Email (Resend)
+`server/lib/s3.ts` and `server/routes/uploads.ts` are leftover/unused code
+from an earlier S3-based version — nothing imports them anymore, safe to
+delete.
 
-Set `RESEND_API_KEY` and `EMAIL_FROM` (must be a domain you've verified with
-Resend). Without a key, emails are skipped with a console warning instead of
-throwing — useful for local dev, not for production (registration/reset flows
-depend on these emails arriving).
+## 6. Payments
 
-## 6. Stripe
-
-Same keys as before (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`). Point your
-Stripe webhook endpoint at `https://api.yourdomain.com/api/functions/stripe-webhook`.
-
-`create-stripe-connect-account` writes `water_bodies.stripe_account_id` — a
-column added manually in `schema.sql` since Base44 tracked it as an internal
-field not present in `WaterBody.jsonc`.
+Stripe has been removed entirely — no payment processor is wired in. Paid
+features (ad slots, competition fees, sector reservations) are settled
+manually (bank transfer / Revolut, see `src/lib/payment.js`); an admin marks
+the relevant record as paid by hand via the admin screens.
 
 ## 7. LLM (optional)
 
@@ -173,25 +152,11 @@ placeholder instead of pretending to call a model. Set `LLM_PROVIDER` to
 An admin account always passes every check, matching how the original app's
 admin pages (e.g. data export) read/write every entity regardless of RLS.
 
-## Setup Wizard (configure integrations through the UI)
+## The first account is admin automatically
 
-Instead of editing `server/.env` and restarting, an admin can go to
-**Admin → Настройка на интеграциите** (`/admin-setup`) in the app and paste
-in Google OAuth, S3, Resend, and Stripe credentials directly — they're saved
-to the `app_settings` table (`server/lib/settings.ts`) and take effect
-immediately. `DATABASE_URL` and `JWT_SECRET` still have to live in `.env`
-(you need a DB connection before that table is even readable); everything
-else can go through the wizard instead.
-
-**Bootstrapping the first admin:** the wizard is admin-only, and a brand new
-database has no admin yet. Register a normal account through the app first,
-then promote it once, directly in the database (Neon/Supabase both have a
-SQL editor in their dashboard):
-
-```sql
-UPDATE users SET role = 'admin', roles = ARRAY['admin'] WHERE email = 'you@example.com';
-```
-
-After that, every optional integration can be configured from `/admin-setup`
-without ever touching `.env` again.
-
+`server/routes/auth.ts` checks whether the `users` table is empty on every
+registration (and on the first Google sign-in). If it is, that account is
+created as `role = 'admin'` with `email_verified = TRUE` and logged straight
+in — no OTP step, no manual `UPDATE users SET role='admin'` needed. Every
+account registered after that first one goes through the normal flow
+(`user` role, email verification required).

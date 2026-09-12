@@ -1,43 +1,78 @@
 # CatchCount
 
 Риболовно приложение — React/Vite фронтенд + собствен self-hosted backend
-(Deno + PostgreSQL). Base44 вече не се използва никъде — нито SDK-то на
-фронтенда, нито платформата за backend функциите.
+(**plain Node.js**, без Deno). Base44 вече не се използва никъде. Няма
+платени услуги: базата е Postgres (Supabase free tier), имейлите вървят през
+обикновен SMTP, а снимките на уловите се пазят директно в базата (компресирани
+на телефона/браузъра до ~400-500KB), не в отделно (платено) файлово хранилище.
 
-## Структура
+## Архитектура (един Vercel проект)
 
 - `src/` — React фронтенд (страници, компоненти, утилити)
-- `server/` — self-hosted Deno backend (заменя Base44 изцяло): auth, generic
-  CRUD за всички entity-та, Stripe плащания, качване на снимки, имейли
-- `base44/entities/*.jsonc` — оригиналните Base44 schema файлове. Вече не се
-  четат по време на изпълнение — пазят се само като исторически източник, от
-  който е генерирана `server/schema/`. Може да ги изтриете, ако не Ви трябват.
-- `base44/functions/*/entry.ts` — оригиналните Base44 функции. Логиката им е
-  пренесена в `server/routes/functions.ts`; тези файлове вече не се изпълняват.
+- `api/[...path].ts` — **единствената точка на вход за Vercel** — Vercel
+  Function (Node.js runtime), catch-all за всичко под `/api/*`. Живее в
+  СЪЩИЯ Vercel проект като фронтенда — едно repo, един deploy, никакъв
+  отделен backend хостинг не е нужен.
+- `server/` — цялата логика на API-то (auth, generic CRUD, качване/четене на
+  снимки, имейли, admin настройки), написана като обикновени
+  `(Request) => Response` функции. `server/router.ts` е споделеното ядро,
+  което `api/[...path].ts` внася директно.
+- `server/main.ts` — **опционален** самостоятелен вариант (същия
+  `server/router.ts`, но пуснат като нормален Node HTTP сървър) — трябва Ви
+  само ако решите да хоствате backend-а отделно (VPS, Render, Railway...)
+  вместо през Vercel Functions. Не се ползва от Vercel deploy-а.
+- `base44/` — оригиналните Base44 schema/functions файлове. Вече не се четат
+  по време на изпълнение никъде — чисто исторически източник. Може да ги
+  изтриете.
 
-## Инсталация и локално стартиране
+Целият flow е: GitHub repo → Vercel (build-va и фронтенда, и `/api/*`
+функциите от същия push) → Supabase Postgres (през мрежата, обикновен
+`DATABASE_URL`).
 
-Изисква се [Deno](https://deno.com) за backend-а (има Node fallback само за
-командата за миграция, но не и за самия сървър — виж `server/README.md`).
+## Локално стартиране
 
-**Важно:** фронтендът и backend-ът са два отделни процеса — трябват Ви
-**два терминала едновременно**, не само `npm run dev`.
+Изисква се [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`) — то
+пуска фронтенда И `/api` функциите заедно на един порт, точно както работят в
+продукция:
 
 ```bash
-# Терминал 1 — Backend
-cd server
-cp .env.example .env       # попълнете DATABASE_URL и останалите ключове
-deno task migrate          # прилага server/schema/schema.sql (или: npm install && npm run migrate)
-deno task dev               # стартира API-то на :8787
-
-# Терминал 2 — Frontend (от корена на проекта)
-cp .env.example .env       # VITE_API_URL по подразбиране сочи localhost:8787
 npm install
-npm run dev                 # стартира Vite на :5173
+cp .env.example .env.local     # DATABASE_URL, JWT_SECRET и т.н. — виж по-долу
+vercel dev
 ```
 
-Подробности за backend-а (нужни env променливи, локален PostgreSQL setup,
-Google OAuth setup, S3 хранилище, Stripe webhook) — виж `server/README.md`.
+Преди първо стартиране приложете схемата към базата:
+
+```bash
+cd server
+npm install
+npm run migrate                # прилага server/schema/schema.sql към DATABASE_URL
+```
+
+Ако предпочитате да ползвате `server/` като отделен процес вместо `vercel dev`
+(напр. за self-host извън Vercel), вижте `server/README.md`.
+
+## Deploy (Vercel + Supabase, безплатно)
+
+1. **База данни** — в Supabase → Project Settings → Database вземете
+   connection string-а на **connection pooler-а** (Transaction mode, порт
+   `6543` — не директната връзка на порт 5432; сериите функции на Vercel са
+   краткотрайни и директните връзки бързо изчерпват лимита на Postgres).
+2. Приложете схемата веднъж към тази база: `cd server && npm install && npm run migrate` (с `DATABASE_URL` сочещ към стъпка 1, в `server/.env`).
+3. **Vercel → Project Settings → Environment Variables**, добавете поне:
+   - `DATABASE_URL` — pooler connection string-ът от стъпка 1
+   - `JWT_SECRET` — произволен дълъг таен низ
+   - `PUBLIC_APP_URL` — публичния адрес на самия Vercel проект (напр.
+     `https://cath-counter.vercel.app`)
+   - по избор: `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI`,
+     `SMTP_HOST`/`SMTP_PORT`/`SMTP_SECURE`/`SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM`
+     (всички тези може да се зададат и по-late от Admin → Настройка вътре в
+     приложението, без redeploy)
+   - **`VITE_API_URL` не се задава** — фронтендът вика `/api/...` на същия
+     домейн по подразбиране.
+4. Redeploy (push към GitHub клонa, свързан с Vercel проекта, е достатъчно).
+5. Регистрирайте първия потребител през сайта — той автоматично става admin,
+   без нужда от имейл потвърждение (виж `server/routes/auth.ts`).
 
 ## Инсталиране на Android (PWA)
 
@@ -46,9 +81,7 @@ Google OAuth setup, S3 хранилище, Stripe webhook) — виж `server/RE
 приложение (собствена икона на началния екран, стартира в цял екран, работи
 offline благодарение на `public/sw.js`).
 
-1. Качете фронтенда някъде с **HTTPS** (Vercel/Netlify/Cloudflare Pages —
-   всяко от тях работи с `npm run build`; service worker-ите изискват HTTPS,
-   с изключение на `localhost` за локално тестване).
+1. Сайтът вече е на **HTTPS** през Vercel — service worker-ите го изискват.
 2. Отворете сайта в Chrome на телефона.
 3. Chrome сам предлага "Инсталирай приложение" / "Добави към началния екран"
    (или през менюто ⋮ → "Инсталиране на приложение").
@@ -62,16 +95,13 @@ offline благодарение на `public/sw.js`).
 готовия PWA в native Android shell, но изисква Android Studio локално, за да
 се компилира.
 
+## Какво се промени спрямо предишни версии
 
-
-| Преди (Base44) | Сега |
+| Преди | Сега |
 |---|---|
-| `@base44/sdk` на фронтенда | `src/api/base44Client.js` — същия интерфейс, говори с `server/` |
-| `@base44/vite-plugin` | обикновен `@vitejs/plugin-react` + ръчен `@/` alias във `vite.config.js` |
-| Base44 auth (email/парола, OTP, Google, забравена парола) | `server/routes/auth.ts` — собствен JWT + bcrypt + Google OAuth |
-| Base44 entity storage + RLS | PostgreSQL (`server/schema/`) + `server/middleware/authorize.ts` |
-| `base44/functions/*` (Deno функции на платформата) | `server/routes/functions.ts` |
-| `integrations.Core.UploadFile/UploadPublicFile` | `server/lib/s3.ts` — generic S3-съвместимо хранилище (R2/S3/B2/MinIO) |
-| `integrations.Core.SendEmail` | `server/lib/email.ts` (Resend) |
-| `integrations.Core.InvokeLLM` | `server/lib/llm.ts` — работещ stub; сложете `LLM_API_KEY`, за да го включите истински |
-| MCP OAuth consent (`src/pages/OAuthConsent.jsx`) | премахнато — Base44-специфична платформена функция без self-host еквивалент |
+| Base44 SDK / платформа | `src/api/base44Client.js` говори директно с `/api/*` |
+| Deno backend, два отделни процеса локално | Plain Node.js, вградено в същия Vercel проект (`api/[...path].ts`) |
+| Stripe плащания | премахнато изцяло — таксите (реклами, състезания, резервации) се уреждат ръчно (виж `src/lib/payment.js`) |
+| Resend (платен имейл API) | обикновен конфигурируем SMTP (`server/lib/email.ts`) |
+| S3/R2/B2 хранилище за снимки | снимките се компресират на клиента (~400-500KB) и се пазят директно в Postgres (`catch_photos` таблица) |
+| Ръчно "направи ме admin" | първият регистриран потребител автоматично е admin, без имейл верификация |

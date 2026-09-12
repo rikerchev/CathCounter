@@ -2,13 +2,26 @@
   "name": "catchcount-server",
   "private": true,
   "type": "module",
-  "description": "The backend itself runs on Deno (deno task dev/start — see deno.json). This package.json exists only for the Node-based migration convenience script (scripts/migrate.mjs), for people who don't have Deno installed yet.",
+  "description": "Optional standalone backend process (plain Node.js — no Deno). Only needed if you want to self-host this API as one long-running server (a VPS, Render, Railway, ...) instead of Vercel Functions. The Vercel deployment uses api/[...path].ts at the repo root instead, which imports this same server/router.ts — either way runs identical route code.",
   "scripts": {
-    "dev": "deno run --watch --allow-net --allow-env --allow-read=. main.ts",
-    "start": "deno run --allow-net --allow-env --allow-read=. main.ts",
+    "dev": "tsx watch main.ts",
+    "start": "tsx main.ts",
     "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
-    "pg": "^8.13.1"
+    "@whatwg-node/server": "^0.9.0",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.4.5",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.16",
+    "pg": "^8.13.1",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

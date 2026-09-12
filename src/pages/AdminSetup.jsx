@@ -27,43 +27,17 @@ const SECTIONS = [
     ],
   },
   {
-    id: "storage",
-    title: "Съхранение на снимки",
-    description: "Всяко S3-съвместимо хранилище работи — Cloudflare R2, AWS S3, Backblaze B2, MinIO.",
-    registerUrl: "https://dash.cloudflare.com/sign-up",
-    registerLabel: "Cloudflare R2 (0 такса за трафик)",
-    note: "Оставете 'Endpoint' празно за истински AWS S3. За R2/B2/MinIO попълнете техния endpoint адрес.",
-    fields: [
-      { key: "S3_ENDPOINT", label: "Endpoint (празно = AWS S3)", secret: false, placeholder: "https://<account_id>.r2.cloudflarestorage.com" },
-      { key: "S3_REGION", label: "Регион", secret: false, placeholder: "auto" },
-      { key: "S3_BUCKET", label: "Bucket за снимки (частни)", secret: false },
-      { key: "S3_PUBLIC_BUCKET", label: "Bucket за публични файлове (по избор)", secret: false, placeholder: "оставете празно, за да ползва същия bucket" },
-      { key: "S3_ACCESS_KEY_ID", label: "Access Key ID", secret: true },
-      { key: "S3_SECRET_ACCESS_KEY", label: "Secret Access Key", secret: true },
-      { key: "S3_PUBLIC_BASE_URL", label: "Публичен URL / CDN домейн (по избор)", secret: false, placeholder: "https://photos.вашия-домейн.com" },
-    ],
-  },
-  {
     id: "email",
-    title: "Имейли",
-    description: "Нужно за регистрация (код за потвърждение), забравена парола и покани.",
-    registerUrl: "https://resend.com/signup",
-    registerLabel: "Resend",
+    title: "Имейли (SMTP)",
+    description: "Нужно за регистрация (код за потвърждение), забравена парола и покани. Работи с всеки SMTP сървър — не се изисква платена услуга.",
+    note: "Оставете тези полета празни, за да изпращате през собствен/безплатен SMTP сървър (напр. вашия хостинг доставчик, Brevo, SMTP2GO). Портът обичайно е 587 (STARTTLS) или 465 (SSL — тогава включете 'secure').",
     fields: [
-      { key: "RESEND_API_KEY", label: "API ключ", secret: true },
+      { key: "SMTP_HOST", label: "SMTP хост", secret: false, placeholder: "smtp.вашия-домейн.com" },
+      { key: "SMTP_PORT", label: "Порт", secret: false, placeholder: "587" },
+      { key: "SMTP_SECURE", label: "Secure (true/false)", secret: false, placeholder: "false" },
+      { key: "SMTP_USER", label: "Потребител", secret: false },
+      { key: "SMTP_PASSWORD", label: "Парола", secret: true },
       { key: "EMAIL_FROM", label: "Изпращач", secret: false, placeholder: "CatchCount <noreply@вашия-домейн.com>" },
-    ],
-  },
-  {
-    id: "stripe",
-    title: "Плащания (Stripe)",
-    description: "Такси за състезания, резервации на сектори и реклами.",
-    registerUrl: "https://dashboard.stripe.com/register",
-    registerLabel: "Stripe Dashboard",
-    note: "Webhook secret-ът се взима от Stripe Dashboard → Developers → Webhooks, след като добавите endpoint: /api/functions/stripe-webhook",
-    fields: [
-      { key: "STRIPE_SECRET_KEY", label: "Secret key", secret: true },
-      { key: "STRIPE_WEBHOOK_SECRET", label: "Webhook signing secret", secret: true },
     ],
   },
   {
@@ -113,7 +87,7 @@ export default function AdminSetup() {
   function sectionConfigured(section) {
     if (!status) return false;
     return section.fields
-      .filter((f) => f.key !== "S3_PUBLIC_BUCKET" && f.key !== "S3_PUBLIC_BASE_URL" && f.key !== "EMAIL_FROM" && f.key !== "GOOGLE_REDIRECT_URI" && f.key !== "S3_REGION")
+      .filter((f) => f.key !== "SMTP_PORT" && f.key !== "SMTP_SECURE" && f.key !== "EMAIL_FROM" && f.key !== "GOOGLE_REDIRECT_URI")
       .every((f) => status[f.key]?.configured);
   }
 
@@ -166,6 +140,8 @@ export default function AdminSetup() {
       <p className="text-sm text-slate-500 dark:text-muted-foreground">
         Тези ключове се записват в базата данни и влизат в сила веднага, без рестарт.
         Връзката с базата данни и JWT_SECRET остават само в <code>server/.env</code>.
+        Снимките на уловите се съхраняват директно в базата данни (компресирани на телефона/браузъра
+        до ~400-500KB) — не се изисква никакво отделно (платено) файлово хранилище.
       </p>
 
       {SECTIONS.map((section) => {

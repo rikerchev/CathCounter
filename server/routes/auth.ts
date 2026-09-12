@@ -29,6 +29,16 @@ async function issueOtp(email: string, purpose: "verify_email" | "password_reset
   return code;
 }
 
+// True only for the very first account ever created — used so a freshly
+// migrated database doesn't need a manual "make me admin" step: whoever
+// registers (or signs in with Google) first is trusted by definition, since
+// nobody else could have gotten there first, so they skip email
+// verification entirely and become admin straight away.
+async function isFirstUser(): Promise<boolean> {
+  const rows = await sql<{ count: number }[]>`SELECT COUNT(*)::int AS count FROM users`;
+  return (rows[0]?.count ?? 0) === 0;
+}
+
 function publicUser(u: AuthUser) {
   // Never send password_hash/google_id to the client.
   return u;
@@ -50,11 +60,21 @@ export async function handleAuthRoute(
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
     if (existing.length) return json({ error: "Този имейл вече е регистриран" }, 409);
 
+    const first = await isFirstUser();
     const passwordHash = await hashPassword(password);
-    await sql`
+    const rows = await sql<AuthUser[]>`
       INSERT INTO users (email, password_hash, role, email_verified)
-      VALUES (${email}, ${passwordHash}, 'user', FALSE)
+      VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first})
+      RETURNING *
     `;
+
+    if (first) {
+      // Skip the OTP step and log straight in as admin.
+      const u = rows[0];
+      const token = signToken({ sub: u.id, email: u.email, role: u.role });
+      return json({ access_token: token, user: publicUser(u) });
+    }
+
     const code = await issueOtp(email, "verify_email");
     await sendEmail({
       to: email,
@@ -135,9 +155,10 @@ export async function handleAuthRoute(
           WHERE id = ${rows[0].id} RETURNING *
         `;
       } else {
+        const first = await isFirstUser();
         rows = await sql<AuthUser[]>`
           INSERT INTO users (email, google_id, full_name, role, email_verified)
-          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, 'user', TRUE)
+          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${first ? "admin" : "user"}, TRUE)
           RETURNING *
         `;
       }

@@ -9,26 +9,34 @@ import {
 } from "@/lib/localDb";
 import { updateCatchPhoto } from "@/lib/catchRepository";
 import { base44 } from "@/api/base44Client";
+import { compressImage } from "@/lib/imageCompression";
 
 // Save a photo to the local gallery (IndexedDB) — returns the pending photo ID
 // catchId links the photo to a catch upfront (no timestamp matching needed)
+// The file is compressed first (~400-500KB target) so the local copy and the
+// eventual cloud copy are the same small size — see imageCompression.js.
 export async function savePendingPhoto(file, cloudUrl = null, catchId = null) {
+  const compact = await compressImage(file);
   const id = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   await addPendingPhoto({
     id,
     catch_id: catchId,
     catch_created_date: null,
     created_date: new Date().toISOString(),
-    blob: file,
+    blob: compact,
     status: cloudUrl ? "uploaded" : "pending",
     cloud_url: cloudUrl,
   });
   return id;
 }
 
-// Try to upload a photo to the cloud, return URL or null
+// Try to upload a photo to the cloud, return URL or null. Compresses to
+// ~400-500KB first — the photo is stored directly in Postgres server-side
+// (server/routes/catchPhotos.ts), so keeping it small matters for fitting a
+// large number of catches inside a free-tier database.
 export async function uploadPhotoToCloud(file) {
-  const { file_url } = await base44.integrations.Core.UploadPublicFile({ file: file });
+  const compact = await compressImage(file);
+  const { file_url } = await base44.integrations.Core.UploadPublicFile({ file: compact });
   return file_url;
 }
 

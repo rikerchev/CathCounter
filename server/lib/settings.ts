@@ -9,20 +9,14 @@ export const SETTINGS_KEYS = [
   "GOOGLE_CLIENT_ID",
   "GOOGLE_CLIENT_SECRET",
   "GOOGLE_REDIRECT_URI",
-  "S3_ENDPOINT",
-  "S3_REGION",
-  "S3_BUCKET",
-  "S3_PUBLIC_BUCKET",
-  "S3_ACCESS_KEY_ID",
-  "S3_SECRET_ACCESS_KEY",
-  "S3_FORCE_PATH_STYLE",
-  "S3_PUBLIC_BASE_URL",
-  "RESEND_API_KEY",
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_SECURE",
+  "SMTP_USER",
+  "SMTP_PASSWORD",
   "EMAIL_FROM",
   "LLM_PROVIDER",
   "LLM_API_KEY",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
 ] as const;
 
 export type SettingKey = typeof SETTINGS_KEYS[number];
@@ -31,12 +25,8 @@ export type SettingKey = typeof SETTINGS_KEYS[number];
 // "configured ✓" and lets you overwrite, not view, the current value.
 const SECRET_KEYS = new Set<SettingKey>([
   "GOOGLE_CLIENT_SECRET",
-  "S3_ACCESS_KEY_ID",
-  "S3_SECRET_ACCESS_KEY",
-  "RESEND_API_KEY",
+  "SMTP_PASSWORD",
   "LLM_API_KEY",
-  "STRIPE_SECRET_KEY",
-  "STRIPE_WEBHOOK_SECRET",
 ]);
 
 let cache: Map<string, string> | null = null;

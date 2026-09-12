@@ -155,6 +155,23 @@ CREATE TABLE catches (
 );
 CREATE INDEX idx_catches_created_by ON catches(created_by_id);
 
+-- Catch photos are stored directly in the database (BYTEA) instead of an
+-- external object store (S3/R2/B2/...) — no separate paid file-storage
+-- account is needed. The client compresses every photo to roughly
+-- 400-500KB before upload (src/lib/imageCompression.js) specifically so a
+-- large number of catches still fit inside a free-tier Postgres database
+-- (e.g. Supabase's free plan). catches.photo_url holds the URL
+-- (/api/catch-photos/:id) that serves the bytes below.
+CREATE TABLE catch_photos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  data BYTEA NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_catch_photos_created_by ON catch_photos(created_by_id);
+
 CREATE TABLE competitions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   water_body_id TEXT,
@@ -360,8 +377,8 @@ CREATE TABLE water_bodies (
 );
 CREATE INDEX idx_water_bodies_created_by ON water_bodies(created_by_id);
 
--- Manual addition: base44/functions/create-stripe-connect-account and the
--- checkout functions read/write water_body.stripe_account_id, but it isn't
--- declared in base44/entities/WaterBody.jsonc (Base44 must have tracked it as
--- an internal/system field). Added here so Stripe Connect payouts keep working.
+-- Leftover from the (now removed) Stripe Connect payout flow — no code
+-- reads or writes this column anymore. Kept only so an already-migrated
+-- database doesn't need a destructive column drop; safe to ignore or drop
+-- yourself later.
 ALTER TABLE water_bodies ADD COLUMN stripe_account_id TEXT;

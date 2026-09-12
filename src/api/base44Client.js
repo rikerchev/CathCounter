@@ -4,7 +4,12 @@
 // `base44.users.inviteUser`) so the ~45 files that import `{ base44 }` from
 // here did not need to change. Only this file talks to the network.
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8787";
+// Same-origin by default — the API now lives in the SAME Vercel project as
+// this frontend (api/[...path].ts at the repo root), so no separate backend
+// URL needs to be configured at all. Set VITE_API_URL only if the API is
+// ever hosted on a different origin (e.g. the optional standalone
+// server/main.ts running elsewhere).
+const API_BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "token";
 
 // A Google-login redirect comes back as a full-page navigation to
@@ -91,8 +96,12 @@ const entities = new Proxy(
   { get: (_target, name) => makeEntityClient(String(name)) },
 );
 
-async function uploadFile(file, { isPublic = false } = {}) {
-  const data = await apiFetch(`/api/uploads?public=${isPublic}`, {
+// Photos are stored directly in Postgres (server/routes/catchPhotos.ts) —
+// compressed client-side to ~400-500KB first (src/lib/imageCompression.js)
+// so a free-tier database can hold a large number of catches. No external
+// object storage (S3/R2/etc.) or paid service is involved.
+async function uploadFile(file) {
+  const data = await apiFetch(`/api/catch-photos`, {
     method: "POST",
     raw: true,
     body: file,
@@ -153,8 +162,8 @@ export const base44 = {
 
   integrations: {
     Core: {
-      UploadFile: ({ file }) => uploadFile(file, { isPublic: false }),
-      UploadPublicFile: ({ file }) => uploadFile(file, { isPublic: true }),
+      UploadFile: ({ file }) => uploadFile(file),
+      UploadPublicFile: ({ file }) => uploadFile(file),
       SendEmail: (payload) => apiFetch("/api/integrations/send-email", { method: "POST", body: payload }),
       InvokeLLM: (payload) => apiFetch("/api/integrations/invoke-llm", { method: "POST", body: payload }),
     },
