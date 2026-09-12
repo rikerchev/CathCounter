@@ -1,4 +1,5 @@
 import { sql } from "../db.js";
+import { absoluteUrl } from "../lib/url.js";
 import { env } from "../env.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
 import { signToken } from "../lib/jwt.js";
@@ -50,7 +51,7 @@ export async function handleAuthRoute(
   user: AuthUser | null,
 ): Promise<Response> {
   const [action] = path;
-  const url = new URL(req.url);
+  const url = absoluteUrl(req);
 
   // ---- POST /api/auth/register { email, password } ----
   if (action === "register" && req.method === "POST") {
