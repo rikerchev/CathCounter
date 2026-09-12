@@ -36,6 +36,7 @@ import { LanguageSelector, useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import AdBanner from "@/components/AdBanner";
+import InstallAppBanner from "@/components/InstallAppBanner";
 import SyncStatus from "@/components/SyncStatus";
 import NotificationsBell from "@/components/NotificationsBell";
 import { APP_VERSION } from "@/lib/version";
@@ -315,6 +316,7 @@ export default function Layout() {
       )}
 
       <main className="lg:ml-60">
+        <InstallAppBanner />
         <AdBanner />
         <Outlet />
       </main>
