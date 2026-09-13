@@ -28,6 +28,22 @@ export const SETTINGS_KEYS = [
   "PAYMENT_BANK_IBAN",
   "PAYMENT_BANK_BIC",
   "PAYMENT_INSTRUCTIONS_NOTE",
+  // S3-compatible object storage (Supabase Storage, Cloudflare R2, Backblaze
+  // B2, or real AWS S3 — see server/lib/s3.ts) for generic file uploads
+  // (e.g. ad logos, src/pages/CustomAds.jsx). Added v2.47: these keys were
+  // already read by s3.ts/uploads.ts but were never actually listed here,
+  // so there was no way to configure them through the wizard (or save them
+  // at all) — uploads have been failing with "Object storage is not
+  // configured yet" until now. Catch photos are unaffected: they go
+  // straight into the database (BYTEA), not through this.
+  "S3_ENDPOINT",
+  "S3_REGION",
+  "S3_ACCESS_KEY_ID",
+  "S3_SECRET_ACCESS_KEY",
+  "S3_BUCKET",
+  "S3_PUBLIC_BUCKET",
+  "S3_PUBLIC_BASE_URL",
+  "S3_FORCE_PATH_STYLE",
 ] as const;
 
 export type SettingKey = typeof SETTINGS_KEYS[number];
@@ -38,6 +54,7 @@ const SECRET_KEYS = new Set<SettingKey>([
   "GOOGLE_CLIENT_SECRET",
   "SMTP_PASSWORD",
   "LLM_API_KEY",
+  "S3_SECRET_ACCESS_KEY",
 ]);
 
 let cache: Map<string, string> | null = null;

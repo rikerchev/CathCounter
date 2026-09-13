@@ -65,6 +65,24 @@ const SECTIONS = [
       { key: "PAYMENT_INSTRUCTIONS_NOTE", label: "Допълнителна бележка (по избор)", secret: false, placeholder: "напр. В основанието посочете имейла си" },
     ],
   },
+  {
+    id: "storage",
+    title: "Обектно хранилище (лога на реклами)",
+    description: "Нужно е само за качване на файлове извън снимките на уловите — най-вече логата в „Управление на реклами“. Снимките на уловите не минават през това — те се пазят направо в базата данни.",
+    registerUrl: "https://supabase.com/dashboard/projects",
+    registerLabel: "Supabase → Project Settings → Storage",
+    note: "В Supabase: Project Settings → Storage → раздел „S3 Connection“ — там ще видите Endpoint и Region, и бутон за създаване на нов Access key (Access Key ID + Secret Access Key — различни са от обичайните API ключове на проекта). Преди това си създайте и поне един bucket от Storage → New bucket (маркирайте го „Public“, за да се показват логата директно). „Force path style“ оставете true за Supabase.",
+    fields: [
+      { key: "S3_ENDPOINT", label: "Endpoint", secret: false, placeholder: "https://<project-ref>.supabase.co/storage/v1/s3" },
+      { key: "S3_REGION", label: "Region", secret: false, placeholder: "напр. eu-central-1" },
+      { key: "S3_ACCESS_KEY_ID", label: "Access Key ID", secret: false },
+      { key: "S3_SECRET_ACCESS_KEY", label: "Secret Access Key", secret: true },
+      { key: "S3_BUCKET", label: "Bucket (по подразбиране)", secret: false, placeholder: "напр. catchcount" },
+      { key: "S3_PUBLIC_BUCKET", label: "Bucket за публични файлове (по избор)", secret: false, placeholder: "оставете празно, за да ползва bucket-а по-горе" },
+      { key: "S3_PUBLIC_BASE_URL", label: "Публичен URL адрес на bucket-а (по избор)", secret: false, placeholder: "напр. https://<project-ref>.supabase.co/storage/v1/object/public/catchcount" },
+      { key: "S3_FORCE_PATH_STYLE", label: "Force path style (true/false)", secret: false, placeholder: "true" },
+    ],
+  },
 ];
 
 export default function AdminSetup() {
@@ -110,8 +128,14 @@ export default function AdminSetup() {
       const bankOk = status.PAYMENT_BANK_ENABLED?.value === "true" && status.PAYMENT_BANK_IBAN?.configured;
       return Boolean(revolutOk || bankOk);
     }
+    // Optional fields (per section) that shouldn't block the "Настроено"
+    // badge on their own — mirrors the SMTP/Google exclusions above.
+    const OPTIONAL_KEYS = new Set([
+      "SMTP_PORT", "SMTP_SECURE", "EMAIL_FROM", "GOOGLE_REDIRECT_URI",
+      "S3_ENDPOINT", "S3_REGION", "S3_PUBLIC_BUCKET", "S3_PUBLIC_BASE_URL", "S3_FORCE_PATH_STYLE",
+    ]);
     return section.fields
-      .filter((f) => f.key !== "SMTP_PORT" && f.key !== "SMTP_SECURE" && f.key !== "EMAIL_FROM" && f.key !== "GOOGLE_REDIRECT_URI")
+      .filter((f) => !OPTIONAL_KEYS.has(f.key))
       .every((f) => status[f.key]?.configured);
   }
 
