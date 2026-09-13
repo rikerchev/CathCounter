@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import { getCurrentLocation } from "@/lib/geolocation";
+import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch, updateCatchLocation } from "@/lib/catchRepository";
 import { getAllCatches, getAllPendingPhotos } from "@/lib/localDb";
@@ -23,6 +23,16 @@ const formatDuration = (s) => {
   if (h > 0) return `${h}h ${m}min`;
   return `${m}min ${sec}s`;
 };
+
+// How far the cheap coarse check has to disagree with the last catch's
+// confirmed precise position before it's treated as "moved to a different
+// swim" and worth spending a precise GPS fix on. Below this, the angler is
+// assumed to still be fishing the same spot, so the previous catch's
+// precise location is reused instead of re-fetching. 50m errs toward
+// "same swim" — a coarse (network/cell) fix can easily be off by tens of
+// meters on its own, so a smaller threshold would trigger a precise
+// re-fetch on almost every catch and defeat the point of this check.
+const SAME_SPOT_THRESHOLD_M = 50;
 
 export default function ActiveSession() {
   const { t, lang } = useLanguage();
@@ -256,21 +266,54 @@ export default function ActiveSession() {
     autoLocationRef.current = false;
   };
 
+  // Applies a confirmed precise fix to this catch (only writing to the
+  // catch if the name actually differs from what it already had) and
+  // remembers it as the session's new "last confirmed catch location" for
+  // the next catch to compare against.
+  const applyPreciseCatchLocation = (created, { name, latitude, longitude }) => {
+    sessionStore.recordCatchLocation(name, latitude, longitude);
+    if (name !== created.location) {
+      updateCatchLocation(created.id, created.created_date, name, latitude, longitude);
+    }
+  };
+
   const handleSaveCatch = async (data) => {
     try {
       const created = await saveCatch(data);
       sessionStore.recordCatchTime();
       toast({ title: `${t("saveCatch.catchLogged")} — ${formatDuration(data.duration || 0)}` });
 
-      // Fetch GPS location in the background and update if different
+      // Fetch GPS location in the background and update if different.
       if (created?.id) {
-        getCurrentLocation(lang)
-          .then(({ name, latitude, longitude }) => {
-            if (name !== created.location) {
-              updateCatchLocation(created.id, created.created_date, name, latitude, longitude);
-            }
-          })
-          .catch(() => {});
+        const lastLoc = sessionStore.getLastCatchLocation();
+        if (!lastLoc) {
+          // First catch this session — nothing to compare against yet, so
+          // always get a precise fix, same as before.
+          getCurrentLocation(lang)
+            .then((fix) => applyPreciseCatchLocation(created, fix))
+            .catch(() => {});
+        } else {
+          // Not the first catch: a cheap coarse fix first — if it's still
+          // within SAME_SPOT_THRESHOLD_M of the last confirmed precise
+          // spot, the angler is almost certainly still fishing the same
+          // swim, so reuse that location instead of spending a full
+          // precise GPS fix on this catch too. Only escalate to a precise
+          // fix when the coarse check suggests a real move.
+          getCurrentLocation(lang, false)
+            .then((coarse) => {
+              const moved =
+                distanceMeters(coarse.latitude, coarse.longitude, lastLoc.lat, lastLoc.lng) >
+                SAME_SPOT_THRESHOLD_M;
+              if (!moved) {
+                if (lastLoc.name !== created.location) {
+                  updateCatchLocation(created.id, created.created_date, lastLoc.name, lastLoc.lat, lastLoc.lng);
+                }
+                return;
+              }
+              return getCurrentLocation(lang).then((fix) => applyPreciseCatchLocation(created, fix));
+            })
+            .catch(() => {});
+        }
       }
       return created;
     } catch {

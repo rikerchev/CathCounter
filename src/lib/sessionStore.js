@@ -180,6 +180,8 @@ function loadState() {
     rodTimers: {}, // { [rodId]: { startTime, accumulated, isRunning, reminderMinutes, reminderStartTime, reminderTriggered } }
     mixedGroundbaits: [], // [{ name, grams }]
     lastCatchTime: null,
+    lastCatchLocation: null, // { name, lat, lng } — the last precise GPS fix
+    // confirmed for a catch this session (see recordCatchLocation below).
   };
 }
 
@@ -231,6 +233,7 @@ export function closeSession(endTime) {
   state.rods = [{ id: 1, config: {} }];
   state.mixedGroundbaits = [];
   state.lastCatchTime = null;
+  state.lastCatchLocation = null;
   persist();
   closeCloudSession();
   return duration;
@@ -246,6 +249,21 @@ export function recordCatchTime() {
 
 export function getLastCatchTime() {
   return state.lastCatchTime;
+}
+
+// The last precise GPS fix confirmed for a catch this session — lets
+// handleSaveCatch (ActiveSession.jsx) skip an expensive precise re-fix for
+// the next catch when a cheap coarse check shows the angler hasn't moved,
+// reusing this instead. Reset to null when the session closes, so the very
+// next session's first catch always gets a fresh precise fix (there's
+// nothing yet to compare against).
+export function getLastCatchLocation() {
+  return state.lastCatchLocation;
+}
+
+export function recordCatchLocation(name, lat, lng) {
+  state.lastCatchLocation = { name, lat, lng };
+  persist();
 }
 
 export function checkAutoClose() {
