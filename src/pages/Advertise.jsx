@@ -94,8 +94,18 @@ export default function Advertise() {
         base44.entities.AdSlot.list(),
         base44.entities.CustomAd.list(),
       ]);
-      const rentedSlotIds = new Set((adData || []).map((a) => a.ad_slot_id).filter(Boolean));
-      const rentedPlacements = new Set((adData || []).map((a) => a.placement).filter(Boolean));
+      // A placement/slot is only truly full when a currently active,
+      // already-approved ad covers ALL languages there (`languages` unset or
+      // "all"). An ad restricted to just one or two languages (e.g. only
+      // "bg") still leaves that same placement free for a different
+      // advertiser in the other languages, so it must not hide the slot
+      // here — previously ANY ad at all for a placement (even a
+      // single-language one, even one still pending review) hid it
+      // entirely, which meant a placement could never be requested again
+      // once even one language of it was taken.
+      const fullyOccupied = (a) => a.is_active && a.status !== "pending_review" && (!a.languages || a.languages === "all");
+      const rentedSlotIds = new Set((adData || []).filter(fullyOccupied).map((a) => a.ad_slot_id).filter(Boolean));
+      const rentedPlacements = new Set((adData || []).filter(fullyOccupied).map((a) => a.placement).filter(Boolean));
       const available = (slotData || []).filter(
         (s) => !rentedSlotIds.has(s.id) && !rentedPlacements.has(s.placement)
       );
