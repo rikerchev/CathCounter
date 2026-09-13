@@ -231,6 +231,29 @@ export const ENTITIES: Record<string, EntityDef> = {
       // "en" or any other language.
       { name: "languages", type: "string", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["active", "pending_review"] },
+      // --- Billing period / renewal notices (added v2.38) ---
+      // Plain contact email for renewal notices — independent of
+      // advertiser_id (which is the ownership/access-control link to a
+      // registered user and may be unset for an ad added directly by the
+      // admin without the advertiser having an account).
+      { name: "advertiser_email", type: "string", required: false },
+      // "YYYY-MM-DD" activation date. Left null = no expiry tracked for
+      // this ad (e.g. a permanent house ad) — the renewal cron ignores it.
+      { name: "starts_at", type: "string", required: false },
+      // Number of PAID calendar months, per the proration rule in
+      // src/lib/adBilling.js (the remainder of the activation month is
+      // free). Null alongside starts_at = no expiry tracked.
+      { name: "duration_months", type: "integer", required: false },
+      // "YYYY-MM-DD" — computed client-side from starts_at + duration_months
+      // via computeAdExpiry() and stored here (not recomputed server-side)
+      // so the renewal cron can query it directly.
+      { name: "expires_at", type: "string", required: false },
+      // Idempotency flags for the renewal cron (server/routes/adRenewals.ts)
+      // — each notice fires at most once per billing period. Reset to
+      // false by the client whenever starts_at/duration_months change
+      // (a renewal), so the next period gets its own notices.
+      { name: "renewal_notice_sent", type: "boolean", required: false },
+      { name: "expiry_notice_sent", type: "boolean", required: false },
     ],
     rules: {
       read: { kind: "public" },

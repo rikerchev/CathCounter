@@ -58,7 +58,7 @@ export default function AdminUsers() {
     if (!email) return;
     try {
       await base44.users.inviteUser(email, role);
-      toast({ title: t("menuGroup.inviteSent", { email }) });
+      toast({ title: t("menuGroup.inviteSent").replace("{email}", email) });
       setEmail("");
       await loadUsers();
     } catch (e) {

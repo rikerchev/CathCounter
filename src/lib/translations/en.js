@@ -938,4 +938,13 @@ export const en = {
   "aar.markedPaidHint": "Remember to create the live ad banner in the ad management screen.",
   "aar.markPaidError": "Error marking as paid",
   "adv.noSlotsConfigured": "No ad placements have been configured yet. Please contact the administrator.",
+  "ca.advertiserEmail": "Advertiser email",
+  "ca.advertiserEmailDesc": "For renewal/expiry notices (optional).",
+  "ca.periodSection": "Ad period",
+  "ca.startsAt": "Start date",
+  "ca.startsAtDesc": "Leave blank if this ad has no end date (e.g. a permanent banner).",
+  "ca.duration": "Duration",
+  "ca.noDuration": "No limit",
+  "ca.expiresOn": "Expires on: {date}",
+  "ca.noExpiry": "No end date set",
 };

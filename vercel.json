@@ -5,6 +5,7 @@
     { "src": "/(.*)", "dest": "/index.html" }
   ],
   "crons": [
-    { "path": "/api/cron/keep-alive", "schedule": "0 3 * * *" }
+    { "path": "/api/cron/keep-alive", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/ad-renewals", "schedule": "0 6 * * *" }
   ]
 }

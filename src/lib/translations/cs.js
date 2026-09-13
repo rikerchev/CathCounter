@@ -902,4 +902,13 @@ export const cs = {
   "aar.markedPaidHint": "Nezapomeňte vytvořit živý reklamní banner v obrazovce správy reklam.",
   "aar.markPaidError": "Chyba při označování jako zaplaceno",
   "adv.noSlotsConfigured": "Zatím nebyla vytvořena žádná reklamní místa. Kontaktujte prosím administrátora.",
+  "ca.advertiserEmail": "E-mail inzerenta",
+  "ca.advertiserEmailDesc": "Pro upozornění na blížící se/uplynulé vypršení období (volitelné).",
+  "ca.periodSection": "Období reklamy",
+  "ca.startsAt": "Datum zahájení",
+  "ca.startsAtDesc": "Ponechte prázdné, pokud tato reklama nemá konec (např. trvalý banner).",
+  "ca.duration": "Doba trvání",
+  "ca.noDuration": "Bez omezení",
+  "ca.expiresOn": "Vyprší: {date}",
+  "ca.noExpiry": "Bez nastaveného konce",
 };

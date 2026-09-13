@@ -9,6 +9,7 @@ import { handleCatchPhotosRoute } from "./routes/catchPhotos.js";
 import { handleIntegrationsRoute } from "./routes/integrations.js";
 import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
+import { handleAdRenewalsCron } from "./routes/adRenewals.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
 // handler. Deliberately has no opinion about HOW it's served — main.ts wraps
@@ -88,6 +89,11 @@ async function route(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: true, pinged: true }), {
         headers: { "content-type": "application/json" },
       });
+    }
+    // Hit once a day by a second Vercel Cron job (see vercel.json) — sends
+    // the ad renewal/expiry email notices. See server/routes/adRenewals.ts.
+    if (segments[1] === "cron" && segments[2] === "ad-renewals") {
+      return await handleAdRenewalsCron(req);
     }
   } catch (error) {
     console.error("Unhandled error:", error);

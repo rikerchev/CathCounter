@@ -902,4 +902,13 @@ export const hu = {
   "aar.markedPaidHint": "Ne felejtse el manuálisan létrehozni a hirdetési bannert a hirdetéskezelő képernyőn.",
   "aar.markPaidError": "Hiba a fizetettként való megjelölésnél",
   "adv.noSlotsConfigured": "Még nincsenek létrehozva hirdetési helyek. Kérjük, vegye fel a kapcsolatot az adminisztrátorral.",
+  "ca.advertiserEmail": "Hirdető e-mail címe",
+  "ca.advertiserEmailDesc": "A lejárati/megújítási értesítésekhez (opcionális).",
+  "ca.periodSection": "Hirdetési időszak",
+  "ca.startsAt": "Kezdő dátum",
+  "ca.startsAtDesc": "Hagyja üresen, ha ennek a hirdetésnek nincs végdátuma (pl. állandó banner).",
+  "ca.duration": "Időtartam",
+  "ca.noDuration": "Nincs korlátozva",
+  "ca.expiresOn": "Lejár: {date}",
+  "ca.noExpiry": "Nincs beállítva végdátum",
 };

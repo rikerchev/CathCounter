@@ -902,4 +902,13 @@ export const es = {
   "aar.markedPaidHint": "Recuerde crear el banner publicitario manualmente en la pantalla de gestión de anuncios.",
   "aar.markPaidError": "Error al marcar como pagado",
   "adv.noSlotsConfigured": "Todavía no se han configurado espacios publicitarios. Por favor, contacte al administrador.",
+  "ca.advertiserEmail": "Correo del anunciante",
+  "ca.advertiserEmailDesc": "Para avisos de renovación/vencimiento (opcional).",
+  "ca.periodSection": "Período del anuncio",
+  "ca.startsAt": "Fecha de inicio",
+  "ca.startsAtDesc": "Déjelo en blanco si este anuncio no tiene fecha de fin (p. ej. un banner permanente).",
+  "ca.duration": "Duración",
+  "ca.noDuration": "Sin límite",
+  "ca.expiresOn": "Vence el: {date}",
+  "ca.noExpiry": "Sin fecha de fin establecida",
 };

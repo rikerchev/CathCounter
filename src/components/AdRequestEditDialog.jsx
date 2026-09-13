@@ -2,13 +2,24 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { COUNTRY_NAME_BY_CODE } from "@/lib/countries";
+import { calculateTotalPrice } from "@/lib/pricing";
+
+const MONTH_OPTIONS = [1, 2, 3, 6, 12];
 
 export default function AdRequestEditDialog({ request, onClose, onSave }) {
   const [adTitle, setAdTitle] = useState(request.ad_title || "");
   const [adDescription, setAdDescription] = useState(request.ad_description || "");
   const [countryContent, setCountryContent] = useState({});
+  // The period (months) chosen when the request was first submitted is easy
+  // to get wrong (e.g. leaving it at the default 1 instead of 12) and,
+  // before this, could never be corrected afterwards — the edit dialog only
+  // touched title/description/country content.
+  const [months, setMonths] = useState(request.months || 1);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -26,6 +37,19 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
 
   const isMultiCountry = countries.length > 1;
 
+  // total_price was originally computed from price_per_month × the
+  // per-country multipliers × months (see lib/pricing.js) — recompute it
+  // the same way whenever the period changes, using the country set the
+  // request already has (countries === "all" falls back to the flat
+  // price_per_month, matching how "all countries" requests were priced).
+  const recalculatedTotal = (() => {
+    const basePrice = request.price_per_month || 0;
+    if (!request.countries || request.countries === "all") {
+      return Math.round(basePrice * months * 100) / 100;
+    }
+    return calculateTotalPrice(basePrice, countries, months);
+  })();
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -33,6 +57,8 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
         ad_title: adTitle,
         ad_description: adDescription,
         country_content: JSON.stringify(countryContent),
+        months: Number(months),
+        total_price: recalculatedTotal,
       });
     } finally {
       setSaving(false);
@@ -55,6 +81,24 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
           <div>
             <Label>{isMultiCountry ? "Описание (English)" : "Описание"}</Label>
             <Input value={adDescription} onChange={(e) => setAdDescription(e.target.value)} placeholder="Описание на рекламата" className="min-h-[44px]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Срок (месеци)</Label>
+              <Select value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {MONTH_OPTIONS.map((m) => (<SelectItem key={m} value={String(m)}>{m} мес.</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <div className="w-full p-3 rounded-xl bg-cyan-50 dark:bg-accent text-center">
+                <p className="text-xs text-slate-500 dark:text-muted-foreground">Обща цена</p>
+                <p className="text-lg font-bold text-cyan-700 dark:text-cyan-400">€{recalculatedTotal.toFixed(2)}</p>
+              </div>
+            </div>
           </div>
 
           {countries.length > 0 && (

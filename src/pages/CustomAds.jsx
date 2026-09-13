@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
+import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
 
 const PLACEMENT_KEYS = {
   all: "nav.allPages",
@@ -64,6 +65,8 @@ const AD_STATUS_COLORS = {
   pending_review: "bg-amber-100 text-amber-700",
 };
 
+const DURATION_OPTIONS = [1, 2, 3, 6, 12];
+
 const emptyAd = {
   title: "",
   description: "",
@@ -79,6 +82,9 @@ const emptyAd = {
   countries: "all",
   country_content: "",
   language_content: "",
+  advertiser_email: "",
+  starts_at: "",
+  duration_months: "",
 };
 
 export default function CustomAdsManager() {
@@ -120,6 +126,12 @@ export default function CustomAdsManager() {
   // or when the list was completely empty) — clicking it silently did
   // nothing. This flag is what the form's visibility now depends on.
   const [creatingNew, setCreatingNew] = useState(false);
+  // The starts_at/duration_months this ad had when the edit form was
+  // opened (null when creating a brand new ad). save() compares against
+  // this to decide whether the billing period actually changed — only
+  // then does it reset the renewal/expiry notice flags, so unrelated edits
+  // (title, logo, ...) don't accidentally restart the notice cycle.
+  const [editingOriginalPeriod, setEditingOriginalPeriod] = useState(null);
 
   useEffect(() => {
     loadAds();
@@ -183,6 +195,13 @@ export default function CustomAdsManager() {
       countries,
       country_content: ad.country_content || "",
       language_content: ad.language_content || "",
+      advertiser_email: ad.advertiser_email || "",
+      starts_at: ad.starts_at || "",
+      duration_months: ad.duration_months != null ? String(ad.duration_months) : "",
+    });
+    setEditingOriginalPeriod({
+      starts_at: ad.starts_at || "",
+      duration_months: ad.duration_months != null ? String(ad.duration_months) : "",
     });
     // Also include countries that have per-country content overrides
     const overrideCodes = Object.keys(parsedContent);
@@ -212,6 +231,7 @@ export default function CustomAdsManager() {
     setSelectedLanguages([]);
     setTargetAllCountries(true);
     setLanguageRestricted(false);
+    setEditingOriginalPeriod(null);
   }
 
   const toggleCountry = (code) => {
@@ -329,13 +349,30 @@ Description: ${form.description}`;
     }
     try {
       const countries = targetAllCountries ? "all" : selectedCountries.join(",");
+      const expiresAt = computeAdExpiry(form.starts_at, form.duration_months);
+      // Only reset the renewal/expiry notice flags when the billing period
+      // itself actually changed (new ad, or starts_at/duration_months
+      // edited) — an unrelated edit (title, logo, ...) must not silently
+      // restart the notice cycle for an ad that's already close to expiry.
+      const periodChanged =
+        !editingOriginalPeriod ||
+        editingOriginalPeriod.starts_at !== (form.starts_at || "") ||
+        editingOriginalPeriod.duration_months !== (form.duration_months || "");
       const payload = {
         ...form,
         countries,
         languages: languagesToSave,
         country_content: JSON.stringify(countryContent),
         language_content: JSON.stringify(languageContent),
+        advertiser_email: form.advertiser_email || null,
+        starts_at: form.starts_at || null,
+        duration_months: form.duration_months ? Number(form.duration_months) : null,
+        expires_at: expiresAt,
       };
+      if (periodChanged) {
+        payload.renewal_notice_sent = false;
+        payload.expiry_notice_sent = false;
+      }
       if (editing) {
         if (!isAdmin) payload.status = "pending_review";
         await base44.entities.CustomAd.update(editing, payload);
@@ -549,6 +586,59 @@ Description: ${form.description}`;
             <div className="flex items-center gap-2">
               <Label>{t("ca.active")}</Label>
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />
+            </div>
+
+            {/* Billing period + renewal notices — starts_at/duration_months
+                are optional: leaving duration empty means "no expiry
+                tracked" (e.g. a permanent house ad), matching how ads
+                worked before this existed. */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("ca.periodSection")}</h3>
+              <div>
+                <Label>{t("ca.advertiserEmail")}</Label>
+                <Input
+                  type="email"
+                  value={form.advertiser_email}
+                  onChange={(e) => setForm({ ...form, advertiser_email: e.target.value })}
+                  placeholder="advertiser@example.com"
+                  className="min-h-[44px]"
+                />
+                <p className="text-xs text-slate-400 mt-1">{t("ca.advertiserEmailDesc")}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>{t("ca.startsAt")}</Label>
+                  <Input
+                    type="date"
+                    value={form.starts_at}
+                    onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
+                    className="min-h-[44px]"
+                  />
+                </div>
+                <div>
+                  <Label>{t("ca.duration")}</Label>
+                  <Select
+                    value={form.duration_months ? String(form.duration_months) : "none"}
+                    onValueChange={(v) => setForm({ ...form, duration_months: v === "none" ? "" : v })}
+                  >
+                    <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t("ca.noDuration")}</SelectItem>
+                      {DURATION_OPTIONS.map((m) => (
+                        <SelectItem key={m} value={String(m)}>{m} {t("adv.months")}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400">{t("ca.startsAtDesc")}</p>
+              {form.starts_at && form.duration_months ? (
+                <p className="text-sm font-medium text-cyan-700 dark:text-cyan-400">
+                  {t("ca.expiresOn").replace("{date}", computeAdExpiry(form.starts_at, form.duration_months))}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">{t("ca.noExpiry")}</p>
+              )}
             </div>
 
             {/* Country targeting */}
@@ -806,6 +896,22 @@ Description: ${form.description}`;
                         {AD_STATUS_LABELS.pending_review}
                       </span>
                     )}
+                    {ad.expires_at && (() => {
+                      const left = daysUntil(ad.expires_at);
+                      const urgent = left <= 7;
+                      const expired = left < 0;
+                      // Build the display Date from local (not UTC) date
+                      // parts — new Date("YYYY-MM-DD") parses as UTC
+                      // midnight, which toLocaleDateString() can then roll
+                      // back a day in timezones behind UTC.
+                      const [ey, em, ed] = ad.expires_at.split("-").map(Number);
+                      const expiryLocal = new Date(ey, (em || 1) - 1, ed || 1);
+                      return (
+                        <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${expired ? "bg-red-100 text-red-700" : urgent ? "bg-amber-100 text-amber-700" : "bg-white/20 text-white/90"}`}>
+                          {t("ca.expiresOn").replace("{date}", expiryLocal.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }))}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
                 <div className="flex items-center gap-1">

@@ -74,7 +74,12 @@ export default function AdminAdRequests() {
     setApproving(req.id);
     try {
       const payment = await base44.settings.getPaymentInfo().catch(() => null);
-      const lines = [t("aar.emailIntro", { slotName: req.ad_slot_name, months: req.months, totalPrice: req.total_price })];
+      const lines = [
+        t("aar.emailIntro")
+          .replace("{slotName}", req.ad_slot_name)
+          .replace("{months}", req.months)
+          .replace("{totalPrice}", req.total_price),
+      ];
       if (payment?.revolut?.enabled) {
         lines.push(`${t("adv.payRevolut")}: ${payment.revolut.url || "@" + payment.revolut.tag}`);
       }

@@ -371,7 +371,7 @@ export default function Advertise() {
 
             {targetAllCountries ? (
               <p className="text-xs text-slate-400">
-                 {t("adv.allCountriesDesc", { price: calculateTotalPrice(basePrice, ALL_COUNTRY_CODES, 1).toFixed(2) })}
+                 {t("adv.allCountriesDesc").replace("{price}", calculateTotalPrice(basePrice, ALL_COUNTRY_CODES, 1).toFixed(2))}
                </p>
               ) : (
                <>

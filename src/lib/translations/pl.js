@@ -902,4 +902,13 @@ export const pl = {
   "aar.markedPaidHint": "Pamiętaj, aby ręcznie utworzyć baner reklamowy w ekranie zarządzania reklamami.",
   "aar.markPaidError": "Błąd podczas oznaczania jako opłacone",
   "adv.noSlotsConfigured": "Nie utworzono jeszcze żadnych miejsc reklamowych. Skontaktuj się z administratorem.",
+  "ca.advertiserEmail": "E-mail reklamodawcy",
+  "ca.advertiserEmailDesc": "Do powiadomień o zbliżającym się/upłynięciu okresu (opcjonalne).",
+  "ca.periodSection": "Okres reklamy",
+  "ca.startsAt": "Data rozpoczęcia",
+  "ca.startsAtDesc": "Pozostaw puste, jeśli ta reklama nie ma daty zakończenia (np. stały baner).",
+  "ca.duration": "Czas trwania",
+  "ca.noDuration": "Bez limitu",
+  "ca.expiresOn": "Wygasa: {date}",
+  "ca.noExpiry": "Brak ustawionej daty końcowej",
 };

@@ -230,11 +230,22 @@ CREATE TABLE custom_ads (
   -- `ALTER TABLE` note near the bottom of this file for existing databases.
   languages TEXT DEFAULT 'all',
   status TEXT CHECK (status IN ('active', 'pending_review')) DEFAULT 'active',
+  -- Billing period / renewal notices, added v2.38 — see the ALTER TABLE
+  -- note near the bottom of this file for existing databases, and
+  -- src/lib/adBilling.js for the proration rule and src/pages/CustomAds.jsx
+  -- / server/routes/adRenewals.ts for how they're used.
+  advertiser_email TEXT,
+  starts_at TEXT,
+  duration_months INTEGER,
+  expires_at TEXT,
+  renewal_notice_sent BOOLEAN DEFAULT FALSE,
+  expiry_notice_sent BOOLEAN DEFAULT FALSE,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_custom_ads_created_by ON custom_ads(created_by_id);
+CREATE INDEX idx_custom_ads_expires_at ON custom_ads(expires_at) WHERE expires_at IS NOT NULL;
 
 CREATE TABLE menu_groups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -392,3 +403,14 @@ ALTER TABLE water_bodies ADD COLUMN stripe_account_id TEXT;
 -- against an existing database that was created before this column was
 -- added above.
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS languages TEXT DEFAULT 'all';
+
+-- v2.38: billing period / renewal notices (custom_ads) — run this once
+-- against an existing database that was created before these columns were
+-- added above. Safe to re-run.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS advertiser_email TEXT;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS starts_at TEXT;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS duration_months INTEGER;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS expires_at TEXT;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS renewal_notice_sent BOOLEAN DEFAULT FALSE;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS expiry_notice_sent BOOLEAN DEFAULT FALSE;
+CREATE INDEX IF NOT EXISTS idx_custom_ads_expires_at ON custom_ads(expires_at) WHERE expires_at IS NOT NULL;

@@ -902,4 +902,13 @@ export const fr = {
   "aar.markedPaidHint": "N'oubliez pas de créer la bannière publicitaire manuellement dans l'écran de gestion des annonces.",
   "aar.markPaidError": "Erreur lors du marquage comme payé",
   "adv.noSlotsConfigured": "Aucun emplacement publicitaire n'a encore été configuré. Veuillez contacter l'administrateur.",
+  "ca.advertiserEmail": "E-mail de l'annonceur",
+  "ca.advertiserEmailDesc": "Pour les rappels de renouvellement/expiration (facultatif).",
+  "ca.periodSection": "Période de l'annonce",
+  "ca.startsAt": "Date de début",
+  "ca.startsAtDesc": "Laissez vide si cette annonce n'a pas de date de fin (ex. une bannière permanente).",
+  "ca.duration": "Durée",
+  "ca.noDuration": "Sans limite",
+  "ca.expiresOn": "Expire le : {date}",
+  "ca.noExpiry": "Aucune date de fin définie",
 };

@@ -902,4 +902,13 @@ export const nl = {
   "aar.markedPaidHint": "Vergeet niet de advertentiebanner handmatig aan te maken in het advertentiebeheerscherm.",
   "aar.markPaidError": "Fout bij markeren als betaald",
   "adv.noSlotsConfigured": "Er zijn nog geen advertentieplekken aangemaakt. Neem contact op met de beheerder.",
+  "ca.advertiserEmail": "E-mail van de adverteerder",
+  "ca.advertiserEmailDesc": "Voor meldingen bij naderend/verlopen periode (optioneel).",
+  "ca.periodSection": "Advertentieperiode",
+  "ca.startsAt": "Startdatum",
+  "ca.startsAtDesc": "Laat leeg als deze advertentie geen einddatum heeft (bijv. een permanente banner).",
+  "ca.duration": "Duur",
+  "ca.noDuration": "Geen limiet",
+  "ca.expiresOn": "Verloopt op: {date}",
+  "ca.noExpiry": "Geen einddatum ingesteld",
 };

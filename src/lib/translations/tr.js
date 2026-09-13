@@ -902,4 +902,13 @@ export const tr = {
   "aar.markedPaidHint": "Reklam yönetimi ekranında reklam banner'ını manuel olarak oluşturmayı unutmayın.",
   "aar.markPaidError": "Ödendi olarak işaretlerken hata oluştu",
   "adv.noSlotsConfigured": "Henüz hiç reklam alanı oluşturulmadı. Lütfen yönetici ile iletişime geçin.",
+  "ca.advertiserEmail": "Reklamverenin e-postası",
+  "ca.advertiserEmailDesc": "Yaklaşan/geçen süre bildirimleri için (isteğe bağlı).",
+  "ca.periodSection": "Reklam süresi",
+  "ca.startsAt": "Başlangıç tarihi",
+  "ca.startsAtDesc": "Bu reklamın bitiş tarihi yoksa boş bırakın (örn. kalıcı banner).",
+  "ca.duration": "Süre",
+  "ca.noDuration": "Sınırsız",
+  "ca.expiresOn": "Sona erme tarihi: {date}",
+  "ca.noExpiry": "Bitiş tarihi ayarlanmadı",
 };

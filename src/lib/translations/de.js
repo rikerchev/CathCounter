@@ -902,4 +902,13 @@ export const de = {
   "aar.markedPaidHint": "Denken Sie daran, das Anzeigenbanner im Anzeigenverwaltungsbereich manuell zu erstellen.",
   "aar.markPaidError": "Fehler beim Markieren als bezahlt",
   "adv.noSlotsConfigured": "Es wurden noch keine Werbeplätze angelegt. Bitte wenden Sie sich an den Administrator.",
+  "ca.advertiserEmail": "E-Mail des Werbetreibenden",
+  "ca.advertiserEmailDesc": "Für Erinnerungen bei bevorstehendem/abgelaufenem Zeitraum (optional).",
+  "ca.periodSection": "Anzeigenzeitraum",
+  "ca.startsAt": "Startdatum",
+  "ca.startsAtDesc": "Leer lassen, wenn diese Anzeige kein Enddatum hat (z. B. ein dauerhaftes Banner).",
+  "ca.duration": "Laufzeit",
+  "ca.noDuration": "Keine Begrenzung",
+  "ca.expiresOn": "Läuft ab am: {date}",
+  "ca.noExpiry": "Kein Enddatum festgelegt",
 };

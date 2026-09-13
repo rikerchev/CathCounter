@@ -902,4 +902,13 @@ export const ro = {
   "aar.markedPaidHint": "Nu uitați să creați manual bannerul publicitar în ecranul de gestionare a reclamelor.",
   "aar.markPaidError": "Eroare la marcarea ca plătit",
   "adv.noSlotsConfigured": "Nu a fost configurat încă niciun spațiu publicitar. Vă rugăm să contactați administratorul.",
+  "ca.advertiserEmail": "E-mailul agentului de publicitate",
+  "ca.advertiserEmailDesc": "Pentru notificări de reînnoire/expirare (opțional).",
+  "ca.periodSection": "Perioada reclamei",
+  "ca.startsAt": "Data de început",
+  "ca.startsAtDesc": "Lăsați gol dacă această reclamă nu are dată de final (ex. un banner permanent).",
+  "ca.duration": "Durată",
+  "ca.noDuration": "Fără limită",
+  "ca.expiresOn": "Expiră la: {date}",
+  "ca.noExpiry": "Nu este setată o dată de final",
 };
