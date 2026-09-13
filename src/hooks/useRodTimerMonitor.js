@@ -6,6 +6,35 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 
 const ACTIVE_SESSION_PATH = "/active-session";
 
+// Shows the reminder as a real system notification. Prefers the Service
+// Worker's `showNotification()` (required by Android Chrome — the plain
+// `new Notification()` constructor doesn't work there when called from a
+// page, see the v2.48 note above) and only falls back to the constructor
+// when no service worker registration exists at all. Fire-and-forget: the
+// caller doesn't await this, it just wants the notification attempted.
+function showReminderNotification(title, options) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  (async () => {
+    try {
+      if ("serviceWorker" in navigator) {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && registration.showNotification) {
+          await registration.showNotification(title, options);
+          return;
+        }
+      }
+    } catch {
+      // fall through to the page-level constructor below
+    }
+    try {
+      new Notification(title, options);
+    } catch {
+      // No supported way to show a notification here (e.g. Chrome on
+      // Android with no active service worker) — vibration still ran.
+    }
+  })();
+}
+
 /**
  * useRodTimerMonitor — globally monitors all running rod timers.
  * When a rod's reminder expires, plays one beep per elapsed minute
@@ -43,6 +72,20 @@ const ACTIVE_SESSION_PATH = "/active-session";
  *    to playing beeps itself if the pre-scheduled ones couldn't be set up
  *    at all (e.g. no Web Audio support) — otherwise it would double the
  *    sound.
+ *
+ * v2.48 — reminder notification now reaches a paired Wear OS watch:
+ *  the system notification used to be created with the plain
+ *  `new Notification(...)` constructor. That constructor is NOT supported
+ *  by Chrome on Android when called from a page — it either throws or is
+ *  silently swallowed by the try/catch below, so the reminder likely
+ *  never actually showed as a real Android notification at all. It now
+ *  goes through the already-registered Service Worker's
+ *  `registration.showNotification()` instead, which Android fully
+ *  supports; a real Android system notification is what Wear OS mirrors
+ *  to a paired watch automatically (as long as notification bridging is
+ *  enabled on the phone's Wear OS app — a device setting, not something
+ *  this app can control). Falls back to the old constructor when no
+ *  service worker is available (e.g. local dev).
  */
 export function useRodTimerMonitor() {
   const [anyRunning, setAnyRunning] = useState(false);
@@ -102,17 +145,14 @@ export function useRodTimerMonitor() {
           if (newlyFired) {
             if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
 
-            if ("Notification" in window && Notification.permission === "granted") {
-              try {
-                new Notification("⏰ Време за презареждане!", {
-                  body: `Въдица ${timer.rodId}: таймерът изтече (${timer.reminderMinutes} мин).`,
-                  tag: `catchcount-rod-${timer.rodId}`,
-                  requireInteraction: true,
-                });
-              } catch {
-                // ignore notification errors
-              }
-            }
+            showReminderNotification("⏰ Време за презареждане!", {
+              body: `Въдица ${timer.rodId}: таймерът изтече (${timer.reminderMinutes} мин).`,
+              tag: `catchcount-rod-${timer.rodId}`,
+              requireInteraction: true,
+              icon: "/icon-192.png",
+              badge: "/icon-192.png",
+              vibrate: [200, 100, 200, 100, 200],
+            });
 
             // The audio-clock schedule above already produced this exact
             // beep sequence, on time, even if the screen was off — only
