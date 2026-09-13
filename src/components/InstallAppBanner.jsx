@@ -27,6 +27,13 @@ import { useToast } from "@/components/ui/use-toast";
  * prompt) — see useInstallPrompt.js for why. Tapping it either triggers the
  * real native install dialog, or — on a browser that hasn't offered one —
  * shows a single short toast instead of doing nothing silently.
+ *
+ * The install button and the dismiss (X) button used to sit only 12px
+ * apart (the flex `gap-3`), and the X's own touch target was a ~28px
+ * square — well under the ~40-44px a thumb reliably hits. A user aiming
+ * for "Инсталирай" would land on X instead, dismissing the banner (which
+ * hides it for 14 days) rather than installing. Both targets are now
+ * bigger and pushed further apart (`ml-3` on top of the row's own gap).
  */
 export default function InstallAppBanner() {
   const { t } = useLanguage();
@@ -59,7 +66,7 @@ export default function InstallAppBanner() {
         <button
           type="button"
           onClick={handleInstallClick}
-          className="text-xs font-semibold bg-white text-slate-900 px-3 py-2 rounded-lg flex-shrink-0 min-h-[36px]"
+          className="text-xs font-semibold bg-white text-slate-900 px-4 py-2.5 rounded-lg flex-shrink-0 min-h-[44px]"
         >
           {t("install.installButton")}
         </button>
@@ -68,7 +75,7 @@ export default function InstallAppBanner() {
         type="button"
         onClick={dismiss}
         aria-label={t("install.close")}
-        className="p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0"
+        className="ml-3 rounded-lg hover:bg-white/10 flex-shrink-0 w-10 h-10 flex items-center justify-center"
       >
         <X className="w-4 h-4" />
       </button>
