@@ -73,6 +73,39 @@ export function matchesLanguage(ad, lang) {
     .includes(String(lang).toLowerCase());
 }
 
+// Splits a list of ads into { top, bottom } for a given placement: ads
+// assigned to this exact placement take priority over "all pages" ads —
+// independently per position, so a page can have its own top banner while
+// still falling back to a shared "all pages" bottom banner, or the other
+// way round. Each bucket is sorted by sort_order, which is what lets
+// several banners share a placement+position and stack in a predictable
+// order (added v2.46 — see AdBanner.jsx / BottomAdBanner.jsx).
+export function bucketAdsByPosition(ads, placement) {
+  const exactTop = [], exactBottom = [], genericTop = [], genericBottom = [];
+  for (const a of ads || []) {
+    const pos = a.banner_position || "top";
+    const isExact = a.placement === placement;
+    const isGeneric = a.placement === "all" || !a.placement;
+    if (isExact) (pos === "bottom" ? exactBottom : exactTop).push(a);
+    else if (isGeneric) (pos === "bottom" ? genericBottom : genericTop).push(a);
+  }
+  const bySortOrder = (a, b) => (a.sort_order || 0) - (b.sort_order || 0);
+  return {
+    top: (exactTop.length > 0 ? exactTop : genericTop).slice().sort(bySortOrder),
+    bottom: (exactBottom.length > 0 ? exactBottom : genericBottom).slice().sort(bySortOrder),
+  };
+}
+
+// Cache-based equivalent of getCurrentAd() below, but returns every
+// eligible ad for the placement (split top/bottom) instead of just one —
+// several banners can now be active for the same placement at once.
+export function getCurrentAds(placement, lang) {
+  const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
+  const { top, bottom } = bucketAdsByPosition(ads, placement);
+  for (const ad of [...top, ...bottom]) trackImpression(ad.id);
+  return { top, bottom };
+}
+
 export function getCurrentAd(placement, lang) {
   const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
 

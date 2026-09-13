@@ -36,6 +36,7 @@ import { LanguageSelector, useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import AdBanner from "@/components/AdBanner";
+import BottomAdBanner from "@/components/BottomAdBanner";
 import InstallAppBanner from "@/components/InstallAppBanner";
 import SyncStatus from "@/components/SyncStatus";
 import NotificationsBell from "@/components/NotificationsBell";
@@ -272,22 +273,39 @@ export default function Layout() {
          </div>
         </aside>
 
-      {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 dark:bg-card/80 dark:border-border flex items-center justify-between px-4 py-2">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Fish className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
-        </Link>
-        <div className="flex items-center gap-1">
-           <NotificationsBell />
-           <ThemeToggle />
-           <button onClick={() => setMobileOpen(true)} className="p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-accent">
-             <Menu className="w-5 h-5 text-slate-600 dark:text-muted-foreground" />
-           </button>
-         </div>
-        </header>
+      {/* Sticky top group: mobile header + top ad banners scroll and stick
+          together as ONE unit (see AdBanner.jsx's own comment for why —
+          this is what replaced a hardcoded pixel offset that assumed the
+          header was always exactly one fixed height). `env(safe-area-
+          inset-top)` padding lives on the header itself, inside this
+          sticky wrapper, so its own background fills the notch/status-bar
+          area on devices that have one, instead of leaving a transparent
+          gap or letting content start underneath it. */}
+      <div className="sticky top-0 z-30">
+        <header
+          className="lg:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 dark:bg-card/80 dark:border-border flex items-center justify-between px-4 pb-2"
+          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
+        >
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+              <Fish className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
+          </Link>
+          <div className="flex items-center gap-1">
+             <NotificationsBell />
+             <ThemeToggle />
+             <button onClick={() => setMobileOpen(true)} className="p-2.5 rounded-lg hover:bg-slate-100 dark:hover:bg-accent">
+               <Menu className="w-5 h-5 text-slate-600 dark:text-muted-foreground" />
+             </button>
+           </div>
+          </header>
+        {/* Rendered once (not once per breakpoint) so the eligible-ads
+            fetch/impression-tracking below it only ever runs a single time
+            per page — on desktop the header above just takes no space
+            (`lg:hidden`), and this sticks at top:0 on its own. */}
+        <AdBanner />
+      </div>
 
       {/* Mobile menu */}
       {/* z-[60]: must render above the fixed "Синхронизиране..." pill
@@ -315,12 +333,16 @@ export default function Layout() {
         </div>
       )}
 
-      <main className="lg:ml-60">
+      {/* paddingBottom reserves exactly as much room as the bottom ad
+          stack currently occupies (0 when there isn't one) — see
+          BottomAdBanner.jsx for how --bottom-ads-h gets set, so a fixed
+          bottom banner never covers the last bit of page content. */}
+      <main className="lg:ml-60" style={{ paddingBottom: "var(--bottom-ads-h, 0px)" }}>
         <InstallAppBanner />
-        <AdBanner />
         <Outlet />
       </main>
 
+      <BottomAdBanner />
       <SyncStatus />
     </div>
   );

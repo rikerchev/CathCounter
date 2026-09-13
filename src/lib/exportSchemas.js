@@ -95,6 +95,8 @@ export const EXPORT_GROUPS = {
           { key: "is_active", label: "Активна", hint: "Да или Не", type: "boolean" },
           { key: "placement", label: "Позиция", hint: "all, home, session, log_catch и др." },
           { key: "sort_order", label: "Ред", hint: "Номер за подредба", type: "number" },
+          { key: "banner_position", label: "Място на банера", hint: "top (най-отгоре) или bottom (най-отдолу)" },
+          { key: "banner_size", label: "Размер на банера", hint: "compact, normal или large" },
           { key: "status", label: "Статус", hint: "active или pending_review" },
         ],
       },

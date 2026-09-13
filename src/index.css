@@ -4,6 +4,11 @@
 
 @layer base {
   :root {
+    /* Rendered height of the bottom ad banner stack (0 when there isn't
+       one) — kept in sync by BottomAdBanner.jsx via ResizeObserver. Read
+       by <main>'s bottom padding and by SyncStatus's own bottom offset so
+       neither ever ends up hidden behind or buried inside it. */
+    --bottom-ads-h: 0px;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;

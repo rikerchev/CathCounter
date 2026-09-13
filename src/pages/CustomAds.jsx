@@ -68,6 +68,17 @@ const AD_STATUS_COLORS = {
 
 const DURATION_OPTIONS = [1, 2, 3, 6, 12];
 
+const BANNER_POSITION_KEYS = [
+  { value: "top", labelKey: "ca.bannerPositionTop" },
+  { value: "bottom", labelKey: "ca.bannerPositionBottom" },
+];
+
+const BANNER_SIZE_KEYS = [
+  { value: "compact", labelKey: "ca.bannerSizeCompact" },
+  { value: "normal", labelKey: "ca.bannerSizeNormal" },
+  { value: "large", labelKey: "ca.bannerSizeLarge" },
+];
+
 const emptyAd = {
   title: "",
   description: "",
@@ -79,6 +90,8 @@ const emptyAd = {
   is_active: true,
   placement: "all",
   sort_order: 0,
+  banner_position: "top",
+  banner_size: "normal",
   status: "active",
   countries: "all",
   country_content: "",
@@ -95,6 +108,8 @@ export default function CustomAdsManager() {
   const PLACEMENTS = Object.keys(PLACEMENT_KEYS).map((k) => ({ value: k, label: t(PLACEMENT_KEYS[k]) }));
   const BG_OPTIONS = BG_OPTION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
+  const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
+  const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const AD_STATUS_LABELS = {};
   for (const k in AD_STATUS_KEYS) AD_STATUS_LABELS[k] = t(AD_STATUS_KEYS[k]);
   const [ads, setAds] = useState([]);
@@ -126,10 +141,6 @@ export default function CustomAdsManager() {
   // restricting, and it's always folded into the saved `languages` list —
   // the ad's own language can never be silently left out.
   const [primaryLanguage, setPrimaryLanguage] = useState("");
-  // Unfiltered list of every ad (not just this advertiser's own), used only
-  // to check whether a placement+language slot is already taken by someone
-  // else's active ad before saving.
-  const [allAds, setAllAds] = useState([]);
   const [translatingLang, setTranslatingLang] = useState(null);
   const [translatingAll, setTranslatingAll] = useState(false);
   // Whether the create-new-ad form is open. Previously the "+ Нова" button
@@ -162,7 +173,6 @@ export default function CustomAdsManager() {
   async function loadAds() {
     try {
       const data = await base44.entities.CustomAd.list("sort_order");
-      setAllAds(data || []);
       const filtered = (data || []).filter((ad) => {
         if (isAdmin) return true;
         return ad.advertiser_id === user?.id;
@@ -203,6 +213,8 @@ export default function CustomAdsManager() {
       is_active: ad.is_active ?? true,
       placement: ad.placement || "all",
       sort_order: ad.sort_order || 0,
+      banner_position: ad.banner_position || "top",
+      banner_size: ad.banner_size || "normal",
       status: ad.status || "active",
       countries,
       country_content: ad.country_content || "",
@@ -285,24 +297,6 @@ export default function CustomAdsManager() {
     });
   };
 
-  // Is a given placement + target-language combination already taken by a
-  // different active ad? Two ads can share a placement as long as their
-  // target languages don't overlap (e.g. one "bg" ad and one "en" ad on
-  // "Активна сесия" is fine — that's exactly what lets different sponsors
-  // run per language). An ad targeting "all languages" overlaps with
-  // anything. `excludeId` skips the ad currently being edited/toggled.
-  function isSlotTakenFor(placement, languages, excludeId) {
-    const ourLangs = !languages || languages === "all" ? null : languages.split(",").map((s) => s.trim());
-    return allAds.some((a) => {
-      if (excludeId && a.id === excludeId) return false;
-      if (!a.is_active || a.status === "pending_review") return false;
-      if (a.placement !== placement) return false;
-      const otherLangs = !a.languages || a.languages === "all" ? null : a.languages.split(",").map((s) => s.trim());
-      if (otherLangs === null || ourLangs === null) return true;
-      return otherLangs.some((l) => ourLangs.includes(l));
-    });
-  }
-
   async function autoTranslateLanguage(code) {
     if (!form.title && !form.description) return;
     setTranslatingLang(code);
@@ -368,18 +362,6 @@ Description: ${form.description}`;
     const languagesToSave = languageRestricted
       ? [...new Set([primaryLanguage, ...selectedLanguages])].join(",")
       : "all";
-    if (form.is_active && isSlotTakenFor(form.placement, languagesToSave, editing)) {
-      const placementLabel = PLACEMENTS.find((p) => p.value === form.placement)?.label || form.placement;
-      const languageLabel = languageRestricted
-        ? [...new Set([primaryLanguage, ...selectedLanguages])].map((c) => getLanguageNativeName(c) || c).join(", ")
-        : t("ca.allLanguagesTarget");
-      toast({
-        title: t("ca.slotTakenError")
-          .replace("{placement}", placementLabel)
-          .replace("{language}", languageLabel),
-      });
-      return;
-    }
     try {
       const countries = targetAllCountries ? "all" : selectedCountries.join(",");
       const expiresAt = computeAdExpiry(form.starts_at, form.duration_months);
@@ -433,18 +415,6 @@ Description: ${form.description}`;
   }
 
   async function approveAd(ad) {
-    if (ad.is_active && isSlotTakenFor(ad.placement, ad.languages, ad.id)) {
-      const placementLabel = PLACEMENTS.find((p) => p.value === ad.placement)?.label || ad.placement;
-      const languageLabel = !ad.languages || ad.languages === "all"
-        ? t("ca.allLanguagesTarget")
-        : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ");
-      toast({
-        title: t("ca.slotTakenError")
-          .replace("{placement}", placementLabel)
-          .replace("{language}", languageLabel),
-      });
-      return;
-    }
     try {
       await base44.entities.CustomAd.update(ad.id, { status: "active" });
       toast({ title: t("ca.changesApproved") });
@@ -456,18 +426,6 @@ Description: ${form.description}`;
 
       async function toggleActive(ad) {
       const activating = !ad.is_active;
-      if (activating && isSlotTakenFor(ad.placement, ad.languages, ad.id)) {
-        const placementLabel = PLACEMENTS.find((p) => p.value === ad.placement)?.label || ad.placement;
-        const languageLabel = !ad.languages || ad.languages === "all"
-          ? t("ca.allLanguagesTarget")
-          : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ");
-        toast({
-          title: t("ca.slotTakenError")
-            .replace("{placement}", placementLabel)
-            .replace("{language}", languageLabel),
-        });
-        return;
-      }
       try {
        await base44.entities.CustomAd.update(ad.id, { is_active: activating });
        await loadAds();
@@ -616,6 +574,34 @@ Description: ${form.description}`;
                   <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {PLACEMENTS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Where on the page the banner sits, and how much room it
+                takes. Several banners can share the same placement + same
+                position (top or bottom) now — they stack one under another
+                with a gap, in `sort_order`. */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{t("ca.bannerPosition")}</Label>
+                <Select value={form.banner_position} onValueChange={(v) => setForm({ ...form, banner_position: v })}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BANNER_POSITIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("ca.bannerSize")}</Label>
+                <Select value={form.banner_size} onValueChange={(v) => setForm({ ...form, banner_size: v })}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BANNER_SIZES.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -950,6 +936,10 @@ Description: ${form.description}`;
                       {!ad.languages || ad.languages === "all"
                         ? t("ca.allLanguagesTarget")
                         : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ")}
+                      {" · "}
+                      {BANNER_POSITIONS.find((p) => p.value === (ad.banner_position || "top"))?.label}
+                      {" · "}
+                      {BANNER_SIZES.find((s) => s.value === (ad.banner_size || "normal"))?.label}
                     </p>
                     {ad.status === "pending_review" && (
                       <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">

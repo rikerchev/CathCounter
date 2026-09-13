@@ -1,191 +1,34 @@
-import { useLanguage } from "@/lib/i18n";
-import { getCurrentAd, cacheAds, matchesLanguage, getPendingImpressions, clearPendingImpressions } from "@/lib/adCache";
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { usePremium } from "@/hooks/usePremium";
-import { base44 } from "@/api/base44Client";
-import { detectCountry, getCachedCountry } from "@/lib/geo";
+import { useEligibleAds } from "@/hooks/useEligibleAds";
+import AdBannerItem from "@/components/AdBannerItem";
 
-const LOGO_SIZE_CLASSES = {
-  "16x16": "w-16 h-16",
-  "32x16": "w-32 h-16",
-  "48x16": "w-48 h-16",
-  "auto": "w-auto h-auto max-w-full max-h-24",
-};
-
-const PLACEMENT_MAP = {
-  "/": "home",
-  "/active-session": "session",
-  "/log-catch": "log_catch",
-  "/catch-history": "history",
-  "/sessions": "sessions",
-  "/statistics": "statistics",
-  "/locations": "locations",
-  "/personal-best": "personal_best",
-  "/bait-inventory": "bait_inventory",
-  "/water-bodies": "water_bodies",
-  "/competitions": "competitions",
-  "/sector-reservations": "sector_reservations",
-  "/advertise": "advertise",
-  "/profile": "profile",
-};
-
+/**
+ * AdBanner — the TOP-of-page banner stack. Since v2.46 it can hold several
+ * banners at once (one placement can now carry more than one active ad),
+ * rendered one under another with a small gap between them instead of
+ * only ever a single banner.
+ *
+ * This component no longer positions itself (no `sticky`/`top-*` here) —
+ * Layout.jsx renders it directly below the mobile header inside ONE shared
+ * sticky wrapper, so the two stick and scroll together as a single unit.
+ * That's what replaced the old hardcoded `top-[61px]` offset: a magic
+ * number that assumed the header was always exactly that tall, and would
+ * have silently gone wrong the moment the header's own height changed (as
+ * it now does on notched phones, which pad the header for the safe area).
+ *
+ * The gap between stacked banners: each AdBannerItem already carries its
+ * own `my-0.5` vertical margin, so consecutive banners naturally end up
+ * with visible separation without anything extra needed here.
+ */
 export default function AdBanner() {
-  const { t, lang } = useLanguage();
-  const { isPremium } = usePremium();
-  const location = useLocation();
+  const { top, userCountry } = useEligibleAds();
 
-  // Show a real (or default) ad immediately on mount instead of a blank gap
-  // while the network request below is in flight. Previously, fetched
-  // custom ads were never cached anywhere, so every mount started from
-  // scratch: a slow connection, a cold server, or a request that missed the
-  // 12s timeout just showed nothing that visit — the banner only happened
-  // to appear when the fetch below got lucky and finished in time. Reading
-  // from cache first means the last known real ad is on screen right away,
-  // every time, with the network fetch only used to refresh it.
-  const [ad, setAd] = useState(() => {
-    if (isPremium) return null;
-    const placement = PLACEMENT_MAP[location.pathname] || "all";
-    return getCurrentAd(placement, lang);
-  });
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [userCountry, setUserCountry] = useState(getCachedCountry());
-
-  useEffect(() => {
-    if (isPremium) return;
-
-    const placement = PLACEMENT_MAP[location.pathname] || "all";
-    const country = getCachedCountry();
-
-    const matchesCountry = (ad) => {
-      if (!ad.countries || ad.countries === "all") return true;
-      if (!country) return true; // no detection yet — show ad
-      return ad.countries.split(",").map((c) => c.trim().toUpperCase()).includes(country);
-    };
-
-    // Navigated to a page with a different placement: show the best ad we
-    // already know about for it immediately (cache/defaults), then upgrade
-    // once the network responds below — never leave the banner blank while
-    // waiting.
-    setAd(getCurrentAd(placement, lang));
-
-    // Try custom ads first
-    base44.entities.CustomAd.list("sort_order")
-      .then((customAds) => {
-        // Cache every currently active, country- AND language-eligible ad
-        // across ALL placements (not just this page's) so the next mount —
-        // on any page — can render a real ad straight from cache instead of
-        // falling back to the generic defaults while it waits on the
-        // network again. Filtering by language here (not just at display
-        // time) mirrors how country targeting already works, and means an
-        // ad someone restricted to e.g. Bulgarian never gets cached/shown
-        // for a visitor using the app in another language — leaving that
-        // same placement free for a different sponsor per language.
-        const allActive = (customAds || []).filter(
-          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a) && matchesLanguage(a, lang)
-        );
-        cacheAds(allActive);
-
-        const active = allActive.filter((a) => a.placement === "all" || a.placement === placement);
-        if (active.length > 0) {
-          setAd(active[0]);
-        } else {
-          setAd(getCurrentAd(placement, lang));
-        }
-      })
-      .catch(() => {
-        setAd(getCurrentAd(placement, lang));
-            });
-
-    // Detect country for future ad loads
-    if (!country) {
-      detectCountry().then((code) => {
-        if (code) setUserCountry(code);
-      });
-    }
-
-    const handleOnline = () => {
-      setIsOnline(true);
-      const pending = getPendingImpressions();
-      if (pending.length > 0) {
-        clearPendingImpressions();
-      }
-    };
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, [isPremium, location.pathname, userCountry, lang]);
-
-  if (isPremium || !ad) return null;
-
-  // Resolve translation keys for default/fallback ads
-  const resolveText = (text) => (ad.is_translation_key && text ? t(text) : text);
-  let displayTitle = resolveText(ad.title);
-  let displayDescription = resolveText(ad.description);
-  let displayCta = resolveText(ad.cta);
-  if (ad.country_content && userCountry) {
-    try {
-      const cc = JSON.parse(ad.country_content);
-      const entry = cc[userCountry];
-      if (entry) {
-        if (entry.title) displayTitle = entry.title;
-        if (entry.description) displayDescription = entry.description;
-        if (entry.cta) displayCta = entry.cta;
-      }
-    } catch {
-      // ignore malformed JSON
-    }
-  }
-  // Resolve per-language overrides (takes priority over country)
-  if (ad.language_content) {
-    try {
-      const lc = JSON.parse(ad.language_content);
-      const entry = lc[lang];
-      if (entry) {
-        if (entry.title) displayTitle = entry.title;
-        if (entry.description) displayDescription = entry.description;
-        if (entry.cta) displayCta = entry.cta;
-      }
-    } catch {
-      // ignore malformed JSON
-    }
-  }
+  if (top.length === 0) return null;
 
   return (
-    <div className="sticky top-[61px] lg:top-0 z-20 bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-slate-100 dark:border-border">
-      <div
-        data-ad-region="fishing"
-        data-ad-keywords="fishing tackle bait rods"
-        className={`relative ${ad.bg_class || "bg-gradient-to-r from-cyan-600 to-blue-600"} rounded-md px-2 py-0.5 mx-2 my-0.5`}
-      >
-        <Link to={ad.link || "/advertise"} className="flex items-center gap-3 w-full">
-          {ad.logo_url && (
-            <div className={`${LOGO_SIZE_CLASSES[ad.logo_size] || LOGO_SIZE_CLASSES["auto"]} rounded-lg shrink-0 flex items-center justify-center`}>
-              <img
-                src={ad.logo_url}
-                alt={displayTitle}
-                className="w-full h-full object-contain"
-              />
-            </div>
-          )}
-          <div className="flex-1 min-w-0 text-center">
-            <p className={`text-sm font-bold ${ad.text_class || "text-white"} truncate`}>
-              {displayTitle}
-            </p>
-            {displayDescription && (
-              <p className={`text-[11px] ${ad.text_class || "text-white"} opacity-90 truncate`}>
-                {displayDescription}
-              </p>
-            )}
-          </div>
-        </Link>
-      </div>
+    <div className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-slate-100 dark:border-border">
+      {top.map((ad) => (
+        <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} />
+      ))}
     </div>
   );
 }

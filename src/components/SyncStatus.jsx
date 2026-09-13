@@ -19,7 +19,11 @@ export default function SyncStatus() {
 
   return (
     <div
-      className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-xs font-medium ${
+      // bottom offset stacks on top of any bottom ad banner (--bottom-ads-h,
+      // set by BottomAdBanner.jsx) instead of a fixed 1rem, so this pill
+      // never ends up visually buried inside/behind a bottom banner.
+      style={{ bottom: "calc(1rem + var(--bottom-ads-h, 0px))" }}
+      className={`fixed left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-xs font-medium ${
         online
           ? "bg-cyan-600 text-white"
           : "bg-slate-700 text-white"

@@ -219,6 +219,11 @@ CREATE TABLE custom_ads (
   is_active BOOLEAN DEFAULT TRUE,
   placement TEXT CHECK (placement IN ('all', 'home', 'session', 'log_catch', 'history', 'sessions', 'statistics', 'locations', 'personal_best', 'bait_inventory', 'water_bodies', 'competitions', 'sector_reservations', 'advertise', 'profile')) DEFAULT 'all',
   sort_order INTEGER DEFAULT 0,
+  -- Where this banner renders, and how much space it takes — added v2.46 so
+  -- several banners can be active on the same placement at once, stacked
+  -- with a gap between them, instead of only ever one banner per page.
+  banner_position TEXT CHECK (banner_position IN ('top', 'bottom')) DEFAULT 'top',
+  banner_size TEXT CHECK (banner_size IN ('compact', 'normal', 'large')) DEFAULT 'normal',
   ad_slot_id TEXT,
   advertiser_id TEXT,
   countries TEXT DEFAULT 'all',
@@ -414,3 +419,9 @@ ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS expires_at TEXT;
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS renewal_notice_sent BOOLEAN DEFAULT FALSE;
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS expiry_notice_sent BOOLEAN DEFAULT FALSE;
 CREATE INDEX IF NOT EXISTS idx_custom_ads_expires_at ON custom_ads(expires_at) WHERE expires_at IS NOT NULL;
+
+-- v2.46: banner stacking position (top/bottom) and size — run this once
+-- against an existing database that was created before these columns
+-- existed (custom_ads). Safe to re-run.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS banner_position TEXT DEFAULT 'top';
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS banner_size TEXT DEFAULT 'normal';

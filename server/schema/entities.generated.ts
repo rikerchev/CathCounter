@@ -219,6 +219,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "is_active", type: "boolean", required: false },
       { name: "placement", type: "enum", required: false, enumValues: ["all", "home", "session", "log_catch", "history", "sessions", "statistics", "locations", "personal_best", "bait_inventory", "water_bodies", "competitions", "sector_reservations", "advertise", "profile"] },
       { name: "sort_order", type: "integer", required: false },
+      // Where this banner renders on the page, and how much space it takes.
+      // Added v2.46 so several banners can be active on the same placement
+      // at once, stacked with a gap — see src/hooks/useEligibleAds.js /
+      // src/components/AdBanner.jsx / src/components/BottomAdBanner.jsx.
+      { name: "banner_position", type: "enum", required: false, enumValues: ["top", "bottom"] },
+      { name: "banner_size", type: "enum", required: false, enumValues: ["compact", "normal", "large"] },
       { name: "ad_slot_id", type: "string", required: false },
       { name: "advertiser_id", type: "string", required: false },
       { name: "countries", type: "string", required: false },
