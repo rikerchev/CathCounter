@@ -937,4 +937,5 @@ export const en = {
   "aar.markedPaid": "Marked as paid",
   "aar.markedPaidHint": "Remember to create the live ad banner in the ad management screen.",
   "aar.markPaidError": "Error marking as paid",
+  "adv.noSlotsConfigured": "No ad placements have been configured yet. Please contact the administrator.",
 };

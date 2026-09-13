@@ -79,6 +79,7 @@ export default function Advertise() {
   const BG_OPTIONS = BG_OPTION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const [slots, setSlots] = useState([]);
+  const [totalSlotCount, setTotalSlotCount] = useState(null); // how many AdSlot rows exist at all, regardless of availability — lets the UI tell "none configured yet" apart from "all currently rented"
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -95,6 +96,14 @@ export default function Advertise() {
         base44.entities.AdSlot.list(),
         base44.entities.CustomAd.list(),
       ]);
+      setTotalSlotCount((slotData || []).length);
+      // is_available is the admin's explicit "hide this from advertisers"
+      // switch (the eye/eye-off toggle in "Управление на рекламни места") —
+      // it used to be silently ignored here, so a slot the admin had hidden
+      // could still be requested. Also drop anything already marked
+      // "rented" outright (belt-and-braces alongside the CustomAd check
+      // below, which is what actually reflects reality moment to moment).
+      const explicitlyOpen = (slotData || []).filter((s) => s.is_available !== false && s.status !== "rented");
       // A placement/slot is only truly full when a currently active,
       // already-approved ad covers ALL languages there (`languages` unset or
       // "all"). An ad restricted to just one or two languages (e.g. only
@@ -107,12 +116,15 @@ export default function Advertise() {
       const fullyOccupied = (a) => a.is_active && a.status !== "pending_review" && (!a.languages || a.languages === "all");
       const rentedSlotIds = new Set((adData || []).filter(fullyOccupied).map((a) => a.ad_slot_id).filter(Boolean));
       const rentedPlacements = new Set((adData || []).filter(fullyOccupied).map((a) => a.placement).filter(Boolean));
-      const available = (slotData || []).filter(
+      const available = explicitlyOpen.filter(
         (s) => !rentedSlotIds.has(s.id) && !rentedPlacements.has(s.placement)
       );
       setSlots(available);
-    } catch {
-      // non-blocking
+    } catch (e) {
+      // Surfaced now instead of swallowed — a load failure used to look
+      // identical to "no banners available", which made a real error
+      // (network/permissions) indistinguishable from normal "all rented".
+      toast({ title: t("adv.loadError"), description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -241,7 +253,9 @@ export default function Advertise() {
               <Loader2 className="w-5 h-5 text-slate-300 animate-spin" />
             </div>
           ) : slots.length === 0 ? (
-            <p className="text-sm text-slate-400 py-2">{t("adv.noSlots")}</p>
+            <p className="text-sm text-slate-400 py-2">
+              {totalSlotCount === 0 ? t("adv.noSlotsConfigured") : t("adv.noSlots")}
+            </p>
           ) : (
             <Select value={form.ad_slot_id} onValueChange={(v) => setForm({ ...form, ad_slot_id: v })}>
               <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("adv.selectBanner")} /></SelectTrigger>

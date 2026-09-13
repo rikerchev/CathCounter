@@ -901,4 +901,5 @@ export const ro = {
   "aar.markedPaid": "Marcat ca plătit",
   "aar.markedPaidHint": "Nu uitați să creați manual bannerul publicitar în ecranul de gestionare a reclamelor.",
   "aar.markPaidError": "Eroare la marcarea ca plătit",
+  "adv.noSlotsConfigured": "Nu a fost configurat încă niciun spațiu publicitar. Vă rugăm să contactați administratorul.",
 };

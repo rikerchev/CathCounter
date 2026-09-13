@@ -901,4 +901,5 @@ export const tr = {
   "aar.markedPaid": "Ödendi olarak işaretlendi",
   "aar.markedPaidHint": "Reklam yönetimi ekranında reklam banner'ını manuel olarak oluşturmayı unutmayın.",
   "aar.markPaidError": "Ödendi olarak işaretlerken hata oluştu",
+  "adv.noSlotsConfigured": "Henüz hiç reklam alanı oluşturulmadı. Lütfen yönetici ile iletişime geçin.",
 };

@@ -901,4 +901,5 @@ export const hu = {
   "aar.markedPaid": "Fizetettként megjelölve",
   "aar.markedPaidHint": "Ne felejtse el manuálisan létrehozni a hirdetési bannert a hirdetéskezelő képernyőn.",
   "aar.markPaidError": "Hiba a fizetettként való megjelölésnél",
+  "adv.noSlotsConfigured": "Még nincsenek létrehozva hirdetési helyek. Kérjük, vegye fel a kapcsolatot az adminisztrátorral.",
 };

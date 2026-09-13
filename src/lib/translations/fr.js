@@ -901,4 +901,5 @@ export const fr = {
   "aar.markedPaid": "Marqué comme payé",
   "aar.markedPaidHint": "N'oubliez pas de créer la bannière publicitaire manuellement dans l'écran de gestion des annonces.",
   "aar.markPaidError": "Erreur lors du marquage comme payé",
+  "adv.noSlotsConfigured": "Aucun emplacement publicitaire n'a encore été configuré. Veuillez contacter l'administrateur.",
 };

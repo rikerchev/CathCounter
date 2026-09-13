@@ -901,4 +901,5 @@ export const pl = {
   "aar.markedPaid": "Oznaczono jako opłacone",
   "aar.markedPaidHint": "Pamiętaj, aby ręcznie utworzyć baner reklamowy w ekranie zarządzania reklamami.",
   "aar.markPaidError": "Błąd podczas oznaczania jako opłacone",
+  "adv.noSlotsConfigured": "Nie utworzono jeszcze żadnych miejsc reklamowych. Skontaktuj się z administratorem.",
 };

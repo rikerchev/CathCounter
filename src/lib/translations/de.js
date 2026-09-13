@@ -901,4 +901,5 @@ export const de = {
   "aar.markedPaid": "Als bezahlt markiert",
   "aar.markedPaidHint": "Denken Sie daran, das Anzeigenbanner im Anzeigenverwaltungsbereich manuell zu erstellen.",
   "aar.markPaidError": "Fehler beim Markieren als bezahlt",
+  "adv.noSlotsConfigured": "Es wurden noch keine Werbeplätze angelegt. Bitte wenden Sie sich an den Administrator.",
 };

@@ -901,4 +901,5 @@ export const it = {
   "aar.markedPaid": "Segnato come pagato",
   "aar.markedPaidHint": "Ricorda di creare manualmente il banner pubblicitario nella schermata di gestione degli annunci.",
   "aar.markPaidError": "Errore nel segnare come pagato",
+  "adv.noSlotsConfigured": "Non è stato ancora configurato nessuno spazio pubblicitario. Contatta l'amministratore.",
 };

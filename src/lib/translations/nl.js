@@ -901,4 +901,5 @@ export const nl = {
   "aar.markedPaid": "Gemarkeerd als betaald",
   "aar.markedPaidHint": "Vergeet niet de advertentiebanner handmatig aan te maken in het advertentiebeheerscherm.",
   "aar.markPaidError": "Fout bij markeren als betaald",
+  "adv.noSlotsConfigured": "Er zijn nog geen advertentieplekken aangemaakt. Neem contact op met de beheerder.",
 };

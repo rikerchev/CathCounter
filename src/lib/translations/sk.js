@@ -901,4 +901,5 @@ export const sk = {
   "aar.markedPaid": "Označené ako zaplatené",
   "aar.markedPaidHint": "Nezabudnite manuálne vytvoriť reklamný banner na obrazovke správy reklám.",
   "aar.markPaidError": "Chyba pri označovaní ako zaplatené",
+  "adv.noSlotsConfigured": "Zatiaľ neboli vytvorené žiadne reklamné miesta. Kontaktujte administrátora.",
 };
