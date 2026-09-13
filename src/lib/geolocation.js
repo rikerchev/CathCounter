@@ -85,14 +85,24 @@ function getPreciseLocation(lang) {
 }
 
 /**
- * Coarse fix: a single network/cell-tower-based reading (no GPS radio spun
- * up, no multi-second wait for a tight fix) — resolves as soon as the
- * browser has ANY position, and accepts one up to a minute old. This is
+ * Coarse fix: a single reading, resolved as soon as the browser has ANY
+ * position, and happy to reuse one up to a minute old — no multi-sample
+ * 5-second wait for a tight (<10m) fix like the precise mode does. This is
  * all a water body needs, since it's identified by its nearest named
- * settlement regardless of exactly where on the bank you're standing —
- * waiting longer for a tighter fix wouldn't change which town/village
- * comes back from the reverse-geocode above. Much faster and far lighter
- * on the battery than the precise mode.
+ * settlement regardless of exactly where on the bank you're standing.
+ *
+ * This still asks for `enableHighAccuracy: true` (i.e. lets the device use
+ * GPS), even though the intent is a "coarse" fix — NOT for a tighter
+ * result, but for reliability: `enableHighAccuracy: false` tells the
+ * browser it's free to rely on WiFi/cell-tower positioning only, and at a
+ * genuinely remote fishing spot there may be no WiFi networks nearby and
+ * only a weak or absent cell signal for it to use, which can make the fix
+ * fail outright with nothing to fall back on. GPS works via satellites
+ * with no network at all, so it's what actually makes this reliable
+ * everywhere a precise fix would have worked. The real savings here come
+ * from settling for the first position report instead of watching for
+ * several seconds to refine it, and from accepting a recent cached fix
+ * (maximumAge) instead of always asking for a brand new one.
  */
 function getCoarseLocation(lang) {
   return new Promise((resolve, reject) => {
@@ -102,7 +112,7 @@ function getCoarseLocation(lang) {
         resolve(await reverseGeocode(latitude, longitude, lang));
       },
       (err) => reject(err),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
     );
   });
 }
@@ -111,18 +121,28 @@ function getCoarseLocation(lang) {
  * Gets the user's current location (name + coordinates) via reverse geocoding.
  * Returns { name, latitude, longitude }, or coordinates as fallback name.
  *
- * `precise` (default true) picks how hard the GPS chip works:
- *  - true:  a high-accuracy fix — use this wherever the exact spot matters
- *    (a catch's location/distance).
- *  - false: a single coarse fix — use this for "which water body am I at"
- *    style lookups (e.g. at the start of a session), where only the
- *    nearest settlement's name matters.
+ * `precise` (default true) picks how hard the fix works:
+ *  - true:  watches for up to 5s (or until a fix better than 10m arrives)
+ *    and keeps the best one seen — use this wherever the exact spot
+ *    matters (a catch's location/distance).
+ *  - false: a single, quick fix, reused if one under a minute old is
+ *    already available — use this for "which water body am I at" style
+ *    lookups (e.g. at the start of a session), where only the nearest
+ *    settlement's name matters. If this quick fix fails outright for any
+ *    reason, this transparently falls back to the same precise fetch as
+ *    `true` uses, so a coarse-mode caller is never less reliable than a
+ *    precise one — only faster/lighter when the quick fix succeeds.
  */
 export async function getCurrentLocation(lang = "en", precise = true) {
   if (!navigator.geolocation) {
     throw new Error("not_supported");
   }
-  return precise ? getPreciseLocation(lang) : getCoarseLocation(lang);
+  if (precise) return getPreciseLocation(lang);
+  try {
+    return await getCoarseLocation(lang);
+  } catch {
+    return getPreciseLocation(lang);
+  }
 }
 
 /** Backward-compatible wrapper returning only the name string. */
