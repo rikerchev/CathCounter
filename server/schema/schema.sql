@@ -224,6 +224,11 @@ CREATE TABLE custom_ads (
   countries TEXT DEFAULT 'all',
   country_content TEXT,
   language_content TEXT,
+  -- Which app UI language(s) this ad is targeted to ("all", or a
+  -- comma-separated list like "bg,ru"). Added in v2.30 so the same
+  -- placement can carry a different sponsor per language — see the
+  -- `ALTER TABLE` note near the bottom of this file for existing databases.
+  languages TEXT DEFAULT 'all',
   status TEXT CHECK (status IN ('active', 'pending_review')) DEFAULT 'active',
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -382,3 +387,8 @@ CREATE INDEX idx_water_bodies_created_by ON water_bodies(created_by_id);
 -- database doesn't need a destructive column drop; safe to ignore or drop
 -- yourself later.
 ALTER TABLE water_bodies ADD COLUMN stripe_account_id TEXT;
+
+-- v2.30: per-language ad targeting (custom_ads.languages) — run this once
+-- against an existing database that was created before this column was
+-- added above.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS languages TEXT DEFAULT 'all';

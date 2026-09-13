@@ -100,6 +100,19 @@ export default function CustomAdsManager() {
   const [languageContent, setLanguageContent] = useState({});
   const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [targetAllCountries, setTargetAllCountries] = useState(true);
+  // Which UI language(s) this ad's placement is restricted to. Separate from
+  // `selectedLanguages`/`languageContent` above (which only override this
+  // same ad's own text per language) — this is what lets one placement
+  // (e.g. "Активна сесия") carry a different sponsor per language instead of
+  // one ad taking over that placement for every language.
+  const [targetAllLanguages, setTargetAllLanguages] = useState(true);
+  const [targetLanguages, setTargetLanguages] = useState([]);
+  // Unfiltered list of every ad (not just this advertiser's own), used only
+  // to check whether a placement+language slot is already taken by someone
+  // else's active ad before saving.
+  const [allAds, setAllAds] = useState([]);
+  const [translatingLang, setTranslatingLang] = useState(null);
+  const [translatingAll, setTranslatingAll] = useState(false);
 
   useEffect(() => {
     loadAds();
@@ -118,6 +131,7 @@ export default function CustomAdsManager() {
   async function loadAds() {
     try {
       const data = await base44.entities.CustomAd.list("sort_order");
+      setAllAds(data || []);
       const filtered = (data || []).filter((ad) => {
         if (isAdmin) return true;
         return ad.advertiser_id === user?.id;
@@ -171,6 +185,11 @@ export default function CustomAdsManager() {
     setTargetAllCountries(isAll);
     setSelectedCountries(allCodes);
     setCountryContent(parsedContent);
+
+    const languages = ad.languages || "all";
+    const isAllLangs = languages === "all";
+    setTargetAllLanguages(isAllLangs);
+    setTargetLanguages(isAllLangs ? [] : languages.split(",").map((c) => c.trim()).filter(Boolean));
   }
 
   function resetForm() {
@@ -181,6 +200,8 @@ export default function CustomAdsManager() {
     setLanguageContent({});
     setSelectedLanguages([]);
     setTargetAllCountries(true);
+    setTargetAllLanguages(true);
+    setTargetLanguages([]);
   }
 
   const toggleCountry = (code) => {
@@ -189,9 +210,94 @@ export default function CustomAdsManager() {
     );
   };
 
+  const toggleTargetLanguage = (code) => {
+    setTargetLanguages((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
+  };
+
+  // Is a given placement + target-language combination already taken by a
+  // different active ad? Two ads can share a placement as long as their
+  // target languages don't overlap (e.g. one "bg" ad and one "en" ad on
+  // "Активна сесия" is fine — that's exactly what lets different sponsors
+  // run per language). An ad targeting "all languages" overlaps with
+  // anything. `excludeId` skips the ad currently being edited/toggled.
+  function isSlotTakenFor(placement, languages, excludeId) {
+    const ourLangs = !languages || languages === "all" ? null : languages.split(",").map((s) => s.trim());
+    return allAds.some((a) => {
+      if (excludeId && a.id === excludeId) return false;
+      if (!a.is_active || a.status === "pending_review") return false;
+      if (a.placement !== placement) return false;
+      const otherLangs = !a.languages || a.languages === "all" ? null : a.languages.split(",").map((s) => s.trim());
+      if (otherLangs === null || ourLangs === null) return true;
+      return otherLangs.some((l) => ourLangs.includes(l));
+    });
+  }
+
+  async function autoTranslateLanguage(code) {
+    if (!form.title && !form.description) return;
+    setTranslatingLang(code);
+    try {
+      const langName = getLanguageNativeName(code) || code;
+      const prompt = `Translate the following advertisement copy into ${langName}. Return ONLY a valid JSON object with keys "title" and "description". Keep any {placeholders} unchanged and keep it as short/punchy as the original.
+
+Title: ${form.title}
+Description: ${form.description}`;
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt,
+        model: "gemini_3_flash",
+        response_json_schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+          },
+        },
+      });
+      if (res && (res.title || res.description)) {
+        setLanguageContent((prev) => ({
+          ...prev,
+          [code]: {
+            ...(prev[code] || {}),
+            title: res.title || prev[code]?.title || "",
+            description: res.description || prev[code]?.description || "",
+          },
+        }));
+        toast({ title: t("ca.translateDone") });
+      } else {
+        toast({ title: t("ca.translateError") });
+      }
+    } catch (e) {
+      toast({ title: t("ca.translateError"), description: e.message });
+    } finally {
+      setTranslatingLang(null);
+    }
+  }
+
+  async function autoTranslateAllLanguages() {
+    setTranslatingAll(true);
+    for (const code of selectedLanguages) {
+      await autoTranslateLanguage(code);
+    }
+    setTranslatingAll(false);
+  }
+
   async function save() {
     if (!form.title || !form.description || !form.link) {
       toast({ title: t("adv.fillAllFields") });
+      return;
+    }
+    const languagesToSave = targetAllLanguages ? "all" : targetLanguages.join(",");
+    if (form.is_active && isSlotTakenFor(form.placement, languagesToSave, editing)) {
+      const placementLabel = PLACEMENTS.find((p) => p.value === form.placement)?.label || form.placement;
+      const languageLabel = targetAllLanguages
+        ? t("ca.allLanguagesTarget")
+        : targetLanguages.map((c) => getLanguageNativeName(c) || c).join(", ");
+      toast({
+        title: t("ca.slotTakenError")
+          .replace("{placement}", placementLabel)
+          .replace("{language}", languageLabel),
+      });
       return;
     }
     try {
@@ -199,6 +305,7 @@ export default function CustomAdsManager() {
       const payload = {
         ...form,
         countries,
+        languages: languagesToSave,
         country_content: JSON.stringify(countryContent),
         language_content: JSON.stringify(languageContent),
       };
@@ -229,6 +336,18 @@ export default function CustomAdsManager() {
   }
 
   async function approveAd(ad) {
+    if (ad.is_active && isSlotTakenFor(ad.placement, ad.languages, ad.id)) {
+      const placementLabel = PLACEMENTS.find((p) => p.value === ad.placement)?.label || ad.placement;
+      const languageLabel = !ad.languages || ad.languages === "all"
+        ? t("ca.allLanguagesTarget")
+        : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ");
+      toast({
+        title: t("ca.slotTakenError")
+          .replace("{placement}", placementLabel)
+          .replace("{language}", languageLabel),
+      });
+      return;
+    }
     try {
       await base44.entities.CustomAd.update(ad.id, { status: "active" });
       toast({ title: t("ca.changesApproved") });
@@ -239,8 +358,21 @@ export default function CustomAdsManager() {
       }
 
       async function toggleActive(ad) {
+      const activating = !ad.is_active;
+      if (activating && isSlotTakenFor(ad.placement, ad.languages, ad.id)) {
+        const placementLabel = PLACEMENTS.find((p) => p.value === ad.placement)?.label || ad.placement;
+        const languageLabel = !ad.languages || ad.languages === "all"
+          ? t("ca.allLanguagesTarget")
+          : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ");
+        toast({
+          title: t("ca.slotTakenError")
+            .replace("{placement}", placementLabel)
+            .replace("{language}", languageLabel),
+        });
+        return;
+      }
       try {
-       await base44.entities.CustomAd.update(ad.id, { is_active: !ad.is_active });
+       await base44.entities.CustomAd.update(ad.id, { is_active: activating });
        await loadAds();
       } catch (e) {
        toast({ title: t("awb.error"), description: e.message });
@@ -503,11 +635,75 @@ export default function CustomAdsManager() {
               )}
             </div>
 
-            {/* Per-language title/description/CTA overrides */}
-            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-4">
+            {/* Target languages — which UI language(s) this ad occupies this
+                placement for. Distinct from the translation overrides below:
+                this controls exclusivity (so the same page can carry a
+                different sponsor per language), the block below only
+                controls what text is shown. */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Languages className="w-4 h-4 text-cyan-600" />
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("adv.languageContent")}</h3>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("adv.targetLanguages")}</h3>
+              </div>
+              <p className="text-xs text-slate-400">{t("ca.languageTargetingDesc")}</p>
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={targetAllLanguages}
+                  onChange={(e) => setTargetAllLanguages(e.target.checked)}
+                  className="w-4 h-4 rounded accent-cyan-600"
+                />
+                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.allLanguagesTarget")}</span>
+              </label>
+              {!targetAllLanguages && (
+                <>
+                  <Select value="" onValueChange={(code) => { if (!targetLanguages.includes(code)) toggleTargetLanguage(code); }}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.addLanguageForTargeting")} /></SelectTrigger>
+                    <SelectContent>
+                      {DEFAULT_LANGUAGES.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {targetLanguages.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {targetLanguages.map((code) => (
+                        <span
+                          key={code}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400"
+                        >
+                          {getLanguageNativeName(code) || code}
+                          <button type="button" onClick={() => toggleTargetLanguage(code)} className="hover:text-red-500">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 text-center py-2">{t("ca.noLanguagesTargeted")}</p>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Per-language title/description/CTA overrides */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Languages className="w-4 h-4 text-cyan-600" />
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("adv.languageContent")}</h3>
+                </div>
+                {selectedLanguages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={autoTranslateAllLanguages}
+                    disabled={translatingAll || !!translatingLang}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400 hover:bg-cyan-100 disabled:opacity-50"
+                  >
+                    {translatingAll ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                    {t("ca.autoTranslateAll")}
+                  </button>
+                )}
               </div>
               <p className="text-xs text-slate-400">{t("ca.languageContentDesc")}</p>
 
@@ -529,20 +725,31 @@ export default function CustomAdsManager() {
                     <div key={code} className="space-y-2 pb-3 border-b border-slate-100 dark:border-border last:border-0 last:pb-0">
                       <div className="flex items-center justify-between">
                         <p className="text-xs font-semibold text-slate-500 dark:text-muted-foreground">{langName} ({code})</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedLanguages((prev) => prev.filter((c) => c !== code));
-                            setLanguageContent((prev) => {
-                              const copy = { ...prev };
-                              delete copy[code];
-                              return copy;
-                            });
-                          }}
-                          className="text-slate-400 hover:text-red-500 p-1"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => autoTranslateLanguage(code)}
+                            disabled={translatingLang === code || translatingAll || (!form.title && !form.description)}
+                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400 hover:bg-cyan-100 disabled:opacity-50"
+                            title={t("ca.autoTranslate")}
+                          >
+                            {translatingLang === code ? <Loader2 className="w-3 h-3 animate-spin" /> : t("ca.autoTranslate")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedLanguages((prev) => prev.filter((c) => c !== code));
+                              setLanguageContent((prev) => {
+                                const copy = { ...prev };
+                                delete copy[code];
+                                return copy;
+                              });
+                            }}
+                            className="text-slate-400 hover:text-red-500 p-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
                       </div>
                       <Input
                         value={content.title || ""}
@@ -608,6 +815,10 @@ export default function CustomAdsManager() {
                     <p className={`text-xs ${ad.text_class || "text-white"} opacity-90 truncate`}>{ad.description}</p>
                     <p className={`text-[10px] ${ad.text_class || "text-white"} opacity-75 mt-0.5`}>
                       {PLACEMENTS.find(p => p.value === ad.placement)?.label || t("ca.all")}
+                      {" · "}
+                      {!ad.languages || ad.languages === "all"
+                        ? t("ca.allLanguagesTarget")
+                        : ad.languages.split(",").map((c) => getLanguageNativeName(c.trim()) || c.trim()).join(", ")}
                     </p>
                     {ad.status === "pending_review" && (
                       <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">

@@ -15,7 +15,8 @@ const DEFAULT_ADS = [
     bg_class: "bg-gradient-to-r from-cyan-600 to-blue-600",
     text_class: "text-white",
     is_translation_key: true,
-    placement: "profile"
+    placement: "profile",
+    languages: "all"
   },
   {
     id: "default_2",
@@ -27,7 +28,8 @@ const DEFAULT_ADS = [
     bg_class: "bg-gradient-to-r from-emerald-600 to-teal-600",
     text_class: "text-white",
     is_translation_key: true,
-    placement: "all"
+    placement: "all",
+    languages: "all"
   }
 ];
 
@@ -57,13 +59,34 @@ export function cacheAds(ads) {
   }
 }
 
-export function getCurrentAd(placement) {
-  const ads = getCachedAds();
+// An ad with no `languages` set (or "all") is shown regardless of the app's
+// current UI language. Otherwise it is only eligible when `lang` is one of
+// its listed codes — this is what lets the very same placement carry a
+// different sponsor per language (e.g. a Bulgarian-only ad on "Активна
+// сесия" leaves that placement free for an English or German advertiser).
+export function matchesLanguage(ad, lang) {
+  if (!ad || !ad.languages || ad.languages === "all") return true;
+  if (!lang) return true;
+  return ad.languages
+    .split(",")
+    .map((l) => l.trim().toLowerCase())
+    .includes(String(lang).toLowerCase());
+}
 
-  // Pick by placement: first try exact match, then fall back to "all"
+export function getCurrentAd(placement, lang) {
+  const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
+
+  // Pick by placement: first try an exact match, then fall back to an "all
+  // pages" ad. Previously, when neither matched, this fell all the way back
+  // to `ads[0]` — the very first ad in the whole cached list, regardless of
+  // its placement. That meant a single ad assigned to just one page (e.g.
+  // "Активна сесия") could end up showing on every other page too, any time
+  // no ad was assigned to that other page. Now, if nothing is actually
+  // assigned to this placement (and no "all pages" ad exists either), no ad
+  // is shown here — the placement is correctly left free.
   let ad = ads.find((a) => a.placement === placement);
   if (!ad) ad = ads.find((a) => a.placement === "all" || !a.placement);
-  if (!ad) ad = ads[0];
+  if (!ad) return null;
 
   // Track impression (will be sent when online)
   trackImpression(ad.id);

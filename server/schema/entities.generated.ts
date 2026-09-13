@@ -224,6 +224,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "countries", type: "string", required: false },
       { name: "country_content", type: "string", required: false },
       { name: "language_content", type: "string", required: false },
+      // Which app UI language(s) this ad is targeted to ("all", or a
+      // comma-separated list of language codes like "bg,ru"). Lets the same
+      // placement carry a different sponsor per language: an ad targeted to
+      // just "bg" leaves that placement free for another ad targeted to
+      // "en" or any other language.
+      { name: "languages", type: "string", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["active", "pending_review"] },
     ],
     rules: {

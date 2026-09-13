@@ -1,5 +1,5 @@
 import { useLanguage } from "@/lib/i18n";
-import { getCurrentAd, cacheAds, getPendingImpressions, clearPendingImpressions } from "@/lib/adCache";
+import { getCurrentAd, cacheAds, matchesLanguage, getPendingImpressions, clearPendingImpressions } from "@/lib/adCache";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { usePremium } from "@/hooks/usePremium";
@@ -46,7 +46,7 @@ export default function AdBanner() {
   const [ad, setAd] = useState(() => {
     if (isPremium) return null;
     const placement = PLACEMENT_MAP[location.pathname] || "all";
-    return getCurrentAd(placement);
+    return getCurrentAd(placement, lang);
   });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [userCountry, setUserCountry] = useState(getCachedCountry());
@@ -67,18 +67,22 @@ export default function AdBanner() {
     // already know about for it immediately (cache/defaults), then upgrade
     // once the network responds below — never leave the banner blank while
     // waiting.
-    setAd(getCurrentAd(placement));
+    setAd(getCurrentAd(placement, lang));
 
     // Try custom ads first
     base44.entities.CustomAd.list("sort_order")
       .then((customAds) => {
-        // Cache every currently active, country-eligible ad across ALL
-        // placements (not just this page's) so the next mount — on any
-        // page — can render a real ad straight from cache instead of
+        // Cache every currently active, country- AND language-eligible ad
+        // across ALL placements (not just this page's) so the next mount —
+        // on any page — can render a real ad straight from cache instead of
         // falling back to the generic defaults while it waits on the
-        // network again.
+        // network again. Filtering by language here (not just at display
+        // time) mirrors how country targeting already works, and means an
+        // ad someone restricted to e.g. Bulgarian never gets cached/shown
+        // for a visitor using the app in another language — leaving that
+        // same placement free for a different sponsor per language.
         const allActive = (customAds || []).filter(
-          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a)
+          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a) && matchesLanguage(a, lang)
         );
         cacheAds(allActive);
 
@@ -86,11 +90,11 @@ export default function AdBanner() {
         if (active.length > 0) {
           setAd(active[0]);
         } else {
-          setAd(getCurrentAd(placement));
+          setAd(getCurrentAd(placement, lang));
         }
       })
       .catch(() => {
-        setAd(getCurrentAd(placement));
+        setAd(getCurrentAd(placement, lang));
             });
 
     // Detect country for future ad loads
@@ -116,7 +120,7 @@ export default function AdBanner() {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [isPremium, location.pathname, userCountry]);
+  }, [isPremium, location.pathname, userCountry, lang]);
 
   if (isPremium || !ad) return null;
 
