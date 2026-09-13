@@ -1,5 +1,5 @@
 import { useLanguage } from "@/lib/i18n";
-import { getCurrentAd, getPendingImpressions, clearPendingImpressions } from "@/lib/adCache";
+import { getCurrentAd, cacheAds, getPendingImpressions, clearPendingImpressions } from "@/lib/adCache";
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { usePremium } from "@/hooks/usePremium";
@@ -33,10 +33,23 @@ const PLACEMENT_MAP = {
 export default function AdBanner() {
   const { t, lang } = useLanguage();
   const { isPremium } = usePremium();
-  const [ad, setAd] = useState(null);
+  const location = useLocation();
+
+  // Show a real (or default) ad immediately on mount instead of a blank gap
+  // while the network request below is in flight. Previously, fetched
+  // custom ads were never cached anywhere, so every mount started from
+  // scratch: a slow connection, a cold server, or a request that missed the
+  // 12s timeout just showed nothing that visit — the banner only happened
+  // to appear when the fetch below got lucky and finished in time. Reading
+  // from cache first means the last known real ad is on screen right away,
+  // every time, with the network fetch only used to refresh it.
+  const [ad, setAd] = useState(() => {
+    if (isPremium) return null;
+    const placement = PLACEMENT_MAP[location.pathname] || "all";
+    return getCurrentAd(placement);
+  });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [userCountry, setUserCountry] = useState(getCachedCountry());
-  const location = useLocation();
 
   useEffect(() => {
     if (isPremium) return;
@@ -50,12 +63,26 @@ export default function AdBanner() {
       return ad.countries.split(",").map((c) => c.trim().toUpperCase()).includes(country);
     };
 
+    // Navigated to a page with a different placement: show the best ad we
+    // already know about for it immediately (cache/defaults), then upgrade
+    // once the network responds below — never leave the banner blank while
+    // waiting.
+    setAd(getCurrentAd(placement));
+
     // Try custom ads first
     base44.entities.CustomAd.list("sort_order")
       .then((customAds) => {
-        const active = (customAds || []).filter(
-          (a) => a.is_active && a.status !== "pending_review" && (a.placement === "all" || a.placement === placement) && matchesCountry(a)
+        // Cache every currently active, country-eligible ad across ALL
+        // placements (not just this page's) so the next mount — on any
+        // page — can render a real ad straight from cache instead of
+        // falling back to the generic defaults while it waits on the
+        // network again.
+        const allActive = (customAds || []).filter(
+          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a)
         );
+        cacheAds(allActive);
+
+        const active = allActive.filter((a) => a.placement === "all" || a.placement === placement);
         if (active.length > 0) {
           setAd(active[0]);
         } else {
