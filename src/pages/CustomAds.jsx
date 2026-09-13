@@ -115,6 +115,17 @@ export default function CustomAdsManager() {
   // in `selectedLanguages`/`languageContent` still just override the text
   // shown to that language.
   const [languageRestricted, setLanguageRestricted] = useState(false);
+  // The language the main title/description fields above are actually
+  // written in. This used to be an implicit gap: "restrict to languages"
+  // only ever collected languages the admin explicitly *added* for
+  // translation, so an ad written in Bulgarian and then also "added" for
+  // English (to get an English translation) ended up with languages="en"
+  // only — Bulgarian, its own base language, was never in the list, so the
+  // ad silently stopped showing to Bulgarian users the moment it was
+  // restricted. Now this is a required, separate field whenever
+  // restricting, and it's always folded into the saved `languages` list —
+  // the ad's own language can never be silently left out.
+  const [primaryLanguage, setPrimaryLanguage] = useState("");
   // Unfiltered list of every ad (not just this advertiser's own), used only
   // to check whether a placement+language slot is already taken by someone
   // else's active ad before saving.
@@ -214,10 +225,23 @@ export default function CustomAdsManager() {
     const languages = ad.languages || "all";
     const isRestricted = languages !== "all";
     const restrictedCodes = isRestricted ? languages.split(",").map((c) => c.trim()).filter(Boolean) : [];
-    // The editable language list is the union of "languages this ad is
-    // restricted to" and "languages that already have translated text" —
-    // either one should show up as a row below, even if the other is empty.
-    setSelectedLanguages([...new Set([...Object.keys(parsedLangContent), ...restrictedCodes])]);
+    const contentCodes = Object.keys(parsedLangContent);
+    // The primary language is a restricted code with no translation
+    // override — that's the one language whose text is the main
+    // title/description fields themselves, not a translated copy. If every
+    // restricted code already has an override (or there are none), this is
+    // an older/broken ad with no primary language recorded — the field
+    // below starts empty and the admin must pick one before saving again.
+    const inferredPrimary = restrictedCodes.find((c) => !contentCodes.includes(c)) || "";
+    setPrimaryLanguage(inferredPrimary);
+    // The editable translation-row list is the union of "languages that
+    // already have translated text" and "restricted languages other than
+    // the inferred primary one" (the primary language has its own field
+    // above and doesn't need a translation row — its text IS the main
+    // title/description).
+    setSelectedLanguages(
+      [...new Set([...contentCodes, ...restrictedCodes])].filter((c) => c !== inferredPrimary)
+    );
     setLanguageContent(parsedLangContent);
     setLanguageRestricted(isRestricted);
   }
@@ -232,6 +256,7 @@ export default function CustomAdsManager() {
     setSelectedLanguages([]);
     setTargetAllCountries(true);
     setLanguageRestricted(false);
+    setPrimaryLanguage("");
     setEditingOriginalPeriod(null);
   }
 
@@ -331,15 +356,22 @@ Description: ${form.description}`;
       toast({ title: t("adv.fillAllFields") });
       return;
     }
-    if (languageRestricted && selectedLanguages.length === 0) {
-      toast({ title: t("ca.noLanguagesAdded") });
+    if (languageRestricted && !primaryLanguage) {
+      toast({ title: t("ca.noPrimaryLanguage") });
       return;
     }
-    const languagesToSave = languageRestricted ? selectedLanguages.join(",") : "all";
+    // The primary language (the one the main title/description are
+    // actually written in) is always folded in here, in addition to
+    // whatever extra translated languages were added — this is what
+    // guarantees an ad restricted to specific languages can never silently
+    // exclude its own base language.
+    const languagesToSave = languageRestricted
+      ? [...new Set([primaryLanguage, ...selectedLanguages])].join(",")
+      : "all";
     if (form.is_active && isSlotTakenFor(form.placement, languagesToSave, editing)) {
       const placementLabel = PLACEMENTS.find((p) => p.value === form.placement)?.label || form.placement;
       const languageLabel = languageRestricted
-        ? selectedLanguages.map((c) => getLanguageNativeName(c) || c).join(", ")
+        ? [...new Set([primaryLanguage, ...selectedLanguages])].map((c) => getLanguageNativeName(c) || c).join(", ")
         : t("ca.allLanguagesTarget");
       toast({
         title: t("ca.slotTakenError")
@@ -794,6 +826,27 @@ Description: ${form.description}`;
                 />
                 <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.restrictToLanguages")}</span>
               </label>
+
+              {/* Required whenever restricting: the language the main
+                  title/description fields above are actually written in.
+                  Always folded into the saved `languages` list on save, so
+                  restricting to specific languages can never silently
+                  exclude the ad's own base language (see the note by
+                  `primaryLanguage`'s useState above). */}
+              {languageRestricted && (
+                <div>
+                  <Label>{t("ca.primaryLanguage")}</Label>
+                  <Select value={primaryLanguage} onValueChange={setPrimaryLanguage}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.primaryLanguagePlaceholder")} /></SelectTrigger>
+                    <SelectContent>
+                      {DEFAULT_LANGUAGES.map((l) => (
+                        <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-400 mt-1">{t("ca.primaryLanguageDesc")}</p>
+                </div>
+              )}
 
               {/* Language picker — adding a language makes it editable below
                   and immediately requests an auto-translation for it */}
