@@ -888,4 +888,5 @@ export const ro = {
   "ca.translating": "Se traduce…",
   "ca.translateError": "Traducerea a eșuat",
   "ca.translateDone": "Tradus",
+  "ca.restrictToLanguages": "Afișează doar pentru limbile selectate",
 };

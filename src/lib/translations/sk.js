@@ -888,4 +888,5 @@ export const sk = {
   "ca.translating": "Prekladá sa…",
   "ca.translateError": "Preklad zlyhal",
   "ca.translateDone": "Preložené",
+  "ca.restrictToLanguages": "Zobrazovať iba vybraným jazykom",
 };

@@ -888,4 +888,5 @@ export const hu = {
   "ca.translating": "Fordítás folyamatban…",
   "ca.translateError": "A fordítás sikertelen",
   "ca.translateDone": "Lefordítva",
+  "ca.restrictToLanguages": "Csak a kiválasztott nyelveken jelenjen meg",
 };

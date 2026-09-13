@@ -924,4 +924,5 @@ export const en = {
   "ca.translating": "Translating…",
   "ca.translateError": "Translation failed",
   "ca.translateDone": "Translated",
+  "ca.restrictToLanguages": "Show only to the selected languages",
 };

@@ -888,4 +888,5 @@ export const nl = {
   "ca.translating": "Bezig met vertalen…",
   "ca.translateError": "Vertalen mislukt",
   "ca.translateDone": "Vertaald",
+  "ca.restrictToLanguages": "Alleen tonen voor de geselecteerde talen",
 };

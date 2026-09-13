@@ -888,4 +888,5 @@ export const sr = {
   "ca.translating": "Превођење…",
   "ca.translateError": "Превод није успео",
   "ca.translateDone": "Преведено",
+  "ca.restrictToLanguages": "Прикажуј само изабраним језицима",
 };

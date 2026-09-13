@@ -100,19 +100,26 @@ export default function CustomAdsManager() {
   const [languageContent, setLanguageContent] = useState({});
   const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [targetAllCountries, setTargetAllCountries] = useState(true);
-  // Which UI language(s) this ad's placement is restricted to. Separate from
-  // `selectedLanguages`/`languageContent` above (which only override this
-  // same ad's own text per language) — this is what lets one placement
-  // (e.g. "Активна сесия") carry a different sponsor per language instead of
-  // one ad taking over that placement for every language.
-  const [targetAllLanguages, setTargetAllLanguages] = useState(true);
-  const [targetLanguages, setTargetLanguages] = useState([]);
+  // When true, this ad is ONLY shown to the languages in `selectedLanguages`
+  // (the same list used for the per-language text below) — this is what
+  // lets one placement (e.g. "Активна сесия") carry a different sponsor per
+  // language instead of one ad taking over that placement for every
+  // language. When false (default), the ad shows to everyone; any entries
+  // in `selectedLanguages`/`languageContent` still just override the text
+  // shown to that language.
+  const [languageRestricted, setLanguageRestricted] = useState(false);
   // Unfiltered list of every ad (not just this advertiser's own), used only
   // to check whether a placement+language slot is already taken by someone
   // else's active ad before saving.
   const [allAds, setAllAds] = useState([]);
   const [translatingLang, setTranslatingLang] = useState(null);
   const [translatingAll, setTranslatingAll] = useState(false);
+  // Whether the create-new-ad form is open. Previously the "+ Нова" button
+  // only reset the form fields but never made the form panel itself appear
+  // once at least one ad already existed (it was shown only while editing,
+  // or when the list was completely empty) — clicking it silently did
+  // nothing. This flag is what the form's visibility now depends on.
+  const [creatingNew, setCreatingNew] = useState(false);
 
   useEffect(() => {
     loadAds();
@@ -177,8 +184,6 @@ export default function CustomAdsManager() {
       country_content: ad.country_content || "",
       language_content: ad.language_content || "",
     });
-    setSelectedLanguages(Object.keys(parsedLangContent));
-    setLanguageContent(parsedLangContent);
     // Also include countries that have per-country content overrides
     const overrideCodes = Object.keys(parsedContent);
     const allCodes = [...new Set([...codes, ...overrideCodes])];
@@ -187,21 +192,26 @@ export default function CustomAdsManager() {
     setCountryContent(parsedContent);
 
     const languages = ad.languages || "all";
-    const isAllLangs = languages === "all";
-    setTargetAllLanguages(isAllLangs);
-    setTargetLanguages(isAllLangs ? [] : languages.split(",").map((c) => c.trim()).filter(Boolean));
+    const isRestricted = languages !== "all";
+    const restrictedCodes = isRestricted ? languages.split(",").map((c) => c.trim()).filter(Boolean) : [];
+    // The editable language list is the union of "languages this ad is
+    // restricted to" and "languages that already have translated text" —
+    // either one should show up as a row below, even if the other is empty.
+    setSelectedLanguages([...new Set([...Object.keys(parsedLangContent), ...restrictedCodes])]);
+    setLanguageContent(parsedLangContent);
+    setLanguageRestricted(isRestricted);
   }
 
   function resetForm() {
     setEditing(null);
+    setCreatingNew(false);
     setForm(emptyAd);
     setSelectedCountries([]);
     setCountryContent({});
     setLanguageContent({});
     setSelectedLanguages([]);
     setTargetAllCountries(true);
-    setTargetAllLanguages(true);
-    setTargetLanguages([]);
+    setLanguageRestricted(false);
   }
 
   const toggleCountry = (code) => {
@@ -210,10 +220,23 @@ export default function CustomAdsManager() {
     );
   };
 
-  const toggleTargetLanguage = (code) => {
-    setTargetLanguages((prev) =>
-      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
-    );
+  // Adds a language to the editable list and immediately kicks off an
+  // auto-translation for it (still editable afterwards) — so enabling a
+  // language for this ad translates it right away instead of requiring a
+  // separate manual step.
+  const addLanguage = (code) => {
+    if (selectedLanguages.includes(code)) return;
+    setSelectedLanguages((prev) => [...prev, code]);
+    autoTranslateLanguage(code);
+  };
+
+  const removeLanguage = (code) => {
+    setSelectedLanguages((prev) => prev.filter((c) => c !== code));
+    setLanguageContent((prev) => {
+      const copy = { ...prev };
+      delete copy[code];
+      return copy;
+    });
   };
 
   // Is a given placement + target-language combination already taken by a
@@ -287,12 +310,16 @@ Description: ${form.description}`;
       toast({ title: t("adv.fillAllFields") });
       return;
     }
-    const languagesToSave = targetAllLanguages ? "all" : targetLanguages.join(",");
+    if (languageRestricted && selectedLanguages.length === 0) {
+      toast({ title: t("ca.noLanguagesAdded") });
+      return;
+    }
+    const languagesToSave = languageRestricted ? selectedLanguages.join(",") : "all";
     if (form.is_active && isSlotTakenFor(form.placement, languagesToSave, editing)) {
       const placementLabel = PLACEMENTS.find((p) => p.value === form.placement)?.label || form.placement;
-      const languageLabel = targetAllLanguages
-        ? t("ca.allLanguagesTarget")
-        : targetLanguages.map((c) => getLanguageNativeName(c) || c).join(", ");
+      const languageLabel = languageRestricted
+        ? selectedLanguages.map((c) => getLanguageNativeName(c) || c).join(", ")
+        : t("ca.allLanguagesTarget");
       toast({
         title: t("ca.slotTakenError")
           .replace("{placement}", placementLabel)
@@ -383,21 +410,21 @@ Description: ${form.description}`;
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("ca.title")}</h1>
-         {!editing && isAdmin && (
-           <Button onClick={() => { setForm(emptyAd); }} size="sm" className="bg-cyan-600 hover:bg-cyan-700">
+         {!editing && !creatingNew && isAdmin && (
+           <Button onClick={() => { resetForm(); setCreatingNew(true); }} size="sm" className="bg-cyan-600 hover:bg-cyan-700">
              <Plus className="w-4 h-4 mr-1" /> {t("ca.new")}
           </Button>
         )}
       </div>
 
       {/* Form */}
-      {(editing || (ads.length === 0 && isAdmin)) && (
+      {(editing || creatingNew || (ads.length === 0 && isAdmin)) && (
         <div className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700 dark:text-foreground">
               {editing ? t("ca.editing") : t("ca.newAd")}
             </h2>
-            {editing && (
+            {(editing || creatingNew) && (
               <button onClick={resetForm} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-accent">
                 <X className="w-4 h-4 text-slate-500" />
               </button>
@@ -635,58 +662,12 @@ Description: ${form.description}`;
               )}
             </div>
 
-            {/* Target languages — which UI language(s) this ad occupies this
-                placement for. Distinct from the translation overrides below:
-                this controls exclusivity (so the same page can carry a
-                different sponsor per language), the block below only
-                controls what text is shown. */}
-            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Languages className="w-4 h-4 text-cyan-600" />
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("adv.targetLanguages")}</h3>
-              </div>
-              <p className="text-xs text-slate-400">{t("ca.languageTargetingDesc")}</p>
-              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-                <input
-                  type="checkbox"
-                  checked={targetAllLanguages}
-                  onChange={(e) => setTargetAllLanguages(e.target.checked)}
-                  className="w-4 h-4 rounded accent-cyan-600"
-                />
-                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.allLanguagesTarget")}</span>
-              </label>
-              {!targetAllLanguages && (
-                <>
-                  <Select value="" onValueChange={(code) => { if (!targetLanguages.includes(code)) toggleTargetLanguage(code); }}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.addLanguageForTargeting")} /></SelectTrigger>
-                    <SelectContent>
-                      {DEFAULT_LANGUAGES.map((l) => (
-                        <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {targetLanguages.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {targetLanguages.map((code) => (
-                        <span
-                          key={code}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400"
-                        >
-                          {getLanguageNativeName(code) || code}
-                          <button type="button" onClick={() => toggleTargetLanguage(code)} className="hover:text-red-500">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-slate-400 text-center py-2">{t("ca.noLanguagesTargeted")}</p>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Per-language title/description/CTA overrides */}
+            {/* Languages — one place to add a language, get it auto-translated
+                right away (still fully editable), and optionally restrict the
+                ad to only the languages added here. Restricting is what lets
+                the very same placement carry a different sponsor per
+                language (e.g. a Bulgarian-only ad on "Активна сесия" leaves
+                that placement free for an English or German advertiser). */}
             <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -707,11 +688,22 @@ Description: ${form.description}`;
               </div>
               <p className="text-xs text-slate-400">{t("ca.languageContentDesc")}</p>
 
-              {/* Language picker for overrides */}
-              <Select value="" onValueChange={(code) => { if (!selectedLanguages.includes(code)) setSelectedLanguages((prev) => [...prev, code]); }}>
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={languageRestricted}
+                  onChange={(e) => setLanguageRestricted(e.target.checked)}
+                  className="w-4 h-4 rounded accent-cyan-600"
+                />
+                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.restrictToLanguages")}</span>
+              </label>
+
+              {/* Language picker — adding a language makes it editable below
+                  and immediately requests an auto-translation for it */}
+              <Select value="" onValueChange={addLanguage}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.addLanguageForTranslation")} /></SelectTrigger>
                 <SelectContent>
-                  {DEFAULT_LANGUAGES.filter((l) => l.code !== "en").map((l) => (
+                  {DEFAULT_LANGUAGES.map((l) => (
                     <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
                   ))}
                 </SelectContent>
@@ -735,18 +727,7 @@ Description: ${form.description}`;
                           >
                             {translatingLang === code ? <Loader2 className="w-3 h-3 animate-spin" /> : t("ca.autoTranslate")}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedLanguages((prev) => prev.filter((c) => c !== code));
-                              setLanguageContent((prev) => {
-                                const copy = { ...prev };
-                                delete copy[code];
-                                return copy;
-                              });
-                            }}
-                            className="text-slate-400 hover:text-red-500 p-1"
-                          >
+                          <button type="button" onClick={() => removeLanguage(code)} className="text-slate-400 hover:text-red-500 p-1">
                             <X className="w-3 h-3" />
                           </button>
                         </div>
@@ -782,7 +763,7 @@ Description: ${form.description}`;
             <Button onClick={save} className="flex-1 bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
               {editing ? t("ca.save") : t("ca.create")}
             </Button>
-            {editing && (
+            {(editing || creatingNew) && (
               <Button onClick={resetForm} variant="outline" className="min-h-[44px]">{t("ca.cancel")}</Button>
             )}
           </div>

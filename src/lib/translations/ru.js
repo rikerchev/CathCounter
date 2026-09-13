@@ -888,4 +888,5 @@ export const ru = {
   "ca.translating": "Перевод…",
   "ca.translateError": "Не удалось перевести",
   "ca.translateDone": "Переведено",
+  "ca.restrictToLanguages": "Показывать только для выбранных языков",
 };

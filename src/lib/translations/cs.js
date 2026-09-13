@@ -888,4 +888,5 @@ export const cs = {
   "ca.translating": "Překládá se…",
   "ca.translateError": "Překlad se nezdařil",
   "ca.translateDone": "Přeloženo",
+  "ca.restrictToLanguages": "Zobrazovat pouze vybraným jazykům",
 };

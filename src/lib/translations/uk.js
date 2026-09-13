@@ -888,4 +888,5 @@ export const uk = {
   "ca.translating": "Перекладається…",
   "ca.translateError": "Не вдалося перекласти",
   "ca.translateDone": "Перекладено",
+  "ca.restrictToLanguages": "Показувати лише для вибраних мов",
 };

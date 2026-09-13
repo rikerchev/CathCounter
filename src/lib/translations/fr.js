@@ -888,4 +888,5 @@ export const fr = {
   "ca.translating": "Traduction en cours…",
   "ca.translateError": "Échec de la traduction",
   "ca.translateDone": "Traduit",
+  "ca.restrictToLanguages": "Afficher uniquement pour les langues sélectionnées",
 };

@@ -888,4 +888,5 @@ export const tr = {
   "ca.translating": "Çevriliyor…",
   "ca.translateError": "Çeviri başarısız oldu",
   "ca.translateDone": "Çevrildi",
+  "ca.restrictToLanguages": "Yalnızca seçilen dillere göster",
 };

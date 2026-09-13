@@ -888,4 +888,5 @@ export const mk = {
   "ca.translating": "Се преведува…",
   "ca.translateError": "Преводот не успеа",
   "ca.translateDone": "Преведено",
+  "ca.restrictToLanguages": "Прикажувај само на избраните јазици",
 };

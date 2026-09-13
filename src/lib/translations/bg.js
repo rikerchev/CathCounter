@@ -911,4 +911,5 @@ export const bg = {
   "ca.translating": "Превежда се…",
   "ca.translateError": "Грешка при превод",
   "ca.translateDone": "Преводът е готов",
+  "ca.restrictToLanguages": "Показвай само на избраните езици",
 };
