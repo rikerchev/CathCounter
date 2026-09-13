@@ -8,6 +8,15 @@ import { useToast } from "@/components/ui/use-toast";
  * purpose — it just scrolls away with the page; the ad banner right below
  * it (AdBanner.jsx) is what stays pinned to the top while scrolling.
  *
+ * IMPORTANT: this banner previously had no bottom margin, so its bottom
+ * edge touched the ad banner's top edge with a 0px gap. AdBanner is
+ * `position: sticky` with its own z-index (20) — with zero space between
+ * the two, a tap aimed at the bottom of this banner (e.g. the install
+ * button) very easily lands on the ad's link instead, which is exactly
+ * what users reported ("have to tap ~10 times"). `mb-2` + an explicit
+ * higher z-index here fixes that: real visual separation, and this banner
+ * wins if anything still overlaps by a pixel.
+ *
  * Why this exists: the browser's own address bar sits outside the page and
  * can never be affected by our CSS. Once installed (manifest.json already
  * declares display:standalone), the address bar disappears entirely — the
@@ -34,7 +43,7 @@ export default function InstallAppBanner() {
   };
 
   return (
-    <div className="relative flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-card dark:to-card text-white rounded-xl px-3 py-2 mx-2 mt-2">
+    <div className="relative z-30 flex items-center gap-3 bg-gradient-to-r from-slate-800 to-slate-900 dark:from-card dark:to-card text-white rounded-xl px-3 py-2 mx-2 mt-2 mb-2">
       <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
         <Download className="w-4 h-4" />
       </div>
