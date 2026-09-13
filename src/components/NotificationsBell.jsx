@@ -20,8 +20,23 @@ export default function NotificationsBell() {
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    // Skip the network request on ticks while the tab/app is in the
+    // background (screen off, another app in front) — nobody is watching
+    // the bell count then anyway — and refresh immediately the moment it
+    // becomes visible again, so nothing feels stale, it just isn't polled
+    // while unwatched.
+    const interval = setInterval(() => {
+      if (document.hidden) return;
+      loadNotifications();
+    }, 30000);
+    const onVisible = () => {
+      if (!document.hidden) loadNotifications();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [loadNotifications]);
 
   useEffect(() => {

@@ -118,29 +118,52 @@ function mergeCloudState(cloudSession) {
   }
 }
 
+async function pollCrossDeviceOnce() {
+  try {
+    const authed = await base44.auth.isAuthenticated();
+    if (!authed) return;
+    // Find our cloud session or the active one
+    const sessions = await base44.entities.SessionSync.list("-updated_date", 10);
+    const active = (sessions || []).find(s => s.is_active);
+    if (!active) return;
+    // Keep track of cloud session ID
+    cloudSessionId = active.id;
+    mergeCloudState(active);
+  } catch {
+    // Silently fail — cross-device sync is best-effort
+  }
+}
+
+let crossDeviceVisibilityHandler = null;
+
 export function startCrossDeviceSync() {
   if (crossDevicePollTimer) return;
-  crossDevicePollTimer = setInterval(async () => {
-    try {
-      const authed = await base44.auth.isAuthenticated();
-      if (!authed) return;
-      // Find our cloud session or the active one
-      const sessions = await base44.entities.SessionSync.list("-updated_date", 10);
-      const active = (sessions || []).find(s => s.is_active);
-      if (!active) return;
-      // Keep track of cloud session ID
-      cloudSessionId = active.id;
-      mergeCloudState(active);
-    } catch {
-      // Silently fail — cross-device sync is best-effort
-    }
+  crossDevicePollTimer = setInterval(() => {
+    // Skip this round's network round-trip while the tab/app isn't visible
+    // (phone locked, another app in front) — nobody is there to see a merged
+    // update anyway, and the visibilitychange handler below does one
+    // immediate poll the instant it becomes visible again, so nothing is
+    // missed, it just isn't fetched while unwatched.
+    if (typeof document !== "undefined" && document.hidden) return;
+    pollCrossDeviceOnce();
   }, 10000);
+
+  if (typeof document !== "undefined") {
+    crossDeviceVisibilityHandler = () => {
+      if (!document.hidden) pollCrossDeviceOnce();
+    };
+    document.addEventListener("visibilitychange", crossDeviceVisibilityHandler);
+  }
 }
 
 export function stopCrossDeviceSync() {
   if (crossDevicePollTimer) {
     clearInterval(crossDevicePollTimer);
     crossDevicePollTimer = null;
+  }
+  if (crossDeviceVisibilityHandler) {
+    document.removeEventListener("visibilitychange", crossDeviceVisibilityHandler);
+    crossDeviceVisibilityHandler = null;
   }
 }
 
