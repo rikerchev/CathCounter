@@ -19,6 +19,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
+import PaymentInfoCard from "@/components/PaymentInfoCard";
 
 const PLACEMENT_KEYS = {
   all: "nav.allPages",
@@ -453,6 +454,12 @@ Description: ${form.description}`;
           </Button>
         )}
       </div>
+
+      {/* Quick reference for whoever is settling a renewal by hand — same
+          card shown to advertisers on Advertise.jsx / MyAdRequests.jsx, so
+          the admin doesn't have to jump to Настройка на интеграциите just
+          to see what's currently configured. */}
+      {isAdmin && <PaymentInfoCard />}
 
       {/* Form */}
       {(editing || creatingNew || (ads.length === 0 && isAdmin)) && (
