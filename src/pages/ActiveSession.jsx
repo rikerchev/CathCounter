@@ -99,7 +99,12 @@ export default function ActiveSession() {
     const hasLocation = currentRods.some((r) => r.config?.location);
     if (!hasLocation) {
       toast({ title: t("session.gettingLocation") });
-      getCurrentLocation(lang)
+      // Coarse fix: this just names the water body by its nearest
+      // settlement, so a precise GPS lock isn't needed here — see
+      // src/lib/geolocation.js. The catch-time fetch below (in
+      // handleSaveCatch) stays precise, since that's what actually needs
+      // the exact spot/distance.
+      getCurrentLocation(lang, false)
         .then(({ name, latitude, longitude }) => {
           const updatedRods = sessionStore.getRods();
           updatedRods.forEach((r) => {
@@ -201,7 +206,10 @@ export default function ActiveSession() {
   const getAllLocations = async () => {
     setLocatingAll(true);
     try {
-      const { name, latitude, longitude } = await getCurrentLocation(lang);
+      // Coarse fix here too — same reasoning as the auto-location effect
+      // above: this names the water body by its nearest settlement, so a
+      // precise GPS lock isn't needed.
+      const { name, latitude, longitude } = await getCurrentLocation(lang, false);
       const currentRods = sessionStore.getRods();
       currentRods.forEach((r) => {
         sessionStore.updateRodConfig(r.id, {
