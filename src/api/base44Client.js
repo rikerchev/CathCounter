@@ -210,4 +210,10 @@ export const base44 = {
     getSettingsStatus: () => apiFetch("/api/admin/settings"),
     updateSettings: (patch) => apiFetch("/api/admin/settings", { method: "PUT", body: patch }),
   },
+
+  // Public (no admin rights needed) — how to pay the platform owner, for
+  // pages like Advertise.jsx that need to show this to any visitor.
+  settings: {
+    getPaymentInfo: () => apiFetch("/api/settings/payment"),
+  },
 };

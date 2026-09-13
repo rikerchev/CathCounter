@@ -6,6 +6,7 @@ import { Megaphone, ExternalLink, Loader2, Globe, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import AdRequestEditDialog from "@/components/AdRequestEditDialog";
+import PaymentInfoCard from "@/components/PaymentInfoCard";
 import { useLanguage } from "@/lib/i18n";
 
 const PLACEMENT_KEYS = {
@@ -136,12 +137,17 @@ export default function MyAdRequests() {
                   <a href={r.website_url} target="_blank" rel="noopener noreferrer" className="text-cyan-600 underline">{r.website_url}</a>
                 </div>
               )}
-              {r.checkout_url && r.status === "approved" && (
-                <Button asChild className="bg-emerald-600 hover:bg-emerald-700 min-h-[44px] w-full">
-                  <a href={r.checkout_url} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-4 h-4 mr-1" /> {t("aar.payNow")} (€{r.total_price})
-                  </a>
-                </Button>
+              {r.status === "approved" && (
+                <div className="space-y-2">
+                  {r.checkout_url && (
+                    <Button asChild className="bg-emerald-600 hover:bg-emerald-700 min-h-[44px] w-full">
+                      <a href={r.checkout_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4 mr-1" /> {t("aar.payNow")} (€{r.total_price})
+                      </a>
+                    </Button>
+                  )}
+                  <PaymentInfoCard />
+                </div>
               )}
               {r.status === "pending" && (
                 <p className="text-xs text-amber-600">{t("aar.pendingReview")}</p>

@@ -13,6 +13,7 @@ import { Fish, Megaphone, Users, Smartphone, Eye, CheckCircle2, Upload, Loader2,
 import { useLanguage } from "@/lib/i18n";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE, ALL_COUNTRIES } from "@/lib/countries";
 import { calculateCountryPrice, calculateTotalPrice } from "@/lib/pricing";
+import PaymentInfoCard from "@/components/PaymentInfoCard";
 
 const ALL_COUNTRY_CODES = ALL_COUNTRIES.map((c) => c.code);
 
@@ -470,6 +471,8 @@ export default function Advertise() {
            {t("adv.submit")}
         </Button>
       </div>
+
+      <PaymentInfoCard />
 
       {/* Audience */}
       <div className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-3">

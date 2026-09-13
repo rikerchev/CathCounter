@@ -49,6 +49,22 @@ const SECTIONS = [
       { key: "LLM_API_KEY", label: "API ключ", secret: true },
     ],
   },
+  {
+    id: "payment",
+    title: "Начини на плащане",
+    description: "Показва се на рекламодателите (страница „Рекламирай“), за да знаят как да платят. Може да включите Револют, банкова сметка или и двете.",
+    note: "Полето „Включен“ приема стойност true или false. Оставете и двата метода изключени, ако все още не искате да показвате начин на плащане.",
+    fields: [
+      { key: "PAYMENT_REVOLUT_ENABLED", label: "Револют — включен (true/false)", secret: false, placeholder: "true" },
+      { key: "PAYMENT_REVOLUT_TAG", label: "Револют — потребителско име", secret: false, placeholder: "напр. rkerchev" },
+      { key: "PAYMENT_REVOLUT_URL", label: "Револют — линк за плащане", secret: false, placeholder: "https://revolut.me/rkerchev" },
+      { key: "PAYMENT_BANK_ENABLED", label: "Банкова сметка — включена (true/false)", secret: false, placeholder: "true" },
+      { key: "PAYMENT_BANK_HOLDER", label: "Банкова сметка — титуляр", secret: false },
+      { key: "PAYMENT_BANK_IBAN", label: "Банкова сметка — IBAN", secret: false },
+      { key: "PAYMENT_BANK_BIC", label: "Банкова сметка — BIC/SWIFT", secret: false },
+      { key: "PAYMENT_INSTRUCTIONS_NOTE", label: "Допълнителна бележка (по избор)", secret: false, placeholder: "напр. В основанието посочете имейла си" },
+    ],
+  },
 ];
 
 export default function AdminSetup() {
@@ -86,6 +102,14 @@ export default function AdminSetup() {
 
   function sectionConfigured(section) {
     if (!status) return false;
+    if (section.id === "payment") {
+      // "Configured" here means at least one payment method is actually
+      // usable — not every field filled in (BIC/note are optional, and an
+      // admin may only want one of Revolut/bank, not both).
+      const revolutOk = status.PAYMENT_REVOLUT_ENABLED?.value === "true" && (status.PAYMENT_REVOLUT_TAG?.configured || status.PAYMENT_REVOLUT_URL?.configured);
+      const bankOk = status.PAYMENT_BANK_ENABLED?.value === "true" && status.PAYMENT_BANK_IBAN?.configured;
+      return Boolean(revolutOk || bankOk);
+    }
     return section.fields
       .filter((f) => f.key !== "SMTP_PORT" && f.key !== "SMTP_SECURE" && f.key !== "EMAIL_FROM" && f.key !== "GOOGLE_REDIRECT_URI")
       .every((f) => status[f.key]?.configured);

@@ -17,6 +17,17 @@ export const SETTINGS_KEYS = [
   "EMAIL_FROM",
   "LLM_PROVIDER",
   "LLM_API_KEY",
+  // How advertisers/renters actually pay the platform owner — surfaced
+  // read-only to any user via GET /api/settings/payment (see
+  // routes/publicSettings.ts), configured here via the Setup Wizard.
+  "PAYMENT_REVOLUT_ENABLED",
+  "PAYMENT_REVOLUT_TAG",
+  "PAYMENT_REVOLUT_URL",
+  "PAYMENT_BANK_ENABLED",
+  "PAYMENT_BANK_HOLDER",
+  "PAYMENT_BANK_IBAN",
+  "PAYMENT_BANK_BIC",
+  "PAYMENT_INSTRUCTIONS_NOTE",
 ] as const;
 
 export type SettingKey = typeof SETTINGS_KEYS[number];
@@ -108,4 +119,34 @@ export async function getSettingsStatus(): Promise<Record<SettingKey, SettingSta
     };
   }
   return out;
+}
+
+export interface PaymentInfo {
+  revolut: { enabled: boolean; tag: string; url: string };
+  bank: { enabled: boolean; holder: string; iban: string; bic: string };
+  note: string;
+}
+
+/**
+ * Read-only, non-admin view of the payment settings — used by any page that
+ * needs to tell a user how to pay the platform owner (e.g. Advertise.jsx).
+ * None of these fields are secrets, so it's fine to expose them to any
+ * authenticated (or anonymous) caller via a public route.
+ */
+export async function getPaymentInfo(): Promise<PaymentInfo> {
+  const [revEnabled, revTag, revUrl, bankEnabled, bankHolder, bankIban, bankBic, note] = await Promise.all([
+    getConfig("PAYMENT_REVOLUT_ENABLED"),
+    getConfig("PAYMENT_REVOLUT_TAG"),
+    getConfig("PAYMENT_REVOLUT_URL"),
+    getConfig("PAYMENT_BANK_ENABLED"),
+    getConfig("PAYMENT_BANK_HOLDER"),
+    getConfig("PAYMENT_BANK_IBAN"),
+    getConfig("PAYMENT_BANK_BIC"),
+    getConfig("PAYMENT_INSTRUCTIONS_NOTE"),
+  ]);
+  return {
+    revolut: { enabled: revEnabled === "true" && Boolean(revTag || revUrl), tag: revTag, url: revUrl },
+    bank: { enabled: bankEnabled === "true" && Boolean(bankIban), holder: bankHolder, iban: bankIban, bic: bankBic },
+    note,
+  };
 }

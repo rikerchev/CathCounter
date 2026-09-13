@@ -8,6 +8,7 @@ import { handleFunctionsRoute } from "./routes/functions.js";
 import { handleCatchPhotosRoute } from "./routes/catchPhotos.js";
 import { handleIntegrationsRoute } from "./routes/integrations.js";
 import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
+import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
 // handler. Deliberately has no opinion about HOW it's served — main.ts wraps
@@ -58,6 +59,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "admin" && segments[2] === "settings") {
       return await handleAdminSettingsRoute(req, user);
+    }
+    if (segments[1] === "settings") {
+      return await handlePublicSettingsRoute(req, segments.slice(2));
     }
     if (segments[1] === "health") {
       return new Response(JSON.stringify({ ok: true }), {
