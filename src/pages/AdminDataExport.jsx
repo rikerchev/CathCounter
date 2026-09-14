@@ -201,7 +201,7 @@ export default function AdminDataExport() {
   const handleExportCatches = async () => {
     setExportingCatches(true);
     try {
-      const result = await exportUserData(user?.id);
+      const result = await exportUserData(user);
       if (result.catchesCount === 0) {
         toast({ title: "Нямате улови за експортиране" });
       } else {

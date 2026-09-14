@@ -12,6 +12,9 @@ import { listCatchesByUser, saveCatch } from "@/lib/catchRepository";
 import { getPendingPhotosByCatch, savePendingPhoto } from "@/lib/pendingPhotos";
 import { syncAll } from "@/lib/syncEngine";
 import { APP_VERSION } from "@/lib/version";
+import { parseCatchDate } from "@/lib/dateUtils";
+import { sessionNumbersByCatchId } from "@/lib/sessions";
+import { catchPhotoFilename } from "@/lib/photoNaming";
 
 const MANIFEST_NAME = "manifest.json";
 const CATCHES_NAME = "catches.json";
@@ -45,11 +48,17 @@ const STRIP_ON_IMPORT = [
 /**
  * Builds the export .zip and triggers a browser download. Returns
  * { catchesCount, photosCount }.
+ *
+ * `user` is the full logged-in user object (id, email, full_name) — used to
+ * give exported photo filenames a recognizable name (see
+ * src/lib/photoNaming.js): user + session number + the catch's own date/time,
+ * instead of a bare number.
  */
-export async function exportUserData(userId) {
-  const catches = await listCatchesByUser(userId);
+export async function exportUserData(user) {
+  const catches = await listCatchesByUser(user?.id);
   const zip = new JSZip();
   const photosFolder = zip.folder("photos");
+  const sessionByCatchId = sessionNumbersByCatchId(catches);
 
   let photoCount = 0;
   const exportedCatches = [];
@@ -88,7 +97,13 @@ export async function exportUserData(userId) {
     }
 
     if (photoBlob) {
-      const filename = `${exportedCatches.length}.${extFromMime(photoMime)}`;
+      const filename = catchPhotoFilename({
+        user,
+        catchDate: parseCatchDate(c),
+        sessionNumber: sessionByCatchId.get(c.id),
+        photoId: c.id,
+        ext: extFromMime(photoMime),
+      });
       photosFolder.file(filename, photoBlob);
       entry.photo_file = `photos/${filename}`;
       photoCount++;

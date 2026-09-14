@@ -13,31 +13,14 @@ import { useAuth } from "@/lib/AuthContext";
 import { listCatchesByUser, deleteCatch } from "@/lib/catchRepository";
 import SessionCalendar from "@/components/SessionCalendar";
 
-const SESSION_GAP_MS = 4 * 60 * 60 * 1000; // 4 hours
-
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
+// Grouping logic moved to src/lib/sessions.js so it's shared with the
+// backup/export code (src/lib/photoNaming.js) instead of living only here —
+// same rule, same 4-hour gap, just one copy of it now.
+import { groupCatchesIntoSessions as groupIntoSessions } from "@/lib/sessions";
 function parseDate(c) {
   return parseCatchDate(c).getTime();
-}
-
-function groupIntoSessions(catches) {
-  if (!catches.length) return [];
-  const sorted = [...catches].sort((a, b) => parseDate(a) - parseDate(b));
-  const sessions = [];
-  let current = [sorted[0]];
-  for (let i = 1; i < sorted.length; i++) {
-    const prevDate = parseDate(sorted[i - 1]);
-    const currDate = parseDate(sorted[i]);
-    if (currDate - prevDate > SESSION_GAP_MS) {
-      sessions.push(current);
-      current = [sorted[i]];
-    } else {
-      current.push(sorted[i]);
-    }
-  }
-  sessions.push(current);
-  return sessions;
 }
 
 function mostFrequent(items) {

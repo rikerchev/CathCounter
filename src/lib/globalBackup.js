@@ -20,6 +20,9 @@ import JSZip from "jszip";
 import { base44 } from "@/api/base44Client";
 import { apiUrl } from "@/api/base44Client";
 import { APP_VERSION } from "@/lib/version";
+import { parseCatchDate } from "@/lib/dateUtils";
+import { sessionNumbersByCatchId } from "@/lib/sessions";
+import { catchPhotoFilename, logoPhotoFilename, unlinkedPhotoFilename, extractPhotoId } from "@/lib/photoNaming";
 
 // Keep in sync with BACKUP_TABLES in server/routes/adminBackup.ts.
 export const BACKUP_TABLES = [
@@ -68,11 +71,65 @@ export async function exportGlobalBackup(onProgress) {
   const zip = new JSZip();
   const tablesFolder = zip.folder("tables");
 
+  // Captured while looping over every table below, so photo filenames can
+  // be built afterward from real data instead of a bare id — see
+  // src/lib/photoNaming.js.
+  let usersRows = [];
+  let catchesRows = [];
+  let customAdsRows = [];
+  let adSlotRequestsRows = [];
+  let waterBodiesRows = [];
+
   for (const name of BACKUP_TABLES) {
     onProgress?.(`Изтегляне на ${name}...`);
     const { rows } = await base44.admin.backup.table(name);
     tablesFolder.file(`${name}.json`, JSON.stringify(rows));
+    if (name === "users") usersRows = rows;
+    else if (name === "catches") catchesRows = rows;
+    else if (name === "custom_ads") customAdsRows = rows;
+    else if (name === "ad_slot_requests") adSlotRequestsRows = rows;
+    else if (name === "water_bodies") waterBodiesRows = rows;
   }
+
+  // ---- Lookups for human-recognizable photo filenames ----
+  // A photo can be: linked to a catch (the common case — named after its
+  // owner, session, and catch date/time), used as an ad/water-body logo
+  // (custom_ads / ad_slot_requests / water_bodies .logo_url — every upload
+  // goes through the same /api/catch-photos endpoint regardless of what
+  // it's for, see base44Client.js's uploadFile()), or — normally empty
+  // after running "Изчисти неизползвани снимки" — neither.
+  const usersById = new Map(usersRows.map((u) => [u.id, u]));
+
+  const photoIdToCatch = new Map();
+  for (const c of catchesRows) {
+    const id = extractPhotoId(c.photo_url);
+    if (id) photoIdToCatch.set(id, c);
+  }
+
+  const photoIdToLogoLabel = new Map();
+  for (const a of customAdsRows) {
+    const id = extractPhotoId(a.logo_url);
+    if (id) photoIdToLogoLabel.set(id, a.title || "обява");
+  }
+  for (const r of adSlotRequestsRows) {
+    const id = extractPhotoId(r.logo_url);
+    if (id) photoIdToLogoLabel.set(id, r.ad_title || r.advertiser_name || "обява");
+  }
+  for (const w of waterBodiesRows) {
+    const id = extractPhotoId(w.logo_url);
+    if (id) photoIdToLogoLabel.set(id, w.name || "воден басейн");
+  }
+
+  // Sessions are per-user (see src/lib/sessions.js), so group catches by
+  // owner first, then compute each owner's own session numbering once.
+  const catchesByUser = new Map();
+  for (const c of catchesRows) {
+    const uid = c.created_by_id || "__none__";
+    if (!catchesByUser.has(uid)) catchesByUser.set(uid, []);
+    catchesByUser.get(uid).push(c);
+  }
+  const sessionMapByUser = new Map();
+  for (const [uid, list] of catchesByUser) sessionMapByUser.set(uid, sessionNumbersByCatchId(list));
 
   const { rows: photoMeta } = await base44.admin.backup.photosList();
   const photosFolder = zip.folder("photos");
@@ -85,8 +142,32 @@ export async function exportGlobalBackup(onProgress) {
     if (!res.ok) continue; // shouldn't happen, but don't let one bad photo abort the whole backup
     const blob = await res.blob();
     const ext = extFromMime(p.mime_type);
-    const file = `photos/${p.id}.${ext}`;
-    photosFolder.file(`${p.id}.${ext}`, blob);
+
+    let filename;
+    const catchRow = photoIdToCatch.get(p.id);
+    if (catchRow) {
+      const ownerId = catchRow.created_by_id || "__none__";
+      const owner = usersById.get(ownerId) || usersById.get(p.created_by_id);
+      filename = catchPhotoFilename({
+        user: owner,
+        catchDate: parseCatchDate(catchRow),
+        sessionNumber: sessionMapByUser.get(ownerId)?.get(catchRow.id),
+        photoId: p.id,
+        ext,
+      });
+    } else if (photoIdToLogoLabel.has(p.id)) {
+      filename = logoPhotoFilename({
+        label: photoIdToLogoLabel.get(p.id),
+        uploadedAt: new Date(p.created_at),
+        photoId: p.id,
+        ext,
+      });
+    } else {
+      filename = unlinkedPhotoFilename({ photoId: p.id, uploadedAt: new Date(p.created_at), ext });
+    }
+
+    const file = `photos/${filename}`;
+    photosFolder.file(filename, blob);
     photosManifest.push({
       id: p.id,
       mime_type: p.mime_type,
