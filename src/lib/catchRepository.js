@@ -64,10 +64,27 @@ export async function updateCatchPhoto(id, createdDate, photoUrl) {
     record = all.find(c => c.created_date === createdDate);
   }
   if (record) {
+    const oldPhotoUrl = record.photo_url;
     record.photo_url = photoUrl;
     record._synced = false;
     await saveCatchLocal(record);
     pushOnly();
+
+    // Best-effort GC of the photo this just replaced, right away — don't
+    // wait for the sync push + server-side entities.ts hook. Covers photo
+    // edits that overlap (pick photo A, then B, before A's upload even
+    // finishes — see savePendingPhoto's own dedup in pendingPhotos.js for
+    // the not-yet-uploaded case; this is the already-uploaded case). Safe
+    // even if the server hasn't received this update yet: gcIfOrphaned only
+    // deletes when NOTHING still references the photo, checked live.
+    if (oldPhotoUrl && oldPhotoUrl !== photoUrl) {
+      const oldPhotoId = extractPhotoId(oldPhotoUrl);
+      if (oldPhotoId) {
+        base44.catchPhotos.gcIfOrphaned(oldPhotoId).catch(() => {
+          // best-effort — leftover unused photo is harmless
+        });
+      }
+    }
   }
 }
 

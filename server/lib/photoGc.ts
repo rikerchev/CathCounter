@@ -4,10 +4,12 @@ import { sql } from "../db.js";
 // a photo uploaded through base44.integrations.Core.UploadFile can end up
 // referenced (see src/api/base44Client.js's uploadFile(), which always
 // posts to /api/catch-photos regardless of caller: catch photos AND ad
-// logos both go through it). water_bodies.logo_url is normally a
-// hand-typed external URL (see WaterBodyEditDialog.jsx), not an upload, but
-// is included here too as a harmless safety net in case an admin ever
-// pastes a catch-photos URL there.
+// logos both go through it). water_bodies.logo_url and base_items.image_url
+// are normally hand-typed external URLs (no upload UI currently sets
+// either through /api/catch-photos), but are included here too as a
+// harmless safety net in case an admin ever pastes a catch-photos URL into
+// one of them — without this, a future/manual use of either column could
+// have its photo wrongly swept up as "orphaned" and deleted.
 //
 // A photo is "orphaned" (safe to delete) only when NONE of these still
 // reference it.
@@ -16,6 +18,7 @@ const REFERENCE_CHECKS = [
   { table: "custom_ads", column: "logo_url" },
   { table: "ad_slot_requests", column: "logo_url" },
   { table: "water_bodies", column: "logo_url" },
+  { table: "base_items", column: "image_url" },
 ] as const;
 
 const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;

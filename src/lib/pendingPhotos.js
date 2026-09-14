@@ -16,6 +16,28 @@ import { compressImage } from "@/lib/imageCompression";
 // The file is compressed first (~100-150KB target) so the local copy and the
 // eventual cloud copy are the same small size — see imageCompression.js.
 export async function savePendingPhoto(file, cloudUrl = null, catchId = null) {
+  // A catch only ever shows its LATEST photo. If picking a new one here
+  // (e.g. on the edit screen, see EditCatch.jsx's handlePhoto) supersedes an
+  // earlier pick for the same catch that hasn't uploaded yet, drop that old
+  // pending record now — otherwise it would still get uploaded later by
+  // uploadAllPendingPhotos() (which uploads every pending photo regardless
+  // of whether something newer replaced it) and become a permanent orphan:
+  // nothing ever ends up pointing at it, since the catch's photo_url only
+  // ever gets set to whichever upload finishes last. Already-"uploading"
+  // ones are left alone (can't cancel mid-flight) — updateCatchPhoto below
+  // GCs those server-side once they land, if they turn out superseded.
+  if (catchId) {
+    try {
+      const superseded = await getPendingPhotosByCatch(catchId);
+      for (const old of superseded) {
+        if (old.status !== "uploading") await removePendingPhoto(old.id);
+      }
+    } catch {
+      // best-effort — worst case the stale pick still uploads and gets
+      // cleaned up afterward instead of skipped upfront
+    }
+  }
+
   const compact = await compressImage(file);
   const id = `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   await addPendingPhoto({

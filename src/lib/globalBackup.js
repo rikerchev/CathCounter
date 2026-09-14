@@ -79,6 +79,7 @@ export async function exportGlobalBackup(onProgress) {
   let customAdsRows = [];
   let adSlotRequestsRows = [];
   let waterBodiesRows = [];
+  let baseItemsRows = [];
 
   for (const name of BACKUP_TABLES) {
     onProgress?.(`Изтегляне на ${name}...`);
@@ -89,15 +90,20 @@ export async function exportGlobalBackup(onProgress) {
     else if (name === "custom_ads") customAdsRows = rows;
     else if (name === "ad_slot_requests") adSlotRequestsRows = rows;
     else if (name === "water_bodies") waterBodiesRows = rows;
+    else if (name === "base_items") baseItemsRows = rows;
   }
 
   // ---- Lookups for human-recognizable photo filenames ----
   // A photo can be: linked to a catch (the common case — named after its
-  // owner, session, and catch date/time), used as an ad/water-body logo
-  // (custom_ads / ad_slot_requests / water_bodies .logo_url — every upload
-  // goes through the same /api/catch-photos endpoint regardless of what
-  // it's for, see base44Client.js's uploadFile()), or — normally empty
-  // after running "Изчисти неизползвани снимки" — neither.
+  // owner, session, and catch date/time), used as an ad/water-body/tackle
+  // logo (custom_ads / ad_slot_requests / water_bodies / base_items
+  // .logo_url|.image_url — every upload goes through the same
+  // /api/catch-photos endpoint regardless of what it's for, see
+  // base44Client.js's uploadFile()), or — normally empty after running
+  // "Изчисти неизползвани снимки" — neither. water_bodies.logo_url and
+  // base_items.image_url are currently hand-typed URLs rather than uploads
+  // in practice, but are still checked here in case that ever changes (see
+  // server/lib/photoGc.ts, which applies the same reasoning).
   const usersById = new Map(usersRows.map((u) => [u.id, u]));
 
   const photoIdToCatch = new Map();
@@ -118,6 +124,10 @@ export async function exportGlobalBackup(onProgress) {
   for (const w of waterBodiesRows) {
     const id = extractPhotoId(w.logo_url);
     if (id) photoIdToLogoLabel.set(id, w.name || "воден басейн");
+  }
+  for (const b of baseItemsRows) {
+    const id = extractPhotoId(b.image_url);
+    if (id) photoIdToLogoLabel.set(id, b.name || "риболовна принадлежност");
   }
 
   // Sessions are per-user (see src/lib/sessions.js), so group catches by
