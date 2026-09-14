@@ -635,6 +635,7 @@ export const tr = {
   "aas.slotDeleted": "Reklam alanı silindi",
   "aas.deleteError": "Silme hatası",
   "aas.placeholderNote": "Bu alanın henüz reklamvereni yokken, site kiralamaya davet eden standart bir banner gösterir.",
+  "aas.autoSeededNote": "Her gerçek sayfanın zaten otomatik olarak kendi alanı vardır (fiyat 0 = henüz satışta değil) — yeni oluşturmanıza gerek yok, sadece fiyatı/konumu/boyutu düzenleyin. Aşağıdaki form yalnızca ek bir alan içindir.",
   "bi.title": "Temel Ürünler",
   "bi.subtitle": "Markaya göre yem ve cezbedici — tüm kullanıcılara açık",
   "bi.name": "Ad",

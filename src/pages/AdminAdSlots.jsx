@@ -82,7 +82,33 @@ export default function AdminAdSlots() {
 
   async function loadSlots() {
     try {
-      const data = await base44.entities.AdSlot.list();
+      let data = await base44.entities.AdSlot.list();
+      // v2.52 — every real page automatically has its own slot from the
+      // start (price 0 = "not for sale yet"), so there's nothing to
+      // manually "add" for a page before you can edit its price/position
+      // /size. Only fills in whichever placements don't have one yet —
+      // never touches a slot that already exists (including one you
+      // deliberately deleted, which is why deleting one of these recreates
+      // it on the next visit here: a page's slot is meant to always exist,
+      // "not selling this page" is what the hide toggle is for instead).
+      const existingPlacements = new Set((data || []).map((s) => s.placement));
+      const missing = PLACEMENT_KEYS.filter((p) => p.value !== "all" && !existingPlacements.has(p.value));
+      if (missing.length > 0) {
+        await Promise.all(
+          missing.map((p) =>
+            base44.entities.AdSlot.create({
+              name: t(p.key),
+              placement: p.value,
+              price_per_month: 0,
+              is_available: true,
+              status: "available",
+              banner_position: "top",
+              banner_size: "normal",
+            })
+          )
+        );
+        data = await base44.entities.AdSlot.list();
+      }
       setSlots(data || []);
     } catch (e) {
       toast({ title: t("awb.error"), description: e.message });
@@ -176,6 +202,10 @@ export default function AdminAdSlots() {
       </div>
 
       <p className="text-xs text-slate-400 dark:text-muted-foreground -mt-3">{t("aas.placeholderNote")}</p>
+
+      <div className="rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/30 dark:border-cyan-900 px-4 py-3">
+        <p className="text-xs text-cyan-800 dark:text-cyan-200">{t("aas.autoSeededNote")}</p>
+      </div>
 
       {/* Create form */}
       <div className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-3">

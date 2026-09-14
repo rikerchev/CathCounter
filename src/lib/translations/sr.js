@@ -635,6 +635,7 @@ export const sr = {
   "aas.slotDeleted": "Reklamni prostor obrisan",
   "aas.deleteError": "Greška pri brisanju",
   "aas.placeholderNote": "Dok ovaj slot nema oglašivača, sajt prikazuje standardni baner koji poziva na iznajmljivanje.",
+  "aas.autoSeededNote": "Svaka prava stranica već automatski ima svoj slot (cena 0 = još se ne prodaje) — nije potrebno da ga kreirate, samo izmenite cenu/poziciju/veličinu. Formular ispod služi samo za dodatni slot.",
   "bi.title": "Osnovni artikli",
   "bi.subtitle": "Prihrana i mamac po brendu — dostupno svim korisnicima",
   "bi.name": "Naziv",

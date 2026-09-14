@@ -635,6 +635,7 @@ export const de = {
   "aas.slotDeleted": "Werbeplatz gelöscht",
   "aas.deleteError": "Fehler beim Löschen",
   "aas.placeholderNote": "Solange dieser Slot noch keinen Werbetreibenden hat, zeigt die Seite ein Standardbanner, das zur Miete einlädt.",
+  "aas.autoSeededNote": "Jede echte Seite hat bereits automatisch einen eigenen Slot (Preis 0 = noch nicht im Verkauf) — Sie müssen keinen erstellen, sondern nur Preis/Position/Größe bearbeiten. Das Formular unten ist nur für einen zusätzlichen Slot.",
   "bi.title": "Basisartikel",
   "bi.subtitle": "Futter und Köder nach Marke — für alle Nutzer verfügbar",
   "bi.name": "Name",

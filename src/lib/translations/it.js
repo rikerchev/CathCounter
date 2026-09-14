@@ -635,6 +635,7 @@ export const it = {
   "aas.slotDeleted": "Spazio pubblicitario eliminato",
   "aas.deleteError": "Errore durante l'eliminazione",
   "aas.placeholderNote": "Finché questo spazio non ha un inserzionista, il sito mostra un banner standard che invita ad affittarlo.",
+  "aas.autoSeededNote": "Ogni pagina reale ha già automaticamente il proprio spazio (prezzo 0 = non ancora in vendita) — non serve crearne uno, basta modificare prezzo/posizione/dimensione. Il modulo qui sotto serve solo per uno spazio extra.",
   "bi.title": "Articoli base",
   "bi.subtitle": "Pastura ed esche per marca — disponibile per tutti gli utenti",
   "bi.name": "Nome",

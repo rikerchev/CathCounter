@@ -635,6 +635,7 @@ export const cs = {
   "aas.slotDeleted": "Reklamní plocha smazána",
   "aas.deleteError": "Chyba při mazání",
   "aas.placeholderNote": "Dokud tento slot nemá inzerenta, web zobrazuje standardní banner, který zve k jeho pronájmu.",
+  "aas.autoSeededNote": "Každá skutečná stránka už automaticky má svůj vlastní slot (cena 0 = zatím se neprodává) — nemusíte ho vytvářet, stačí upravit cenu/pozici/velikost. Formulář níže slouží jen pro další slot navíc.",
   "bi.title": "Základní položky",
   "bi.subtitle": "Krmivo a nástraha podle značky — dostupné všem uživatelům",
   "bi.name": "Název",

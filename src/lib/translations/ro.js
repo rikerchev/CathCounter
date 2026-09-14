@@ -635,6 +635,7 @@ export const ro = {
   "aas.slotDeleted": "Spațiu publicitar șters",
   "aas.deleteError": "Eroare la ștergere",
   "aas.placeholderNote": "Cât timp acest spațiu nu are un agent de publicitate, site-ul afișează un banner standard care invită la închiriere.",
+  "aas.autoSeededNote": "Fiecare pagină reală are deja automat propriul spațiu (preț 0 = încă nescos la vânzare) — nu trebuie să creați unul, editați doar prețul/poziția/dimensiunea. Formularul de mai jos este doar pentru un spațiu suplimentar.",
   "bi.title": "Articole de bază",
   "bi.subtitle": "Nadă și momeală pe brand — disponibil tuturor utilizatorilor",
   "bi.name": "Nume",

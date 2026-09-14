@@ -635,6 +635,7 @@ export const nl = {
   "aas.slotDeleted": "Advertentieruimte verwijderd",
   "aas.deleteError": "Fout bij verwijderen",
   "aas.placeholderNote": "Zolang deze plek geen adverteerder heeft, toont de site een standaardbanner die uitnodigt om te huren.",
+  "aas.autoSeededNote": "Elke echte pagina heeft al automatisch een eigen plek (prijs 0 = nog niet te huur) — je hoeft er geen aan te maken, pas gewoon prijs/positie/grootte aan. Onderstaand formulier is alleen voor een extra plek.",
   "bi.title": "Basisartikelen",
   "bi.subtitle": "Voer en aas per merk — beschikbaar voor alle gebruikers",
   "bi.name": "Naam",

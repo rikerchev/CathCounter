@@ -635,6 +635,7 @@ export const pl = {
   "aas.slotDeleted": "Miejsce reklamowe usunięte",
   "aas.deleteError": "Błąd usuwania",
   "aas.placeholderNote": "Dopóki to miejsce nie ma reklamodawcy, na stronie wyświetla się standardowy baner zachęcający do wynajęcia go.",
+  "aas.autoSeededNote": "Każda rzeczywista strona ma już automatycznie własny slot (cena 0 = jeszcze nie na sprzedaż) — nie trzeba go tworzyć, wystarczy edytować cenę/pozycję/rozmiar. Poniższy formularz służy tylko do dodania dodatkowego slotu.",
   "bi.title": "Produkty bazowe",
   "bi.subtitle": "Zanęty i przynęty wg marki — dostępne dla wszystkich użytkowników",
   "bi.name": "Nazwa",

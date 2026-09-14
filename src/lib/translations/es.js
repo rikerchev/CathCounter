@@ -635,6 +635,7 @@ export const es = {
   "aas.slotDeleted": "Espacio publicitario eliminado",
   "aas.deleteError": "Error al eliminar",
   "aas.placeholderNote": "Mientras este espacio no tenga anunciante, el sitio muestra un banner estándar invitando a alquilarlo.",
+  "aas.autoSeededNote": "Cada página real ya tiene automáticamente su propio espacio (precio 0 = aún no a la venta) — no hace falta crear uno, solo edita precio/posición/tamaño. El formulario de abajo es solo para un espacio adicional.",
   "bi.title": "Artículos base",
   "bi.subtitle": "Cebo y engodo por marca — disponible para todos los usuarios",
   "bi.name": "Nombre",

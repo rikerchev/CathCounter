@@ -670,6 +670,7 @@ export const en = {
   "aas.slotDeleted": "Ad slot deleted",
   "aas.deleteError": "Error deleting",
   "aas.placeholderNote": "While this slot has no advertiser yet, the site shows a standard banner inviting advertisers to rent it.",
+  "aas.autoSeededNote": "Every real page already has its own slot automatically (price 0 = not for sale yet) — no need to create one first, just edit price/position/size. The form below is only for an extra, additional slot.",
   "bi.title": "Base Items",
   "bi.subtitle": "Groundbait and bait by brand — available to all users",
   "bi.name": "Name",
