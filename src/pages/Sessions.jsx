@@ -73,7 +73,7 @@ function formatCatchDuration(s) {
   return `${m}м ${sec}с`;
 }
 
-function SessionCard({ session, t, expanded, onToggle, onDeleteSession, onDeleteCatch }) {
+function SessionCard({ session, sessionNumber, t, expanded, onToggle, onDeleteSession, onDeleteCatch }) {
   const startTs = parseDate(session[0]);
   const endTs = parseDate(session[session.length - 1]);
   const durationMs = endTs - startTs;
@@ -102,6 +102,11 @@ function SessionCard({ session, t, expanded, onToggle, onDeleteSession, onDelete
       <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="text-white">
+            {sessionNumber != null && (
+              <div className="text-[11px] uppercase tracking-wide text-white/70 font-semibold mb-0.5">
+                {t("sessions.sessionLabel")} {sessionNumber}
+              </div>
+            )}
             <div className="font-bold flex items-center gap-1.5">
               <MapPin className="w-4 h-4" /> {location || t("common.unknown")}
             </div>
@@ -322,6 +327,7 @@ export default function Sessions() {
             <SessionCard
               key={idx}
               session={session}
+              sessionNumber={sessions.indexOf(session) + 1}
               t={t}
               expanded={expandedIdx === idx}
               onToggle={() => setExpandedIdx(expandedIdx === idx ? null : idx)}

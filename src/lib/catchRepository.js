@@ -2,6 +2,8 @@
 import { getAllCatches, getCatch as getCatchLocal, saveCatchLocal, deleteCatchLocal } from "@/lib/localDb";
 import { addPendingSync } from "@/lib/localDb";
 import { syncAll, pushOnly } from "@/lib/syncEngine";
+import { base44 } from "@/api/base44Client";
+import { extractPhotoId } from "@/lib/photoNaming";
 
 export async function listCatches() {
   const catches = await getAllCatches();
@@ -24,8 +26,26 @@ export async function saveCatch(catchItem) {
 }
 
 export async function deleteCatch(id) {
-  if (!String(id).startsWith("local_")) {
+  const isLocalOnly = String(id).startsWith("local_");
+  if (!isLocalOnly) {
     await addPendingSync({ type: "delete_catch", entityId: id });
+  } else {
+    // This catch never reached the server, so the normal
+    // delete-on-server -> photo cleanup hook (server/routes/entities.ts)
+    // never runs for it. Its photo can still have been uploaded to the
+    // cloud already though — uploadAllPendingPhotos() (pendingPhotos.js)
+    // uploads as soon as a photo is linked to a catch, independent of
+    // whether that catch itself has synced yet. Without this, deleting the
+    // catch at this point would orphan that photo forever. gcIfOrphaned is
+    // safe to call speculatively: it only deletes if truly unreferenced.
+    const record = await getCatchLocal(id);
+    const photoId = extractPhotoId(record?.photo_url);
+    if (photoId) {
+      base44.catchPhotos.gcIfOrphaned(photoId).catch(() => {
+        // best-effort — a leftover unused photo is harmless, don't block
+        // or fail the actual deletion over this
+      });
+    }
   }
   await deleteCatchLocal(id);
   pushOnly();

@@ -2,6 +2,7 @@ import { sql } from "../db.js";
 import { absoluteUrl } from "../lib/url.js";
 import { env } from "../env.js";
 import type { AuthUser } from "../middleware/auth.js";
+import { gcPhotoId } from "../lib/photoGc.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -22,9 +23,20 @@ const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
  * object storage — no S3/R2/B2 account needed, and everything lives inside
  * the same free Supabase database.
  *
- * POST /api/catch-photos        body = raw image bytes, Content-Type set
- *                                -> { file_url }  (absolute URL to GET below)
- * GET  /api/catch-photos/:id    -> the image bytes, with the original mime type
+ * POST   /api/catch-photos        body = raw image bytes, Content-Type set
+ *                                  -> { file_url }  (absolute URL to GET below)
+ * GET    /api/catch-photos/:id    -> the image bytes, with the original mime type
+ * DELETE /api/catch-photos/:id    -> { deleted } — removes the photo ONLY if
+ *                                  nothing references it (see lib/photoGc.ts).
+ *                                  Safe for any logged-in user to call: a
+ *                                  photo still in use by anyone is left alone.
+ *                                  Used by the client right after uploading a
+ *                                  photo for a catch that then gets deleted
+ *                                  before that catch itself ever reaches the
+ *                                  server (still a local-only "local_..." id)
+ *                                  — the normal delete->GC hook in
+ *                                  routes/entities.ts never runs for those,
+ *                                  since the server never had the catch.
  */
 export async function handleCatchPhotosRoute(
   req: Request,
@@ -70,6 +82,12 @@ export async function handleCatchPhotosRoute(
         "cache-control": "public, max-age=31536000, immutable",
       },
     });
+  }
+
+  if (req.method === "DELETE" && id) {
+    if (!user) return json({ error: "Not authenticated" }, 401);
+    const deleted = await gcPhotoId(id);
+    return json({ deleted });
   }
 
   return json({ error: "Not found" }, 404);

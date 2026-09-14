@@ -258,4 +258,13 @@ export const base44 = {
   settings: {
     getPaymentInfo: () => apiFetch("/api/settings/payment"),
   },
+
+  catchPhotos: {
+    // Best-effort cleanup for a single photo — deletes it ONLY if nothing
+    // references it anywhere (see server/lib/photoGc.ts), so it's always
+    // safe to call speculatively. Used by catchRepository.js when a catch
+    // that was never synced to the server (still a "local_..." id) gets
+    // deleted locally after its photo already made it to the cloud.
+    gcIfOrphaned: (id) => apiFetch(`/api/catch-photos/${id}`, { method: "DELETE" }),
+  },
 };
