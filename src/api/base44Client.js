@@ -209,6 +209,10 @@ export const base44 = {
   admin: {
     getSettingsStatus: () => apiFetch("/api/admin/settings"),
     updateSettings: (patch) => apiFetch("/api/admin/settings", { method: "PUT", body: patch }),
+    // Sends a real test email through the currently saved SMTP settings —
+    // powers the "Изпрати тестов имейл" button in the SMTP section of the
+    // Setup Wizard (AdminSetup.jsx).
+    sendTestEmail: (to) => apiFetch("/api/admin/settings/test-email", { method: "POST", body: { to } }),
   },
 
   // Public (no admin rights needed) — how to pay the platform owner, for

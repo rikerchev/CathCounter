@@ -30,7 +30,7 @@ const SECTIONS = [
     id: "email",
     title: "Имейли (SMTP)",
     description: "Нужно за регистрация (код за потвърждение), забравена парола и покани. Работи с всеки SMTP сървър — не се изисква платена услуга.",
-    note: "Оставете тези полета празни, за да изпращате през собствен/безплатен SMTP сървър (напр. вашия хостинг доставчик, Brevo, SMTP2GO). Портът обичайно е 587 (STARTTLS) или 465 (SSL — тогава включете 'secure').",
+    note: "Оставете тези полета празни, за да изпращате през собствен/безплатен SMTP сървър (напр. вашия хостинг доставчик, Brevo, SMTP2GO). Портът обичайно е 587 (STARTTLS) или 465 (SSL — тогава включете 'secure'). След „Запази“ използвайте „Изпрати тестов имейл“, за да проверите — той изпраща през вече ЗАПАЗЕНИТЕ настройки, не през това, което все още не сте запазили в полетата.",
     fields: [
       { key: "SMTP_HOST", label: "SMTP хост", secret: false, placeholder: "smtp.вашия-домейн.com" },
       { key: "SMTP_PORT", label: "Порт", secret: false, placeholder: "587" },
@@ -92,6 +92,7 @@ export default function AdminSetup() {
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState("");
+  const [testingEmail, setTestingEmail] = useState(false);
 
   useEffect(() => {
     load();
@@ -160,6 +161,23 @@ export default function AdminSetup() {
       toast({ title: "Грешка при запис", description: e.message, variant: "destructive" });
     } finally {
       setSaving("");
+    }
+  }
+
+  // Sends a real email through the currently SAVED SMTP settings (whatever
+  // was last "Запази"-d, not the possibly-unsaved draft in the fields above)
+  // to the admin's own address — so misconfigured SMTP is caught here
+  // instead of silently during a real user's registration/reset email.
+  async function testEmail() {
+    if (!user?.email) return;
+    setTestingEmail(true);
+    try {
+      await base44.admin.sendTestEmail(user.email);
+      toast({ title: `Тестовият имейл е изпратен до ${user.email}`, description: "Проверете входящата си поща (и папка Спам)." });
+    } catch (e) {
+      toast({ title: "Тестовият имейл не бе изпратен", description: e.message, variant: "destructive" });
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -247,7 +265,7 @@ export default function AdminSetup() {
                 </div>
               ))}
             </CardContent>
-            <CardFooter>
+            <CardFooter className="gap-2 flex-wrap">
               <Button
                 onClick={() => saveSection(section)}
                 disabled={saving !== ""}
@@ -256,6 +274,19 @@ export default function AdminSetup() {
                 {saving === section.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
                 Запази
               </Button>
+              {section.id === "email" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={testEmail}
+                  disabled={testingEmail || saving !== ""}
+                  className="min-h-[40px]"
+                  title={`Изпраща тестов имейл до ${user?.email || ""} през записаните SMTP настройки`}
+                >
+                  {testingEmail ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                  Изпрати тестов имейл
+                </Button>
+              )}
             </CardFooter>
           </Card>
         );
