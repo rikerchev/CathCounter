@@ -2,6 +2,10 @@
 const AD_CACHE_KEY = "catchcount_ad_cache";
 const PENDING_IMPRESSIONS_KEY = "catchcount_pending_impressions";
 const AD_DATA_KEY = "catchcount_ad_data";
+// v2.53 — separate cache for AdSlot records (used to render the "advertise
+// here" placeholder banner before the network responds — see
+// getCachedSlots()/cacheSlots() below and useEligibleAds.js).
+const AD_SLOT_CACHE_KEY = "catchcount_adslot_cache";
 
 // Default ad creatives (fallback when no internet)
 const DEFAULT_ADS = [
@@ -56,6 +60,41 @@ export function cacheAds(ads) {
     }));
   } catch (e) {
     console.error("cacheAds error:", e);
+  }
+}
+
+// v2.53 — AdSlot records (admin-defined rentable placements, see
+// AdminAdSlots.jsx) weren't cached at all before this, only the real ads
+// were. That meant the "advertise here" placeholder banner (built from a
+// slot when a placement has no real ad yet — see useEligibleAds.js) could
+// only ever appear AFTER the network round-trip finished, never on the
+// synchronous first render. The moment it popped in, it pushed everything
+// below it (including the "Инсталирай приложението" banner and its button)
+// down the page — so a tap aimed at that button could land on whatever had
+// just shifted into its place instead. Caching the slot list, the same way
+// real ads already were, lets the very next page load render the correct
+// placeholder immediately from cache, with nothing shifting afterwards.
+export function getCachedSlots() {
+  try {
+    const cached = localStorage.getItem(AD_SLOT_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed.slots)) return parsed.slots;
+    }
+  } catch (e) {
+    console.error("getCachedSlots error:", e);
+  }
+  return [];
+}
+
+export function cacheSlots(slots) {
+  try {
+    localStorage.setItem(AD_SLOT_CACHE_KEY, JSON.stringify({
+      slots: slots || [],
+      cached_at: Date.now()
+    }));
+  } catch (e) {
+    console.error("cacheSlots error:", e);
   }
 }
 

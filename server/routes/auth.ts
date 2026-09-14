@@ -16,6 +16,21 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// Not `Response.redirect(url, 302)` — per the Fetch spec, a Response built
+// that way has its headers guard set to "immutable", and router.ts's
+// withCors() unconditionally does `res.headers.set(...)` on every response
+// it returns (including these two Google login redirects). That threw a
+// TypeError that never reached router.ts's own try/catch (it happens in
+// the `.then(withCors)` step, after route() has already returned), which
+// crashed the whole request — the browser saw Vercel's generic platform
+// "Internal Server Error" page instead of anything from this app, and
+// nobody could sign in (or register) with Google at all, existing users
+// included. A plain `new Response(...)` with a Location header behaves
+// identically as a redirect but keeps normal, mutable headers.
+function redirect(url: string, status = 302): Response {
+  return new Response(null, { status, headers: { Location: url } });
+}
+
 const OTP_TTL_MINUTES = 15;
 const RESET_TTL_MINUTES = 60;
 
@@ -177,7 +192,7 @@ export async function handleAuthRoute(
     if (!(await isGoogleConfigured())) return json({ error: "Google login not configured" }, 501);
     const returnTo = url.searchParams.get("returnTo") || "/";
     const state = encodeURIComponent(returnTo);
-    return Response.redirect(await buildGoogleAuthUrl(state), 302);
+    return redirect(await buildGoogleAuthUrl(state));
   }
 
   // ---- GET /api/auth/google/callback?code=...&state=... ----
@@ -212,7 +227,7 @@ export async function handleAuthRoute(
     // base44's own `access_token=` URL param + app-params.js bootstrap worked).
     const dest = new URL(decodeURIComponent(state), env.PUBLIC_APP_URL);
     dest.hash = `access_token=${token}`;
-    return Response.redirect(dest.toString(), 302);
+    return redirect(dest.toString());
   }
 
   // ---- POST /api/auth/reset-password-request { email } ----
