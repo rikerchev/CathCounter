@@ -66,7 +66,25 @@ export default function InstallAppBanner() {
         <button
           type="button"
           onClick={handleInstallClick}
-          className="text-xs font-semibold bg-white text-slate-900 px-4 py-2.5 rounded-lg flex-shrink-0 min-h-[44px]"
+          // `!bg-white` (Tailwind's important-modifier), not plain `bg-white`:
+          // src/index.css has a global `.dark .bg-white { background-color:
+          // hsl(var(--card)) }` rule (line ~110) that repaints every
+          // hardcoded `bg-white` near-black in dark mode, to save OLED
+          // battery on the many *light* white cards across the app. This
+          // button is different — it lives inside a banner that is ALREADY
+          // dark in both themes (`bg-gradient-to-r from-slate-800
+          // to-slate-900 dark:from-card dark:to-card` on the wrapper above),
+          // so it needs to stay a genuinely light pill for contrast
+          // regardless of app theme. Without `!`, the global override still
+          // matched this literal `bg-white` class name and repainted it to
+          // `--card` (near-black in dark mode) while the text stayed
+          // `text-slate-900` (also near-black) — invisible black-on-black
+          // "Инсталирай" button that users could only tap by guessing where
+          // it was (reported after switching to catchcount.app4.you, but
+          // the bug was theme-related, not domain-related — it just went
+          // unnoticed before because "дефолт тъмна тема" / dark-by-default
+          // is what most people see, per useTheme.js).
+          className="text-xs font-semibold !bg-white text-slate-900 px-4 py-2.5 rounded-lg flex-shrink-0 min-h-[44px]"
         >
           {t("install.installButton")}
         </button>
