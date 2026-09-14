@@ -38,7 +38,7 @@ import Competitions from './pages/Competitions';
 import WaterBodyManagement from './pages/WaterBodyManagement';
 import AdminWaterBodies from './pages/AdminWaterBodies';
 import AdminRoleRequests from './pages/AdminRoleRequests';
-import AdminAdSlots from './pages/AdminAdSlots';
+import AdManagement from './pages/AdManagement';
 import AdminAdRequests from './pages/AdminAdRequests';
 import MyAdRequests from './pages/MyAdRequests';
 import SectorReservations from './pages/SectorReservations';
@@ -104,7 +104,7 @@ const AuthenticatedApp = () => {
           <Route path="/water-body-management" element={<WaterBodyManagement />} />
           <Route path="/admin-water-bodies" element={<AdminWaterBodies />} />
           <Route path="/admin-role-requests" element={<AdminRoleRequests />} />
-          <Route path="/admin-ad-slots" element={<AdminAdSlots />} />
+          <Route path="/admin-ad-slots" element={<AdManagement />} />
           <Route path="/admin-ad-requests" element={<AdminAdRequests />} />
           <Route path="/my-ad-requests" element={<MyAdRequests />} />
           <Route path="/sector-reservations" element={<SectorReservations />} />

@@ -708,7 +708,7 @@ Description: ${adForm.description}`;
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-2">
         <Megaphone className="w-6 h-6 text-cyan-600" />
-        <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("nav.adManagement")}</h1>
+        <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("aas.title")}</h1>
       </div>
 
       {isAdmin && <PaymentInfoCard />}
