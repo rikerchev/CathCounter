@@ -634,6 +634,7 @@ export const sr = {
   "aas.slotUpdated": "Reklamni prostor ažuriran",
   "aas.slotDeleted": "Reklamni prostor obrisan",
   "aas.deleteError": "Greška pri brisanju",
+  "aas.placeholderNote": "Dok ovaj slot nema oglašivača, sajt prikazuje standardni baner koji poziva na iznajmljivanje.",
   "bi.title": "Osnovni artikli",
   "bi.subtitle": "Prihrana i mamac po brendu — dostupno svim korisnicima",
   "bi.name": "Naziv",

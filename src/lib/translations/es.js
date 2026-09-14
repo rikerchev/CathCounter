@@ -634,6 +634,7 @@ export const es = {
   "aas.slotUpdated": "Espacio publicitario actualizado",
   "aas.slotDeleted": "Espacio publicitario eliminado",
   "aas.deleteError": "Error al eliminar",
+  "aas.placeholderNote": "Mientras este espacio no tenga anunciante, el sitio muestra un banner estándar invitando a alquilarlo.",
   "bi.title": "Artículos base",
   "bi.subtitle": "Cebo y engodo por marca — disponible para todos los usuarios",
   "bi.name": "Nombre",

@@ -634,6 +634,7 @@ export const it = {
   "aas.slotUpdated": "Spazio pubblicitario aggiornato",
   "aas.slotDeleted": "Spazio pubblicitario eliminato",
   "aas.deleteError": "Errore durante l'eliminazione",
+  "aas.placeholderNote": "Finché questo spazio non ha un inserzionista, il sito mostra un banner standard che invita ad affittarlo.",
   "bi.title": "Articoli base",
   "bi.subtitle": "Pastura ed esche per marca — disponibile per tutti gli utenti",
   "bi.name": "Nome",

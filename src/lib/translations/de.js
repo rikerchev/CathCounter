@@ -634,6 +634,7 @@ export const de = {
   "aas.slotUpdated": "Werbeplatz aktualisiert",
   "aas.slotDeleted": "Werbeplatz gelöscht",
   "aas.deleteError": "Fehler beim Löschen",
+  "aas.placeholderNote": "Solange dieser Slot noch keinen Werbetreibenden hat, zeigt die Seite ein Standardbanner, das zur Miete einlädt.",
   "bi.title": "Basisartikel",
   "bi.subtitle": "Futter und Köder nach Marke — für alle Nutzer verfügbar",
   "bi.name": "Name",

@@ -634,6 +634,7 @@ export const pl = {
   "aas.slotUpdated": "Miejsce reklamowe zaktualizowane",
   "aas.slotDeleted": "Miejsce reklamowe usunięte",
   "aas.deleteError": "Błąd usuwania",
+  "aas.placeholderNote": "Dopóki to miejsce nie ma reklamodawcy, na stronie wyświetla się standardowy baner zachęcający do wynajęcia go.",
   "bi.title": "Produkty bazowe",
   "bi.subtitle": "Zanęty i przynęty wg marki — dostępne dla wszystkich użytkowników",
   "bi.name": "Nazwa",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
@@ -74,6 +75,7 @@ export default function Advertise() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const routerLocation = useLocation();
   const PLACEMENT_LABELS = {};
   for (const k in PLACEMENT_KEYS) PLACEMENT_LABELS[k] = t(PLACEMENT_KEYS[k]);
   const BG_OPTIONS = BG_OPTION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
@@ -89,6 +91,19 @@ export default function Advertise() {
   const [countryContent, setCountryContent] = useState({});
 
   useEffect(() => { loadSlots(); }, []);
+
+  // v2.49 — clicking the "advertise here" placeholder banner on an
+  // unrented slot links to /advertise?slot=<id> so the request form opens
+  // with that exact slot already pre-selected, instead of leaving the
+  // advertiser to find it again in the dropdown themselves.
+  useEffect(() => {
+    if (form.ad_slot_id) return;
+    const params = new URLSearchParams(routerLocation.search);
+    const slotId = params.get("slot");
+    if (slotId && slots.some((s) => s.id === slotId)) {
+      setForm((prev) => ({ ...prev, ad_slot_id: slotId }));
+    }
+  }, [slots, routerLocation.search]);
 
   async function loadSlots() {
     try {

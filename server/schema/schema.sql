@@ -52,6 +52,14 @@ CREATE TABLE ad_slots (
   country_pricing TEXT,
   is_available BOOLEAN DEFAULT TRUE,
   status TEXT CHECK (status IN ('available', 'rented')) DEFAULT 'available',
+  -- Where the "advertise here" placeholder banner renders for this slot
+  -- while it has no advertiser yet, and how much space it takes — same
+  -- fields/values as custom_ads.banner_position/banner_size (v2.46), added
+  -- v2.49 so an admin-defined, still-unrented slot shows up live on the
+  -- site with the standard invite-to-advertise text instead of being
+  -- invisible until someone actually rents it. See useEligibleAds.js.
+  banner_position TEXT CHECK (banner_position IN ('top', 'bottom')) DEFAULT 'top',
+  banner_size TEXT CHECK (banner_size IN ('compact', 'normal', 'large')) DEFAULT 'normal',
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -425,3 +433,10 @@ CREATE INDEX IF NOT EXISTS idx_custom_ads_expires_at ON custom_ads(expires_at) W
 -- existed (custom_ads). Safe to re-run.
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS banner_position TEXT DEFAULT 'top';
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS banner_size TEXT DEFAULT 'normal';
+
+-- v2.49: same banner_position/banner_size fields on ad_slots, so a
+-- still-unrented slot's "advertise here" placeholder banner can use the
+-- admin's chosen position/size instead of always defaulting to top/normal.
+-- Safe to re-run.
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS banner_position TEXT DEFAULT 'top';
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS banner_size TEXT DEFAULT 'normal';

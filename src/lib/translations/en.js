@@ -669,6 +669,7 @@ export const en = {
   "aas.slotUpdated": "Ad slot updated",
   "aas.slotDeleted": "Ad slot deleted",
   "aas.deleteError": "Error deleting",
+  "aas.placeholderNote": "While this slot has no advertiser yet, the site shows a standard banner inviting advertisers to rent it.",
   "bi.title": "Base Items",
   "bi.subtitle": "Groundbait and bait by brand — available to all users",
   "bi.name": "Name",

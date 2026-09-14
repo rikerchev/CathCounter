@@ -634,6 +634,7 @@ export const fr = {
   "aas.slotUpdated": "Emplacement publicitaire mis à jour",
   "aas.slotDeleted": "Emplacement publicitaire supprimé",
   "aas.deleteError": "Erreur lors de la suppression",
+  "aas.placeholderNote": "Tant que cet emplacement n'a pas d'annonceur, le site affiche une bannière standard invitant à le louer.",
   "bi.title": "Articles de base",
   "bi.subtitle": "Amorce et appât par marque — disponible pour tous les utilisateurs",
   "bi.name": "Nom",

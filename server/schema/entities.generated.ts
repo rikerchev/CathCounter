@@ -37,6 +37,10 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "country_pricing", type: "string", required: false },
       { name: "is_available", type: "boolean", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["available", "rented"] },
+      // v2.49 — same fields as CustomAd, used for the "advertise here"
+      // placeholder banner shown while this slot has no advertiser yet.
+      { name: "banner_position", type: "enum", required: false, enumValues: ["top", "bottom"] },
+      { name: "banner_size", type: "enum", required: false, enumValues: ["compact", "normal", "large"] },
     ],
     rules: {
       read: { kind: "public" },

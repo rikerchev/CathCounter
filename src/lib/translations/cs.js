@@ -634,6 +634,7 @@ export const cs = {
   "aas.slotUpdated": "Reklamní plocha aktualizována",
   "aas.slotDeleted": "Reklamní plocha smazána",
   "aas.deleteError": "Chyba při mazání",
+  "aas.placeholderNote": "Dokud tento slot nemá inzerenta, web zobrazuje standardní banner, který zve k jeho pronájmu.",
   "bi.title": "Základní položky",
   "bi.subtitle": "Krmivo a nástraha podle značky — dostupné všem uživatelům",
   "bi.name": "Název",

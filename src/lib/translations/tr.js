@@ -634,6 +634,7 @@ export const tr = {
   "aas.slotUpdated": "Reklam alanı güncellendi",
   "aas.slotDeleted": "Reklam alanı silindi",
   "aas.deleteError": "Silme hatası",
+  "aas.placeholderNote": "Bu alanın henüz reklamvereni yokken, site kiralamaya davet eden standart bir banner gösterir.",
   "bi.title": "Temel Ürünler",
   "bi.subtitle": "Markaya göre yem ve cezbedici — tüm kullanıcılara açık",
   "bi.name": "Ad",

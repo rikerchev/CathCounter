@@ -634,6 +634,7 @@ export const ro = {
   "aas.slotUpdated": "Spațiu publicitar actualizat",
   "aas.slotDeleted": "Spațiu publicitar șters",
   "aas.deleteError": "Eroare la ștergere",
+  "aas.placeholderNote": "Cât timp acest spațiu nu are un agent de publicitate, site-ul afișează un banner standard care invită la închiriere.",
   "bi.title": "Articole de bază",
   "bi.subtitle": "Nadă și momeală pe brand — disponibil tuturor utilizatorilor",
   "bi.name": "Nume",

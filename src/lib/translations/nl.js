@@ -634,6 +634,7 @@ export const nl = {
   "aas.slotUpdated": "Advertentieruimte bijgewerkt",
   "aas.slotDeleted": "Advertentieruimte verwijderd",
   "aas.deleteError": "Fout bij verwijderen",
+  "aas.placeholderNote": "Zolang deze plek geen adverteerder heeft, toont de site een standaardbanner die uitnodigt om te huren.",
   "bi.title": "Basisartikelen",
   "bi.subtitle": "Voer en aas per merk — beschikbaar voor alle gebruikers",
   "bi.name": "Naam",

@@ -13,6 +13,21 @@ import { ALL_COUNTRIES, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { calculateCountryPrice, getCountryMultiplier } from "@/lib/pricing";
 import { useLanguage } from "@/lib/i18n";
 
+// Same fields/values as CustomAds.jsx's banner_position/banner_size (v2.46)
+// — reused here (v2.49) so the "advertise here" placeholder that shows on
+// the live site while a slot has no advertiser yet uses the position/size
+// the admin actually wants for that page, not always top/normal.
+const BANNER_POSITION_KEYS = [
+  { value: "top", labelKey: "ca.bannerPositionTop" },
+  { value: "bottom", labelKey: "ca.bannerPositionBottom" },
+];
+
+const BANNER_SIZE_KEYS = [
+  { value: "compact", labelKey: "ca.bannerSizeCompact" },
+  { value: "normal", labelKey: "ca.bannerSizeNormal" },
+  { value: "large", labelKey: "ca.bannerSizeLarge" },
+];
+
 const PLACEMENT_KEYS = [
   { value: "all", key: "nav.allPages" },
   { value: "home", key: "nav.home" },
@@ -46,12 +61,14 @@ export default function AdminAdSlots() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const PLACEMENTS = PLACEMENT_KEYS.map((p) => ({ value: p.value, label: t(p.key) }));
+  const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
+  const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ name: "", placement: "all", price_per_month: "" });
+  const [form, setForm] = useState({ name: "", placement: "all", price_per_month: "", banner_position: "top", banner_size: "normal" });
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", placement: "all", price_per_month: "" });
+  const [editForm, setEditForm] = useState({ name: "", placement: "all", price_per_month: "", banner_position: "top", banner_size: "normal" });
 
   useEffect(() => { loadSlots(); }, []);
 
@@ -87,9 +104,11 @@ export default function AdminAdSlots() {
         price_per_month: Number(form.price_per_month),
         is_available: true,
         status: "available",
+        banner_position: form.banner_position,
+        banner_size: form.banner_size,
       });
       toast({ title: t("aas.slotCreated") });
-      setForm({ name: "", placement: "all", price_per_month: "" });
+      setForm({ name: "", placement: "all", price_per_month: "", banner_position: "top", banner_size: "normal" });
       await loadSlots();
     } catch (e) {
       toast({ title: "Грешка", description: e.message });
@@ -104,6 +123,8 @@ export default function AdminAdSlots() {
       name: slot.name || "",
       placement: slot.placement || "all",
       price_per_month: String(slot.price_per_month ?? ""),
+      banner_position: slot.banner_position || "top",
+      banner_size: slot.banner_size || "normal",
     });
   }
 
@@ -117,6 +138,8 @@ export default function AdminAdSlots() {
         name: editForm.name,
         placement: editForm.placement,
         price_per_month: Number(editForm.price_per_month),
+        banner_position: editForm.banner_position,
+        banner_size: editForm.banner_size,
       });
       toast({ title: t("aas.slotUpdated") });
       setEditingId(null);
@@ -151,6 +174,8 @@ export default function AdminAdSlots() {
         <Megaphone className="w-6 h-6 text-cyan-600" />
         <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("aas.title")}</h1>
       </div>
+
+      <p className="text-xs text-slate-400 dark:text-muted-foreground -mt-3">{t("aas.placeholderNote")}</p>
 
       {/* Create form */}
       <div className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-3">
@@ -187,6 +212,30 @@ export default function AdminAdSlots() {
                 placeholder="9.99"
                 className="min-h-[44px]"
               />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>{t("ca.bannerPosition")}</Label>
+              <Select value={form.banner_position} onValueChange={(v) => setForm({ ...form, banner_position: v })}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {BANNER_POSITIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("ca.bannerSize")}</Label>
+              <Select value={form.banner_size} onValueChange={(v) => setForm({ ...form, banner_size: v })}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {BANNER_SIZES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           {form.price_per_month > 0 && (
@@ -256,6 +305,24 @@ export default function AdminAdSlots() {
                         className="min-h-[44px]"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Select value={editForm.banner_position} onValueChange={(v) => setEditForm({ ...editForm, banner_position: v })}>
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BANNER_POSITIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={editForm.banner_size} onValueChange={(v) => setEditForm({ ...editForm, banner_size: v })}>
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {BANNER_SIZES.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {editForm.price_per_month > 0 && (
                       <div className="rounded-lg bg-cyan-50 dark:bg-accent p-3 space-y-1">
                         <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400">{t("aas.autoPrices")}:</p>
@@ -279,6 +346,8 @@ export default function AdminAdSlots() {
                         <p className="text-sm font-medium text-slate-800 dark:text-foreground">{slot.name}</p>
                         <p className="text-xs text-slate-400">
                           {PLACEMENTS.find((p) => p.value === slot.placement)?.label} · €{slot.price_per_month}/мес
+                          {" · "}{BANNER_POSITIONS.find((p) => p.value === (slot.banner_position || "top"))?.label}
+                          {" · "}{BANNER_SIZES.find((s) => s.value === (slot.banner_size || "normal"))?.label}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">

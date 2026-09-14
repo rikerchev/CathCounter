@@ -634,6 +634,7 @@ export const sk = {
   "aas.slotUpdated": "Reklamná plocha aktualizovaná",
   "aas.slotDeleted": "Reklamná plocha zmazaná",
   "aas.deleteError": "Chyba pri mazaní",
+  "aas.placeholderNote": "Kým tento slot nemá inzerenta, web zobrazuje štandardný banner, ktorý pozýva na jeho prenájom.",
   "bi.title": "Základné položky",
   "bi.subtitle": "Kŕmenie a nástraha podľa značky — dostupné všetkým používateľom",
   "bi.name": "Názov",

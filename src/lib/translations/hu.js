@@ -634,6 +634,7 @@ export const hu = {
   "aas.slotUpdated": "Hirdetési hely frissítve",
   "aas.slotDeleted": "Hirdetési hely törölve",
   "aas.deleteError": "Hiba törlés közben",
+  "aas.placeholderNote": "Amíg ehhez a helyhez nincs hirdető, az oldal egy standard bannert jelenít meg, amely bérlésre hív.",
   "bi.title": "Alaptermékek",
   "bi.subtitle": "Etetőanyag és csali márka szerint — minden felhasználó számára elérhető",
   "bi.name": "Név",
