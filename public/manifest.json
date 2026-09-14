@@ -2,6 +2,7 @@
   "name": "CatchCount",
   "short_name": "CatchCount",
   "description": "Проследяване на риболовни улови, водоеми и състезания",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

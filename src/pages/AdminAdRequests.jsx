@@ -114,8 +114,8 @@ export default function AdminAdRequests() {
   // The manual counterpart to the payment: once the admin has actually
   // seen the money land (Revolut/bank), this just flips the record to
   // "paid" — it does NOT auto-create the live CustomAd. That still has to
-  // be done by hand in "Управление на реклами" (see CustomAds.jsx) exactly
-  // like every other ad on this platform.
+  // be done by hand in the ad management screen (see AdManagement.jsx)
+  // exactly like every other ad on this platform.
   async function markPaid(req) {
     setMarkingPaid(req.id);
     try {

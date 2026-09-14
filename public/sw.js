@@ -6,7 +6,15 @@
 // cache wholesale the next time this file updates on someone's device —
 // nothing about the poisoning could otherwise ever clear itself, since a
 // cache-first entry, once stored, is never re-checked against the network.
-const CACHE_NAME = "catchcount-shell-v2";
+//
+// v2.64 — bumped again (v2 -> v3): manifest.json now has an explicit "id"
+// field (see public/manifest.json), but manifest.json is itself one of the
+// APP_SHELL entries below — cached cache-first, so a device that had
+// already visited before this change would otherwise keep serving its OLD
+// cached manifest.json (without "id") indefinitely, never picking up the
+// fix. Bumping CACHE_NAME forces exactly this kind of already-cached static
+// file to be re-fetched from the network the next time this file updates.
+const CACHE_NAME = "catchcount-shell-v3";
 const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
