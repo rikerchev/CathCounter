@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Loader2, Database, Fish } from "lucide-react";
+import { Download, Upload, Loader2, Database, Fish, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportWithHints, parseMultiSheetExcel, rowToEntity } from "@/lib/excelUtils";
 import { ALL_COUNTRIES } from "@/lib/countries";
@@ -17,6 +17,7 @@ export default function AdminDataExport() {
   const [exporting, setExporting] = useState("");
   const [importing, setImporting] = useState("");
   const [globalProgress, setGlobalProgress] = useState("");
+  const [cleaningPhotos, setCleaningPhotos] = useState(false);
   const [exportingCatches, setExportingCatches] = useState(false);
   const [importingCatches, setImportingCatches] = useState(false);
   const fileInputRef = useRef(null);
@@ -314,6 +315,33 @@ export default function AdminDataExport() {
     }
   };
 
+  // ── Cleanup: unused catch photos left behind by replaced/deleted catches ──
+  // (Going forward, replacing or deleting a catch's photo cleans up after
+  // itself automatically — see server/routes/entities.ts. This button is
+  // for the backlog that piled up before that existed.)
+
+  const handleCleanupOrphanedPhotos = async () => {
+    setCleaningPhotos(true);
+    try {
+      const { count } = await base44.admin.backup.orphanedPhotosCount();
+      if (count === 0) {
+        toast({ title: "Няма неизползвани снимки" });
+        return;
+      }
+      const proceed = window.confirm(
+        `Намерени са ${count} неизползвани снимки в базата (снимки на подменени или изтрити улови, ` +
+        `които вече не се показват никъде). Ще бъдат изтрити от базата. Продължавате ли?`
+      );
+      if (!proceed) return;
+      const { deleted } = await base44.admin.backup.cleanupOrphanedPhotos();
+      toast({ title: `Изтрити ${deleted} неизползвани снимки` });
+    } catch (e) {
+      toast({ title: "Грешка при почистване", description: e.message, variant: "destructive" });
+    } finally {
+      setCleaningPhotos(false);
+    }
+  };
+
   const groupKeys = Object.keys(EXPORT_GROUPS);
 
   return (
@@ -367,6 +395,21 @@ export default function AdminDataExport() {
         {(exporting === "global" || importing === "global") && globalProgress && (
           <p className="text-xs text-cyan-700 dark:text-cyan-300 mt-2">{globalProgress}</p>
         )}
+        <div className="mt-3 pt-3 border-t border-cyan-200 dark:border-border flex items-center justify-between flex-wrap gap-2">
+          <p className="text-xs text-slate-400">
+            Снимки на подменени или изтрити улови, останали неизползвани в базата
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleCleanupOrphanedPhotos}
+            disabled={cleaningPhotos || exporting !== "" || importing !== ""}
+            className="min-h-[44px]"
+          >
+            {cleaningPhotos ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+            Изчисти неизползвани снимки
+          </Button>
+        </div>
         <input
           ref={globalFileInputRef}
           type="file"

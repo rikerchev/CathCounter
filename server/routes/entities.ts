@@ -6,6 +6,23 @@ import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
 import { isAllowed } from "../middleware/authorize.js";
 import { handleUserEntityRoute } from "./userEntity.js";
+import { gcPhotoUrl } from "../lib/photoGc.js";
+
+// Best-effort cleanup of a catch's OLD photo, called only after the row
+// that used to point at it has already been updated/deleted — never lets a
+// GC failure fail the actual request, since a leftover unused photo is
+// harmless (just wasted space), while breaking a save/delete over it would
+// not be. Scoped to entityName === "Catch" by every caller below: catches
+// are the only entity whose photo_url this app ever overwrites/removes in
+// place (ad logos are edited through their own admin flows, not this one).
+async function gcOldCatchPhoto(oldPhotoUrl: unknown): Promise<void> {
+  if (typeof oldPhotoUrl !== "string" || !oldPhotoUrl) return;
+  try {
+    await gcPhotoUrl(oldPhotoUrl);
+  } catch (e) {
+    console.error("gcOldCatchPhoto error:", e);
+  }
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -159,6 +176,18 @@ export async function handleEntitiesRoute(
     const rows = await sql`
       UPDATE ${sql(table)} SET ${sql(payload, ...keys)} WHERE id = ${sub} RETURNING *
     `;
+    // Only when the photo actually changed to a DIFFERENT one — editing any
+    // other field of a catch leaves photo_url untouched (still equal to
+    // itself) and never triggers this, so a catch never loses its photo
+    // just because something else about it was edited.
+    if (
+      entityName === "Catch" &&
+      "photo_url" in payload &&
+      existing.photo_url &&
+      existing.photo_url !== payload.photo_url
+    ) {
+      await gcOldCatchPhoto(existing.photo_url);
+    }
     return json(rows[0]);
   }
 
@@ -177,6 +206,14 @@ export async function handleEntitiesRoute(
       const keys = Object.keys(payload);
       const rows = await sql`UPDATE ${sql(table)} SET ${sql(payload, ...keys)} WHERE id = ${id} RETURNING *`;
       updated.push(rows[0]);
+      if (
+        entityName === "Catch" &&
+        "photo_url" in payload &&
+        existing.photo_url &&
+        existing.photo_url !== payload.photo_url
+      ) {
+        await gcOldCatchPhoto(existing.photo_url);
+      }
     }
     return json(updated);
   }
@@ -187,6 +224,9 @@ export async function handleEntitiesRoute(
     if (!existing) return json({ error: "Not found" }, 404);
     if (!(await isAllowed(entity, "delete", user, existing))) return json({ error: "Forbidden" }, 403);
     await sql`DELETE FROM ${sql(table)} WHERE id = ${sub}`;
+    if (entityName === "Catch" && existing.photo_url) {
+      await gcOldCatchPhoto(existing.photo_url);
+    }
     return json({ success: true });
   }
 

@@ -243,6 +243,13 @@ export const base44 = {
         apiFetch(`/api/admin/backup/restore/table/${name}`, { method: "POST", body: { rows }, timeoutMs: 25000 }),
       restorePhotos: (photos) =>
         apiFetch("/api/admin/backup/restore/photos", { method: "POST", body: { photos }, timeoutMs: 25000 }),
+      // "Осиротели" снимки — catch_photos rows nothing references anymore
+      // (a replaced or deleted catch's old photo). New replacements/deletes
+      // clean up after themselves automatically now (see entities.ts); this
+      // is for the backlog from before that existed. See server/lib/photoGc.ts.
+      orphanedPhotosCount: () => apiFetch("/api/admin/backup/orphaned-photos", { timeoutMs: 25000 }),
+      cleanupOrphanedPhotos: () =>
+        apiFetch("/api/admin/backup/orphaned-photos/cleanup", { method: "POST", timeoutMs: 25000 }),
     },
   },
 

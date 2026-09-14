@@ -1,6 +1,7 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
+import { findOrCleanOrphanedPhotos } from "../lib/photoGc.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -67,6 +68,8 @@ function isBackupTable(name: string): name is typeof BACKUP_TABLES[number] {
  *   (ids, timestamps, everything — this is a raw restore, not the normal create-with-defaults path)
  * POST /api/admin/backup/restore/photos          body={photos:[{id,mime_type,size_bytes,
  *   created_by_id,created_at,data_base64}]} -> bulk-inserts catch_photos rows
+ * GET  /api/admin/backup/orphaned-photos          -> { count } of unused catch_photos rows
+ * POST /api/admin/backup/orphaned-photos/cleanup   -> deletes them, { deleted }
  *
  * All of the above are admin-only. This deliberately reads/writes full raw
  * rows (e.g. users.password_hash, users.google_id, app_settings secret
@@ -137,6 +140,24 @@ export async function handleAdminBackupRoute(
     if (keys.length === 0) return json({ inserted: 0 });
     await sql`INSERT INTO ${sql(name)} ${sql(rows, ...keys)}`;
     return json({ inserted: rows.length });
+  }
+
+  // GET  /api/admin/backup/orphaned-photos          -> { count } — preview only, deletes nothing
+  // POST /api/admin/backup/orphaned-photos/cleanup   -> { deleted } — actually deletes them
+  //
+  // "Orphaned" = a catch_photos row nothing references anymore: see
+  // server/lib/photoGc.ts. This happens two ways — replacing a catch's
+  // photo with a new one, or deleting a catch that had one — both of which
+  // now clean up automatically going forward (see entities.ts). This is for
+  // the backlog that piled up before that existed.
+  if (req.method === "GET" && path[0] === "orphaned-photos") {
+    const ids = await findOrCleanOrphanedPhotos(true);
+    return json({ count: ids.length });
+  }
+
+  if (req.method === "POST" && path[0] === "orphaned-photos" && path[1] === "cleanup") {
+    const ids = await findOrCleanOrphanedPhotos(false);
+    return json({ deleted: ids.length });
   }
 
   if (req.method === "POST" && path[0] === "restore" && path[1] === "photos") {
