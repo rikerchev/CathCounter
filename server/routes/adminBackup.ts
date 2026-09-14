@@ -2,6 +2,8 @@ import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
 import { findOrCleanOrphanedPhotos } from "../lib/photoGc.js";
+import { absoluteUrl } from "../lib/url.js";
+import { env } from "../env.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -158,6 +160,64 @@ export async function handleAdminBackupRoute(
   if (req.method === "POST" && path[0] === "orphaned-photos" && path[1] === "cleanup") {
     const ids = await findOrCleanOrphanedPhotos(false);
     return json({ deleted: ids.length });
+  }
+
+  // GET  /api/admin/backup/wrong-domain-photo-urls          -> { count } — preview only
+  // POST /api/admin/backup/wrong-domain-photo-urls/fix       -> { updated }
+  //
+  // A batch of catches from 2026-09-12 got their photo_url stamped with a
+  // misspelled host ("cath-counter.vercel.app" instead of
+  // "catch-counter.vercel.app" — PUBLIC_API_URL or the request origin was
+  // wrong for a while when catchPhotos.ts built the URL at upload time, see
+  // src/lib/dataPortability.js's exportUserData for how this was found: the
+  // global backup never noticed because it never fetches through this
+  // stored string, but the personal "Улови и снимки" export — and the
+  // in-app photo thumbnails (Thumbnail.jsx passes photo_url straight to an
+  // external resizer) — do. Rather than special-case that one typo, this
+  // re-derives the correct URL for EVERY catches.photo_url /
+  // custom_ads.logo_url / ad_slot_requests.logo_url from the photo's own id
+  // (same UUID-extraction approach as photoGc.ts/photoNaming.js) and the
+  // server's current, correctly-configured origin — so it also self-heals
+  // if the domain ever changes again, not just this one incident.
+  // water_bodies/base_items are deliberately excluded: those columns are
+  // normally hand-typed external URLs (see photoGc.ts), not uploads, so
+  // touching them risks overwriting a legitimate unrelated URL.
+  const NORMALIZE_TARGETS = [
+    { table: "catches", column: "photo_url" },
+    { table: "custom_ads", column: "logo_url" },
+    { table: "ad_slot_requests", column: "logo_url" },
+  ] as const;
+  const PHOTO_ID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+  async function findWrongDomainRows(origin: string) {
+    const out: { table: string; column: string; id: string; correct: string }[] = [];
+    for (const { table, column } of NORMALIZE_TARGETS) {
+      const rows = (await sql.unsafe(
+        `SELECT id, ${column} AS val FROM ${table} WHERE ${column} IS NOT NULL`,
+      )) as { id: string; val: string }[];
+      for (const r of rows) {
+        const m = r.val.match(PHOTO_ID_RE);
+        if (!m) continue; // not a catch-photos URL at all (or unrecognized) — leave untouched
+        const correct = `${origin}/api/catch-photos/${m[0]}`;
+        if (correct !== r.val) out.push({ table, column, id: r.id, correct });
+      }
+    }
+    return out;
+  }
+
+  if (req.method === "GET" && path[0] === "wrong-domain-photo-urls") {
+    const origin = env.PUBLIC_API_URL || absoluteUrl(req).origin;
+    const rows = await findWrongDomainRows(origin);
+    return json({ count: rows.length });
+  }
+
+  if (req.method === "POST" && path[0] === "wrong-domain-photo-urls" && path[1] === "fix") {
+    const origin = env.PUBLIC_API_URL || absoluteUrl(req).origin;
+    const rows = await findWrongDomainRows(origin);
+    for (const r of rows) {
+      await sql.unsafe(`UPDATE ${r.table} SET ${r.column} = $1 WHERE id = $2`, [r.correct, r.id]);
+    }
+    return json({ updated: rows.length });
   }
 
   if (req.method === "POST" && path[0] === "restore" && path[1] === "photos") {

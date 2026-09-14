@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, Loader2, Database, Fish, Trash2 } from "lucide-react";
+import { Download, Upload, Loader2, Database, Fish, Trash2, Link2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { exportWithHints, parseMultiSheetExcel, rowToEntity } from "@/lib/excelUtils";
 import { ALL_COUNTRIES } from "@/lib/countries";
@@ -18,6 +18,7 @@ export default function AdminDataExport() {
   const [importing, setImporting] = useState("");
   const [globalProgress, setGlobalProgress] = useState("");
   const [cleaningPhotos, setCleaningPhotos] = useState(false);
+  const [fixingDomains, setFixingDomains] = useState(false);
   const [exportingCatches, setExportingCatches] = useState(false);
   const [importingCatches, setImportingCatches] = useState(false);
   const fileInputRef = useRef(null);
@@ -342,6 +343,35 @@ export default function AdminDataExport() {
     }
   };
 
+  // ── Fix: photo URLs stamped with the wrong domain ──
+  // A batch of catches from 2026-09-12 got photo_url built from a
+  // misspelled host ("cath-counter.vercel.app" instead of
+  // "catch-counter.vercel.app"). The global backup never showed it because
+  // it fetches photos by their own id, not through this stored string — but
+  // the personal "Улови и снимки" export, and photo thumbnails in the app
+  // itself, do use it directly and were silently failing for those catches.
+  const handleFixWrongDomainPhotoUrls = async () => {
+    setFixingDomains(true);
+    try {
+      const { count } = await base44.admin.backup.wrongDomainPhotoUrlsCount();
+      if (count === 0) {
+        toast({ title: "Няма адреси за поправяне" });
+        return;
+      }
+      const proceed = window.confirm(
+        `Намерени са ${count} записа с грешен адрес на снимка (стар домейн от преди). ` +
+        `Ще бъдат поправени на текущия правилен адрес. Продължавате ли?`
+      );
+      if (!proceed) return;
+      const { updated } = await base44.admin.backup.fixWrongDomainPhotoUrls();
+      toast({ title: `Поправени ${updated} адреса на снимки` });
+    } catch (e) {
+      toast({ title: "Грешка при поправяне", description: e.message, variant: "destructive" });
+    } finally {
+      setFixingDomains(false);
+    }
+  };
+
   const groupKeys = Object.keys(EXPORT_GROUPS);
 
   return (
@@ -408,6 +438,21 @@ export default function AdminDataExport() {
           >
             {cleaningPhotos ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
             Изчисти неизползвани снимки
+          </Button>
+        </div>
+        <div className="mt-3 pt-3 border-t border-cyan-200 dark:border-border flex items-center justify-between flex-wrap gap-2">
+          <p className="text-xs text-slate-400">
+            По-стари адреси на снимки, записани с грешен (стар) домейн
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFixWrongDomainPhotoUrls}
+            disabled={fixingDomains || exporting !== "" || importing !== ""}
+            className="min-h-[44px]"
+          >
+            {fixingDomains ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Link2 className="w-4 h-4 mr-1" />}
+            Поправи адреси на снимки
           </Button>
         </div>
         <input

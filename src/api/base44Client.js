@@ -250,6 +250,13 @@ export const base44 = {
       orphanedPhotosCount: () => apiFetch("/api/admin/backup/orphaned-photos", { timeoutMs: 25000 }),
       cleanupOrphanedPhotos: () =>
         apiFetch("/api/admin/backup/orphaned-photos/cleanup", { method: "POST", timeoutMs: 25000 }),
+      // Some older catch_photos URLs got stamped with a misspelled host
+      // ("cath-counter" instead of "catch-counter") — see
+      // server/routes/adminBackup.ts's wrong-domain-photo-urls handler.
+      // Re-derives the correct URL from each photo's own id.
+      wrongDomainPhotoUrlsCount: () => apiFetch("/api/admin/backup/wrong-domain-photo-urls", { timeoutMs: 25000 }),
+      fixWrongDomainPhotoUrls: () =>
+        apiFetch("/api/admin/backup/wrong-domain-photo-urls/fix", { method: "POST", timeoutMs: 25000 }),
     },
   },
 

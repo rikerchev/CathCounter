@@ -71,22 +71,22 @@ export async function exportUserData(user) {
     let photoBlob = null;
     let photoMime = null;
 
-    // Older catches can have a photo_url that isn't a full absolute URL
-    // (e.g. a bare "/api/catch-photos/:id" path, from before this always
-    // included the origin — see catchPhotos.ts) — a plain `fetch()` on a
-    // relative path still works fine from inside the app, but requiring
-    // "starts with http(s)://" here would silently skip those and export
-    // the catch with no photo, even though the photo is still very much on
-    // the server (globalBackup.js finds and names the exact same photo
-    // fine, since it only needs the id, not a full URL — see extractPhotoId
-    // in photoNaming.js). Rebuilding the fetch URL from the extracted photo
-    // id, rather than trusting the stored string's shape, covers both cases.
-    const photoFetchUrl = /^https?:\/\//.test(c.photo_url || "")
-      ? c.photo_url
-      : (() => {
-          const photoId = extractPhotoId(c.photo_url);
-          return photoId ? apiUrl(`/api/catch-photos/${photoId}`) : null;
-        })();
+    // NEVER fetch c.photo_url as stored — some older catches have a
+    // *validly-shaped* absolute URL that's simply wrong: for a batch of
+    // catches from 2026-09-12, PUBLIC_API_URL (or the request origin, see
+    // catchPhotos.ts) was captured as the misspelled "cath-counter.vercel.app"
+    // instead of "catch-counter.vercel.app" (this repo's own folder/name
+    // typo — see D:\CatchCounter\CathCounter). It starts with "https://" so
+    // an earlier version of this check (only rebuilding the URL when it
+    // *didn't* look absolute) let it straight through to a doomed fetch
+    // against the wrong host every time. globalBackup.js never had this bug
+    // because it never fetches through catches.photo_url at all — it always
+    // gets the photo's real id from catch_photos itself (photosList()) and
+    // calls apiUrl() with that. Do the same thing here: always rebuild the
+    // URL from the id extracted out of the stored string, and ignore
+    // whatever host happens to be sitting in front of it.
+    const photoId = extractPhotoId(c.photo_url);
+    const photoFetchUrl = photoId ? apiUrl(`/api/catch-photos/${photoId}`) : null;
     if (photoFetchUrl) {
       try {
         const res = await fetch(photoFetchUrl);
