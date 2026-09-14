@@ -29,6 +29,7 @@ import PersonalBest from './pages/PersonalBest';
 import BaitInventory from './pages/BaitInventory';
 import Profile from './pages/Profile';
 import Advertise from './pages/Advertise';
+import CustomAds from './pages/CustomAds';
 import AdminUsers from './pages/AdminUsers';
 import AdminSetup from './pages/AdminSetup';
 import WaterBodies from './pages/WaterBodies';
@@ -37,7 +38,7 @@ import Competitions from './pages/Competitions';
 import WaterBodyManagement from './pages/WaterBodyManagement';
 import AdminWaterBodies from './pages/AdminWaterBodies';
 import AdminRoleRequests from './pages/AdminRoleRequests';
-import AdManagement from './pages/AdManagement';
+import AdminAdSlots from './pages/AdminAdSlots';
 import AdminAdRequests from './pages/AdminAdRequests';
 import MyAdRequests from './pages/MyAdRequests';
 import SectorReservations from './pages/SectorReservations';
@@ -94,6 +95,7 @@ const AuthenticatedApp = () => {
           <Route path="/bait-inventory" element={<BaitInventory />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/advertise" element={<Advertise />} />
+          <Route path="/custom-ads" element={<CustomAds />} />
           <Route path="/admin-users" element={<AdminUsers />} />
           <Route path="/admin-setup" element={<AdminSetup />} />
           <Route path="/water-bodies" element={<WaterBodies />} />
@@ -102,7 +104,7 @@ const AuthenticatedApp = () => {
           <Route path="/water-body-management" element={<WaterBodyManagement />} />
           <Route path="/admin-water-bodies" element={<AdminWaterBodies />} />
           <Route path="/admin-role-requests" element={<AdminRoleRequests />} />
-          <Route path="/admin-ad-slots" element={<AdManagement />} />
+          <Route path="/admin-ad-slots" element={<AdminAdSlots />} />
           <Route path="/admin-ad-requests" element={<AdminAdRequests />} />
           <Route path="/my-ad-requests" element={<MyAdRequests />} />
           <Route path="/sector-reservations" element={<SectorReservations />} />

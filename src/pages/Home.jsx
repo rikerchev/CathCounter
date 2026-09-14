@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Fish, Timer, PlusCircle, Loader2, ChevronRight } from "lucide-react";
 import CatchTrendChart from "@/components/CatchTrendChart";
-import AdBanner from "@/components/AdBanner";
 
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -47,9 +46,16 @@ export default function Home() {
   const totalWeight = catches.reduce((sum, c) => sum + (c.weight || 0), 0);
   const recentCatches = catches.slice(0, 5);
 
+  // v2.66 — Home used to render its own <AdBanner/> here on top of the one
+  // Layout.jsx already renders globally (above <Outlet/>, inside the sticky
+  // header, for every page). That meant the Home page's top banner was
+  // mounted twice — the same ad/slot placeholder showing up as what looked
+  // like "two banners", with only one of them (the real, singular
+  // underlying CustomAd/AdSlot) actually editable anywhere. Removed the
+  // duplicate; the global one in Layout.jsx already covers this page like
+  // every other.
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <AdBanner />
       <div>
         <h1 className="text-xl font-bold text-slate-800">{t("dashboard.title")}</h1>
         <p className="text-sm text-slate-400">{t("dashboard.subtitle")}</p>

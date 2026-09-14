@@ -90,11 +90,8 @@ function ThemeToggle() {
 const adNavItems = [
   { to: "/advertise", labelKey: "nav.advertise", icon: Megaphone, advertiserOnly: true },
   { to: "/my-ad-requests", labelKey: "nav.myAdRequests", icon: FileText, advertiserOnly: true },
-  // v2.65 — "Рекламни слотове" and "Управление на реклами" used to be two
-  // separate entries here (and two separate pages) even though they were
-  // really two views of the same per-page ad picture; merged into one
-  // screen (AdManagement.jsx) reachable from this single entry.
-  { to: "/admin-ad-slots", labelKey: "nav.adManagement", icon: Megaphone, adminOnly: true },
+  { to: "/custom-ads", labelKey: "nav.customAds", icon: Megaphone, adminOnly: true },
+  { to: "/admin-ad-slots", labelKey: "nav.adSlots", icon: Megaphone, adminOnly: true },
   { to: "/admin-ad-requests", labelKey: "nav.adRequests", icon: Megaphone, adminOnly: true },
 ];
 
