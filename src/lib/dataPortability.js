@@ -11,10 +11,11 @@ import JSZip from "jszip";
 import { listCatchesByUser, saveCatch } from "@/lib/catchRepository";
 import { getPendingPhotosByCatch, savePendingPhoto } from "@/lib/pendingPhotos";
 import { syncAll } from "@/lib/syncEngine";
+import { apiUrl } from "@/api/base44Client";
 import { APP_VERSION } from "@/lib/version";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { sessionNumbersByCatchId } from "@/lib/sessions";
-import { catchPhotoFilename } from "@/lib/photoNaming";
+import { catchPhotoFilename, extractPhotoId } from "@/lib/photoNaming";
 
 const MANIFEST_NAME = "manifest.json";
 const CATCHES_NAME = "catches.json";
@@ -70,9 +71,25 @@ export async function exportUserData(user) {
     let photoBlob = null;
     let photoMime = null;
 
-    if (c.photo_url && /^https?:\/\//.test(c.photo_url)) {
+    // Older catches can have a photo_url that isn't a full absolute URL
+    // (e.g. a bare "/api/catch-photos/:id" path, from before this always
+    // included the origin — see catchPhotos.ts) — a plain `fetch()` on a
+    // relative path still works fine from inside the app, but requiring
+    // "starts with http(s)://" here would silently skip those and export
+    // the catch with no photo, even though the photo is still very much on
+    // the server (globalBackup.js finds and names the exact same photo
+    // fine, since it only needs the id, not a full URL — see extractPhotoId
+    // in photoNaming.js). Rebuilding the fetch URL from the extracted photo
+    // id, rather than trusting the stored string's shape, covers both cases.
+    const photoFetchUrl = /^https?:\/\//.test(c.photo_url || "")
+      ? c.photo_url
+      : (() => {
+          const photoId = extractPhotoId(c.photo_url);
+          return photoId ? apiUrl(`/api/catch-photos/${photoId}`) : null;
+        })();
+    if (photoFetchUrl) {
       try {
-        const res = await fetch(c.photo_url);
+        const res = await fetch(photoFetchUrl);
         if (res.ok) {
           photoBlob = await res.blob();
           photoMime = photoBlob.type || res.headers.get("content-type");
