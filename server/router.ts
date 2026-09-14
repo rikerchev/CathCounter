@@ -8,6 +8,7 @@ import { handleFunctionsRoute } from "./routes/functions.js";
 import { handleCatchPhotosRoute } from "./routes/catchPhotos.js";
 import { handleIntegrationsRoute } from "./routes/integrations.js";
 import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
+import { handleAdminBackupRoute } from "./routes/adminBackup.js";
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
 import { handleAdRenewalsCron } from "./routes/adRenewals.js";
 
@@ -60,6 +61,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "admin" && segments[2] === "settings") {
       return await handleAdminSettingsRoute(req, segments.slice(3), user);
+    }
+    if (segments[1] === "admin" && segments[2] === "backup") {
+      return await handleAdminBackupRoute(req, segments.slice(3), user);
     }
     if (segments[1] === "settings") {
       return await handlePublicSettingsRoute(req, segments.slice(2));

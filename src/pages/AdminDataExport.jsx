@@ -7,19 +7,21 @@ import { exportWithHints, parseMultiSheetExcel, rowToEntity } from "@/lib/excelU
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { EXPORT_GROUPS } from "@/lib/exportSchemas";
 import { calculateCountryPrice } from "@/lib/pricing";
-import { getStructureSheets } from "@/lib/appStructure";
 import { useAuth } from "@/lib/AuthContext";
 import { exportUserData, importUserData } from "@/lib/dataPortability";
+import { exportGlobalBackup, importGlobalBackup, readGlobalBackupManifest } from "@/lib/globalBackup";
 
 export default function AdminDataExport() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [exporting, setExporting] = useState("");
   const [importing, setImporting] = useState("");
+  const [globalProgress, setGlobalProgress] = useState("");
   const [exportingCatches, setExportingCatches] = useState(false);
   const [importingCatches, setImportingCatches] = useState(false);
   const fileInputRef = useRef(null);
   const catchesFileInputRef = useRef(null);
+  const globalFileInputRef = useRef(null);
   const pendingGroup = useRef(null);
 
   const safeList = async (entity, limit = 500) => {
@@ -101,12 +103,6 @@ export default function AdminDataExport() {
     if (!file || !pendingGroup.current) return;
 
     const groupKey = pendingGroup.current;
-
-    if (groupKey === "global") {
-      await handleGlobalImport(file);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
 
     const group = EXPORT_GROUPS[groupKey];
     setImporting(groupKey);
@@ -246,148 +242,75 @@ export default function AdminDataExport() {
     }
   };
 
-  // ── Global Export (all groups in one file) ───────────────
+  // ── Global backup (ALL tables + ALL catch photos in one .zip) ──────────
+  // A real database backup, not just the admin-editable entity groups below:
+  // every table (including users with their password hashes, app settings
+  // with any saved integration credentials, and every catch photo) so the
+  // file alone is enough to fully restore the app. See src/lib/globalBackup.js
+  // for why this is a .zip of many small requests rather than one big file
+  // (Vercel's 4.5MB request/response cap).
 
   const handleGlobalExport = async () => {
     setExporting("global");
+    setGlobalProgress("");
     try {
-      const allSheets = [];
-      for (const groupKey of Object.keys(EXPORT_GROUPS)) {
-        const group = EXPORT_GROUPS[groupKey];
-        for (const sheetDef of group.sheets) {
-          const entityName = sheetDef.entity || group.entity;
-          const rawData = await safeList(entityName);
-          let columns = [...sheetDef.columns];
-          let data = rawData;
-
-          if (groupKey === "users") {
-            const menuGroups = await safeList("MenuGroup");
-            data = rawData.map(u => ({
-              ...u,
-              menu_group_name: menuGroups.find(g => g.id === u.menu_group_id)?.name || "",
-            }));
-          }
-
-          if (group.isPrices) {
-            const countryCols = ALL_COUNTRIES.map(c => ({
-              key: `__country_${c.code}`,
-              label: c.name,
-              hint: `Авто-изчислена цена за ${c.name}`,
-              type: "number",
-            }));
-            columns = [...columns, ...countryCols];
-            data = rawData.map(s => {
-              const base = s.price_per_month || 0;
-              const row = { ...s };
-              for (const c of ALL_COUNTRIES) {
-                row[`__country_${c.code}`] = calculateCountryPrice(base, c.code);
-              }
-              return row;
-            });
-          }
-
-          allSheets.push({ sheetName: sheetDef.sheetName, columns, data });
-        }
-      }
-
-      // Add app structure sheets (entity schemas + routes)
-      const structureSheets = await getStructureSheets();
-      allSheets.push(...structureSheets);
-
-      exportWithHints(allSheets, "global-export.xlsx");
-      toast({ title: "Глобалният експорт е готов" });
+      const result = await exportGlobalBackup(setGlobalProgress);
+      const tableRows = Object.values(result.tables).reduce((a, b) => a + b, 0);
+      toast({
+        title: "Резервното копие е готово",
+        description: `${tableRows} записа във всички таблици и ${result.photosCount} снимки.`,
+      });
     } catch (e) {
-      toast({ title: "Грешка при глобален експорт", description: e.message, variant: "destructive" });
+      toast({ title: "Грешка при резервно копие", description: e.message, variant: "destructive" });
     } finally {
       setExporting("");
+      setGlobalProgress("");
     }
   };
 
-  // ── Global Import (all sheets from one file) ────────────
+  // ── Global restore — DESTRUCTIVE: replaces every table's current data ──
 
   const handleGlobalImportClick = () => {
-    pendingGroup.current = "global";
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-      fileInputRef.current.click();
+    if (globalFileInputRef.current) {
+      globalFileInputRef.current.value = "";
+      globalFileInputRef.current.click();
     }
   };
 
-  const handleGlobalImport = async (file) => {
-    setImporting("global");
+  const handleGlobalFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     try {
-      const sheets = await parseMultiSheetExcel(file);
-      let updated = 0;
-      let created = 0;
+      const manifest = await readGlobalBackupManifest(file);
+      const tableRows = Object.values(manifest.tables || {}).reduce((a, b) => a + b, 0);
+      const summary =
+        `Файлът съдържа ${tableRows} записа във всички таблици и ${manifest.photos || 0} снимки ` +
+        `(от ${manifest.exported_at ? new Date(manifest.exported_at).toLocaleString("bg-BG") : "неизвестна дата"}).\n\n` +
+        `ВНИМАНИЕ: Възстановяването ще ИЗТРИЕ всички текущи данни в приложението ` +
+        `(потребители, улови, снимки, обяви, настройки и т.н.) и ще ги замени с тези от файла. ` +
+        `Това действие е НЕОБРАТИМО.\n\nПродължавате ли?`;
+      if (!window.confirm(summary)) return;
 
-      let userMenuGroups = null;
-
-      for (const groupKey of Object.keys(EXPORT_GROUPS)) {
-        const group = EXPORT_GROUPS[groupKey];
-        if (groupKey === "users") {
-          userMenuGroups = await safeList("MenuGroup");
-        }
-        for (const sheetDef of group.sheets) {
-          const entityName = sheetDef.entity || group.entity;
-          const rows = sheets[sheetDef.sheetName] || [];
-          const columns = sheetDef.columns;
-
-          const countryByName = {};
-          if (group.isPrices) {
-            for (const c of ALL_COUNTRIES) countryByName[c.name] = c.code;
-          }
-
-          for (const row of rows) {
-            const entity = rowToEntity(row, columns);
-
-            if (groupKey === "users" && userMenuGroups) {
-              const groupName = entity.menu_group_name;
-              entity.menu_group_id = groupName
-                ? (userMenuGroups.find(g => g.name === groupName)?.id || null)
-                : null;
-              delete entity.menu_group_name;
-            }
-
-            const hasId = entity.id && entity.id !== "";
-
-            if (hasId) {
-              if (group.canCreate === false && group.updatableFields) {
-                const updateData = {};
-                for (const f of group.updatableFields) {
-                  if (entity[f] !== undefined) updateData[f] = entity[f];
-                }
-                if (group.isPrices) updateData.country_pricing = entity.country_pricing;
-                if (Object.keys(updateData).length > 0) {
-                  await base44.entities[entityName].update(entity.id, updateData);
-                  updated++;
-                }
-              } else {
-                const { id, ...rest } = entity;
-                await base44.entities[entityName].update(id, rest);
-                updated++;
-              }
-            } else {
-              if (group.canCreate === false) continue;
-              delete entity.id;
-              const clean = {};
-              for (const [k, v] of Object.entries(entity)) {
-                if (v !== "" && v !== null && v !== undefined) clean[k] = v;
-              }
-              if (Object.keys(clean).length > 0) {
-                await base44.entities[entityName].create(clean);
-                created++;
-              }
-            }
-          }
-        }
+      const typed = window.prompt('За да потвърдите, напишете точно думата "ИЗТРИЙ" (с главни букви):');
+      if (typed !== "ИЗТРИЙ") {
+        toast({ title: "Възстановяването е отказано" });
+        return;
       }
 
-      toast({ title: `Глобален импорт готов: ${updated} обновени, ${created} създадени` });
+      setImporting("global");
+      setGlobalProgress("");
+      const result = await importGlobalBackup(file, { onProgress: setGlobalProgress });
+      toast({
+        title: "Възстановяването завърши",
+        description: `${result.rowsRestored} записа и ${result.photosCount} снимки.`,
+      });
     } catch (e) {
-      toast({ title: "Грешка при глобален импорт", description: e.message, variant: "destructive" });
+      toast({ title: "Грешка при възстановяване", description: e.message, variant: "destructive" });
     } finally {
       setImporting("");
-      pendingGroup.current = null;
+      setGlobalProgress("");
+      if (globalFileInputRef.current) globalFileInputRef.current.value = "";
     }
   };
 
@@ -410,8 +333,12 @@ export default function AdminDataExport() {
               <Database className="w-5 h-5 text-cyan-700 dark:text-foreground" />
             </div>
             <div>
-              <p className="font-medium text-slate-700 dark:text-foreground">Глобален експорт / импорт</p>
-              <p className="text-xs text-slate-400">Експортирай или импортирай всички данни в един файл</p>
+              <p className="font-medium text-slate-700 dark:text-foreground">Глобален бекъп (пълен)</p>
+              <p className="text-xs text-slate-400">
+                Пълно резервно копие на цялата база данни — всички потребители, улови, снимки, обяви,
+                водоеми, настройки и др. — в един .zip файл. Файлът съдържа чувствителни данни
+                (пароли, настройки на интеграции) — пазете го на сигурно място.
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -423,20 +350,30 @@ export default function AdminDataExport() {
               className="min-h-[44px]"
             >
               {exporting === "global" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
-              Глобален експорт
+              Изтегли бекъп
             </Button>
             <Button
-              variant="default"
+              variant="destructive"
               size="sm"
               onClick={handleGlobalImportClick}
               disabled={exporting !== "" || importing !== ""}
               className="min-h-[44px]"
             >
               {importing === "global" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
-              Глобален импорт
+              Възстанови от бекъп
             </Button>
           </div>
         </div>
+        {(exporting === "global" || importing === "global") && globalProgress && (
+          <p className="text-xs text-cyan-700 dark:text-cyan-300 mt-2">{globalProgress}</p>
+        )}
+        <input
+          ref={globalFileInputRef}
+          type="file"
+          accept=".zip"
+          onChange={handleGlobalFileChange}
+          className="hidden"
+        />
       </div>
 
       {/* Catches & Photos — personal backup (own catches + attached photos) */}

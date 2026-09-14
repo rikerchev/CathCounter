@@ -1,0 +1,163 @@
+import { sql } from "../db.js";
+import type { AuthUser } from "../middleware/auth.js";
+import { isAdmin } from "../middleware/auth.js";
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+// Full-database backup/restore (Admin → Data Export → "Глобален
+// експорт/импорт"). Every table covered by it, EXCEPT catch_photos (handled
+// separately below — its `data` BYTEA column is far too large for a plain
+// JSON row and needs base64 encoding, batched client-side).
+//
+// Deliberately excluded: otp_codes — short-lived, hashed one-time codes with
+// no value once expired; restoring old ones has no benefit and is a small
+// security smell.
+//
+// This exact list is also what gets wiped together on restore (see
+// restore/begin below) — every FK among these tables (and catch_photos) is
+// `ON DELETE SET NULL` onto users(id) (see schema.sql), so listing every one
+// of them together in a single TRUNCATE is both necessary (Postgres refuses
+// to truncate a table something else still references, unless that
+// something is truncated in the same statement) and sufficient (no CASCADE
+// needed) — as long as this list stays in sync with schema.sql. A future
+// table with a FK the schema adds and this list forgets will surface as a
+// clear TRUNCATE error rather than silently vanishing data, which is why
+// this intentionally does NOT use TRUNCATE ... CASCADE.
+export const BACKUP_TABLES = [
+  "users",
+  "app_settings",
+  "ad_slots",
+  "ad_slot_requests",
+  "app_languages",
+  "baits",
+  "base_items",
+  "catches",
+  "competitions",
+  "competition_registrations",
+  "custom_ads",
+  "menu_groups",
+  "notifications",
+  "role_requests",
+  "sector_availabilities",
+  "sector_reservations",
+  "session_syncs",
+  "subscriptions",
+  "translations",
+  "user_inventories",
+  "water_bodies",
+] as const;
+
+function isBackupTable(name: string): name is typeof BACKUP_TABLES[number] {
+  return (BACKUP_TABLES as readonly string[]).includes(name);
+}
+
+/**
+ * GET  /api/admin/backup/manifest              -> row counts (for a progress UI)
+ * GET  /api/admin/backup/table/:name            -> { rows } full table dump
+ * GET  /api/admin/backup/photos-list             -> { rows } catch_photos METADATA only (no bytes —
+ *   the client fetches each photo's actual bytes from the existing, already-public
+ *   GET /api/catch-photos/:id, exactly like the per-user export in dataPortability.js does)
+ * POST /api/admin/backup/restore/begin           -> wipes every table below, all at once
+ * POST /api/admin/backup/restore/table/:name     body={rows:[...]} -> bulk-inserts rows verbatim
+ *   (ids, timestamps, everything — this is a raw restore, not the normal create-with-defaults path)
+ * POST /api/admin/backup/restore/photos          body={photos:[{id,mime_type,size_bytes,
+ *   created_by_id,created_at,data_base64}]} -> bulk-inserts catch_photos rows
+ *
+ * All of the above are admin-only. This deliberately reads/writes full raw
+ * rows (e.g. users.password_hash, users.google_id, app_settings secret
+ * values) — a real database backup has to, to actually be restorable — so
+ * every response here is more sensitive than the normal /api/entities
+ * surface and must never be reachable by a non-admin.
+ */
+export async function handleAdminBackupRoute(
+  req: Request,
+  path: string[],
+  user: AuthUser | null,
+): Promise<Response> {
+  if (!isAdmin(user)) return json({ error: "Forbidden" }, 403);
+
+  if (req.method === "GET" && path[0] === "manifest") {
+    // One combined query instead of 22 sequential round trips — matters
+    // because server/router.ts caps the whole request at 20s, and a slow
+    // Supabase connection (see db.ts) makes 22 sequential queries add up
+    // fast. Safe as sql.unsafe: every table name here is one of the
+    // hardcoded constants above, never request input.
+    const allTables = [...BACKUP_TABLES, "catch_photos"];
+    const unionQuery = allTables
+      .map((t) => `SELECT '${t}' AS t, COUNT(*)::int AS n FROM ${t}`)
+      .join(" UNION ALL ");
+    const counts = (await sql.unsafe(unionQuery)) as { t: string; n: number }[];
+    const byTable = new Map(counts.map((r) => [r.t, r.n]));
+    const tables: Record<string, number> = {};
+    for (const t of BACKUP_TABLES) tables[t] = byTable.get(t) ?? 0;
+    return json({ tables, photos: byTable.get("catch_photos") ?? 0 });
+  }
+
+  if (req.method === "GET" && path[0] === "table" && path[1]) {
+    const name = path[1];
+    if (!isBackupTable(name)) return json({ error: "Unknown table" }, 400);
+    // No ORDER BY here on purpose: row order doesn't matter for a backup,
+    // and not every backed-up table has a created_at column (app_settings
+    // only has key/value/updated_at) — a hardcoded ORDER BY created_at would
+    // break that one table's export.
+    const rows = await sql`SELECT * FROM ${sql(name)}`;
+    return json({ rows });
+  }
+
+  if (req.method === "GET" && path[0] === "photos-list") {
+    const rows = await sql`
+      SELECT id, mime_type, size_bytes, created_by_id, created_at
+      FROM catch_photos ORDER BY created_at ASC
+    `;
+    return json({ rows });
+  }
+
+  if (req.method === "POST" && path[0] === "restore" && path[1] === "begin") {
+    const allTables = [...BACKUP_TABLES, "catch_photos"];
+    // See the BACKUP_TABLES comment above for why this is a single
+    // multi-table TRUNCATE with no CASCADE. The table names are 100%
+    // hardcoded above (never request input), so sql.unsafe here is safe —
+    // same pattern as scripts/migrate.ts.
+    await sql.unsafe(`TRUNCATE TABLE ${allTables.join(", ")}`);
+    return json({ success: true });
+  }
+
+  if (req.method === "POST" && path[0] === "restore" && path[1] === "table" && path[2]) {
+    const name = path[2];
+    if (!isBackupTable(name)) return json({ error: "Unknown table" }, 400);
+    const body = await req.json().catch(() => ({ rows: [] }));
+    const rows: Record<string, unknown>[] = Array.isArray(body.rows) ? body.rows : [];
+    if (!rows.length) return json({ inserted: 0 });
+    const keys = Object.keys(rows[0]);
+    if (keys.length === 0) return json({ inserted: 0 });
+    await sql`INSERT INTO ${sql(name)} ${sql(rows, ...keys)}`;
+    return json({ inserted: rows.length });
+  }
+
+  if (req.method === "POST" && path[0] === "restore" && path[1] === "photos") {
+    const body = await req.json().catch(() => ({ photos: [] }));
+    const photos: Array<{
+      id: string;
+      mime_type: string;
+      size_bytes: number;
+      created_by_id: string | null;
+      created_at: string;
+      data_base64: string;
+    }> = Array.isArray(body.photos) ? body.photos : [];
+    for (const p of photos) {
+      const data = Buffer.from(p.data_base64, "base64");
+      await sql`
+        INSERT INTO catch_photos (id, data, mime_type, size_bytes, created_by_id, created_at)
+        VALUES (${p.id}, ${data}, ${p.mime_type}, ${p.size_bytes}, ${p.created_by_id}, ${p.created_at})
+      `;
+    }
+    return json({ inserted: photos.length });
+  }
+
+  return json({ error: "Not found" }, 404);
+}

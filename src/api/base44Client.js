@@ -12,6 +12,14 @@
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "token";
 
+// Builds an absolute URL for a same-API path — needed by callers that fetch
+// a resource directly (not through apiFetch's JSON request/response
+// handling), e.g. downloading a catch photo's raw bytes for the global
+// backup (src/lib/globalBackup.js).
+export function apiUrl(path) {
+  return `${API_BASE}${path}`;
+}
+
 // A Google-login redirect comes back as a full-page navigation to
 // `/...#access_token=...` (see server/routes/auth.ts google/callback) since
 // there's no XHR to hand the token back through. Capture it once on boot.
@@ -45,7 +53,7 @@ function setToken(token) {
 // like it hung for a very long time.
 const REQUEST_TIMEOUT_MS = 12000;
 
-async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
+async function apiFetch(path, { method = "GET", body, headers, raw, timeoutMs } = {}) {
   const token = getToken();
   const finalHeaders = { ...headers };
   let finalBody = body;
@@ -56,7 +64,7 @@ async function apiFetch(path, { method = "GET", body, headers, raw } = {}) {
   if (token) finalHeaders["Authorization"] = `Bearer ${token}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs ?? REQUEST_TIMEOUT_MS);
 
   let res;
   try {
@@ -213,6 +221,29 @@ export const base44 = {
     // powers the "Изпрати тестов имейл" button in the SMTP section of the
     // Setup Wizard (AdminSetup.jsx).
     sendTestEmail: (to) => apiFetch("/api/admin/settings/test-email", { method: "POST", body: { to } }),
+
+    // Full-database backup/restore — powers the "Глобален експорт/импорт"
+    // buttons in AdminDataExport.jsx (see src/lib/globalBackup.js for the
+    // zip assembly and the batching that keeps every request/response under
+    // Vercel's 4.5MB body limit). Admin-only; see server/routes/adminBackup.ts.
+    //
+    // A longer client-side timeout than the default 12s: some of these calls
+    // (a full table dump, a multi-row restore) can legitimately take longer
+    // than a normal UI request. server/router.ts already caps any single
+    // request at 20s server-side and returns a clean, friendly error if it's
+    // exceeded — this just needs to stay a bit above that so the browser
+    // doesn't abort first and hide that better error behind a generic
+    // "Request timed out".
+    backup: {
+      manifest: () => apiFetch("/api/admin/backup/manifest", { timeoutMs: 25000 }),
+      table: (name) => apiFetch(`/api/admin/backup/table/${name}`, { timeoutMs: 25000 }),
+      photosList: () => apiFetch("/api/admin/backup/photos-list", { timeoutMs: 25000 }),
+      restoreBegin: () => apiFetch("/api/admin/backup/restore/begin", { method: "POST", timeoutMs: 25000 }),
+      restoreTable: (name, rows) =>
+        apiFetch(`/api/admin/backup/restore/table/${name}`, { method: "POST", body: { rows }, timeoutMs: 25000 }),
+      restorePhotos: (photos) =>
+        apiFetch("/api/admin/backup/restore/photos", { method: "POST", body: { photos }, timeoutMs: 25000 }),
+    },
   },
 
   // Public (no admin rights needed) — how to pay the platform owner, for
