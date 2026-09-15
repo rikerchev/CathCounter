@@ -37,21 +37,25 @@ const APP_ICON_URL = "/icon-512.png";
 const TEMPLATE_W = 1376;
 const TEMPLATE_H = 768;
 
-// Pixel bounding box of the template's own QR badge (measured directly on
-// the source image) — a few px of padding beyond the badge's crisp white
-// edge so the fresh white rect fully hides the template's original QR with
-// no sliver of it peeking out, while staying inside the soft glow ring
-// around it (which is left untouched, still part of the base photo).
-const BADGE_X = 1084;
-const BADGE_Y = 448;
-const BADGE_W = 245;
-const BADGE_H = 244;
-const BADGE_R = 28;
+// Pixel bounding box of the template's own crisp white QR badge (measured
+// directly on the source image with a strict white threshold — v2.73's
+// first pass used a looser threshold that also picked up the badge's soft
+// glow halo and drop shadow, making the box ~35px too big on every side;
+// that both nudged it left into the carp's tail — reading as "overlapping
+// the fish" — and left it uneven relative to the glow ring, reading as
+// "off-center". This box is square and matches the badge's actual crisp
+// edge, so the fresh white rect lands exactly where the template's own QR
+// sat, no bigger and no smaller.
+const BADGE_X = 1096;
+const BADGE_Y = 460;
+const BADGE_W = 209;
+const BADGE_H = 209;
+const BADGE_R = 20;
 
-const QR_PAD = 20;
-const ICON_SIZE = 40;
-const ICON_BACKING = 48;
-const ICON_BACKING_R = 10;
+const QR_PAD = 14;
+const ICON_SIZE = 36;
+const ICON_BACKING = 44;
+const ICON_BACKING_R = 9;
 
 function roundRectPath(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
