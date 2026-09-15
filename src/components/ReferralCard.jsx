@@ -134,12 +134,17 @@ export default function ReferralCard() {
           {referralCount !== null && referralCount > 0 && (
             <p className="text-xs text-slate-400">{t("referral.invitedCount").replace("{count}", referralCount)}</p>
           )}
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" className="flex-1 min-h-[36px]" onClick={handleCopy} disabled={copying}>
+          {/* Stacked (not side-by-side) — on narrow/mobile widths the QR box
+              next to this column left too little room for two inline
+              buttons, so "Сподели" was getting squeezed off past the right
+              edge instead of wrapping. Each button now takes the full
+              column width on its own row. */}
+          <div className="flex flex-col gap-2">
+            <Button size="sm" variant="outline" className="w-full min-h-[36px]" onClick={handleCopy} disabled={copying}>
               {copying ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1.5" />}
               {t("referral.copyLink")}
             </Button>
-            <Button size="sm" className="flex-1 min-h-[36px] bg-cyan-600 hover:bg-cyan-700" onClick={handleShare}>
+            <Button size="sm" className="w-full min-h-[36px] bg-cyan-600 hover:bg-cyan-700" onClick={handleShare}>
               <Share2 className="w-3.5 h-3.5 mr-1.5" />
               {t("referral.share")}
             </Button>
