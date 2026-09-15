@@ -9,7 +9,10 @@ import { handleCatchPhotosRoute } from "./routes/catchPhotos.js";
 import { handleIntegrationsRoute } from "./routes/integrations.js";
 import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
 import { handleAdminBackupRoute } from "./routes/adminBackup.js";
+import { handleAdminMigrationsRoute } from "./routes/adminMigrations.js";
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
+import { handleReferralsRoute } from "./routes/referrals.js";
+import { handleMerchantReferralsRoute } from "./routes/merchantReferrals.js";
 import { handleAdRenewalsCron } from "./routes/adRenewals.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
@@ -64,6 +67,15 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "admin" && segments[2] === "backup") {
       return await handleAdminBackupRoute(req, segments.slice(3), user);
+    }
+    if (segments[1] === "admin" && segments[2] === "migrations") {
+      return await handleAdminMigrationsRoute(req, segments.slice(3), user);
+    }
+    if (segments[1] === "referrals") {
+      return await handleReferralsRoute(req, segments.slice(2), user);
+    }
+    if (segments[1] === "merchant-referrals") {
+      return await handleMerchantReferralsRoute(req, segments.slice(2), user);
     }
     if (segments[1] === "settings") {
       return await handlePublicSettingsRoute(req, segments.slice(2));

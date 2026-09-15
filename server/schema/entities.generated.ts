@@ -450,6 +450,31 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "iban", type: "string", required: false },
       { name: "logo_url", type: "string", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["pending", "approved", "rejected"] },
+      // v2.69 — "Търговци" brochure QR bonus. 0 / unset by default (no
+      // banner) until an admin configures them in Водоеми management. See
+      // server/routes/merchantReferrals.ts.
+      { name: "bonus_days_per_referral", type: "integer", required: false },
+      { name: "linked_custom_ad_id", type: "string", required: false },
+    ],
+    rules: {
+      read: { kind: "public" },
+      create: { kind: "authenticated" },
+      update: { kind: "owner", field: "created_by_id" },
+      delete: { kind: "owner", field: "created_by_id" },
+    },
+  },
+  // v2.69 — "Търговски обекти" (Търговци → second submenu): a physical shop
+  // etc. with its own brochure QR code. Same bonus-referral mechanic as
+  // WaterBody above; see server/routes/merchantReferrals.ts.
+  Venue: {
+    name: "Venue",
+    table: "venues",
+    columns: [
+      { name: "name", type: "string", required: true },
+      { name: "address", type: "string", required: false },
+      { name: "bonus_days_per_referral", type: "integer", required: false },
+      { name: "linked_custom_ad_id", type: "string", required: false },
+      { name: "is_active", type: "boolean", required: false },
     ],
     rules: {
       read: { kind: "public" },

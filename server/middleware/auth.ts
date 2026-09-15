@@ -12,6 +12,9 @@ export interface AuthUser {
   email_verified: boolean;
   created_at: string;
   updated_at: string;
+  // v2.68 — QR referral system: null until the account has ever earned
+  // referral-based ad-free premium; see routes/referrals.ts.
+  premium_until: string | null;
 }
 
 /**
@@ -27,12 +30,30 @@ export async function getUserFromRequest(req: Request): Promise<AuthUser | null>
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  const rows = await sql<AuthUser[]>`
-    SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
-           created_at, updated_at
-    FROM users WHERE id = ${payload.sub}
-  `;
-  return rows[0] ?? null;
+  try {
+    const rows = await sql<AuthUser[]>`
+      SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
+             created_at, updated_at, premium_until
+      FROM users WHERE id = ${payload.sub}
+    `;
+    return rows[0] ?? null;
+  } catch (e) {
+    // v2.68 deploys the code (auto, on git push) and the `premium_until`
+    // column (manual, via the Admin → Настройка → База данни button) as two
+    // separate steps — this SELECT would otherwise 500 on EVERY request in
+    // the gap between them. Fall back to the pre-v2.68 column list so the
+    // whole app doesn't go down just because the button hasn't been clicked
+    // yet; premium_until simply reads as null (= not premium) until it has.
+    if (e instanceof Error && /premium_until/.test(e.message)) {
+      const rows = await sql<Omit<AuthUser, "premium_until">[]>`
+        SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
+               created_at, updated_at
+        FROM users WHERE id = ${payload.sub}
+      `;
+      return rows[0] ? { ...rows[0], premium_until: null } : null;
+    }
+    throw e;
+  }
 }
 
 // `role` (singular, legacy/primary) and `roles` (array, supports someone

@@ -3,6 +3,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import { captureReferralFromUrl, captureMerchantFromUrl } from '@/lib/referral';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -36,6 +37,7 @@ import WaterBodies from './pages/WaterBodies';
 import WaterBodyRequest from './pages/WaterBodyRequest';
 import Competitions from './pages/Competitions';
 import WaterBodyManagement from './pages/WaterBodyManagement';
+import TraderVenues from './pages/TraderVenues';
 import AdminWaterBodies from './pages/AdminWaterBodies';
 import AdminRoleRequests from './pages/AdminRoleRequests';
 import AdManagement from './pages/AdManagement';
@@ -46,6 +48,14 @@ import AdminDataExport from './pages/AdminDataExport';
 import BaseItems from './pages/BaseItems';
 import UserInventoryPage from './pages/UserInventoryPage';
 import AdminTranslations from './pages/AdminTranslations';
+
+// v2.68/v2.69 — capture a ?ref=<code> (peer invite) or ?merchant=<type:id>
+// (printed brochure) param as early as possible (module load, before
+// anything renders), so either survives a full-page redirect to Google
+// sign-in and back. Actual redemption happens once the user is
+// authenticated — see AuthContext.jsx.
+captureReferralFromUrl();
+captureMerchantFromUrl();
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -102,6 +112,7 @@ const AuthenticatedApp = () => {
           <Route path="/water-body-request" element={<WaterBodyRequest />} />
           <Route path="/competitions" element={<Competitions />} />
           <Route path="/water-body-management" element={<WaterBodyManagement />} />
+          <Route path="/trader-venues" element={<TraderVenues />} />
           <Route path="/admin-water-bodies" element={<AdminWaterBodies />} />
           <Route path="/admin-role-requests" element={<AdminRoleRequests />} />
           <Route path="/admin-ad-slots" element={<AdManagement />} />

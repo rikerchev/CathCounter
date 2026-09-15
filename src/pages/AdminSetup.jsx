@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { hasRole } from "@/lib/roles";
-import { Settings, ExternalLink, CheckCircle2, CircleDashed, Loader2 } from "lucide-react";
+import { Settings, ExternalLink, CheckCircle2, CircleDashed, Loader2, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -83,6 +83,18 @@ const SECTIONS = [
       { key: "S3_FORCE_PATH_STYLE", label: "Force path style (true/false)", secret: false, placeholder: "true" },
     ],
   },
+  {
+    id: "adsense",
+    title: "Google AdSense",
+    description: "Показва резервни AdSense реклами (Auto ads) само на местата, където иначе би стояло празно/плейсхолдър \"рекламирай тук\" — никога не измества собствена платена реклама или слот. Изключено е за потребители с активен premium (включително спечелен чрез поканите — вижте „Покани приятел“ на Таблото).",
+    registerUrl: "https://www.google.com/adsense/start/",
+    registerLabel: "Регистрация в Google AdSense",
+    note: "Нужен е одобрен AdSense акаунт за вашия домейн — Google трябва първо да прегледа и одобри сайта. Publisher ID-то не е тайна (винаги е видимо в html кода на страницата), затова тук не се крие като парола.",
+    fields: [
+      { key: "ADSENSE_ENABLED", label: "Включен (true/false)", secret: false, placeholder: "true" },
+      { key: "ADSENSE_PUBLISHER_ID", label: "Publisher ID", secret: false, placeholder: "ca-pub-XXXXXXXXXXXXXXXX" },
+    ],
+  },
 ];
 
 export default function AdminSetup() {
@@ -93,10 +105,39 @@ export default function AdminSetup() {
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState("");
   const [testingEmail, setTestingEmail] = useState(false);
+  const [migrations, setMigrations] = useState(null);
+  const [applyingMigration, setApplyingMigration] = useState("");
 
   useEffect(() => {
     load();
+    loadMigrations();
   }, []);
+
+  // v2.68 — self-serve alternative to running `npm run migrate` by hand
+  // (see server/routes/adminMigrations.ts for why): applies a small,
+  // hand-picked, idempotent piece of server/schema/schema.sql directly
+  // against the live database, with one button per pending update.
+  async function loadMigrations() {
+    try {
+      const data = await base44.migrations.status();
+      setMigrations(data);
+    } catch {
+      setMigrations(null);
+    }
+  }
+
+  async function applyMigration(id) {
+    setApplyingMigration(id);
+    try {
+      await base44.migrations.apply(id);
+      await loadMigrations();
+      toast({ title: "Обновлението е приложено успешно" });
+    } catch (e) {
+      toast({ title: "Грешка при обновяване на базата данни", description: e.message, variant: "destructive" });
+    } finally {
+      setApplyingMigration("");
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -209,6 +250,43 @@ export default function AdminSetup() {
         Снимките на уловите се съхраняват директно в базата данни (компресирани на телефона/браузъра
         до ~400-500KB) — не се изисква никакво отделно (платено) файлово хранилище.
       </p>
+
+      {migrations && Object.entries(migrations).some(([, m]) => !m.applied) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Database className="w-4 h-4 text-cyan-600" />
+              База данни
+            </CardTitle>
+            <CardDescription>
+              Нови версии понякога добавят по едно-две малки, безопасни за пускане повторно, обновления към базата
+              данни. Кодът вече стигна дотук с обикновен push през GitHub Desktop — остава само да натиснете бутона
+              за всяко обновление по-долу (веднъж е достатъчно).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {Object.entries(migrations)
+              .filter(([, m]) => !m.applied)
+              .map(([id, m]) => (
+                <div key={id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10">
+                  <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-400">
+                    <CircleDashed className="w-4 h-4 flex-shrink-0" />
+                    {m.label}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => applyMigration(id)}
+                    disabled={applyingMigration !== ""}
+                    className="bg-cyan-600 hover:bg-cyan-700 min-h-[36px] flex-shrink-0"
+                  >
+                    {applyingMigration === id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+                    Приложи обновление
+                  </Button>
+                </div>
+              ))}
+          </CardContent>
+        </Card>
+      )}
 
       {SECTIONS.map((section) => {
         const configured = sectionConfigured(section);

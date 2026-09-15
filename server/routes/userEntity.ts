@@ -10,9 +10,14 @@ function json(body: unknown, status = 200): Response {
 }
 
 // Never return password_hash / google_id to the client, no matter who's asking.
+// premium_until (v2.68) added for the Admin Users list — requires the
+// "Приложи обновление" migration button (Admin → Настройка → База данни) to
+// have been clicked at least once; see middleware/auth.ts for why the more
+// frequently-hit /api/auth/me path tolerates the column not existing yet
+// and this admin-only listing does not need to.
 const SAFE_COLUMNS = `
   id, email, full_name, role, roles, country, menu_group_id,
-  email_verified, created_at, updated_at
+  email_verified, created_at, updated_at, premium_until
 `;
 
 // Only these are writable through this endpoint, and only by an admin —

@@ -44,6 +44,15 @@ export const SETTINGS_KEYS = [
   "S3_PUBLIC_BUCKET",
   "S3_PUBLIC_BASE_URL",
   "S3_FORCE_PATH_STYLE",
+  // Google AdSense fallback ads (v2.68) — only ever fills a placement that
+  // would otherwise show the empty/"advertise here" placeholder (see
+  // useEligibleAds.js); never displaces a real CustomAd or a rented AdSlot.
+  // Left unconfigured/disabled until the admin has their own approved
+  // AdSense account and pastes in their publisher ID — see
+  // routes/publicSettings.ts's /api/settings/adsense for how the (non-secret)
+  // publisher ID reaches the client.
+  "ADSENSE_ENABLED",
+  "ADSENSE_PUBLISHER_ID",
 ] as const;
 
 export type SettingKey = typeof SETTINGS_KEYS[number];
@@ -165,5 +174,25 @@ export async function getPaymentInfo(): Promise<PaymentInfo> {
     revolut: { enabled: revEnabled === "true" && Boolean(revTag || revUrl), tag: revTag, url: revUrl },
     bank: { enabled: bankEnabled === "true" && Boolean(bankIban), holder: bankHolder, iban: bankIban, bic: bankBic },
     note,
+  };
+}
+
+export interface AdSenseInfo {
+  enabled: boolean;
+  publisherId: string | null;
+}
+
+// Read-only, non-admin view (the publisher ID is not a secret — it ends up
+// in the page's own HTML/script tag the moment AdSense is on, same as any
+// site running it) — used by the frontend to decide whether to load the
+// AdSense script at all. See routes/publicSettings.ts.
+export async function getAdSenseInfo(): Promise<AdSenseInfo> {
+  const [enabled, publisherId] = await Promise.all([
+    getConfig("ADSENSE_ENABLED"),
+    getConfig("ADSENSE_PUBLISHER_ID"),
+  ]);
+  return {
+    enabled: enabled === "true" && Boolean(publisherId),
+    publisherId: publisherId || null,
   };
 }

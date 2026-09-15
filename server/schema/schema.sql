@@ -440,3 +440,59 @@ ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS banner_size TEXT DEFAULT 'normal
 -- Safe to re-run.
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS banner_position TEXT DEFAULT 'top';
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS banner_size TEXT DEFAULT 'normal';
+
+-- v2.68: QR referral/sharing system (Табло → "Покани приятел") — grants
+-- stacking, capped, ad-free premium time to both the person who shares
+-- their invite QR/link and the person who scans it and registers. Safe to
+-- re-run. This is applied automatically by the "Приложи обновление" button
+-- in Admin → Настройка → База данни (server/routes/adminMigrations.ts) —
+-- there is no need to run this file by hand for this version; it is kept
+-- here only as the documented reference copy, same as every entry above.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS referrals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  referrer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  referred_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT referrals_no_self_referral CHECK (referrer_id <> referred_id)
+);
+CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
+
+-- v2.69: brochure QR codes for "Търговци" (Водоеми + Търговски обекти) —
+-- a printed brochure's QR encodes a specific merchant (water body or
+-- commercial venue) directly (no GPS/location guessing). When someone
+-- registers through it, that ONE merchant can earn free banner-advertising
+-- time (bonus_days_per_referral, applied to linked_custom_ad_id — both 0/
+-- unset by default, i.e. no banner, until the owner/admin configures them
+-- in Търговци → Водоеми / Търговски обекти). Safe to re-run. Applied via
+-- the same "Приложи обновление" admin button as v2.68 — see
+-- server/routes/adminMigrations.ts.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS bonus_days_per_referral INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS linked_custom_ad_id UUID REFERENCES custom_ads(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS venues (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  address TEXT,
+  bonus_days_per_referral INTEGER NOT NULL DEFAULT 0,
+  linked_custom_ad_id UUID REFERENCES custom_ads(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_venues_created_by ON venues(created_by_id);
+
+-- One row per NEW ACCOUNT that ever redeemed a merchant brochure QR (see
+-- server/routes/merchantReferrals.ts) — referred_id UNIQUE makes it
+-- one-time, merchant_type/merchant_id together say which water body or
+-- venue gets the credit (and the bonus banner days, if any are configured).
+CREATE TABLE IF NOT EXISTS merchant_referrals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  merchant_type TEXT NOT NULL CHECK (merchant_type IN ('water_body', 'venue')),
+  merchant_id UUID NOT NULL,
+  referred_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_merchant_referrals_merchant ON merchant_referrals(merchant_type, merchant_id);

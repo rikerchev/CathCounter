@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Fish, Timer, PlusCircle, Loader2, ChevronRight } from "lucide-react";
 import CatchTrendChart from "@/components/CatchTrendChart";
+import ReferralCard from "@/components/ReferralCard";
 
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -105,6 +106,8 @@ export default function Home() {
           </div>
         </Link>
       </div>
+
+      <ReferralCard />
 
       <CatchTrendChart catches={catches} />
 

@@ -264,6 +264,32 @@ export const base44 = {
   // pages like Advertise.jsx that need to show this to any visitor.
   settings: {
     getPaymentInfo: () => apiFetch("/api/settings/payment"),
+    // v2.68 — whether Google AdSense fallback ads are configured/enabled;
+    // used by AdSenseLoader.jsx to decide whether to load the script at all.
+    getAdSenseInfo: () => apiFetch("/api/settings/adsense"),
+  },
+
+  // v2.68 — QR referral/sharing system (Табло → "Покани приятел"). See
+  // server/routes/referrals.ts.
+  referrals: {
+    redeem: (code) => apiFetch("/api/referrals/redeem", { method: "POST", body: { code } }),
+    stats: () => apiFetch("/api/referrals/stats"),
+  },
+
+  // v2.69 — "Търговци" printed-brochure QR codes (water bodies + commercial
+  // venues). See server/routes/merchantReferrals.ts.
+  merchantReferrals: {
+    redeem: (code) => apiFetch("/api/merchant-referrals/redeem", { method: "POST", body: { code } }),
+    stats: (type, id) => apiFetch(`/api/merchant-referrals/stats?type=${type}&id=${id}`),
+  },
+
+  // Not part of the original base44 SDK surface — admin-only "apply the
+  // latest database update" buttons (Admin → Настройка → База данни),
+  // powered by server/routes/adminMigrations.ts. See that file for why this
+  // exists instead of asking the admin to run a terminal command.
+  migrations: {
+    status: () => apiFetch("/api/admin/migrations"),
+    apply: (id) => apiFetch(`/api/admin/migrations/${id}`, { method: "POST" }),
   },
 
   catchPhotos: {

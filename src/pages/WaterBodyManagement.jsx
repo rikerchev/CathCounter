@@ -3,8 +3,12 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, AlertCircle } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, AlertCircle, Download, Loader2 } from "lucide-react";
 import { calcOwnerPayout } from "@/lib/payment";
+import { hasRole } from "@/lib/roles";
+import { getMerchantBrochureLink } from "@/lib/referral";
+import { downloadInviteBrochure } from "@/lib/brochure";
+import MerchantBonusEditor from "@/components/MerchantBonusEditor";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,13 +49,15 @@ export default function WaterBodyManagement() {
   const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", total_sectors: "10", fee_per_person: "" });
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [downloadingId, setDownloadingId] = useState("");
+  const isAdmin = hasRole(user, "admin");
 
   const load = useCallback(async () => {
     if (!user) return;
     try {
       const allWb = await base44.entities.WaterBody.list();
-      const isAdmin = (user.roles || [user.role])?.some((r) => r === "admin");
-      const mine = isAdmin ? (allWb || []) : (allWb || []).filter((w) => w.created_by_id === user.id);
+      const isAdminUser = (user.roles || [user.role])?.some((r) => r === "admin");
+      const mine = isAdminUser ? (allWb || []) : (allWb || []).filter((w) => w.created_by_id === user.id);
       setWaterBodies(mine);
 
       const allComps = await base44.entities.Competition.list("-date", 200);
@@ -90,6 +96,23 @@ export default function WaterBodyManagement() {
   function openEditForm(wb) {
     setEditWb(wb);
     setShowEditForm(true);
+  }
+
+  // v2.69 — printable brochure whose QR identifies this water body directly
+  // (see src/lib/brochure.js / server/routes/merchantReferrals.ts).
+  async function handleDownloadBrochure(wb) {
+    setDownloadingId(wb.id);
+    try {
+      await downloadInviteBrochure({
+        name: wb.name,
+        link: getMerchantBrochureLink("water_body", wb.id),
+        filename: `catchcount-broshura-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+      });
+    } catch (e) {
+      toast({ title: t("tv.brochureFailed"), description: e.message, variant: "destructive" });
+    } finally {
+      setDownloadingId("");
+    }
   }
 
   async function saveWaterBody(data) {
@@ -336,6 +359,16 @@ export default function WaterBodyManagement() {
                   <Button onClick={() => openSectorForm(wb)} size="sm" variant="outline" className="min-h-[40px]">
                     <CalendarCheck className="w-4 h-4 mr-1" /> {t("wb.sectors")}
                   </Button>
+                  <Button
+                    onClick={() => handleDownloadBrochure(wb)}
+                    size="sm"
+                    variant="outline"
+                    disabled={downloadingId === wb.id}
+                    className="min-h-[40px]"
+                  >
+                    {downloadingId === wb.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+                    {t("tv.downloadBrochure")}
+                  </Button>
                   {wb.iban ? (
                     <span className="text-xs text-emerald-600 dark:text-emerald-400 self-center px-2 flex items-center gap-1">
                       <Landmark className="w-3 h-3" /> IBAN: {wb.iban.slice(0, 4)}••••
@@ -347,6 +380,14 @@ export default function WaterBodyManagement() {
                   )}
                 </div>
               </div>
+
+              {isAdmin && (
+                <MerchantBonusEditor
+                  merchant={wb}
+                  merchantType="water_body"
+                  onSaved={(patch) => setWaterBodies((prev) => prev.map((x) => (x.id === wb.id ? { ...x, ...patch } : x)))}
+                />
+              )}
 
               {wbComps.length === 0 ? (
                 <p className="text-xs text-slate-400">{t("wb.noActiveCompetitions")}</p>

@@ -31,12 +31,14 @@ import {
   ClipboardList,
   Download,
   Languages,
+  Store,
 } from "lucide-react";
 import { LanguageSelector, useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import AdBanner from "@/components/AdBanner";
 import BottomAdBanner from "@/components/BottomAdBanner";
+import AdSenseLoader from "@/components/AdSenseLoader";
 import InstallAppBanner from "@/components/InstallAppBanner";
 import SyncStatus from "@/components/SyncStatus";
 import NotificationsBell from "@/components/NotificationsBell";
@@ -59,7 +61,6 @@ const navItems = [
   { to: "/bait-inventory", labelKey: "nav.tackleInventory", icon: Boxes, group: "inventory" },
   { to: "/water-bodies", labelKey: "nav.waterBodies", icon: Waves },
   { to: "/competitions", labelKey: "nav.competitions", icon: Medal },
-  { to: "/water-body-management", labelKey: "nav.myWaterBodies", icon: Settings2, waterOwnerOnly: true },
   { to: "/sector-reservations", labelKey: "nav.reservations", icon: CalendarCheck },
   { to: "/admin-users", labelKey: "nav.adminUsers", icon: ShieldCheck, adminOnly: true },
   { to: "/admin-setup", labelKey: "nav.adminSetup", icon: Settings, adminOnly: true },
@@ -95,10 +96,20 @@ const adNavItems = [
   { to: "/admin-ad-requests", labelKey: "nav.adRequests", icon: Megaphone, adminOnly: true },
 ];
 
+// v2.69 — "Търговци" group (formerly the single flat "Моите водоеми" link):
+// a water_owner/admin's own management screens for their water bodies and
+// commercial venues — brochure QR codes + bonus-advertising config live
+// here, see WaterBodyManagement.jsx / TraderVenues.jsx.
+const traderNavItems = [
+  { to: "/water-body-management", labelKey: "nav.traderWaterBodies", icon: Settings2, waterOwnerOnly: true },
+  { to: "/trader-venues", labelKey: "nav.traderVenues", icon: Store, waterOwnerOnly: true },
+];
+
 function NavContent({ onNavigate }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [adMenuOpen, setAdMenuOpen] = useState(false);
+  const [traderMenuOpen, setTraderMenuOpen] = useState(false);
   const [invMenuOpen, setInvMenuOpen] = useState(false);
   const [allowedPaths, setAllowedPaths] = useState([]);
 
@@ -123,6 +134,12 @@ function NavContent({ onNavigate }) {
   const visibleAdItems = adNavItems.filter((item) => {
     if (item.adminOnly && !hasRole(user, "admin")) return false;
     if (item.advertiserOnly && !hasAnyRole(user, ["advertiser", "admin"])) return false;
+    if (!isMenuItemAllowed(item.to, allowedPaths, isAdmin)) return false;
+    return true;
+  });
+
+  const visibleTraderItems = traderNavItems.filter((item) => {
+    if (item.waterOwnerOnly && !hasAnyRole(user, ["water_owner", "admin"])) return false;
     if (!isMenuItemAllowed(item.to, allowedPaths, isAdmin)) return false;
     return true;
   });
@@ -182,6 +199,24 @@ function NavContent({ onNavigate }) {
       )}
 
       {mainItemsAfter.map((item) => renderNavLink(item))}
+
+      {visibleTraderItems.length > 0 && (
+        <div className="mt-1">
+          <button
+            onClick={() => setTraderMenuOpen(!traderMenuOpen)}
+            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
+          >
+            <Store className="w-4 h-4" />
+            {t("nav.traders")}
+            <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${traderMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+          {traderMenuOpen && (
+            <div className="ml-4 mt-1 border-l border-slate-100 dark:border-border pl-3 space-y-1">
+              {visibleTraderItems.map((item) => renderNavLink(item))}
+            </div>
+          )}
+        </div>
+      )}
 
       {visibleAdItems.length > 0 && (
         <div className="mt-1">
@@ -343,6 +378,7 @@ export default function Layout() {
       </main>
 
       <BottomAdBanner />
+      <AdSenseLoader />
       <SyncStatus />
     </div>
   );
