@@ -24,17 +24,46 @@ export default function ReferralCard() {
   const canvasRef = useRef(null);
   const [referralCount, setReferralCount] = useState(null);
   const [copying, setCopying] = useState(false);
+  const [qrFailed, setQrFailed] = useState(false);
 
   const link = user ? getReferralLink(user.id) : "";
 
+  // Canvas raw resolution (QR_PX) is kept EQUAL to its on-screen CSS size
+  // (see the w-40 h-40 container below) on purpose — rendering at a higher
+  // resolution than displayed (the old 192px canvas in a 96px box) forces
+  // the browser to downscale it with anti-aliasing, which blurs the crisp
+  // black/white module edges a camera needs to lock onto. 1:1 avoids that.
+  const QR_PX = 160;
+
   useEffect(() => {
     if (!link || !canvasRef.current) return;
+    setQrFailed(false);
     QRCode.toCanvas(canvasRef.current, link, {
-      width: 128,
-      margin: 1,
-      color: { dark: "#0e7490", light: "#ffffff" }, // cyan-700 on white, matches the app's palette
-    }).catch(() => {
-      // non-fatal — the link/buttons below still work without the QR image
+      width: QR_PX,
+      // v2.69 fix — this was 1 module, well under the spec's required ~4-module
+      // "quiet zone" around the code. Most phone cameras need that blank
+      // border to even detect a QR code at all, let alone decode it — with
+      // margin:1 the code could render perfectly and still fail to scan for
+      // basically everyone. 4 is the library's own (spec-compliant) default.
+      margin: 4,
+      // Level H (~30% error correction) instead of the default M (~15%) —
+      // gives a phone camera much more room to still decode the code
+      // correctly despite screen glare, a slightly off angle, or scanning
+      // straight off a monitor instead of print.
+      errorCorrectionLevel: "H",
+      // Plain black/white, not the previous cyan-on-white — colored modules
+      // read as lower-contrast ("gray") to some camera auto-exposure/QR
+      // detectors than true black, which measurably hurts scan reliability.
+      // Reliable scanning matters more here than matching the palette.
+      color: { dark: "#000000", light: "#ffffff" },
+    }).catch((e) => {
+      // Previously silently swallowed — if generation itself fails (e.g. a
+      // canvas-not-ready timing edge case), the card would show a blank
+      // canvas with no code at all, which looks identical to "the QR just
+      // doesn't scan" from the user's side. Now it's both logged AND
+      // surfaced (see qrFailed below) instead of failing invisibly.
+      console.error("ReferralCard QR generation failed:", e);
+      setQrFailed(true);
     });
   }, [link]);
 
@@ -88,8 +117,12 @@ export default function ReferralCard() {
       <p className="text-xs text-slate-400">{t("referral.subtitle")}</p>
 
       <div className="flex items-center gap-4">
-        <div className="w-[76px] h-[76px] rounded-xl border border-slate-100 flex items-center justify-center overflow-hidden bg-white flex-shrink-0">
-          <canvas ref={canvasRef} className="w-full h-full" />
+        <div className="w-40 h-40 rounded-xl border border-slate-100 flex items-center justify-center overflow-hidden bg-white flex-shrink-0">
+          {qrFailed ? (
+            <p className="text-[10px] text-slate-400 text-center px-2">{t("referral.qrFailed")}</p>
+          ) : (
+            <canvas ref={canvasRef} width={QR_PX} height={QR_PX} />
+          )}
         </div>
         <div className="flex-1 min-w-0 space-y-2">
           {referralPremiumActive && (

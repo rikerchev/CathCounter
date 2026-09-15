@@ -974,6 +974,7 @@ export const bg = {
     "referral.shareText": "Присъедини се към CatchCount — риболовен дневник за телефона!",
     "referral.daysLeft": "Без реклами още {days} дни",
     "referral.invitedCount": "Поканени приятели: {count}",
+    "referral.qrFailed": "QR кодът не се генерира — използвайте линка",
 
     // v2.69 — "Търговци" (Водоеми + Търговски обекти) брошури с QR код
     "nav.traders": "Търговци",

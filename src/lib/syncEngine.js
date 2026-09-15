@@ -220,6 +220,16 @@ export async function syncAll() {
 // Auto-sync on startup if online
 export function initSync() {
   if (isOnline) {
-    setTimeout(() => syncAll(), 2000);
+    // v2.69 — was 2000ms. This is the heaviest of the background fetches
+    // (Catch/Bait, up to 500 rows each) and used to land right on top of
+    // every page's own primary fetch plus NotificationsBell's and the ad
+    // banner's, all competing for the single DB connection a serverless
+    // instance holds (`max: 1`, see server/db.ts). That burst was enough to
+    // push some requests — Catch and Bait included — past the client's 12s
+    // timeout even though the server would have answered given more time.
+    // Pushed later, after those (now also staggered — see
+    // NotificationsBell.jsx and useEligibleAds.js) have had a chance to
+    // finish first.
+    setTimeout(() => syncAll(), 6000);
   }
 }

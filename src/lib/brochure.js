@@ -16,8 +16,20 @@ import QRCode from "qrcode";
 export async function downloadInviteBrochure({ name, link, filename }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 600,
-    margin: 1,
-    color: { dark: "#0e7490", light: "#ffffff" },
+    // v2.69 fix — was 1 module, under the ~4-module "quiet zone" most phone
+    // cameras need to even detect a QR code, let alone decode it (see the
+    // matching fix/comment in ReferralCard.jsx). Printed material makes this
+    // worse, not better — more reasons for a bad angle/lighting/distance.
+    margin: 4,
+    // Level H (~30% error correction) — more tolerant of a slightly
+    // off-angle phone, print/ink imperfections, or a worn/creased flyer
+    // than the default M (~15%). Matches ReferralCard.jsx.
+    errorCorrectionLevel: "H",
+    // Plain black/white instead of cyan-on-white — true black reads as
+    // higher-contrast to a phone camera's QR detector than a colored tone,
+    // which matters more on paper (lighting/ink variance) than the exact
+    // brand color. Matches ReferralCard.jsx.
+    color: { dark: "#000000", light: "#ffffff" },
   });
 
   const doc = new jsPDF({ unit: "mm", format: "a5" });

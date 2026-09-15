@@ -987,6 +987,7 @@ export const en = {
     "referral.shareText": "Join CatchCount — a fishing log app for your phone!",
     "referral.daysLeft": "Ad-free for {days} more days",
     "referral.invitedCount": "Friends invited: {count}",
+    "referral.qrFailed": "QR code failed to generate — use the link instead",
 
     // v2.69 — "Traders" (Water bodies + Commercial venues) brochure QR codes
     "nav.traders": "Traders",

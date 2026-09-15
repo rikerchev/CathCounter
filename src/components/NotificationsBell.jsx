@@ -19,7 +19,17 @@ export default function NotificationsBell() {
   }, []);
 
   useEffect(() => {
-    loadNotifications();
+    // Small stagger (not immediate) — this bell mounts on EVERY page via
+    // Layout.jsx, at the exact same moment as that page's own primary data
+    // fetch, the ad banner's CustomAd/AdSlot fetch, and (a couple seconds
+    // later) the sync engine's Catch/Bait pull. All landing in the same
+    // instant was overwhelming the DB's connection limit (`max: 1` per
+    // serverless instance, see server/db.ts) badly enough that some of them
+    // — Notification included — were hitting the client's 12s timeout
+    // (src/api/base44Client.js) before the server even got a connection
+    // free to answer on. Nothing here is time-critical for the first paint,
+    // so a brief delay costs nothing and meaningfully lowers that peak.
+    const initialLoadId = setTimeout(loadNotifications, 700);
     // Skip the network request on ticks while the tab/app is in the
     // background (screen off, another app in front) — nobody is watching
     // the bell count then anyway — and refresh immediately the moment it
@@ -34,6 +44,7 @@ export default function NotificationsBell() {
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
+      clearTimeout(initialLoadId);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
     };

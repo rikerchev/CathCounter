@@ -150,10 +150,19 @@ export function useEligibleAds() {
     // below — never leave either banner group blank while waiting.
     setAds(getInitialAds(placement, lang));
 
-    Promise.all([
-      base44.entities.CustomAd.list("sort_order"),
-      base44.entities.AdSlot.list(),
-    ])
+    // Small stagger before the network upgrade — this hook runs on EVERY
+    // page via the ad banner components, landing in the same instant as
+    // that page's own primary data fetch and NotificationsBell's fetch.
+    // Since a real ad or cached one is already showing (setAds above), a
+    // brief delay here is invisible to the user but meaningfully lowers the
+    // request burst that was overwhelming the DB's connection limit
+    // (`max: 1` per serverless instance, see server/db.ts) enough to make
+    // some of these calls — AdSlot included — hit the client's 12s timeout.
+    const fetchId = setTimeout(() => {
+      Promise.all([
+        base44.entities.CustomAd.list("sort_order"),
+        base44.entities.AdSlot.list(),
+      ])
       .then(([customAds, adSlots]) => {
         // Cache every currently active, country- AND language-eligible ad
         // across ALL placements (not just this page's) so the next mount —
@@ -187,6 +196,7 @@ export function useEligibleAds() {
       .catch(() => {
         setAds(getInitialAds(placement, lang));
       });
+    }, 400);
 
     if (!country) {
       detectCountry().then((code) => {
@@ -201,7 +211,10 @@ export function useEligibleAds() {
       }
     };
     window.addEventListener("online", handleOnline);
-    return () => window.removeEventListener("online", handleOnline);
+    return () => {
+      clearTimeout(fetchId);
+      window.removeEventListener("online", handleOnline);
+    };
   }, [isPremium, location.pathname, userCountry, lang]);
 
   if (isPremium) return { top: [], bottom: [], userCountry };
