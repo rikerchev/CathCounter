@@ -72,6 +72,15 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_merchant_referrals_merchant ON merchant_referrals(merchant_type, merchant_id)`);
     },
   },
+  "v2.71-venue-contact": {
+    label: "v2.71 — Търговски обекти: контакти и лого",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_phone TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_email TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS website TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+    },
+  },
 };
 
 /**
@@ -104,6 +113,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'water_bodies' AND column_name = 'bonus_days_per_referral'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.71-venue-contact") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'venues' AND column_name = 'website'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

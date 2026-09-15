@@ -38,6 +38,7 @@ import WaterBodyRequest from './pages/WaterBodyRequest';
 import Competitions from './pages/Competitions';
 import WaterBodyManagement from './pages/WaterBodyManagement';
 import TraderVenues from './pages/TraderVenues';
+import CommercialVenues from './pages/CommercialVenues';
 import AdminWaterBodies from './pages/AdminWaterBodies';
 import AdminRoleRequests from './pages/AdminRoleRequests';
 import AdManagement from './pages/AdManagement';
@@ -109,6 +110,7 @@ const AuthenticatedApp = () => {
           <Route path="/admin-users" element={<AdminUsers />} />
           <Route path="/admin-setup" element={<AdminSetup />} />
           <Route path="/water-bodies" element={<WaterBodies />} />
+          <Route path="/commercial-venues" element={<CommercialVenues />} />
           <Route path="/water-body-request" element={<WaterBodyRequest />} />
           <Route path="/competitions" element={<Competitions />} />
           <Route path="/water-body-management" element={<WaterBodyManagement />} />

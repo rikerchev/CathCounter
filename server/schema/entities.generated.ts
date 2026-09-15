@@ -475,6 +475,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "bonus_days_per_referral", type: "integer", required: false },
       { name: "linked_custom_ad_id", type: "string", required: false },
       { name: "is_active", type: "boolean", required: false },
+      // v2.71 — public-facing contact/branding info, shown on the new
+      // "Търговски обекти" browse page (src/pages/CommercialVenues.jsx).
+      // All optional; same names as the equivalent WaterBody columns above.
+      { name: "contact_phone", type: "string", required: false },
+      { name: "contact_email", type: "string", required: false },
+      { name: "website", type: "string", required: false },
+      { name: "logo_url", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

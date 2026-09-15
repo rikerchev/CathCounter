@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, PlusCircle, Download, Loader2, Power } from "lucide-react";
+import { Store, PlusCircle, Download, Loader2, Power, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +29,11 @@ export default function TraderVenues() {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: "", address: "" });
+  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "" };
+  const [form, setForm] = useState(emptyForm);
+  // v2.71 — null while creating a new venue; the venue object being edited
+  // otherwise. Same dialog/fields handle both, just POST vs PUT on submit.
+  const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
 
@@ -50,14 +54,47 @@ export default function TraderVenues() {
     load();
   }, [load]);
 
-  async function createVenue(e) {
+  function openCreateForm() {
+    setEditingVenue(null);
+    setForm(emptyForm);
+    setShowForm(true);
+  }
+
+  function openEditForm(v) {
+    setEditingVenue(v);
+    setForm({
+      name: v.name || "",
+      address: v.address || "",
+      contact_phone: v.contact_phone || "",
+      contact_email: v.contact_email || "",
+      website: v.website || "",
+      logo_url: v.logo_url || "",
+    });
+    setShowForm(true);
+  }
+
+  async function saveVenue(e) {
     e.preventDefault();
     setSaving(true);
+    const payload = {
+      name: form.name,
+      address: form.address,
+      contact_phone: form.contact_phone,
+      contact_email: form.contact_email,
+      website: form.website,
+      logo_url: form.logo_url,
+    };
     try {
-      await base44.entities.Venue.create({ name: form.name, address: form.address, is_active: true });
-      toast({ title: t("tv.created") });
+      if (editingVenue) {
+        await base44.entities.Venue.update(editingVenue.id, payload);
+        toast({ title: t("tv.updated") });
+      } else {
+        await base44.entities.Venue.create({ ...payload, is_active: true });
+        toast({ title: t("tv.created") });
+      }
       setShowForm(false);
-      setForm({ name: "", address: "" });
+      setEditingVenue(null);
+      setForm(emptyForm);
       await load();
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
@@ -105,7 +142,7 @@ export default function TraderVenues() {
           <Store className="w-6 h-6 text-cyan-600" />
           <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("nav.traderVenues")}</h1>
         </div>
-        <Button size="sm" onClick={() => setShowForm(true)} className="bg-cyan-600 hover:bg-cyan-700 min-h-[40px]">
+        <Button size="sm" onClick={openCreateForm} className="bg-cyan-600 hover:bg-cyan-700 min-h-[40px]">
           <PlusCircle className="w-4 h-4 mr-1" /> {t("tv.newVenue")}
         </Button>
       </div>
@@ -142,9 +179,14 @@ export default function TraderVenues() {
                     {t("tv.downloadBrochure")}
                   </Button>
                   {(isAdmin || v.created_by_id === user?.id) && (
-                    <Button size="sm" variant="outline" onClick={() => toggleActive(v)} className="min-h-[40px]">
-                      <Power className="w-4 h-4" />
-                    </Button>
+                    <>
+                      <Button size="sm" variant="outline" onClick={() => openEditForm(v)} className="min-h-[40px]">
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => toggleActive(v)} className="min-h-[40px]">
+                        <Power className="w-4 h-4" />
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
@@ -157,12 +199,12 @@ export default function TraderVenues() {
         </div>
       )}
 
-      <Dialog open={showForm} onOpenChange={setShowForm}>
+      <Dialog open={showForm} onOpenChange={(open) => { setShowForm(open); if (!open) setEditingVenue(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("tv.newVenue")}</DialogTitle>
+            <DialogTitle>{editingVenue ? t("tv.editVenue") : t("tv.newVenue")}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={createVenue} className="space-y-3">
+          <form onSubmit={saveVenue} className="space-y-3">
             <div className="space-y-1.5">
               <Label>{t("tv.name")} *</Label>
               <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required autoFocus className="min-h-[44px]" />
@@ -171,11 +213,30 @@ export default function TraderVenues() {
               <Label>{t("tv.address")}</Label>
               <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="min-h-[44px]" />
             </div>
+            {/* v2.71 — these four are shown publicly on the "Търговски обекти"
+                browse page (src/pages/CommercialVenues.jsx), never on the
+                brochure/QR itself — all optional, blank = not shown there. */}
+            <div className="space-y-1.5">
+              <Label>{t("tv.phone")}</Label>
+              <Input type="tel" value={form.contact_phone} onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("tv.email")}</Label>
+              <Input type="email" value={form.contact_email} onChange={(e) => setForm((f) => ({ ...f, contact_email: e.target.value }))} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("tv.website")}</Label>
+              <Input value={form.website} onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))} placeholder="https://" className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("tv.logo")}</Label>
+              <Input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))} placeholder="https://" className="min-h-[44px]" />
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>
               <Button type="submit" disabled={saving} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
                 {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-1" />}
-                {t("wb.create")}
+                {editingVenue ? t("common.save") : t("wb.create")}
               </Button>
             </DialogFooter>
           </form>

@@ -59,6 +59,12 @@ const navItems = [
   { to: "/inventory/base-items", labelKey: "nav.baseItems", icon: Package, group: "inventory" },
   { to: "/inventory/my-inventory", labelKey: "nav.manualItems", icon: ClipboardList, group: "inventory" },
   { to: "/bait-inventory", labelKey: "nav.tackleInventory", icon: Boxes, group: "inventory" },
+  // v2.71 — public "Търговски обекти" browse page (contact/website/logo of
+  // active venues) — distinct from the "Търговски обекти" item inside the
+  // Търговци dropdown below, which is the owner/admin's OWN management
+  // screen (brochure QR + bonus ad-time). Same relationship as this
+  // "Водоеми" item just below has to Търговци → Водоеми.
+  { to: "/commercial-venues", labelKey: "nav.venues", icon: Store },
   { to: "/water-bodies", labelKey: "nav.waterBodies", icon: Waves },
   { to: "/competitions", labelKey: "nav.competitions", icon: Medal },
   { to: "/sector-reservations", labelKey: "nav.reservations", icon: CalendarCheck },

@@ -12,6 +12,7 @@ export const ALL_MENU_ITEMS = [
   { path: "/inventory/base-items", labelKey: "nav.baseItems" },
   { path: "/inventory/my-inventory", labelKey: "nav.manualItems" },
   { path: "/bait-inventory", labelKey: "nav.tackleInventory" },
+  { path: "/commercial-venues", labelKey: "nav.venues" },
   { path: "/water-bodies", labelKey: "nav.waterBodies" },
   { path: "/competitions", labelKey: "nav.competitions" },
   { path: "/water-body-management", labelKey: "nav.traderWaterBodies" },

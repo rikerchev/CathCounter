@@ -496,3 +496,17 @@ CREATE TABLE IF NOT EXISTS merchant_referrals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_merchant_referrals_merchant ON merchant_referrals(merchant_type, merchant_id);
+
+-- v2.71: public-facing contact/branding fields for a commercial venue — the
+-- new "Търговски обекти" browse menu (src/pages/CommercialVenues.jsx, public,
+-- analogous to "Водоеми"/water_bodies) shows these so an angler can actually
+-- contact a venue or visit its site, not just see its name. All optional —
+-- a venue created before this migration (or without these filled in) simply
+-- shows without that row on its card. Same names as the equivalent
+-- water_bodies columns (contact_phone, contact_email, logo_url) on purpose.
+-- Safe to re-run. Applied via the same "Приложи обновление" admin button —
+-- see server/routes/adminMigrations.ts.
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_email TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS website TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_url TEXT;
