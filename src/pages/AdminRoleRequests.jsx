@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { ShieldCheck, Check, X, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ROLE_LABELS, toggleRole, highestRole } from "@/lib/roles";
+import { ROLE_LABELS, toggleRole, highestRole, effectiveRoles } from "@/lib/roles";
 import { useLanguage } from "@/lib/i18n";
 
 export default function AdminRoleRequests() {
@@ -35,7 +35,11 @@ export default function AdminRoleRequests() {
         toast({ title: t("arr.userNotFound"), variant: "destructive" });
         return;
       }
-      const currentRoles = Array.isArray(u.roles) ? u.roles : [];
+      // v2.76 — was `Array.isArray(u.roles) ? u.roles : []`, which for the
+      // root admin (role: "admin", roles: [] — see roles.js effectiveRoles
+      // comment) dropped "admin" the moment any role request got approved
+      // for that account, since highestRole() below only looks at this array.
+      const currentRoles = effectiveRoles(u);
       const newRoles = toggleRole(currentRoles, req.requested_role);
       const newRole = highestRole(newRoles);
       await base44.entities.User.update(u.id, { roles: newRoles, role: newRole });

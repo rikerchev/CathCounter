@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { ShieldCheck, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/i18n";
+import { effectiveRoles, highestRole } from "@/lib/roles";
 
 export default function AdminWaterBodies() {
   const { toast } = useToast();
@@ -36,9 +37,18 @@ export default function AdminWaterBodies() {
           const users = await base44.asServiceRole.entities.User.filter({ id: wb.created_by_id });
           const u = users && users[0];
           if (u) {
-            const currentRoles = Array.isArray(u.roles) ? u.roles : [];
+            // v2.76 — was `Array.isArray(u.roles) ? u.roles : []` +
+            // `u.role === "admin" ? "admin" : "water_owner"`. The explicit
+            // "keep admin" check only protected `role`, not `roles` — and if
+            // this ran (or a role-request approval ran) on a stale read
+            // right after/before that other flow's write, the two
+            // independent read-modify-writes could still race. Routing
+            // through the same effectiveRoles()+highestRole() pair used
+            // everywhere else means "admin" is folded in before computing
+            // the new role, however u.roles looked at read time.
+            const currentRoles = effectiveRoles(u);
             const newRoles = currentRoles.includes("water_owner") ? currentRoles : [...currentRoles, "water_owner"];
-            const newRole = u.role === "admin" ? "admin" : "water_owner";
+            const newRole = highestRole(newRoles);
             await base44.asServiceRole.entities.User.update(u.id, { roles: newRoles, role: newRole });
           }
         } catch (e) {

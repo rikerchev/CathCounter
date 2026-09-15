@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { ROLE_LABELS, toggleRole, highestRole, hasRole } from "@/lib/roles";
+import { ROLE_LABELS, toggleRole, highestRole, hasRole, effectiveRoles } from "@/lib/roles";
 import { useLanguage } from "@/lib/i18n";
 import { parseMenuItems } from "@/lib/menuItems";
 import MenuGroupDialog from "@/components/MenuGroupDialog";
@@ -68,7 +68,11 @@ export default function AdminUsers() {
 
   async function toggleUserRole(u, roleToToggle) {
     try {
-      const currentRoles = Array.isArray(u.roles) ? u.roles : (u.role && u.role !== "user" ? [u.role] : []);
+      // v2.76 — was only falling back to [u.role] when u.roles wasn't an
+      // array at all; an account with roles: [] (array, just missing
+      // "admin" in it) still lost its admin role the moment any other role
+      // was toggled here. effectiveRoles() always folds the scalar role in.
+      const currentRoles = effectiveRoles(u);
       const newRoles = toggleRole(currentRoles, roleToToggle);
       const newRole = highestRole(newRoles);
       await base44.entities.User.update(u.id, { roles: newRoles, role: newRole });
