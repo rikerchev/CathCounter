@@ -1,15 +1,32 @@
 import postgres from "postgres";
 import { env } from "./env.js";
 
-// `max: 1` + `prepare: false` are the standard-recommended settings for
-// serverless: each function instance keeps at most one connection, and
-// prepared statements are disabled because Supabase's connection pooler
-// (PgBouncer, transaction mode — use its pooled connection string, usually
-// port 6543, as DATABASE_URL when deploying to Vercel) doesn't support them.
+// `prepare: false` only matters (and is only safe) if DATABASE_URL is
+// Supabase's *pooled* connection string (PgBouncer, transaction mode,
+// normally port 6543) — prepared statements don't survive being multiplexed
+// across backend connections in that mode, so this was set for that setup.
+//
+// v2.75 — `max` raised 1 -> 3. With `max: 1`, every request past the first
+// one already in flight on this same warm serverless instance had to queue
+// behind it for a spot; a page that fires several background fetches at
+// once (its own data + NotificationsBell + the ad banner + the sync
+// engine's Catch/Bait pull) routinely pushed 2nd/3rd-in-line requests past
+// the client's 12s timeout even though the server was fine and would have
+// answered given a few more seconds — seen repeatedly as "Request timed
+// out" toasts, worst when switching between pages quickly. PgBouncer in
+// transaction mode is built to have many logical `postgres` clients like
+// this one share a much smaller pool of real Postgres backend connections,
+// so a few concurrent connections *from this one function instance* is the
+// normal, intended way to use it — it only becomes a problem if DATABASE_URL
+// is actually the *direct* (non-pooled, port 5432) connection string, which
+// has a much lower real connection ceiling. Check Vercel → Settings →
+// Environment Variables → DATABASE_URL: if its port is 6543 this is safe as
+// is; if it's 5432, switch to the pooled string from Supabase → Project
+// Settings → Database first (or drop `max` back to 1 in the meantime).
 function createClient() {
   return postgres(env.DATABASE_URL, {
     ssl: "prefer",
-    max: 1,
+    max: 3,
     prepare: false,
     idle_timeout: 20,
     connect_timeout: 10,

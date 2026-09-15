@@ -64,9 +64,30 @@ self.addEventListener("fetch", (event) => {
 
   // Navigation requests: try the network first, fall back to the cached
   // shell so the app still opens offline.
+  //
+  // v2.75 fix — caches.match() resolves to `undefined` when the shell isn't
+  // cached yet (e.g. right after this file itself updates and the browser
+  // hasn't finished re-populating CACHE_NAME under its new name — see the
+  // CACHE_NAME comment above). event.respondWith(undefined) is not a
+  // response the browser can use: it throws "Uncaught TypeError: Failed to
+  // convert value to 'Response'" inside this service worker, and the page
+  // that triggered the navigation sees a hard "network error" instead of
+  // ever finding out the real cause was just a slow/flaky network blip —
+  // which is exactly the "Грешка при зареждане: Request timed out" a user
+  // could hit switching pages on a slow connection. A network failure
+  // should never come back as anything other than a real Response.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => caches.match("/index.html")),
+      fetch(request).catch(() =>
+        caches.match("/index.html").then(
+          (cached) =>
+            cached ||
+            new Response(
+              "<!doctype html><title>CatchCount</title><body>Няма връзка. Презаредете страницата, когато сте онлайн.</body>",
+              { status: 200, headers: { "content-type": "text/html; charset=utf-8" } },
+            ),
+        ),
+      ),
     );
     return;
   }
