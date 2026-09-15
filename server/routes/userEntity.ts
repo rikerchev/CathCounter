@@ -10,15 +10,34 @@ function json(body: unknown, status = 200): Response {
 }
 
 // Never return password_hash / google_id to the client, no matter who's asking.
-// premium_until (v2.68) added for the Admin Users list — requires the
-// "Приложи обновление" migration button (Admin → Настройка → База данни) to
-// have been clicked at least once; see middleware/auth.ts for why the more
-// frequently-hit /api/auth/me path tolerates the column not existing yet
-// and this admin-only listing does not need to.
-const SAFE_COLUMNS = `
+// premium_until (v2.68) added for the Admin Users list. Same code-deploys-
+// before-the-button-is-clicked gap as middleware/auth.ts's getUserFromRequest
+// (see that file's comment) — this endpoint hits it just as easily (every
+// load of Admin → Управление на потребители), so it needs the identical
+// try-the-new-column-first-then-fall-back treatment, via withSafeColumns()
+// below, instead of assuming the migration has already run.
+const SAFE_COLUMNS_FULL = `
   id, email, full_name, role, roles, country, menu_group_id,
   email_verified, created_at, updated_at, premium_until
 `;
+const SAFE_COLUMNS_BASE = `
+  id, email, full_name, role, roles, country, menu_group_id,
+  email_verified, created_at, updated_at
+`;
+
+// Runs `run` with the full (premium_until-included) column list; if that
+// fails specifically because the column doesn't exist yet, retries once
+// with the pre-v2.68 column list instead of 500ing the whole page.
+async function withSafeColumns<T>(run: (columns: string) => Promise<T>): Promise<T> {
+  try {
+    return await run(SAFE_COLUMNS_FULL);
+  } catch (e) {
+    if (e instanceof Error && /premium_until/.test(e.message)) {
+      return await run(SAFE_COLUMNS_BASE);
+    }
+    throw e;
+  }
+}
 
 // Only these are writable through this endpoint, and only by an admin —
 // role/roles changes are a privilege-escalation risk, so this path is
@@ -39,7 +58,7 @@ export async function handleUserEntityRoute(
   // ---- LIST: GET /api/entities/User ----
   if (req.method === "GET" && !sub) {
     if (!isAdminUser) return json({ error: "Forbidden" }, 403);
-    const rows = await sql`SELECT ${sql.unsafe(SAFE_COLUMNS)} FROM users ORDER BY created_at DESC`;
+    const rows = await withSafeColumns((cols) => sql`SELECT ${sql.unsafe(cols)} FROM users ORDER BY created_at DESC`);
     return json(rows);
   }
 
@@ -48,7 +67,7 @@ export async function handleUserEntityRoute(
     const criteria = await req.json().catch(() => ({}));
     if (!isAdminUser && criteria.id !== user.id) return json({ error: "Forbidden" }, 403);
 
-    let rows = await sql`SELECT ${sql.unsafe(SAFE_COLUMNS)} FROM users`;
+    let rows = await withSafeColumns((cols) => sql`SELECT ${sql.unsafe(cols)} FROM users`);
     rows = rows.filter((r: Record<string, unknown>) =>
       Object.entries(criteria).every(([k, v]) => r[k] === v)
     );
@@ -58,7 +77,7 @@ export async function handleUserEntityRoute(
   // ---- GET ONE: GET /api/entities/User/:id ----
   if (req.method === "GET" && sub) {
     if (!isAdminUser && sub !== user.id) return json({ error: "Forbidden" }, 403);
-    const rows = await sql`SELECT ${sql.unsafe(SAFE_COLUMNS)} FROM users WHERE id = ${sub}`;
+    const rows = await withSafeColumns((cols) => sql`SELECT ${sql.unsafe(cols)} FROM users WHERE id = ${sub}`);
     if (!rows.length) return json({ error: "Not found" }, 404);
     return json(rows[0]);
   }
@@ -71,10 +90,10 @@ export async function handleUserEntityRoute(
     for (const k of WRITABLE_COLUMNS) if (k in body) payload[k] = body[k];
     payload.updated_at = new Date();
     const keys = Object.keys(payload);
-    const rows = await sql`
+    const rows = await withSafeColumns((cols) => sql`
       UPDATE users SET ${sql(payload, ...keys)} WHERE id = ${sub}
-      RETURNING ${sql.unsafe(SAFE_COLUMNS)}
-    `;
+      RETURNING ${sql.unsafe(cols)}
+    `);
     if (!rows.length) return json({ error: "Not found" }, 404);
     return json(rows[0]);
   }
