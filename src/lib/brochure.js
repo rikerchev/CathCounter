@@ -110,10 +110,17 @@ function ensureBrochureFont() {
 // a fixed max width, since venue/water body names are free text of
 // unbounded length. Coordinates are hand-measured against the template the
 // same way BADGE_* above are: the badge's own top edge sits at BADGE_Y
-// (460), the template's "cart" decoration glow ends around y=400, so the
-// label is vertically centered in that ~55px gap.
+// (460), the template's "cart" decoration glow ends around y=400.
+//
+// v2.81 first shipped with NAME_BASELINE_Y = BADGE_Y - 18, measured (via a
+// pixel-bbox scan of the rendered canvas) to leave a 12px gap above the
+// badge — correct in that measurement, but users reported the name reading
+// as touching/overlapping the QR badge in practice (font-rasterization and
+// viewing-scale differences eat into a 12px margin fast). Moved up to
+// BADGE_Y - 30, which the same bbox-scan method confirmed gives ~24px of
+// clearance to the badge while still leaving ~10px above the cart glow.
 const NAME_MAX_WIDTH = 320;
-const NAME_BASELINE_Y = BADGE_Y - 18;
+const NAME_BASELINE_Y = BADGE_Y - 30;
 const NAME_MAX_FONT = 24;
 const NAME_MIN_FONT = 13;
 
