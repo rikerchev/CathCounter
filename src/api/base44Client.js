@@ -278,6 +278,10 @@ export const base44 = {
     // v2.68 — whether Google AdSense fallback ads are configured/enabled;
     // used by AdSenseLoader.jsx to decide whether to load the script at all.
     getAdSenseInfo: () => apiFetch("/api/settings/adsense"),
+    // v2.88 — admin-configurable display order of the nav menu; read by
+    // EVERY user's own Layout.jsx (see src/lib/menuOrder.js). Saving it is
+    // admin-only, through admin.updateSettings({ MENU_ORDER: ... }) below.
+    getMenuOrder: () => apiFetch("/api/settings/menu-order"),
   },
 
   // v2.68 — QR referral/sharing system (Табло → "Покани приятел"). See

@@ -46,6 +46,7 @@ import { APP_VERSION } from "@/lib/version";
 import { hasRole, hasAnyRole } from "@/lib/roles";
 import { useRodTimerMonitor } from "@/hooks/useRodTimerMonitor";
 import { ALL_MENU_ITEMS, parseMenuItems, isMenuItemAllowed } from "@/lib/menuItems";
+import { DEFAULT_MENU_ORDER, normalizeMenuOrder, applyOrder } from "@/lib/menuOrder";
 
 const navItems = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
@@ -118,7 +119,7 @@ const traderNavItems = [
   { to: "/trader-venues", labelKey: "nav.traderVenues", icon: Store, waterOwnerOnly: true },
 ];
 
-function NavContent({ onNavigate }) {
+function NavContent({ onNavigate, menuOrder }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [adMenuOpen, setAdMenuOpen] = useState(false);
@@ -127,6 +128,7 @@ function NavContent({ onNavigate }) {
   const [allowedPaths, setAllowedPaths] = useState([]);
 
   const isAdmin = hasRole(user, "admin");
+  const order = menuOrder || DEFAULT_MENU_ORDER;
 
   useEffect(() => {
     async function fetchGroup() {
@@ -160,9 +162,6 @@ function NavContent({ onNavigate }) {
   const invItems = navItems.filter((item) => item.group === "inventory" && isMenuItemAllowed(item.to, allowedPaths, isAdmin));
   const mainItems = navItems.filter((item) => !item.group && !item.profileItem && isMenuItemAllowed(item.to, allowedPaths, isAdmin));
   const profileItem = navItems.find((item) => item.profileItem);
-  const activeSessionIndex = mainItems.findIndex((item) => item.to === "/active-session");
-  const mainItemsBefore = activeSessionIndex >= 0 ? mainItems.slice(0, activeSessionIndex + 1) : mainItems;
-  const mainItemsAfter = activeSessionIndex >= 0 ? mainItems.slice(activeSessionIndex + 1) : [];
 
   const renderNavLink = (item) => {
     const { to, labelKey, label, icon: Icon, end, adminOnly, waterOwnerOnly, advertiserOnly } = item;
@@ -189,81 +188,91 @@ function NavContent({ onNavigate }) {
     );
   };
 
+  // Smaller-styled link, used only inside the "Реклами" submenu — matches
+  // that submenu's original (pre-v2.88) look, unchanged.
+  const renderSmallLink = ({ to, labelKey, icon: Icon }) => (
+    <NavLink
+      key={to}
+      to={to}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors min-h-[44px] ${
+          isActive
+            ? "bg-cyan-50 text-cyan-700 dark:bg-accent dark:text-cyan-400"
+            : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground"
+        }`
+      }
+    >
+      <Icon className="w-4 h-4" />
+      {t(labelKey)}
+    </NavLink>
+  );
+
+  const renderGroupBlock = (key, group) => (
+    <div className="mt-1" key={key}>
+      <button
+        onClick={() => group.setOpen(!group.open)}
+        className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
+      >
+        <group.icon className="w-4 h-4" />
+        {group.label}
+        <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${group.open ? "rotate-180" : ""}`} />
+      </button>
+      {group.open && (
+        <div className="ml-4 mt-1 border-l border-slate-100 dark:border-border pl-3 space-y-1">
+          {group.items.map((item) => group.itemRenderer(item))}
+        </div>
+      )}
+    </div>
+  );
+
+  // v2.88 — display order (admin-configurable, see src/lib/menuOrder.js):
+  // orderedXxxItems reorder the items WITHIN each collapsible submenu;
+  // `order.top` (a mix of real item paths and "group:<id>" placeholders for
+  // whole submenus) then decides the top-level order via renderSlot below.
+  // Anything not mentioned in `order` (e.g. a brand-new item, or a stale
+  // saved order) is still rendered — appended at the end — so nothing is
+  // ever silently hidden by an out-of-date saved order.
+  const orderedInvItems = applyOrder(invItems, order.groups.inventory, (it) => it.to);
+  const orderedTraderItems = applyOrder(visibleTraderItems, order.groups.traders, (it) => it.to);
+  const orderedAdItems = applyOrder(visibleAdItems, order.groups.ads, (it) => it.to);
+
+  const groupConfigs = {
+    "group:inventory": {
+      items: orderedInvItems, label: t("nav.inventory"), icon: Boxes,
+      open: invMenuOpen, setOpen: setInvMenuOpen, itemRenderer: renderNavLink,
+    },
+    "group:traders": {
+      items: orderedTraderItems, label: t("nav.approvedTraders"), icon: Store,
+      open: traderMenuOpen, setOpen: setTraderMenuOpen, itemRenderer: renderNavLink,
+    },
+    "group:ads": {
+      items: orderedAdItems, label: t("nav.ads"), icon: Megaphone,
+      open: adMenuOpen, setOpen: setAdMenuOpen, itemRenderer: renderSmallLink,
+    },
+  };
+
+  const itemByPath = new Map(mainItems.map((item) => [item.to, item]));
+
+  const renderSlot = (key) => {
+    if (key.startsWith("group:")) {
+      const group = groupConfigs[key];
+      if (!group || group.items.length === 0) return null;
+      return renderGroupBlock(key, group);
+    }
+    const item = itemByPath.get(key);
+    return item ? renderNavLink(item) : null;
+  };
+
+  const orderedTopKeys = new Set(order.top);
+  // Safety net: a visible main item whose path isn't in the saved/known
+  // order (see the module comment above) still shows up, at the end.
+  const extraMainItems = mainItems.filter((item) => !orderedTopKeys.has(item.to));
+
   return (
     <nav className="flex flex-col gap-1 px-3 py-4">
-      {mainItemsBefore.map((item) => renderNavLink(item))}
-
-      {invItems.length > 0 && (
-        <div className="mt-1">
-          <button
-            onClick={() => setInvMenuOpen(!invMenuOpen)}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
-          >
-            <Boxes className="w-4 h-4" />
-            {t("nav.inventory")}
-            <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${invMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-          {invMenuOpen && (
-            <div className="ml-4 mt-1 border-l border-slate-100 dark:border-border pl-3 space-y-1">
-              {invItems.map((item) => renderNavLink(item))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {mainItemsAfter.map((item) => renderNavLink(item))}
-
-      {visibleTraderItems.length > 0 && (
-        <div className="mt-1">
-          <button
-            onClick={() => setTraderMenuOpen(!traderMenuOpen)}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
-          >
-            <Store className="w-4 h-4" />
-            {t("nav.approvedTraders")}
-            <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${traderMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-          {traderMenuOpen && (
-            <div className="ml-4 mt-1 border-l border-slate-100 dark:border-border pl-3 space-y-1">
-              {visibleTraderItems.map((item) => renderNavLink(item))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {visibleAdItems.length > 0 && (
-        <div className="mt-1">
-          <button
-            onClick={() => setAdMenuOpen(!adMenuOpen)}
-            className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
-          >
-            <Megaphone className="w-4 h-4" />
-            {t("nav.ads")}
-            <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${adMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-          {adMenuOpen && (
-            <div className="ml-4 mt-1 border-l border-slate-100 dark:border-border pl-3 space-y-1">
-              {visibleAdItems.map(({ to, labelKey, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={onNavigate}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-colors min-h-[44px] ${
-                      isActive
-                        ? "bg-cyan-50 text-cyan-700 dark:bg-accent dark:text-cyan-400"
-                        : "text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground"
-                    }`
-                  }
-                >
-                  <Icon className="w-4 h-4" />
-                  {t(labelKey)}
-                </NavLink>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      {order.top.map((key) => renderSlot(key))}
+      {extraMainItems.map((item) => renderNavLink(item))}
 
       {profileItem && (
         <div className="mt-auto pt-2 border-t border-slate-100 dark:border-border">
@@ -277,7 +286,21 @@ function NavContent({ onNavigate }) {
 export default function Layout() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // v2.88 — admin-configurable menu order, fetched once here (not per
+  // NavContent instance — there are two, desktop + mobile) and passed down.
+  // Falls back to DEFAULT_MENU_ORDER (today's hand-authored order) until
+  // the fetch resolves, and stays on it if nothing's been saved yet or the
+  // request fails — never blocks rendering the menu.
+  const [menuOrder, setMenuOrder] = useState(DEFAULT_MENU_ORDER);
   useRodTimerMonitor();
+
+  useEffect(() => {
+    let cancelled = false;
+    base44.settings.getMenuOrder()
+      .then((data) => { if (!cancelled) setMenuOrder(normalizeMenuOrder(data?.order)); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (mobileOpen) {
@@ -309,7 +332,7 @@ export default function Layout() {
           <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
         </Link>
         <div className="flex-1 overflow-y-auto">
-          <NavContent />
+          <NavContent menuOrder={menuOrder} />
         </div>
         <div className="px-3 py-3 border-t border-slate-100 dark:border-border flex items-center justify-between gap-2">
            <div className="flex items-center gap-2">
@@ -371,7 +394,7 @@ export default function Layout() {
               </button>
             </div>
             <div className="overflow-y-auto flex-1 min-h-0">
-              <NavContent onNavigate={() => setMobileOpen(false)} />
+              <NavContent onNavigate={() => setMobileOpen(false)} menuOrder={menuOrder} />
             </div>
             <div className="px-5 py-3 border-t border-slate-100 dark:border-border flex-shrink-0 flex items-center justify-between gap-2">
               <LanguageSelector />

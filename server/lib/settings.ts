@@ -53,6 +53,15 @@ export const SETTINGS_KEYS = [
   // publisher ID reaches the client.
   "ADSENSE_ENABLED",
   "ADSENSE_PUBLISHER_ID",
+  // v2.88 — admin-configurable display order of the sidebar/mobile nav menu
+  // (Admin → Настройка на интеграциите → "Режим на подреждане на менюто").
+  // A JSON string, see src/lib/menuOrder.js for the shape. Not a secret —
+  // read by EVERY signed-in user (routes/publicSettings.ts's
+  // /api/settings/menu-order), since it drives what every user's own
+  // Layout.jsx renders, not just the admin's. Reuses this existing
+  // key/value table instead of a new DB column/migration, since the value
+  // isn't tied to any one entity row.
+  "MENU_ORDER",
 ] as const;
 
 export type SettingKey = typeof SETTINGS_KEYS[number];
