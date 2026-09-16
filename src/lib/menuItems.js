@@ -25,7 +25,7 @@ export const ALL_MENU_ITEMS = [
   { path: "/admin-ad-requests", labelKey: "nav.adRequests" },
   { path: "/admin-users", labelKey: "nav.adminUsers" },
   { path: "/admin-setup", labelKey: "nav.adminSetup" },
-  { path: "/admin-water-bodies", labelKey: "nav.approveWaterBodies" },
+  { path: "/admin-traders", labelKey: "nav.adminTraders" },
   { path: "/admin-role-requests", labelKey: "nav.roleRequests" },
   { path: "/admin-data-export", labelKey: "nav.dataExport" },
   { path: "/admin-translations", labelKey: "nav.translations" },

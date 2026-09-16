@@ -70,7 +70,10 @@ const navItems = [
   { to: "/sector-reservations", labelKey: "nav.reservations", icon: CalendarCheck },
   { to: "/admin-users", labelKey: "nav.adminUsers", icon: ShieldCheck, adminOnly: true },
   { to: "/admin-setup", labelKey: "nav.adminSetup", icon: Settings, adminOnly: true },
-  { to: "/admin-water-bodies", labelKey: "nav.approveWaterBodies", icon: ShieldCheck, adminOnly: true },
+  // v2.77 — replaces the old water-body-only approval screen: one merged
+  // pending queue for water bodies + commercial venues, plus bonus ad-time,
+  // brochure download and reassigning the owner (AdminTraders.jsx).
+  { to: "/admin-traders", labelKey: "nav.adminTraders", icon: Store, adminOnly: true },
   { to: "/admin-role-requests", labelKey: "nav.roleRequests", icon: UserCog, adminOnly: true },
   { to: "/admin-data-export", labelKey: "nav.dataExport", icon: Download, adminOnly: true },
   { to: "/admin-translations", labelKey: "nav.translations", icon: Languages, adminOnly: true },
@@ -102,10 +105,14 @@ const adNavItems = [
   { to: "/admin-ad-requests", labelKey: "nav.adRequests", icon: Megaphone, adminOnly: true },
 ];
 
-// v2.69 — "Търговци" group (formerly the single flat "Моите водоеми" link):
-// a water_owner/admin's own management screens for their water bodies and
-// commercial venues — brochure QR codes + bonus-advertising config live
-// here, see WaterBodyManagement.jsx / TraderVenues.jsx.
+// v2.69 — "Търговци" group (formerly the single flat "Моите водоеми" link),
+// renamed "Одобрени търговци" in v2.77: a confirmed Търговец's (water_owner
+// role) own management screens for their OWN water bodies and commercial
+// venues — brochure QR download lives here, see WaterBodyManagement.jsx /
+// TraderVenues.jsx. v2.77 also removed the admin bypass this group used to
+// have (an admin without the water_owner role no longer sees it) — an
+// admin manages every merchant's objects from the separate, admin-only
+// "Търговци" screen instead (nav.adminTraders / AdminTraders.jsx above).
 const traderNavItems = [
   { to: "/water-body-management", labelKey: "nav.traderWaterBodies", icon: Settings2, waterOwnerOnly: true },
   { to: "/trader-venues", labelKey: "nav.traderVenues", icon: Store, waterOwnerOnly: true },
@@ -145,7 +152,7 @@ function NavContent({ onNavigate }) {
   });
 
   const visibleTraderItems = traderNavItems.filter((item) => {
-    if (item.waterOwnerOnly && !hasAnyRole(user, ["water_owner", "admin"])) return false;
+    if (item.waterOwnerOnly && !hasRole(user, "water_owner")) return false;
     if (!isMenuItemAllowed(item.to, allowedPaths, isAdmin)) return false;
     return true;
   });
@@ -160,7 +167,7 @@ function NavContent({ onNavigate }) {
   const renderNavLink = (item) => {
     const { to, labelKey, label, icon: Icon, end, adminOnly, waterOwnerOnly, advertiserOnly } = item;
     if (adminOnly && !hasRole(user, "admin")) return null;
-    if (waterOwnerOnly && !hasAnyRole(user, ["water_owner", "admin"])) return null;
+    if (waterOwnerOnly && !hasRole(user, "water_owner")) return null;
     if (advertiserOnly && !hasAnyRole(user, ["advertiser", "admin"])) return false;
     return (
       <NavLink
@@ -213,7 +220,7 @@ function NavContent({ onNavigate }) {
             className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:text-muted-foreground dark:hover:bg-accent dark:hover:text-foreground transition-colors min-h-[48px]"
           >
             <Store className="w-4 h-4" />
-            {t("nav.traders")}
+            {t("nav.approvedTraders")}
             <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${traderMenuOpen ? "rotate-180" : ""}`} />
           </button>
           {traderMenuOpen && (

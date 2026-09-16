@@ -510,3 +510,13 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_phone TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS contact_email TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS website TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_url TEXT;
+
+-- v2.77: commercial venues now go through the same admin-approval workflow
+-- as water bodies (see AdminTraders.jsx, the merged "Търговци" admin
+-- screen). DEFAULT 'approved' (not 'pending') so every already-live venue
+-- stays visible on /commercial-venues without needing re-approval — new
+-- venues are created with an explicit status: "pending" by the client
+-- (MerchantRequest.jsx). Safe to re-run. Applied via the same "Приложи
+-- обновление" admin button as v2.68/v2.69/v2.71 — see
+-- server/routes/adminMigrations.ts.
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('pending','approved','rejected')) NOT NULL DEFAULT 'approved';

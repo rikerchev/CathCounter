@@ -13,7 +13,7 @@ import { useLanguage } from "@/lib/i18n";
 const EMPTY = {
   name: "", owner_name: "", contact_phone: "", contact_email: "",
   location: "", country: "", latitude: "", longitude: "", usage_conditions: "",
-  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", iban: "", region: "",
+  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", region: "",
 };
 
 export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved }) {
@@ -40,7 +40,6 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: wb.capacity || "",
         fee_per_person: wb.fee_per_person != null ? String(wb.fee_per_person) : "",
         logo_url: wb.logo_url || "",
-        iban: wb.iban || "",
       });
     }
   }, [wb]);
@@ -96,7 +95,6 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: form.capacity,
         fee_per_person: form.fee_per_person ? Number(form.fee_per_person) : 0,
         logo_url: form.logo_url || null,
-        iban: form.iban || null,
       });
     } finally {
       setSaving(false);
@@ -192,13 +190,6 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
             <div className="space-y-1.5">
               <Label>{t("wbd.feePerPerson")}</Label>
               <Input type="number" step="any" value={form.fee_per_person} onChange={(e) => set("fee_per_person", e.target.value)} className="min-h-[44px]" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t("wbd.iban")} *</Label>
-            <Input value={form.iban} onChange={(e) => set("iban", e.target.value)} placeholder="BG12STSA12345678901234" className="min-h-[44px] font-mono text-sm" />
-            <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 p-2.5 text-xs text-amber-800 dark:text-amber-300">
-              {t("wbd.ibanInfo")}
             </div>
           </div>
           <div className="space-y-1.5">

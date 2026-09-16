@@ -1,15 +1,12 @@
-// Platform payment configuration
-// All payments go 100% to the platform owner's Revolut account.
-// Admin manually transfers 75% to water body owners via bank transfer (Revolut → IBAN).
+// Platform payment configuration.
+//
+// v2.77 — the platform-commission split (25% platform / 75% owner) and its
+// calcOwnerPayout()/calcPlatformCommission() helpers were removed together
+// with the "pay for a sector reservation via Revolut" flow (see
+// SectorReservations.jsx and the "Pending Transfers" panel that used to be
+// in WaterBodyManagement.jsx) — see claude/... project doc for the merchant
+// restructuring this was part of. PLATFORM_REVOLUT_URL is kept: competition
+// entry fees (Competitions.jsx) still use it and were NOT part of that
+// change — only reservation payments and the commission split were removed.
 export const PLATFORM_REVOLUT_TAG = "rkerchev";
 export const PLATFORM_REVOLUT_URL = "https://revolut.me/rkerchev";
-export const PLATFORM_COMMISSION_PERCENT = 25; // platform keeps 25%
-export const OWNER_PAYOUT_PERCENT = 75; // owner receives 75%
-
-export function calcOwnerPayout(amount) {
-  return Math.round(amount * OWNER_PAYOUT_PERCENT) / 100;
-}
-
-export function calcPlatformCommission(amount) {
-  return Math.round(amount * PLATFORM_COMMISSION_PERCENT) / 100;
-}

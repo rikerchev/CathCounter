@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Store, MapPin, Phone, Mail, Globe, Image as ImageIcon } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Store, MapPin, Phone, Mail, Globe, Image as ImageIcon, PlusCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -22,7 +23,11 @@ export default function CommercialVenues() {
   const load = useCallback(async () => {
     try {
       const all = await base44.entities.Venue.list();
-      setVenues((all || []).filter((v) => v.is_active !== false));
+      // v2.77 — venues now go through the same admin-approval workflow as
+      // water bodies (status undefined on an old row, from before this
+      // column existed, is treated as approved — see the v2.77 migration's
+      // DEFAULT 'approved', which backfills exactly that for existing rows).
+      setVenues((all || []).filter((v) => v.is_active !== false && v.status !== "pending" && v.status !== "rejected"));
     } catch (e) {
       toast({ title: t("cv.errorLoading"), description: e.message, variant: "destructive" });
     } finally {
@@ -36,9 +41,17 @@ export default function CommercialVenues() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Store className="w-6 h-6 text-cyan-600" />
-        <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("cv.title")}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Store className="w-6 h-6 text-cyan-600" />
+          <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("cv.title")}</h1>
+        </div>
+        <Link
+          to="/merchant-request?type=venue"
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-medium hover:bg-cyan-700 min-h-[44px]"
+        >
+          <PlusCircle className="w-4 h-4" /> {t("cv.register")}
+        </Link>
       </div>
 
       {loading ? (

@@ -258,6 +258,17 @@ export const base44 = {
       fixWrongDomainPhotoUrls: () =>
         apiFetch("/api/admin/backup/wrong-domain-photo-urls/fix", { method: "POST", timeoutMs: 25000 }),
     },
+
+    // v2.77 — admin-only "reassign which registered user owns this water
+    // body / venue" action, from the Търговци admin screen. Not a generic
+    // entity field (created_by_id is deliberately excluded from every
+    // entity's writable columns, see server/routes/entities.ts's
+    // sanitizePayload comment), so it needs its own small endpoint — see
+    // server/routes/adminMerchants.ts.
+    merchants: {
+      reassignOwner: (type, id, newOwnerId) =>
+        apiFetch(`/api/admin/merchants/${type}/${id}`, { method: "PATCH", body: { created_by_id: newOwnerId } }),
+    },
   },
 
   // Public (no admin rights needed) — how to pay the platform owner, for

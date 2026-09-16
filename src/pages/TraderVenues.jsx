@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, PlusCircle, Download, Loader2, Power, Pencil } from "lucide-react";
+import { Store, Download, Loader2, Power, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,32 +7,30 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
-import { hasRole } from "@/lib/roles";
 import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
-import MerchantBonusEditor from "@/components/MerchantBonusEditor";
 
 /**
- * TraderVenues — Търговци → "Търговски обекти" (v2.69). A water_owner/admin
- * creates a venue (name + optional address), gets a printable brochure with
- * a QR that identifies that venue directly, and — for admins — can set how
- * many free banner-days it earns per new registration through it (0 days /
- * no banner by default, see MerchantBonusEditor.jsx).
+ * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
+ * v2.77). Editing screen for the signed-in merchant's OWN commercial
+ * venues only — creating a new one now happens through the shared
+ * MerchantRequest.jsx form (Водоем/Търговски обект type picker) and goes to
+ * admin approval, same as water bodies. Admin-only actions (approve, bonus
+ * ad-time, brochure download for someone else, reassigning the owner) moved
+ * to AdminTraders.jsx — this page always shows only the current user's own
+ * venues, admin account or not.
  */
 export default function TraderVenues() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
-  const isAdmin = hasRole(user, "admin");
 
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "" };
   const [form, setForm] = useState(emptyForm);
-  // v2.71 — null while creating a new venue; the venue object being edited
-  // otherwise. Same dialog/fields handle both, just POST vs PUT on submit.
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
@@ -41,24 +39,17 @@ export default function TraderVenues() {
     if (!user) return;
     try {
       const all = await base44.entities.Venue.list("-created_date", 200);
-      const mine = isAdmin ? (all || []) : (all || []).filter((v) => v.created_by_id === user.id);
-      setVenues(mine);
+      setVenues((all || []).filter((v) => v.created_by_id === user.id));
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [user, isAdmin, toast, t]);
+  }, [user, toast, t]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  function openCreateForm() {
-    setEditingVenue(null);
-    setForm(emptyForm);
-    setShowForm(true);
-  }
 
   function openEditForm(v) {
     setEditingVenue(v);
@@ -73,8 +64,11 @@ export default function TraderVenues() {
     setShowForm(true);
   }
 
+  // v2.77 — edit only; a brand new venue is created via MerchantRequest.jsx
+  // and goes to admin approval instead.
   async function saveVenue(e) {
     e.preventDefault();
+    if (!editingVenue) return;
     setSaving(true);
     const payload = {
       name: form.name,
@@ -85,13 +79,8 @@ export default function TraderVenues() {
       logo_url: form.logo_url,
     };
     try {
-      if (editingVenue) {
-        await base44.entities.Venue.update(editingVenue.id, payload);
-        toast({ title: t("tv.updated") });
-      } else {
-        await base44.entities.Venue.create({ ...payload, is_active: true });
-        toast({ title: t("tv.created") });
-      }
+      await base44.entities.Venue.update(editingVenue.id, payload);
+      toast({ title: t("tv.updated") });
       setShowForm(false);
       setEditingVenue(null);
       setForm(emptyForm);
@@ -137,14 +126,9 @@ export default function TraderVenues() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Store className="w-6 h-6 text-cyan-600" />
-          <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("nav.traderVenues")}</h1>
-        </div>
-        <Button size="sm" onClick={openCreateForm} className="bg-cyan-600 hover:bg-cyan-700 min-h-[40px]">
-          <PlusCircle className="w-4 h-4 mr-1" /> {t("tv.newVenue")}
-        </Button>
+      <div className="flex items-center gap-2">
+        <Store className="w-6 h-6 text-cyan-600" />
+        <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("nav.traderVenues")}</h1>
       </div>
       <p className="text-sm text-slate-500 dark:text-muted-foreground">{t("tv.subtitle")}</p>
 
@@ -161,11 +145,23 @@ export default function TraderVenues() {
                 <div className="min-w-0">
                   <h2 className="font-bold text-slate-800 dark:text-foreground truncate">{v.name}</h2>
                   {v.address && <p className="text-xs text-slate-400 truncate">{v.address}</p>}
-                  {!v.is_active && (
-                    <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 dark:bg-accent dark:text-muted-foreground">
-                      {t("tv.inactive")}
-                    </span>
-                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {v.status === "pending" && (
+                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        {t("awb.pending")}
+                      </span>
+                    )}
+                    {v.status === "rejected" && (
+                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                        {t("awb.statusRejected")}
+                      </span>
+                    )}
+                    {!v.is_active && (
+                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 dark:bg-accent dark:text-muted-foreground">
+                        {t("tv.inactive")}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2 flex-shrink-0">
                   <Button
@@ -178,22 +174,14 @@ export default function TraderVenues() {
                     {downloadingId === v.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
                     {t("tv.downloadBrochure")}
                   </Button>
-                  {(isAdmin || v.created_by_id === user?.id) && (
-                    <>
-                      <Button size="sm" variant="outline" onClick={() => openEditForm(v)} className="min-h-[40px]">
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => toggleActive(v)} className="min-h-[40px]">
-                        <Power className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
+                  <Button size="sm" variant="outline" onClick={() => openEditForm(v)} className="min-h-[40px]">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => toggleActive(v)} className="min-h-[40px]">
+                    <Power className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-
-              {isAdmin && (
-                <MerchantBonusEditor merchant={v} merchantType="venue" onSaved={(patch) => setVenues((prev) => prev.map((x) => (x.id === v.id ? { ...x, ...patch } : x)))} />
-              )}
             </div>
           ))}
         </div>
@@ -202,7 +190,7 @@ export default function TraderVenues() {
       <Dialog open={showForm} onOpenChange={(open) => { setShowForm(open); if (!open) setEditingVenue(null); }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingVenue ? t("tv.editVenue") : t("tv.newVenue")}</DialogTitle>
+            <DialogTitle>{t("tv.editVenue")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={saveVenue} className="space-y-3">
             <div className="space-y-1.5">
@@ -235,8 +223,8 @@ export default function TraderVenues() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>
               <Button type="submit" disabled={saving} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
-                {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <PlusCircle className="w-4 h-4 mr-1" />}
-                {editingVenue ? t("common.save") : t("wb.create")}
+                {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                {t("common.save")}
               </Button>
             </DialogFooter>
           </form>

@@ -482,6 +482,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "contact_email", type: "string", required: false },
       { name: "website", type: "string", required: false },
       { name: "logo_url", type: "string", required: false },
+      // v2.77 — venues now go through the same admin-approval workflow as
+      // water bodies, via the merged queue in AdminTraders.jsx. Existing
+      // rows default to 'approved' in the DB (see the v2.77 migration in
+      // adminMigrations.ts) so nothing already live disappears; new venues
+      // are created with status: "pending" explicitly by the client
+      // (MerchantRequest.jsx), same pattern as WaterBody above.
+      { name: "status", type: "enum", required: false, enumValues: ["pending", "approved", "rejected"] },
     ],
     rules: {
       read: { kind: "public" },

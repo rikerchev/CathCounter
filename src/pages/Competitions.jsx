@@ -12,7 +12,11 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import CompetitionCalendar from "@/components/CompetitionCalendar";
-import { PLATFORM_REVOLUT_URL, calcOwnerPayout } from "@/lib/payment";
+// v2.77 — calcOwnerPayout was imported but never actually used in this file
+// (the owner-facing 75% display it powered lived only in
+// WaterBodyManagement.jsx and was removed there); PLATFORM_REVOLUT_URL is
+// still used below for competition entry-fee payment, which is unaffected.
+import { PLATFORM_REVOLUT_URL } from "@/lib/payment";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 

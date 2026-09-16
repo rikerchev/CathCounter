@@ -3,12 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, AlertCircle, Download, Loader2 } from "lucide-react";
-import { calcOwnerPayout } from "@/lib/payment";
-import { hasRole } from "@/lib/roles";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2 } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
-import MerchantBonusEditor from "@/components/MerchantBonusEditor";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,14 +47,17 @@ export default function WaterBodyManagement() {
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
-  const isAdmin = hasRole(user, "admin");
 
+  // v2.77 — always scoped to the signed-in merchant's own water bodies, even
+  // for an admin account. Admins manage every merchant's objects (approval,
+  // bonus ad-time, brochure, reassigning the owner) from the new dedicated
+  // "Търговци" admin screen (AdminTraders.jsx) instead — this page is purely
+  // "my own approved water bodies", matching how "Одобрени търговци" reads.
   const load = useCallback(async () => {
     if (!user) return;
     try {
       const allWb = await base44.entities.WaterBody.list();
-      const isAdminUser = (user.roles || [user.role])?.some((r) => r === "admin");
-      const mine = isAdminUser ? (allWb || []) : (allWb || []).filter((w) => w.created_by_id === user.id);
+      const mine = (allWb || []).filter((w) => w.created_by_id === user.id);
       setWaterBodies(mine);
 
       const allComps = await base44.entities.Competition.list("-date", 200);
@@ -259,22 +259,13 @@ export default function WaterBodyManagement() {
       }
     }
   });
-  sectorRes.forEach((r) => {
-    if (r.payment_status === "paid" && r.status === "active") {
-      const wb = wbMap[r.water_body_id];
-      if (wb) {
-        pendingTransfers.push({
-          type: "reservation",
-          id: r.id,
-          title: `${t("wb.sector")} ${r.sector_number} — ${formatDate(r.date, lang)}`,
-          wbName: r.water_body_name || wb.name,
-          payer: r.reserved_by_name,
-          amount: r.fee || 0,
-          iban: wb.iban,
-        });
-      }
-    }
-  });
+  // v2.77 — sector-reservation entries removed from this list: reservations
+  // no longer go through any in-app payment step (see SectorReservations.jsx
+  // and payment.js), so payment_status on a SectorReservation never becomes
+  // "paid" anymore and this branch would never match going forward. Left
+  // only for competition entry fees below, which still use their own
+  // separate Revolut payment step in Competitions.jsx (out of scope for
+  // this change).
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -300,18 +291,13 @@ export default function WaterBodyManagement() {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-emerald-600">{tr.amount} €</p>
-                    <p className="text-xs text-cyan-600 dark:text-cyan-400">→ 75%: {calcOwnerPayout(tr.amount)} €</p>
                   </div>
                 </div>
-                {tr.iban ? (
+                {tr.iban && (
                   <div className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-accent p-2">
                     <Landmark className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     <code className="flex-1 text-xs font-mono break-all">{tr.iban}</code>
                     <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(tr.iban); toast({ title: t("wb.ibanCopied") }); }} className="min-h-[36px] text-xs">{t("wb.copy")}</Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                    <AlertCircle className="w-3.5 h-3.5" /> {t("wb.noIban")}
                   </div>
                 )}
                 <Button size="sm" onClick={() => markTransferred(tr.id, tr.type)} className="w-full bg-cyan-600 hover:bg-cyan-700 min-h-[40px] text-xs">
@@ -369,25 +355,8 @@ export default function WaterBodyManagement() {
                     {downloadingId === wb.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
                     {t("tv.downloadBrochure")}
                   </Button>
-                  {wb.iban ? (
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400 self-center px-2 flex items-center gap-1">
-                      <Landmark className="w-3 h-3" /> IBAN: {wb.iban.slice(0, 4)}••••
-                    </span>
-                  ) : (
-                    <span className="text-xs text-amber-600 dark:text-amber-400 self-center px-2">
-                      {t("wb.enterIban")}
-                    </span>
-                  )}
                 </div>
               </div>
-
-              {isAdmin && (
-                <MerchantBonusEditor
-                  merchant={wb}
-                  merchantType="water_body"
-                  onSaved={(patch) => setWaterBodies((prev) => prev.map((x) => (x.id === wb.id ? { ...x, ...patch } : x)))}
-                />
-              )}
 
               {wbComps.length === 0 ? (
                 <p className="text-xs text-slate-400">{t("wb.noActiveCompetitions")}</p>

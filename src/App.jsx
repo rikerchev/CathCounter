@@ -34,12 +34,12 @@ import CustomAds from './pages/CustomAds';
 import AdminUsers from './pages/AdminUsers';
 import AdminSetup from './pages/AdminSetup';
 import WaterBodies from './pages/WaterBodies';
-import WaterBodyRequest from './pages/WaterBodyRequest';
+import MerchantRequest from './pages/MerchantRequest';
 import Competitions from './pages/Competitions';
 import WaterBodyManagement from './pages/WaterBodyManagement';
 import TraderVenues from './pages/TraderVenues';
 import CommercialVenues from './pages/CommercialVenues';
-import AdminWaterBodies from './pages/AdminWaterBodies';
+import AdminTraders from './pages/AdminTraders';
 import AdminRoleRequests from './pages/AdminRoleRequests';
 import AdManagement from './pages/AdManagement';
 import AdminAdRequests from './pages/AdminAdRequests';
@@ -111,11 +111,14 @@ const AuthenticatedApp = () => {
           <Route path="/admin-setup" element={<AdminSetup />} />
           <Route path="/water-bodies" element={<WaterBodies />} />
           <Route path="/commercial-venues" element={<CommercialVenues />} />
-          <Route path="/water-body-request" element={<WaterBodyRequest />} />
+          {/* /water-body-request kept as an alias to the old bookmarked/
+              linked URL — both point at the same unified type-picker form. */}
+          <Route path="/water-body-request" element={<MerchantRequest />} />
+          <Route path="/merchant-request" element={<MerchantRequest />} />
           <Route path="/competitions" element={<Competitions />} />
           <Route path="/water-body-management" element={<WaterBodyManagement />} />
           <Route path="/trader-venues" element={<TraderVenues />} />
-          <Route path="/admin-water-bodies" element={<AdminWaterBodies />} />
+          <Route path="/admin-traders" element={<AdminTraders />} />
           <Route path="/admin-role-requests" element={<AdminRoleRequests />} />
           <Route path="/admin-ad-slots" element={<AdManagement />} />
           <Route path="/admin-ad-requests" element={<AdminAdRequests />} />

@@ -51,9 +51,16 @@ export function effectiveRoles(user) {
   return roles;
 }
 
+// v2.77 — "Собственик на водоема" renamed to "Търговец" in the UI only. The
+// underlying role key stays "water_owner" everywhere (DB CHECK constraint,
+// RoleRequest enum, PRIORITY above, every hasRole()/hasAnyRole() call) —
+// only this label changed. A merchant can now register either a water body
+// or a commercial venue (see AdminTraders.jsx / MerchantRequest.jsx); the
+// role is granted the same way as before, automatically when an admin
+// approves their first object.
 export const ROLE_LABELS = {
   admin: "Администратор",
-  water_owner: "Собственик на водоема",
+  water_owner: "Търговец",
   advertiser: "Рекламодател",
   user: "Потребител",
 };

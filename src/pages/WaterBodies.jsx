@@ -38,14 +38,14 @@ export default function WaterBodies() {
         <div className="flex items-center gap-2">
           {user?.role === "admin" && (
             <Link
-              to="/admin-water-bodies"
+              to="/admin-traders"
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-100 text-amber-700 text-sm font-medium hover:bg-amber-200 min-h-[44px]"
             >
               <ShieldCheck className="w-4 h-4" /> {t("wbs.approvals")}
             </Link>
           )}
           <Link
-            to="/water-body-request"
+            to="/merchant-request?type=water_body"
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600 text-white text-sm font-medium hover:bg-cyan-700 min-h-[44px]"
           >
             <PlusCircle className="w-4 h-4" /> {t("wbs.request")}

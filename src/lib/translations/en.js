@@ -20,7 +20,8 @@ export const en = {
     "nav.reservations": "Reservations",
     "nav.adminUsers": "User Management",
     "nav.adminSetup": "Integrations Setup",
-    "nav.approveWaterBodies": "Approve Water Bodies",
+    "nav.adminTraders": "Traders",
+    "nav.approvedTraders": "Approved Traders",
     "nav.roleRequests": "Role Requests",
     "nav.dataExport": "Export / Import",
     "nav.ads": "Ads",
@@ -415,7 +416,7 @@ export const en = {
 
     "wb.myWaterBodies": "My Water Bodies",
     "wb.pendingTransfers": "Pending transfers to owners",
-    "wb.pendingTransfersDesc": "User paid 100% via Revolut. Transfer 75% to the owner's IBAN.",
+    "wb.pendingTransfersDesc": "Competition entry fee paid via Revolut. Transfer the amount to the owner's IBAN.",
     "wb.copy": "Copy",
     "wb.noIban": "Owner has not entered IBAN",
     "wb.markTransferred": "Mark as transferred",
@@ -651,6 +652,7 @@ export const en = {
     "cv.errorLoading": "Error loading data",
     "cv.visitWebsite": "Visit website",
     "cv.email": "Email",
+    "cv.register": "Register",
   "nav.allPages": "All pages",
   "nav.home": "Home",
   "nav.sectorReservations": "Sector reservations",
@@ -1016,6 +1018,20 @@ export const en = {
     "tv.website": "Website or contact link (optional)",
     "tv.logo": "Logo — image link (optional)",
     "tv.updated": "Venue updated",
+
+    // v2.77 — merged request form (water body OR venue) and the merged
+    // "Traders" admin screen
+    "mr.title": "Trader registration",
+    "mr.description": "Choose what you'd like to register. Once approved by an admin, you'll be able to edit its details from the \"Approved Traders\" menu.",
+    "mr.typeWaterBody": "Water body",
+    "mr.typeVenue": "Commercial venue",
+    "at.title": "Traders",
+    "at.userNotFound": "No registered user found with that email",
+    "at.ownerChanged": "Owner changed",
+    "at.reassignOwner": "Reassign owner",
+    "at.ownerEmailPlaceholder": "Registered user's email",
+    "at.change": "Change",
+
     "merchant.bonusTitle": "Bonus ad time",
     "merchant.bonusDesc": "Each registration through this merchant's brochure adds this many days to the banner selected below. Default: 0 days, no banner.",
     "merchant.bonusDays": "Days per registration",

@@ -4,14 +4,13 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { CalendarCheck, Waves, MapPin, Users, Lock, CheckCircle2, CreditCard, ExternalLink } from "lucide-react";
+import { CalendarCheck, Waves, MapPin, Users, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { PLATFORM_REVOLUT_URL } from "@/lib/payment";
 
 function formatDate(d, lang) {
   if (!d) return "—";
@@ -45,7 +44,6 @@ export default function SectorReservations() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showPayment, setShowPayment] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -67,12 +65,6 @@ export default function SectorReservations() {
 
   useEffect(() => {
     load();
-    if (searchParams.get("paid")) {
-      toast({ title: t("sr.paymentSuccess") });
-    }
-    if (searchParams.get("cancelled")) {
-      toast({ title: t("sr.paymentCancelled"), variant: "destructive" });
-    }
   }, [load]);
 
   function resForAvail(availId) {
@@ -107,7 +99,12 @@ export default function SectorReservations() {
     }
     setSubmitting(true);
     try {
-      const reservation = await base44.entities.SectorReservation.create({
+      // v2.77 — payment_status is set once and never changes anymore (the
+      // "pay via Revolut" / "I paid" step that used to move it to "paid" was
+      // removed along with the platform-commission split — see payment.js).
+      // Kept as "pending" rather than dropped so the column stays meaningful
+      // if a payment flow is ever reintroduced later.
+      await base44.entities.SectorReservation.create({
         water_body_id: wb.id,
         water_body_name: wb.name,
         availability_id: avail.id,
@@ -119,13 +116,9 @@ export default function SectorReservations() {
         payment_status: "pending",
         status: "active",
       });
-      const fee = avail.fee_per_person || 0;
       toast({ title: t("sr.reservationMade"), description: t("sr.sectorReserved") });
       setReserveFor(null);
       await load();
-      if (fee > 0) {
-        setShowPayment({ fee, reservationId: reservation.id, wbName: wb.name, sector, date: avail.date });
-      }
     } catch (e) {
       toast({ title: t("sr.errorReserving"), description: e.message, variant: "destructive" });
     } finally {
@@ -246,65 +239,12 @@ export default function SectorReservations() {
                 <Label>{t("sr.phone")}</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="min-h-[44px]" />
               </div>
-              {reserveFor.avail.fee_per_person > 0 && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  {t("sr.paymentLinkInfo")} ({reserveFor.avail.fee_per_person} €).
-                </p>
-              )}
             </div>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setReserveFor(null)} className="min-h-[44px]">{t("sr.cancel")}</Button>
             <Button type="button" onClick={confirmReservation} disabled={submitting} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
               {submitting ? t("sr.saving") : t("sr.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!showPayment} onOpenChange={(o) => !o && setShowPayment(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-cyan-600" /> {t("sr.paymentViaRevolut")}
-            </DialogTitle>
-          </DialogHeader>
-          {showPayment && (
-            <div className="space-y-3">
-              <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 text-sm space-y-1">
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.waterBody")}:</span> {showPayment.wbName}</p>
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.sectorLabel")}:</span> {showPayment.sector}</p>
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.amountToPay")}:</span> <span className="font-bold text-emerald-600">{showPayment.fee} €</span></p>
-              </div>
-              <div className="rounded-xl border border-cyan-200 dark:border-cyan-800 p-4 space-y-3">
-                <p className="text-sm font-medium text-slate-700 dark:text-foreground">{t("sr.payViaRevolut")}:</p>
-                <a href={PLATFORM_REVOLUT_URL} target="_blank" rel="noopener noreferrer" className="block">
-                  <Button className="w-full bg-black hover:bg-black/90 min-h-[48px] gap-2">
-                    <ExternalLink className="w-4 h-4" /> {t("sr.pay")} {showPayment.fee} € {t("sr.viaRevolut")}
-                  </Button>
-                </a>
-                <p className="text-xs text-slate-500 dark:text-muted-foreground text-center">
-                  {t("sr.revolutLink")}
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
-                {t("sr.paymentConfirmInfo")}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPayment(null)} className="min-h-[44px]">{t("sr.close")}</Button>
-            <Button onClick={async () => {
-              try {
-                await base44.entities.SectorReservation.update(showPayment.reservationId, { payment_status: "paid" });
-                toast({ title: t("sr.paymentConfirmed") });
-                setShowPayment(null);
-                await load();
-              } catch (e) {
-                toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
-              }
-            }} className="bg-emerald-600 hover:bg-emerald-700 min-h-[44px]">
-              {t("sr.iPaid")}
             </Button>
           </DialogFooter>
         </DialogContent>

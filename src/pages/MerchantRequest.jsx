@@ -1,0 +1,241 @@
+import React, { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
+import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/AuthContext";
+import { Waves, Store, Send, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { getCurrentLocation } from "@/lib/geolocation";
+import { useLanguage } from "@/lib/i18n";
+
+// v2.77 — replaces the old water-body-only WaterBodyRequest.jsx. Any
+// registered user can submit either object type here; nothing requires
+// already holding the "Търговец" (water_owner) role first — that role is
+// still granted automatically, the same way as before, the moment an admin
+// approves this user's first water body or venue (see AdminTraders.jsx).
+// Both branches submit with status: "pending" and go into that same shared
+// approval queue.
+export default function MerchantRequest() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { t } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const [type, setType] = useState(searchParams.get("type") === "venue" ? "venue" : "water_body");
+  const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  const [wbForm, setWbForm] = useState({
+    name: "",
+    owner_name: user?.full_name || "",
+    contact_phone: "",
+    contact_email: user?.email || "",
+    location: "",
+    latitude: "",
+    longitude: "",
+    usage_conditions: "",
+    fish_population: "",
+    max_depth: "",
+    capacity: "",
+    fee_per_person: "",
+  });
+  const [venueForm, setVenueForm] = useState({
+    name: "", address: "", contact_phone: "", contact_email: user?.email || "", website: "", logo_url: "",
+  });
+
+  const setWb = (key) => (e) => setWbForm((f) => ({ ...f, [key]: e.target.value }));
+  const setVenue = (key) => (e) => setVenueForm((f) => ({ ...f, [key]: e.target.value }));
+
+  async function captureLocation() {
+    setLocating(true);
+    try {
+      const loc = await getCurrentLocation("bg");
+      setWbForm((f) => ({
+        ...f,
+        latitude: loc.latitude ? String(loc.latitude) : f.latitude,
+        longitude: loc.longitude ? String(loc.longitude) : f.longitude,
+        location: loc.name || f.location,
+      }));
+      toast({ title: t("wbr.locationCaptured") });
+    } catch (e) {
+      toast({ title: t("wbr.locationError"), description: e.message, variant: "destructive" });
+    } finally {
+      setLocating(false);
+    }
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      if (type === "water_body") {
+        await base44.entities.WaterBody.create({
+          ...wbForm,
+          max_depth: wbForm.max_depth ? Number(wbForm.max_depth) : null,
+          capacity: wbForm.capacity || null,
+          fee_per_person: wbForm.fee_per_person ? Number(wbForm.fee_per_person) : 0,
+          latitude: wbForm.latitude ? Number(wbForm.latitude) : null,
+          longitude: wbForm.longitude ? Number(wbForm.longitude) : null,
+          status: "pending",
+        });
+      } else {
+        await base44.entities.Venue.create({
+          ...venueForm,
+          status: "pending",
+          is_active: true,
+        });
+      }
+      toast({ title: t("wbr.requestSent"), description: t("wbr.requestSentDesc") });
+      navigate(type === "water_body" ? "/water-bodies" : "/commercial-venues");
+    } catch (err) {
+      toast({ title: t("wbr.sendError"), description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <Waves className="w-6 h-6 text-cyan-600" />
+        <h1 className="text-xl font-bold text-slate-800 dark:text-foreground">{t("mr.title")}</h1>
+      </div>
+      <p className="text-sm text-slate-500 dark:text-muted-foreground">{t("mr.description")}</p>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setType("water_body")}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium min-h-[48px] transition-colors ${
+            type === "water_body" ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-500 dark:bg-accent dark:text-muted-foreground"
+          }`}
+        >
+          <Waves className="w-4 h-4" /> {t("mr.typeWaterBody")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setType("venue")}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium min-h-[48px] transition-colors ${
+            type === "venue" ? "bg-cyan-600 text-white" : "bg-slate-100 text-slate-500 dark:bg-accent dark:text-muted-foreground"
+          }`}
+        >
+          <Store className="w-4 h-4" /> {t("mr.typeVenue")}
+        </button>
+      </div>
+
+      {type === "water_body" ? (
+        <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("wbr.name")} *</Label>
+            <Input value={wbForm.name} onChange={setWb("name")} required className="min-h-[44px]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t("wbr.ownerName")}</Label>
+              <Input value={wbForm.owner_name} onChange={setWb("owner_name")} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("wbr.phone")} *</Label>
+              <Input value={wbForm.contact_phone} onChange={setWb("contact_phone")} required className="min-h-[44px]" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("wbr.email")}</Label>
+            <Input type="email" value={wbForm.contact_email} onChange={setWb("contact_email")} className="min-h-[44px]" />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("wbr.address")} *</Label>
+            <Input value={wbForm.location} onChange={setWb("location")} required className="min-h-[44px]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t("wbr.latitude")}</Label>
+              <Input type="number" step="any" value={wbForm.latitude} onChange={setWb("latitude")} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("wbr.longitude")}</Label>
+              <Input type="number" step="any" value={wbForm.longitude} onChange={setWb("longitude")} className="min-h-[44px]" />
+            </div>
+          </div>
+          <Button type="button" variant="outline" onClick={captureLocation} disabled={locating} className="w-full min-h-[44px]">
+            <MapPin className="w-4 h-4 mr-1" /> {locating ? t("wbr.locating") : t("wbr.captureLocation")}
+          </Button>
+
+          <div className="space-y-1.5">
+            <Label>{t("wbr.conditions")} *</Label>
+            <Textarea value={wbForm.usage_conditions} onChange={setWb("usage_conditions")} required rows={3} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("wbr.fishPopulation")} *</Label>
+            <Textarea
+              value={wbForm.fish_population}
+              onChange={setWb("fish_population")}
+              required
+              rows={3}
+              placeholder={t("wbr.fishPopulationPlaceholder")}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>{t("wbr.maxDepth")}</Label>
+              <Input type="number" step="any" value={wbForm.max_depth} onChange={setWb("max_depth")} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("wbr.capacity")}</Label>
+              <Input value={wbForm.capacity} onChange={setWb("capacity")} placeholder={t("wbr.capacityPlaceholder")} className="min-h-[44px]" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("wbr.feePerPerson")}</Label>
+            <Input type="number" step="any" value={wbForm.fee_per_person} onChange={setWb("fee_per_person")} placeholder={t("wbr.feePlaceholder")} className="min-h-[44px]" />
+          </div>
+
+          <Button type="submit" disabled={submitting} className="w-full bg-cyan-600 hover:bg-cyan-700 min-h-[48px]">
+            <Send className="w-4 h-4 mr-1" /> {submitting ? t("wbr.sending") : t("wbr.submit")}
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-5 shadow-sm space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("tv.name")} *</Label>
+            <Input value={venueForm.name} onChange={setVenue("name")} required className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("tv.address")}</Label>
+            <Input value={venueForm.address} onChange={setVenue("address")} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("tv.phone")}</Label>
+            <Input type="tel" value={venueForm.contact_phone} onChange={setVenue("contact_phone")} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("tv.email")}</Label>
+            <Input type="email" value={venueForm.contact_email} onChange={setVenue("contact_email")} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("tv.website")}</Label>
+            <Input value={venueForm.website} onChange={setVenue("website")} placeholder="https://" className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("tv.logo")}</Label>
+            <Input value={venueForm.logo_url} onChange={setVenue("logo_url")} placeholder="https://" className="min-h-[44px]" />
+          </div>
+
+          <Button type="submit" disabled={submitting} className="w-full bg-cyan-600 hover:bg-cyan-700 min-h-[48px]">
+            <Send className="w-4 h-4 mr-1" /> {submitting ? t("wbr.sending") : t("wbr.submit")}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}

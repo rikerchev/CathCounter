@@ -10,6 +10,7 @@ import { handleIntegrationsRoute } from "./routes/integrations.js";
 import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
 import { handleAdminBackupRoute } from "./routes/adminBackup.js";
 import { handleAdminMigrationsRoute } from "./routes/adminMigrations.js";
+import { handleAdminMerchantsRoute } from "./routes/adminMerchants.js";
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
 import { handleReferralsRoute } from "./routes/referrals.js";
 import { handleMerchantReferralsRoute } from "./routes/merchantReferrals.js";
@@ -70,6 +71,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "admin" && segments[2] === "migrations") {
       return await handleAdminMigrationsRoute(req, segments.slice(3), user);
+    }
+    if (segments[1] === "admin" && segments[2] === "merchants") {
+      return await handleAdminMerchantsRoute(req, segments.slice(3), user);
     }
     if (segments[1] === "referrals") {
       return await handleReferralsRoute(req, segments.slice(2), user);

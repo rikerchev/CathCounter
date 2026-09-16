@@ -81,6 +81,18 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_url TEXT`);
     },
   },
+  "v2.77-venue-status": {
+    label: "v2.77 — Търговски обекти: одобрение от админ",
+    run: async () => {
+      // DEFAULT 'approved' (not 'pending', unlike water_bodies) — venues had
+      // no approval step before this; defaulting existing rows to 'approved'
+      // keeps every already-live venue visible on /commercial-venues without
+      // needing manual re-approval. New venues are created with an explicit
+      // status: "pending" by the client (MerchantRequest.jsx) regardless of
+      // this column default.
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('pending','approved','rejected')) NOT NULL DEFAULT 'approved'`);
+    },
+  },
 };
 
 /**
@@ -120,6 +132,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'venues' AND column_name = 'website'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.77-venue-status") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'venues' AND column_name = 'status'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
