@@ -246,6 +246,16 @@ export const ENTITIES: Record<string, EntityDef> = {
       // who registered this participant, the competition's organizer, and
       // admins.
       { name: "catch_results", type: "string", required: false },
+      // v2.90 — ISO timestamp set by the organizer's "edit participant"
+      // dialog (WaterBodyManagement.jsx's saveRegEdit) every time it saves —
+      // NOT touched by the draw, the quick payment-status toggle, or the
+      // registrant's own create/cancel actions. Drives the participant
+      // list's display order: whoever hasn't been edited yet is ordered by
+      // created_at (first registered = first in the list); once an admin/
+      // owner edits a participant, this timestamp takes over and pushes
+      // them to the end of the list. Purely cosmetic ordering — never read
+      // by src/lib/competitionResults.js's standings/ranking.
+      { name: "list_order_at", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

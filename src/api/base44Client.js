@@ -284,6 +284,15 @@ export const base44 = {
     getMenuOrder: () => apiFetch("/api/settings/menu-order"),
   },
 
+  // v2.90 — "assign this registration to a real system account" (organizer's
+  // participant-edit dialog, WaterBodyManagement.jsx). NOT under `admin` —
+  // the competition's organizer (not just an admin) is allowed to call this
+  // too, see server/routes/competitionRegistrations.ts.
+  competitionRegistrations: {
+    reassign: (id, email) =>
+      apiFetch(`/api/competition-registrations/${id}/reassign`, { method: "POST", body: { email } }),
+  },
+
   // v2.68 — QR referral/sharing system (Табло → "Покани приятел"). See
   // server/routes/referrals.ts.
   referrals: {

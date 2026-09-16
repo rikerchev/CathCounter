@@ -11,6 +11,7 @@ import { handleAdminSettingsRoute } from "./routes/adminSettings.js";
 import { handleAdminBackupRoute } from "./routes/adminBackup.js";
 import { handleAdminMigrationsRoute } from "./routes/adminMigrations.js";
 import { handleAdminMerchantsRoute } from "./routes/adminMerchants.js";
+import { handleCompetitionRegistrationsRoute } from "./routes/competitionRegistrations.js";
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
 import { handleReferralsRoute } from "./routes/referrals.js";
 import { handleMerchantReferralsRoute } from "./routes/merchantReferrals.js";
@@ -74,6 +75,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "admin" && segments[2] === "merchants") {
       return await handleAdminMerchantsRoute(req, segments.slice(3), user);
+    }
+    if (segments[1] === "competition-registrations") {
+      return await handleCompetitionRegistrationsRoute(req, segments.slice(2), user);
     }
     if (segments[1] === "referrals") {
       return await handleReferralsRoute(req, segments.slice(2), user);

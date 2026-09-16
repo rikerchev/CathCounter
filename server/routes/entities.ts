@@ -170,6 +170,23 @@ export async function handleEntitiesRoute(
     if (!(await isAllowed(entity, "update", user, existing))) return json({ error: "Forbidden" }, 403);
     const body = await req.json().catch(() => ({}));
     const payload = sanitizePayload(entity, body);
+    // v2.90 — catch_results (the weigh-in results a competition is ranked
+    // on) must only ever be entered by an admin or the competition's own
+    // organizer, never by the registrant who merely submitted the
+    // registration — even though CompetitionRegistration's `update` rule
+    // (owner_or_relation) otherwise lets the registrant edit their own row.
+    // The generic entity system has no per-field access rule (see
+    // AccessRule above), so this one field gets a narrow, hand-written
+    // carve-out instead of a whole new endpoint. Silently dropped rather
+    // than rejecting the whole request, same tolerant style as sanitizePayload.
+    if (entityName === "CompetitionRegistration" && "catch_results" in payload && !isAdmin(user)) {
+      const compRows = await sql<{ created_by_id: string | null }[]>`
+        SELECT created_by_id FROM competitions WHERE id = ${existing.competition_id}
+      `;
+      if (compRows[0]?.created_by_id !== user?.id) {
+        delete payload.catch_results;
+      }
+    }
     payload.updated_at = new Date();
     const keys = Object.keys(payload);
     if (keys.length === 0) return json(existing);
@@ -202,6 +219,19 @@ export async function handleEntitiesRoute(
       if (!existing) continue;
       if (!(await isAllowed(entity, "update", user, existing))) continue;
       const payload = sanitizePayload(entity, rest);
+      // v2.90 — same catch_results carve-out as the single-record UPDATE
+      // branch above (see its comment): bulk-update is currently only used
+      // by the draw/reset flows (assigned_sector/assigned_box), but nothing
+      // stops a future or crafted call from smuggling catch_results through
+      // here instead, so the same guard applies.
+      if (entityName === "CompetitionRegistration" && "catch_results" in payload && !isAdmin(user)) {
+        const compRows = await sql<{ created_by_id: string | null }[]>`
+          SELECT created_by_id FROM competitions WHERE id = ${existing.competition_id}
+        `;
+        if (compRows[0]?.created_by_id !== user?.id) {
+          delete payload.catch_results;
+        }
+      }
       payload.updated_at = new Date();
       const keys = Object.keys(payload);
       const rows = await sql`UPDATE ${sql(table)} SET ${sql(payload, ...keys)} WHERE id = ${id} RETURNING *`;

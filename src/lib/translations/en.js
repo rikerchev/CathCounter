@@ -472,6 +472,15 @@ export const en = {
     "wb.confirmCancelRegistration": "Are you sure you want to cancel this participant's registration?",
     "wb.participantUpdated": "Participant updated",
     "wb.registrationCancelled": "Registration cancelled",
+    // v2.90 — assign a registration to a real system account (organizer's
+    // participant-edit dialog); "assignedToAccount" also labels the badge
+    // shown on the participant row once this has been done.
+    "wb.assignedToAccount": "Assigned to account",
+    "wb.reassignToUser": "Assign to user",
+    "wb.reassignEmailPlaceholder": "User's email",
+    "wb.reassign": "Assign",
+    "wb.reassignSuccess": "Participant assigned to the user",
+    "wb.reassignError": "Error assigning the participant",
     "wb.assignedBox": "Box",
     "wb.competitionSector": "Sector",
     "wb.roundsCount": "Number of rounds",

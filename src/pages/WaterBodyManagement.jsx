@@ -82,6 +82,11 @@ export default function WaterBodyManagement() {
   // sized to the competition's rounds_count (see openEditReg).
   const [editingReg, setEditingReg] = useState(null);
   const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending", catch_results: [] });
+  // v2.90 — "assign this registration to a real system account" (see
+  // reassignParticipant below): a single draft email input + busy flag,
+  // reset whenever a different participant is opened for editing (openEditReg).
+  const [reassignEmail, setReassignEmail] = useState("");
+  const [reassigning, setReassigning] = useState(false);
   // v2.87 — competition whose standings dialog is open. v2.89 — ranked by
   // penalty points first, total catch weight only as the tie-break — see
   // rankByPenaltyAndWeight. standingsRef/generatingImage back the "Изтегли
@@ -440,6 +445,7 @@ export default function WaterBodyManagement() {
       payment_status: r.payment_status || "pending",
       catch_results: catchResults,
     });
+    setReassignEmail("");
   }
 
   function updateRegEditCatchResult(index, value) {
@@ -459,12 +465,43 @@ export default function WaterBodyManagement() {
         slot_type: regEditForm.slot_type,
         payment_status: regEditForm.payment_status,
         catch_results: stringifyCatchResults(regEditForm.catch_results),
+        // v2.90 — every save from this dialog counts as "editing a
+        // participant" (organizer's request): this timestamp takes over
+        // from created_at and pushes them to the end of the participants
+        // list — see entities.generated.ts's list_order_at comment. The
+        // draw (drawLotsFor) and the quick "mark transferred" toggle don't
+        // touch this field, only this dialog's Save does.
+        list_order_at: new Date().toISOString(),
       });
       toast({ title: t("wb.participantUpdated") });
       setEditingReg(null);
       await load();
     } catch (e) {
       toast({ title: t("wb.errorSaving"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  // v2.90 — "assign this registration to a real system account": looks up
+  // a user by the typed email and moves the registration's created_by_id to
+  // them (server/routes/competitionRegistrations.ts) — from then on that
+  // account, not whoever originally registered them, owns this registration
+  // (can edit/cancel it, see the server's owner_or_relation rule). Doesn't
+  // touch list_order_at itself — that's saveRegEdit's job, so reassigning
+  // alone (without changing name/phone/etc.) still doesn't reorder the list
+  // unless the organizer also presses "Запази".
+  async function reassignParticipant() {
+    if (!editingReg || !reassignEmail.trim()) return;
+    setReassigning(true);
+    try {
+      const res = await base44.competitionRegistrations.reassign(editingReg.id, reassignEmail.trim());
+      toast({ title: t("wb.reassignSuccess"), description: res.user?.email });
+      setReassignEmail("");
+      setEditingReg((prev) => (prev ? { ...prev, ...res.item } : prev));
+      await load();
+    } catch (e) {
+      toast({ title: t("wb.reassignError"), description: e.message, variant: "destructive" });
+    } finally {
+      setReassigning(false);
     }
   }
 
@@ -1040,8 +1077,19 @@ export default function WaterBodyManagement() {
           </DialogHeader>
           {participantsFor && (() => {
             const regs = regsFor(participantsFor.id);
-            const main = regs.filter((r) => r.slot_type !== "reserve");
-            const reserve = regs.filter((r) => r.slot_type === "reserve");
+            // v2.90 — display order: whoever hasn't been edited yet is
+            // ordered by created_at (first to register = #1, top of the
+            // list); once an admin/owner edits a participant (saveRegEdit
+            // sets list_order_at), that timestamp takes over and the
+            // participant moves to the end. Purely a display/numbering
+            // concern — never read by roundSectorPoints/rankByPenaltyAndWeight
+            // below, which only ever look at assigned_sector/box/catch_results.
+            const orderedRegs = regs.slice().sort((a, b) =>
+              new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at)
+            );
+            const seqById = new Map(orderedRegs.map((r, i) => [r.id, i + 1]));
+            const main = orderedRegs.filter((r) => r.slot_type !== "reserve");
+            const reserve = orderedRegs.filter((r) => r.slot_type === "reserve");
             const roundsCount = Math.max(1, participantsFor.rounds_count || 1);
             // v2.89 — per-round sector points (one Map per round index) and
             // the overall penalty-points ranking, both computed once here
@@ -1059,7 +1107,9 @@ export default function WaterBodyManagement() {
               return (
                 <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
+                    <p className="text-sm font-medium text-slate-800 dark:text-foreground">
+                      <span className="text-slate-400 dark:text-muted-foreground font-normal">#{seqById.get(r.id)}</span> {r.participant_name}
+                    </p>
                     <Button variant="ghost" size="icon" onClick={() => openEditReg(r, roundsCount)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -1067,6 +1117,15 @@ export default function WaterBodyManagement() {
                   {r.registered_by_email && (
                     <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
                       <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
+                    </p>
+                  )}
+                  {/* v2.90 — set only by the organizer's "assign to user"
+                      action (reassignParticipant) — the account that now
+                      actually owns this registration, when it differs from
+                      whoever originally submitted it above. */}
+                  {r.assigned_user_email && (
+                    <p className="text-xs text-cyan-700 dark:text-cyan-400 flex items-center gap-1 font-medium">
+                      <ArrowRightLeft className="w-3 h-3 shrink-0" /> {t("wb.assignedToAccount")}: {r.assigned_user_email}
                     </p>
                   )}
                   {r.participant_phone && (
@@ -1327,6 +1386,43 @@ export default function WaterBodyManagement() {
                 </div>
               );
             })()}
+            {/* v2.90 — assign this registration to a real system account
+                (reassignParticipant): typing an existing account's email and
+                pressing "Назначи" moves created_by_id to them, so that
+                account (not whoever originally registered this participant)
+                owns the registration from then on. Shown separately from
+                the fields above/the main "Запази" button since it takes
+                effect immediately, on its own. */}
+            {editingReg && (
+              <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-border">
+                <Label className="flex items-center gap-1.5">
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" /> {t("wb.reassignToUser")}
+                </Label>
+                {editingReg.assigned_user_email && (
+                  <p className="text-xs text-cyan-700 dark:text-cyan-400">
+                    {t("wb.assignedToAccount")}: {editingReg.assigned_user_email}
+                  </p>
+                )}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="email"
+                    value={reassignEmail}
+                    onChange={(e) => setReassignEmail(e.target.value)}
+                    placeholder={t("wb.reassignEmailPlaceholder")}
+                    className="min-h-[44px]"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={reassignParticipant}
+                    disabled={reassigning || !reassignEmail.trim()}
+                    className="min-h-[44px] shrink-0"
+                  >
+                    {reassigning ? <Loader2 className="w-4 h-4 animate-spin" /> : t("wb.reassign")}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter className="flex-wrap gap-2">
             <Button

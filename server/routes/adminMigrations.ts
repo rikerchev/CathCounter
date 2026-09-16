@@ -143,6 +143,20 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results TEXT`);
     },
   },
+  "v2.90-competition-registration-order": {
+    label: "v2.90 — Записвания за състезания: пореден номер и назначаване на потребител",
+    run: async () => {
+      // v2.90 — list_order_at: see the matching column comment in
+      // entities.generated.ts (drives the participant list's display
+      // order). assigned_user_email: set only by the dedicated reassign
+      // endpoint (server/routes/competitionRegistrations.ts), never
+      // generically writable — a snapshot of which system account a
+      // registration was manually assigned to, kept separate from
+      // registered_by_email (who originally submitted it).
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS list_order_at TEXT`);
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_user_email TEXT`);
+    },
+  },
 };
 
 /**
@@ -213,6 +227,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'competition_registrations' AND column_name = 'catch_results'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.90-competition-registration-order") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'competition_registrations' AND column_name = 'list_order_at'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

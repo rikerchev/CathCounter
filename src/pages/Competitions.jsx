@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send, Scale, Download, Loader2 } from "lucide-react";
+import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import CompetitionCalendar from "@/components/CompetitionCalendar";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 import {
-  parseCatchResults, stringifyCatchResults, totalCatchWeight, hasAnyResult, roundSectorPoints, rankByPenaltyAndWeight,
+  parseCatchResults, totalCatchWeight, hasAnyResult, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
 
 // v2.83 — fishing_type used to be a fixed enum; competition creation now
@@ -55,11 +55,11 @@ export default function Competitions() {
   const country = user?.country || "";
   const navigate = useNavigate();
   const highlightComp = searchParams.get("comp");
-  // v2.87 — registration currently having its per-round catch weight
-  // entered (resultsFor), and the competition currently showing its
-  // standings dialog (standingsFor, all-registrations, read-only).
-  const [resultsFor, setResultsFor] = useState(null);
-  const [resultsForm, setResultsForm] = useState([]);
+  // v2.90 — catch-weight entry moved entirely to the organizer/admin side
+  // (WaterBodyManagement.jsx) — a registrant no longer enters their own
+  // results here, only sees them (see the myRegs badges below) once the
+  // organizer records them. standingsFor is the competition currently
+  // showing its standings dialog (all-registrations, read-only).
   const [standingsFor, setStandingsFor] = useState(null);
   // v2.89 — backs the "Изтегли като снимка" button in the standings dialog.
   const standingsRef = useRef(null);
@@ -205,42 +205,6 @@ export default function Competitions() {
     try {
       await base44.entities.CompetitionRegistration.update(reg.id, { status: "cancelled" });
       toast({ title: t("comp.unregistered") });
-      await load();
-    } catch (e) {
-      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
-    }
-  }
-
-  // v2.87 — enter/edit THIS registration's own per-round catch weight.
-  // Reachable only for a registration the current account itself created
-  // (see the render below — the button only appears on the account's own
-  // myRegs rows), which the server's owner_or_relation update rule already
-  // allows regardless. Organizer/admin edit any participant's results from
-  // WaterBodyManagement.jsx instead.
-  function openResultsForm(reg, roundsCount) {
-    const results = parseCatchResults(reg.catch_results);
-    setResultsFor(reg);
-    setResultsForm(Array.from({ length: Math.max(1, roundsCount || 1) }, (_, i) => (
-      results[i] != null ? String(results[i]) : ""
-    )));
-  }
-
-  function updateResultInput(i, value) {
-    setResultsForm((f) => {
-      const next = f.slice();
-      next[i] = value;
-      return next;
-    });
-  }
-
-  async function saveResults() {
-    if (!resultsFor) return;
-    try {
-      await base44.entities.CompetitionRegistration.update(resultsFor.id, {
-        catch_results: stringifyCatchResults(resultsForm),
-      });
-      toast({ title: t("comp.resultsSaved") });
-      setResultsFor(null);
       await load();
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
@@ -477,15 +441,13 @@ export default function Competitions() {
                                   {t("comp.yourBox")}: {r.assigned_sector} — {r.assigned_box}
                                 </div>
                               )}
-                              {/* v2.87 — enter/edit this registration's own
-                                  per-round catch weight. Only the account
-                                  that made this specific registration sees
-                                  this button for it (see myRegs above) —
-                                  the server's owner_or_relation update rule
-                                  allows exactly that. v2.89 — also shows this
+                              {/* v2.90 — read-only: catch weight is now
+                                  entered only by the organizer/admin (see
+                                  WaterBodyManagement.jsx) — this just shows
+                                  what's been recorded so far, plus this
                                   registration's own overall standing once
                                   it's been scored (see rankByPenaltyAndWeight). */}
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
+                              {(totalCatchWeight(parseCatchResults(r.catch_results)) > 0 || rankedMap.has(r.id)) && (
                                 <div className="flex items-center gap-1.5 flex-wrap">
                                   {totalCatchWeight(parseCatchResults(r.catch_results)) > 0 && (
                                     <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
@@ -498,15 +460,7 @@ export default function Competitions() {
                                     </span>
                                   )}
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => openResultsForm(r, roundsCount)}
-                                  className="min-h-[36px] text-xs ml-auto"
-                                >
-                                  <Scale className="w-3.5 h-3.5 mr-1" /> {t("comp.enterResults")}
-                                </Button>
-                              </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -569,64 +523,6 @@ export default function Competitions() {
             <Button onClick={handleRegister} disabled={submitting} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
               {submitting ? t("comp.register") + "..." : t("common.save")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* v2.87 — enter/edit one round of catch weight for one of the
-          account's own registrations (see openResultsForm/saveResults).
-          v2.89 — also shows this registration's LIVE per-round sector
-          points and overall standing as the account types, the same
-          draft-substitution trick as WaterBodyManagement.jsx's editingReg
-          dialog. */}
-      <Dialog open={!!resultsFor} onOpenChange={(o) => !o && setResultsFor(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="break-words">{t("comp.enterResults")} — {resultsFor?.participant_name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {(() => {
-              if (!resultsFor) return null;
-              const draftRegs = regsFor(resultsFor.competition_id).map((r) => (
-                r.id === resultsFor.id
-                  ? { ...r, catch_results: stringifyCatchResults(resultsForm) }
-                  : r
-              ));
-              const roundsCount = resultsForm.length;
-              const roundPoints = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(draftRegs, i).get(resultsFor.id));
-              const overall = rankByPenaltyAndWeight(draftRegs, roundsCount).find((x) => x.id === resultsFor.id);
-              return (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    {resultsForm.map((w, i) => (
-                      <div key={i} className="space-y-1">
-                        <Label className="text-xs text-slate-400 font-normal">
-                          {t("comp.round")} {i + 1}
-                          {typeof roundPoints[i] === "number" && ` · ${roundPoints[i]} ${t("comp.pointsUnit")}`}
-                        </Label>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={w}
-                          onChange={(e) => updateResultInput(i, e.target.value)}
-                          placeholder={t("comp.kg")}
-                          className="min-h-[44px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    {t("comp.totalWeight")}: {totalCatchWeight(resultsForm.map((v) => (v === "" ? null : Number(v))))} {t("comp.kg")}
-                    {overall && ` · ${t("comp.penaltyPoints")}: ${overall.penalty} ${t("comp.pointsUnit")} · ${t("comp.standings")} #${overall.rank}`}
-                  </p>
-                </>
-              );
-            })()}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResultsFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
-            <Button onClick={saveResults} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

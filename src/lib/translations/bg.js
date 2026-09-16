@@ -459,6 +459,15 @@ export const bg = {
     "wb.confirmCancelRegistration": "Сигурни ли сте, че искате да отпишете този участник?",
     "wb.participantUpdated": "Участникът е обновен",
     "wb.registrationCancelled": "Регистрацията е отписана",
+    // v2.90 — assign a registration to a real system account (organizer's
+    // participant-edit dialog); "assignedToAccount" also labels the badge
+    // shown on the participant row once this has been done.
+    "wb.assignedToAccount": "Назначен на акаунт",
+    "wb.reassignToUser": "Назначи към потребител",
+    "wb.reassignEmailPlaceholder": "Имейл на потребител",
+    "wb.reassign": "Назначи",
+    "wb.reassignSuccess": "Участникът е назначен на потребителя",
+    "wb.reassignError": "Грешка при назначаването",
     "wb.assignedBox": "Бокс",
     "wb.competitionSector": "Сектор",
     "wb.roundsCount": "Брой манши",

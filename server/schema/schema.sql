@@ -593,3 +593,14 @@ END $$;
 -- server/routes/adminMigrations.ts.
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS rounds_count INTEGER;
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results TEXT;
+
+-- v2.90: list_order_at (ISO timestamp, set by the organizer's "edit
+-- participant" dialog on every save) drives the participants list's
+-- display order — see the matching column comment in
+-- server/schema/entities.generated.ts. assigned_user_email is set only by
+-- the dedicated reassign endpoint (server/routes/competitionRegistrations.ts),
+-- never through the generic entity update path — a snapshot of which system
+-- account a registration is currently assigned to, kept separate from
+-- registered_by_email (who originally submitted it). Safe to re-run.
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS list_order_at TEXT;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_user_email TEXT;
