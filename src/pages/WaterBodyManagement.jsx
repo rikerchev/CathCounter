@@ -33,7 +33,10 @@ function fishingTypeLabel(value, t) {
   return FISHING_TYPE_KEYS.includes(value) ? t("fishing." + value) : value;
 }
 
-const EMPTY_SECTOR_ROW = { name: "", boxCount: "" };
+// v2.84 — boxCount only drives how many label cells appear in the editor
+// (see updateSectorRow); the actual per-box names/numbers live in `boxes`
+// and are what gets saved (see stringifySectorsConfig).
+const EMPTY_SECTOR_ROW = { name: "", boxCount: "", boxes: [] };
 
 function formatDate(d, lang) {
   if (!d) return "—";
@@ -141,7 +144,10 @@ export default function WaterBodyManagement() {
   function openEditCompForm(comp) {
     setCompFor(null);
     setCompEditing(comp);
-    const sectors = parseSectorsConfig(comp.sectors_config);
+    // parseSectorsConfig returns {name, boxes} only — boxCount is a
+    // form-only convenience field, so it's derived here from boxes.length
+    // for display (see updateSectorRow for how it's kept in sync afterward).
+    const parsed = parseSectorsConfig(comp.sectors_config).map((s) => ({ ...s, boxCount: String(s.boxes.length) }));
     setCompForm({
       title: comp.title || "",
       fishing_type: fishingTypeLabel(comp.fishing_type, t),
@@ -152,7 +158,7 @@ export default function WaterBodyManagement() {
       fee: comp.fee ? String(comp.fee) : "",
       date: toDatetimeLocal(comp.date),
       registration_deadline: toDatetimeLocal(comp.registration_deadline),
-      sectors: sectors.length > 0 ? sectors : [EMPTY_SECTOR_ROW],
+      sectors: parsed.length > 0 ? parsed : [EMPTY_SECTOR_ROW],
     });
     setShowCompForm(true);
   }
@@ -161,10 +167,35 @@ export default function WaterBodyManagement() {
     setCompForm((f) => ({ ...f, sectors: [...f.sectors, EMPTY_SECTOR_ROW] }));
   }
 
+  // v2.84 — changing boxCount resizes `boxes` to match: growing appends
+  // default labels ("1", "2", ...) for the new slots, shrinking just
+  // truncates (any custom labels already typed into the kept slots are left
+  // alone). boxCount itself is kept only as the input's own display value —
+  // stringifySectorsConfig never looks at it, only at `boxes`.
   function updateSectorRow(index, field, value) {
     setCompForm((f) => {
       const sectors = f.sectors.slice();
-      sectors[index] = { ...sectors[index], [field]: value };
+      if (field === "boxCount") {
+        const n = Math.max(0, Number(value) || 0);
+        const oldBoxes = sectors[index].boxes || [];
+        const boxes = oldBoxes.slice(0, n);
+        for (let i = boxes.length; i < n; i++) boxes.push(String(i + 1));
+        sectors[index] = { ...sectors[index], boxCount: value, boxes };
+      } else {
+        sectors[index] = { ...sectors[index], [field]: value };
+      }
+      return { ...f, sectors };
+    });
+  }
+
+  // v2.84 — edits one individual box's own label within a sector, e.g.
+  // renaming the auto-generated "3" to "VIP-1" or leaving gaps.
+  function updateBoxLabel(sectorIndex, boxIndex, value) {
+    setCompForm((f) => {
+      const sectors = f.sectors.slice();
+      const boxes = (sectors[sectorIndex].boxes || []).slice();
+      boxes[boxIndex] = value;
+      sectors[sectorIndex] = { ...sectors[sectorIndex], boxes };
       return { ...f, sectors };
     });
   }
@@ -611,6 +642,9 @@ export default function WaterBodyManagement() {
                           >
                             <ClipboardList className="w-3.5 h-3.5 mr-1" /> {t("wb.participants")} ({regs.length})
                           </Button>
+                          <Button variant="outline" size="sm" onClick={() => drawLotsFor(c)} className="min-h-[36px] text-xs">
+                            <Shuffle className="w-3.5 h-3.5 mr-1" /> {t("wb.drawLots")}
+                          </Button>
                           {c.status === "open" && (
                             <Button variant="outline" size="sm" onClick={() => closeCompetition(c)} className="min-h-[36px] text-xs">
                               {t("wb.closeRegistration")}
@@ -738,39 +772,59 @@ export default function WaterBodyManagement() {
               <Textarea value={compForm.conditions} onChange={(e) => setCompForm((f) => ({ ...f, conditions: e.target.value }))} rows={3} />
             </div>
 
-            {/* v2.83 — named sectors, each with its own box count. Stored as
-                JSON on Competition.sectors_config (see
+            {/* v2.83/2.84 — named sectors, each holding a list of
+                INDIVIDUALLY labeled boxes. Stored as JSON on
+                Competition.sectors_config (see
                 src/lib/competitionSectors.js). Blank rows are silently
-                dropped on save, so an unused trailing row is harmless. */}
+                dropped on save, so an unused trailing row is harmless.
+                boxCount just drives how many label cells appear below each
+                sector — the labels themselves (not the count) are what's
+                saved, so the organizer can rename any cell to a custom
+                number/name, or leave gaps, before drawing lots. */}
             <div className="space-y-1.5">
               <Label>{t("wb.sectorsBoxesConfig")}</Label>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {compForm.sectors.map((s, i) => (
-                  <div key={i} className="flex gap-2 items-center">
-                    <Input
-                      value={s.name}
-                      onChange={(e) => updateSectorRow(i, "name", e.target.value)}
-                      placeholder={t("wb.sectorNameLabel")}
-                      className="min-h-[44px] flex-1"
-                    />
-                    <Input
-                      type="number"
-                      min="1"
-                      value={s.boxCount}
-                      onChange={(e) => updateSectorRow(i, "boxCount", e.target.value)}
-                      placeholder={t("wb.boxCountLabel")}
-                      className="min-h-[44px] w-24"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSectorRow(i)}
-                      disabled={compForm.sectors.length === 1}
-                      className="min-h-[44px] shrink-0 text-slate-400 hover:text-red-600"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div key={i} className="rounded-lg border border-slate-200 dark:border-border p-2 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={s.name}
+                        onChange={(e) => updateSectorRow(i, "name", e.target.value)}
+                        placeholder={t("wb.sectorNameLabel")}
+                        className="min-h-[44px] flex-1"
+                      />
+                      <Input
+                        type="number"
+                        min="1"
+                        value={s.boxCount}
+                        onChange={(e) => updateSectorRow(i, "boxCount", e.target.value)}
+                        placeholder={t("wb.boxCountLabel")}
+                        className="min-h-[44px] w-24"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeSectorRow(i)}
+                        disabled={compForm.sectors.length === 1}
+                        className="min-h-[44px] shrink-0 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {s.boxes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.boxes.map((label, bi) => (
+                          <Input
+                            key={bi}
+                            value={label}
+                            onChange={(e) => updateBoxLabel(i, bi, e.target.value)}
+                            title={`${t("wb.boxLabel")} ${bi + 1}`}
+                            className="min-h-[40px] w-12 text-center px-1"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -779,7 +833,7 @@ export default function WaterBodyManagement() {
                   <PlusCircle className="w-3.5 h-3.5 mr-1" /> {t("wb.addSector")}
                 </Button>
                 <span className="text-xs text-slate-400">
-                  {t("wb.totalBoxes")}: {totalBoxes(compForm.sectors.map((s) => ({ ...s, boxCount: Number(s.boxCount) || 0 })))}
+                  {t("wb.totalBoxes")}: {totalBoxes(compForm.sectors)}
                 </span>
               </div>
             </div>

@@ -198,8 +198,9 @@ CREATE TABLE competitions (
   date TEXT,
   registration_deadline TEXT,
   status TEXT CHECK (status IN ('open', 'closed', 'completed', 'cancelled')) DEFAULT 'open',
-  -- v2.83: JSON-encoded [{name, boxCount}, ...] — see the matching column
-  -- comment in server/schema/entities.generated.ts.
+  -- v2.83: JSON-encoded sectors. v2.84: each sector holds its own list of
+  -- individually named/numbered boxes: [{name, boxes: [...]}, ...] — see
+  -- the matching column comment in server/schema/entities.generated.ts.
   sectors_config TEXT,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -216,9 +217,11 @@ CREATE TABLE competition_registrations (
   payment_status TEXT CHECK (payment_status IN ('pending', 'paid', 'transferred')) DEFAULT 'pending',
   status TEXT CHECK (status IN ('active', 'cancelled')) DEFAULT 'active',
   -- v2.83: set by the organizer's "draw lots" action — see the matching
-  -- column comments in server/schema/entities.generated.ts.
+  -- column comments in server/schema/entities.generated.ts. v2.84:
+  -- assigned_box is TEXT (was INTEGER) — boxes now carry organizer-chosen
+  -- labels, not just an auto-numbered sequence.
   assigned_sector TEXT,
-  assigned_box INTEGER,
+  assigned_box TEXT,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -545,9 +548,12 @@ ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS registered_by_ema
 -- fixed-list CHECK constraint (auto-named by Postgres as
 -- "<table>_<column>_check" since it was declared inline with no explicit
 -- name). (2) sectors_config on competitions holds the organizer's named
--- sectors + box counts (JSON). (3) assigned_sector/assigned_box on
--- competition_registrations hold each participant's drawn box. Safe to
--- re-run. Applied via the same "Приложи обновление" admin button as
+-- sectors (JSON). (3) assigned_sector/assigned_box on
+-- competition_registrations hold each participant's drawn box. v2.84:
+-- assigned_box is created/kept as TEXT, not INTEGER — the ALTER COLUMN TYPE
+-- block below defensively converts it if an earlier partial run of this
+-- same migration already created it as INTEGER. Safe to re-run either way.
+-- Applied via the same "Приложи обновление" admin button as
 -- v2.68/v2.69/v2.71/v2.77/v2.80 — see server/routes/adminMigrations.ts.
 DO $$
 BEGIN
@@ -560,4 +566,13 @@ BEGIN
 END $$;
 ALTER TABLE competitions ADD COLUMN IF NOT EXISTS sectors_config TEXT;
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_sector TEXT;
-ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box INTEGER;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box TEXT;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type <> 'text'
+  ) THEN
+    ALTER TABLE competition_registrations ALTER COLUMN assigned_box TYPE TEXT USING assigned_box::TEXT;
+  END IF;
+END $$;

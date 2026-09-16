@@ -100,7 +100,7 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
     },
   },
   "v2.83-competition-sectors-boxes": {
-    label: "v2.83 — Състезания: свободен вид риболов, сектори/боксове, жребий",
+    label: "v2.83/2.84 — Състезания: свободен вид риболов, сектори/боксове, жребий",
     run: async () => {
       // Drop the old fixed-list CHECK on fishing_type so it accepts free
       // text. Auto-named by Postgres (inline CHECK, no explicit name).
@@ -117,7 +117,23 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       `);
       await sql.unsafe(`ALTER TABLE competitions ADD COLUMN IF NOT EXISTS sectors_config TEXT`);
       await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_sector TEXT`);
-      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box INTEGER`);
+      // v2.84 — assigned_box is TEXT, not INTEGER: boxes now carry
+      // organizer-chosen labels, not just an auto-numbered sequence. The
+      // ALTER COLUMN TYPE below defensively converts it if an earlier
+      // partial run of this same migration id already created it as
+      // INTEGER — safe/idempotent either way.
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box TEXT`);
+      await sql.unsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type <> 'text'
+          ) THEN
+            ALTER TABLE competition_registrations ALTER COLUMN assigned_box TYPE TEXT USING assigned_box::TEXT;
+          END IF;
+        END $$;
+      `);
     },
   },
 };
@@ -177,9 +193,12 @@ export async function handleAdminMigrationsRoute(
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.83-competition-sectors-boxes") {
+        // Checks assigned_box is TEXT specifically (not just present) so
+        // this still shows "not applied" — safe to click again — if an
+        // earlier partial run left it as the old INTEGER type (v2.84 fix).
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box'
+          WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type = 'text'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

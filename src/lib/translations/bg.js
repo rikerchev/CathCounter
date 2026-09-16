@@ -440,6 +440,7 @@ export const bg = {
     "wb.sectorsBoxesConfig": "Сектори и боксове",
     "wb.sectorNameLabel": "Име/номер на сектор",
     "wb.boxCountLabel": "Брой боксове",
+    "wb.boxLabel": "Бокс №",
     "wb.addSector": "Добави сектор",
     "wb.totalBoxes": "Общо боксове",
     "wb.drawLots": "Тегли жребий",

@@ -453,6 +453,7 @@ export const en = {
     "wb.sectorsBoxesConfig": "Sectors and boxes",
     "wb.sectorNameLabel": "Sector name/number",
     "wb.boxCountLabel": "Number of boxes",
+    "wb.boxLabel": "Box #",
     "wb.addSector": "Add sector",
     "wb.totalBoxes": "Total boxes",
     "wb.drawLots": "Draw lots",

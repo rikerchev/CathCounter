@@ -187,12 +187,14 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "date", type: "string", required: true },
       { name: "registration_deadline", type: "string", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["open", "closed", "completed", "cancelled"] },
-      // v2.83 — JSON-encoded array of { name, boxCount }, e.g.
-      // '[{"name":"А","boxCount":12},{"name":"Б","boxCount":10}]'. No native
-      // JSON/array ColumnType exists here (see ColumnType above), so this
-      // follows the same "structured data in a TEXT column" pattern as
-      // MenuGroup.menu_items. Parsed/written via src/lib/competitionSectors.js.
-      // Empty/null = no sectors configured yet (draw disabled in the UI).
+      // v2.83 — JSON-encoded array of named sectors. v2.84 — each sector
+      // holds its own list of individually named/numbered boxes (not just a
+      // count), e.g. '[{"name":"А","boxes":["1","2","3"]},{"name":"Б",
+      // "boxes":["10","11"]}]'. No native JSON/array ColumnType exists here
+      // (see ColumnType above), so this follows the same "structured data
+      // in a TEXT column" pattern as MenuGroup.menu_items. Parsed/written
+      // via src/lib/competitionSectors.js. Empty/null = no sectors
+      // configured yet (draw disabled in the UI).
       { name: "sectors_config", type: "string", required: false },
     ],
     rules: {
@@ -221,9 +223,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // v2.83 — set by the organizer's "draw lots" action (see
       // src/lib/competitionSectors.js drawBoxes()). Both null until then.
       // assigned_sector is one of the names from the competition's own
-      // sectors_config; assigned_box is 1..that sector's boxCount.
+      // sectors_config. v2.84 — assigned_box was integer (auto-numbered
+      // 1..boxCount); it's now the individual box's own label from that
+      // sector's `boxes` array, since the organizer can name/number each
+      // box independently (not necessarily sequential integers) — so this
+      // is a string, not an integer.
       { name: "assigned_sector", type: "string", required: false },
-      { name: "assigned_box", type: "integer", required: false },
+      { name: "assigned_box", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
