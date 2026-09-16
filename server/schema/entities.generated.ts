@@ -173,7 +173,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "water_body_id", type: "string", required: true },
       { name: "water_body_name", type: "string", required: false },
       { name: "title", type: "string", required: true },
-      { name: "fishing_type", type: "enum", required: true, enumValues: ["feeder", "float", "carp", "predator", "match", "other"] },
+      // v2.83 — was a fixed enum; the organizer asked for free text instead
+      // (competitions don't always fit "feeder/float/carp/predator/match/
+      // other"). Old rows keep whichever of those six values they already
+      // had — still rendered through the fishing.* translation keys by the
+      // UI for backward compatibility — new rows can be any string.
+      { name: "fishing_type", type: "string", required: true },
       { name: "max_participants", type: "integer", required: true },
       { name: "max_reserves", type: "integer", required: false },
       { name: "conditions", type: "string", required: false },
@@ -182,6 +187,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "date", type: "string", required: true },
       { name: "registration_deadline", type: "string", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["open", "closed", "completed", "cancelled"] },
+      // v2.83 — JSON-encoded array of { name, boxCount }, e.g.
+      // '[{"name":"А","boxCount":12},{"name":"Б","boxCount":10}]'. No native
+      // JSON/array ColumnType exists here (see ColumnType above), so this
+      // follows the same "structured data in a TEXT column" pattern as
+      // MenuGroup.menu_items. Parsed/written via src/lib/competitionSectors.js.
+      // Empty/null = no sectors configured yet (draw disabled in the UI).
+      { name: "sectors_config", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -206,12 +218,26 @@ export const ENTITIES: Record<string, EntityDef> = {
       // (WaterBodyManagement.jsx) always trace a registration back to a
       // real account. Never touched after create.
       { name: "registered_by_email", type: "string", required: false },
+      // v2.83 — set by the organizer's "draw lots" action (see
+      // src/lib/competitionSectors.js drawBoxes()). Both null until then.
+      // assigned_sector is one of the names from the competition's own
+      // sectors_config; assigned_box is 1..that sector's boxCount.
+      { name: "assigned_sector", type: "string", required: false },
+      { name: "assigned_box", type: "integer", required: false },
     ],
     rules: {
       read: { kind: "public" },
       create: { kind: "authenticated" },
-      update: { kind: "owner", field: "created_by_id" },
-      delete: { kind: "owner", field: "created_by_id" },
+      // v2.83 — was `owner` (created_by_id only), which meant only the
+      // participant who submitted a registration could ever edit/cancel it —
+      // the water body owner/organizer running the competition couldn't
+      // touch a registration they didn't personally create. owner_or_relation
+      // additionally allows whoever owns the competition itself (fk chain:
+      // this row's competition_id -> competitions.created_by_id), so the
+      // organizer can edit names/phones/payment status and assign draw
+      // results for every participant, not just their own registrations.
+      update: { kind: "owner_or_relation", field: "created_by_id", fk: "competition_id", table: "competitions" },
+      delete: { kind: "owner_or_relation", field: "created_by_id", fk: "competition_id", table: "competitions" },
     },
   },
   CustomAd: {

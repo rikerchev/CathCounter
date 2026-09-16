@@ -15,7 +15,16 @@ import CompetitionCalendar from "@/components/CompetitionCalendar";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 
+// v2.83 — fishing_type used to be a fixed enum; competition creation now
+// takes free text instead (see WaterBodyManagement.jsx). Old competitions
+// still hold one of these six values, so they're translated as before;
+// anything else (new, free-typed) is shown as-is.
 const FISHING_TYPE_KEYS = ["feeder", "float", "carp", "predator", "match", "other"];
+
+function fishingTypeLabel(value, t) {
+  if (!value) return "";
+  return FISHING_TYPE_KEYS.includes(value) ? t("fishing." + value) : value;
+}
 
 function formatDate(d, lang) {
   if (!d) return "—";
@@ -259,9 +268,11 @@ export default function Competitions() {
                         <h2 className="font-bold text-slate-800 dark:text-foreground">{c.title}</h2>
                         <p className="text-xs text-slate-400 mt-0.5">{c.water_body_name || t("comp.waterBody")}</p>
                       </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap">
-                        {t("fishing." + c.fishing_type)}
-                      </span>
+                      {c.fishing_type && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 whitespace-nowrap">
+                          {fishingTypeLabel(c.fishing_type, t)}
+                        </span>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-3 text-xs text-slate-500 dark:text-muted-foreground">
@@ -305,18 +316,29 @@ export default function Competitions() {
                         </Button>
                       )}
                       {myReg ? (
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${
-                            myReg.slot_type === "main"
-                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                              : "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
-                          }`}>
-                            {myReg.slot_type === "main" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                            {myReg.slot_type === "main" ? t("comp.registeredAsMain") : t("comp.registeredAsReserve")}
-                          </span>
-                          <Button variant="outline" size="sm" onClick={() => cancelRegistration(myReg)} className="min-h-[40px] text-xs">
-                            {t("comp.unregister")}
-                          </Button>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${
+                              myReg.slot_type === "main"
+                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                : "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                            }`}>
+                              {myReg.slot_type === "main" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                              {myReg.slot_type === "main" ? t("comp.registeredAsMain") : t("comp.registeredAsReserve")}
+                            </span>
+                            <Button variant="outline" size="sm" onClick={() => cancelRegistration(myReg)} className="min-h-[40px] text-xs">
+                              {t("comp.unregister")}
+                            </Button>
+                          </div>
+                          {/* v2.83 — set once the organizer runs the draw
+                              (WaterBodyManagement.jsx). Shown as soon as it's
+                              assigned so the participant knows where to fish
+                              without asking the organizer. */}
+                          {myReg.assigned_box != null && (
+                            <div className="rounded-xl bg-cyan-50 border border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-800 px-3 py-2 text-xs font-medium text-cyan-800 dark:text-cyan-300">
+                              {t("comp.yourBox")}: {myReg.assigned_sector} — {myReg.assigned_box}
+                            </div>
+                          )}
                         </div>
                       ) : allFull ? (
                         <span className="text-xs text-slate-400">{t("comp.allFull")}</span>

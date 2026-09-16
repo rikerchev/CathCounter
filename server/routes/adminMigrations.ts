@@ -99,6 +99,27 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS registered_by_email TEXT`);
     },
   },
+  "v2.83-competition-sectors-boxes": {
+    label: "v2.83 — Състезания: свободен вид риболов, сектори/боксове, жребий",
+    run: async () => {
+      // Drop the old fixed-list CHECK on fishing_type so it accepts free
+      // text. Auto-named by Postgres (inline CHECK, no explicit name).
+      await sql.unsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE table_name = 'competitions' AND constraint_name = 'competitions_fishing_type_check'
+          ) THEN
+            ALTER TABLE competitions DROP CONSTRAINT competitions_fishing_type_check;
+          END IF;
+        END $$;
+      `);
+      await sql.unsafe(`ALTER TABLE competitions ADD COLUMN IF NOT EXISTS sectors_config TEXT`);
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_sector TEXT`);
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box INTEGER`);
+    },
+  },
 };
 
 /**
@@ -152,6 +173,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'competition_registrations' AND column_name = 'registered_by_email'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.83-competition-sectors-boxes") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

@@ -171,7 +171,7 @@ export const EXPORT_GROUPS = {
         { key: "title", label: "Заглавие", hint: "Заглавие на състезанието" },
         { key: "water_body_id", label: "Водоем ID", hint: "ID на водоема" },
         { key: "water_body_name", label: "Водоем", hint: "Име на водоема" },
-        { key: "fishing_type", label: "Вид риболов", hint: "feeder, float, carp, predator, match, other" },
+        { key: "fishing_type", label: "Вид риболов", hint: "Свободен текст (v2.83) — напр. Фидер, Поплавък, Шаран..." },
         { key: "max_participants", label: "Макс. участници", hint: "Брой участници", type: "number" },
         { key: "max_reserves", label: "Макс. резерви", hint: "Брой резерви", type: "number" },
         { key: "conditions", label: "Условия", hint: "Условия за участие" },
@@ -183,37 +183,42 @@ export const EXPORT_GROUPS = {
       ],
     }],
   },
+  // v2.83 — "sector" here means a single numbered fishing spot (the
+  // pre-v2.83 meaning, unrelated to a competition's named sector-of-boxes
+  // groups) — labels renamed to "бокс" to match; entity/column names
+  // (SectorAvailability, total_sectors, sector_number, ...) intentionally
+  // left as-is, see WaterBodyManagement.jsx's v2.83 comment for why.
   sectoravail: {
-    title: "Секторна наличност",
-    desc: "Наличност на сектори по водоеми",
+    title: "Наличност на боксове",
+    desc: "Наличност на боксове по водоеми",
     entity: "SectorAvailability",
     sheets: [{
-      sheetName: "Секторна наличност",
+      sheetName: "Наличност на боксове",
       columns: [
         { key: "id", label: "ID", hint: "Системен идентификатор" },
         { key: "water_body_id", label: "Водоем ID", hint: "ID на водоема" },
         { key: "water_body_name", label: "Водоем", hint: "Име на водоема" },
         { key: "date", label: "Начална дата", hint: "Дата (YYYY-MM-DD)" },
         { key: "end_date", label: "Крайна дата", hint: "Крайна дата (YYYY-MM-DD)" },
-        { key: "total_sectors", label: "Брой сектори", hint: "Общ брой сектори", type: "number" },
+        { key: "total_sectors", label: "Брой боксове", hint: "Общ брой боксове", type: "number" },
         { key: "fee_per_person", label: "Такса (€)", hint: "Такса на човек", type: "number" },
         { key: "status", label: "Статус", hint: "open или closed" },
       ],
     }],
   },
   sectorres: {
-    title: "Секторни резервации",
-    desc: "Резервации на сектори",
+    title: "Резервации на боксове",
+    desc: "Резервации на боксове",
     entity: "SectorReservation",
     sheets: [{
-      sheetName: "Секторни резервации",
+      sheetName: "Резервации на боксове",
       columns: [
         { key: "id", label: "ID", hint: "Системен идентификатор" },
         { key: "water_body_id", label: "Водоем ID", hint: "ID на водоема" },
         { key: "water_body_name", label: "Водоем", hint: "Име на водоема" },
         { key: "availability_id", label: "Наличност ID", hint: "ID на наличността" },
         { key: "date", label: "Дата", hint: "Дата (YYYY-MM-DD)" },
-        { key: "sector_number", label: "Сектор №", hint: "Номер на сектора", type: "number" },
+        { key: "sector_number", label: "Бокс №", hint: "Номер на бокса", type: "number" },
         { key: "reserved_by_name", label: "Резервиран от", hint: "Име на резервиращия" },
         { key: "reserved_by_phone", label: "Телефон", hint: "Телефон за връзка" },
         { key: "fee", label: "Такса (€)", hint: "Такса в евро", type: "number" },

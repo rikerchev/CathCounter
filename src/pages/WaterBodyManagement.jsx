@@ -4,9 +4,12 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
+import {
+  parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
+} from "@/lib/competitionSectors";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +22,33 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 
-const FISHING_TYPE_VALUES = ["feeder", "float", "carp", "predator", "match", "other"];
+// v2.83 — fishing_type used to be a fixed enum (see below in the create/edit
+// form, now a free-text Input); FISHING_TYPE_KEYS is only kept to translate
+// OLD competitions that still hold one of these six values when they're
+// opened for editing (see openEditCompForm), so the input shows "Фидер"
+// instead of the raw internal key "feeder".
+const FISHING_TYPE_KEYS = ["feeder", "float", "carp", "predator", "match", "other"];
+function fishingTypeLabel(value, t) {
+  if (!value) return "";
+  return FISHING_TYPE_KEYS.includes(value) ? t("fishing." + value) : value;
+}
+
+const EMPTY_SECTOR_ROW = { name: "", boxCount: "" };
 
 function formatDate(d, lang) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// datetime-local inputs need "YYYY-MM-DDTHH:mm" in LOCAL time, not the ISO
+// string (UTC, with seconds/millis) that Competition.date is stored as —
+// used only when opening an existing competition for editing.
+function toDatetimeLocal(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export default function WaterBodyManagement() {
@@ -36,10 +61,18 @@ export default function WaterBodyManagement() {
   const [loading, setLoading] = useState(true);
   const [showCompForm, setShowCompForm] = useState(false);
   const [compFor, setCompFor] = useState(null);
+  // v2.83 — null = creating a new competition (compFor says for which water
+  // body); an object = editing that existing competition instead.
+  const [compEditing, setCompEditing] = useState(null);
   const [compForm, setCompForm] = useState({
-    title: "", fishing_type: "feeder", max_participants: "20", max_reserves: "5",
+    title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
     conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
+    sectors: [EMPTY_SECTOR_ROW],
   });
+  // v2.83 — editing one participant's name/phone/slot/payment status from
+  // the organizer's participant list (see participantsFor below).
+  const [editingReg, setEditingReg] = useState(null);
+  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending" });
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
@@ -93,11 +126,51 @@ export default function WaterBodyManagement() {
 
   function openCompForm(wb) {
     setCompFor(wb);
+    setCompEditing(null);
     setCompForm({
-      title: "", fishing_type: "feeder", max_participants: "20", max_reserves: "5",
+      title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
       conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
+      sectors: [EMPTY_SECTOR_ROW],
     });
     setShowCompForm(true);
+  }
+
+  // v2.83 — edit an existing competition (title, fishing type, capacity,
+  // fee, dates, conditions, and its sectors/boxes config). Same dialog as
+  // create, just prefilled and routed to update() on submit.
+  function openEditCompForm(comp) {
+    setCompFor(null);
+    setCompEditing(comp);
+    const sectors = parseSectorsConfig(comp.sectors_config);
+    setCompForm({
+      title: comp.title || "",
+      fishing_type: fishingTypeLabel(comp.fishing_type, t),
+      max_participants: String(comp.max_participants ?? "20"),
+      max_reserves: String(comp.max_reserves ?? "5"),
+      conditions: comp.conditions || "",
+      prize_fund: comp.prize_fund || "",
+      fee: comp.fee ? String(comp.fee) : "",
+      date: toDatetimeLocal(comp.date),
+      registration_deadline: toDatetimeLocal(comp.registration_deadline),
+      sectors: sectors.length > 0 ? sectors : [EMPTY_SECTOR_ROW],
+    });
+    setShowCompForm(true);
+  }
+
+  function addSectorRow() {
+    setCompForm((f) => ({ ...f, sectors: [...f.sectors, EMPTY_SECTOR_ROW] }));
+  }
+
+  function updateSectorRow(index, field, value) {
+    setCompForm((f) => {
+      const sectors = f.sectors.slice();
+      sectors[index] = { ...sectors[index], [field]: value };
+      return { ...f, sectors };
+    });
+  }
+
+  function removeSectorRow(index) {
+    setCompForm((f) => ({ ...f, sectors: f.sectors.filter((_, i) => i !== index) }));
   }
 
   function openEditForm(wb) {
@@ -179,29 +252,115 @@ export default function WaterBodyManagement() {
     return sectorRes.filter((r) => r.availability_id === availId);
   }
 
-  async function createCompetition(e) {
+  // v2.83 — handles both create (compEditing === null) and edit
+  // (compEditing === the competition being changed) through the one dialog.
+  async function saveCompetition(e) {
     e.preventDefault();
-    if (!compFor) return;
+    const payload = {
+      title: compForm.title,
+      fishing_type: compForm.fishing_type,
+      max_participants: Number(compForm.max_participants),
+      max_reserves: Number(compForm.max_reserves),
+      conditions: compForm.conditions,
+      prize_fund: compForm.prize_fund,
+      fee: compForm.fee ? Number(compForm.fee) : 0,
+      date: compForm.date ? new Date(compForm.date).toISOString() : null,
+      registration_deadline: compForm.registration_deadline ? new Date(compForm.registration_deadline).toISOString() : null,
+      sectors_config: stringifySectorsConfig(compForm.sectors),
+    };
     try {
-      await base44.entities.Competition.create({
-        water_body_id: compFor.id,
-        water_body_name: compFor.name,
-        title: compForm.title,
-        fishing_type: compForm.fishing_type,
-        max_participants: Number(compForm.max_participants),
-        max_reserves: Number(compForm.max_reserves),
-        conditions: compForm.conditions,
-        prize_fund: compForm.prize_fund,
-        fee: compForm.fee ? Number(compForm.fee) : 0,
-        date: compForm.date ? new Date(compForm.date).toISOString() : null,
-        registration_deadline: compForm.registration_deadline ? new Date(compForm.registration_deadline).toISOString() : null,
-        status: "open",
-      });
-      toast({ title: t("wb.competitionCreated") });
+      if (compEditing) {
+        await base44.entities.Competition.update(compEditing.id, payload);
+        toast({ title: t("wb.competitionUpdated") });
+      } else {
+        if (!compFor) return;
+        await base44.entities.Competition.create({
+          water_body_id: compFor.id,
+          water_body_name: compFor.name,
+          ...payload,
+          status: "open",
+        });
+        toast({ title: t("wb.competitionCreated") });
+      }
       setShowCompForm(false);
+      setCompEditing(null);
+      await load();
+    } catch (err) {
+      toast({ title: compEditing ? t("wb.errorSaving") : t("wb.errorCreating"), description: err.message, variant: "destructive" });
+    }
+  }
+
+  // v2.83 — random box-per-participant draw. Only MAIN-slot registrations
+  // are drawn (reserves aren't guaranteed a spot until promoted), and only
+  // when the competition has at least one sector/box configured. Re-running
+  // it after a previous draw overwrites every main participant's assignment
+  // (confirmed first) — there's no "keep old, fill in new" partial mode.
+  async function drawLotsFor(comp) {
+    const sectors = parseSectorsConfig(comp.sectors_config);
+    const boxCount = totalBoxes(sectors);
+    if (boxCount === 0) {
+      toast({ title: t("wb.noBoxesConfigured"), variant: "destructive" });
+      return;
+    }
+    const mainRegs = regsFor(comp.id).filter((r) => r.slot_type !== "reserve");
+    if (mainRegs.length === 0) {
+      toast({ title: t("wb.noMainParticipants"), variant: "destructive" });
+      return;
+    }
+    const alreadyDrawn = mainRegs.some((r) => r.assigned_box != null);
+    if (alreadyDrawn && !window.confirm(t("wb.confirmRedraw"))) return;
+    try {
+      const assignments = drawBoxes(mainRegs, sectors);
+      await base44.entities.CompetitionRegistration.bulkUpdate(
+        assignments.map((a) => ({ id: a.id, assigned_sector: a.sector, assigned_box: a.box }))
+      );
+      toast({ title: t("wb.drawSuccess") });
+      await load();
+    } catch (err) {
+      if (err.message === NOT_ENOUGH_BOXES) {
+        toast({ title: t("wb.notEnoughBoxes"), description: `${mainRegs.length} / ${boxCount}`, variant: "destructive" });
+      } else {
+        toast({ title: t("common.couldNotLoad"), description: err.message, variant: "destructive" });
+      }
+    }
+  }
+
+  function openEditReg(r) {
+    setEditingReg(r);
+    setRegEditForm({
+      participant_name: r.participant_name || "",
+      participant_phone: r.participant_phone || "",
+      slot_type: r.slot_type || "main",
+      payment_status: r.payment_status || "pending",
+    });
+  }
+
+  async function saveRegEdit() {
+    if (!editingReg) return;
+    try {
+      await base44.entities.CompetitionRegistration.update(editingReg.id, {
+        participant_name: regEditForm.participant_name,
+        participant_phone: regEditForm.participant_phone,
+        slot_type: regEditForm.slot_type,
+        payment_status: regEditForm.payment_status,
+      });
+      toast({ title: t("wb.participantUpdated") });
+      setEditingReg(null);
       await load();
     } catch (e) {
-      toast({ title: t("wb.errorCreating"), description: e.message, variant: "destructive" });
+      toast({ title: t("wb.errorSaving"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  async function cancelRegistrationAsOrganizer(r) {
+    if (!window.confirm(t("wb.confirmCancelRegistration"))) return;
+    try {
+      await base44.entities.CompetitionRegistration.update(r.id, { status: "cancelled" });
+      toast({ title: t("wb.registrationCancelled") });
+      setEditingReg(null);
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
     }
   }
 
@@ -241,6 +400,8 @@ export default function WaterBodyManagement() {
       t("wb.slotType"),
       t("wb.registeredByAccount"),
       t("wb.paymentStatus"),
+      t("wb.competitionSector"),
+      t("wb.assignedBox"),
     ];
     const rows = regs.map((r) => [
       r.participant_name || "",
@@ -248,6 +409,8 @@ export default function WaterBodyManagement() {
       r.slot_type === "reserve" ? t("comp.reserves") : t("comp.participants"),
       r.registered_by_email || "",
       t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending"),
+      r.assigned_sector || "",
+      r.assigned_box != null ? String(r.assigned_box) : "",
     ]);
     const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
     // — UTF-8 BOM so Excel on Windows (this app's whole userbase, per
@@ -436,6 +599,9 @@ export default function WaterBodyManagement() {
                           <span className="flex items-center gap-1"><Medal className="w-3 h-3" /> {regs.filter((r) => r.slot_type === "reserve").length}/{c.max_reserves}</span>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
+                          <Button variant="outline" size="sm" onClick={() => openEditCompForm(c)} className="min-h-[36px] text-xs">
+                            <Pencil className="w-3.5 h-3.5 mr-1" /> {t("wb.edit")}
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
@@ -515,12 +681,14 @@ export default function WaterBodyManagement() {
         onSaved={saveWaterBody}
       />
 
-      <Dialog open={showCompForm} onOpenChange={setShowCompForm}>
-        <DialogContent>
+      <Dialog open={showCompForm} onOpenChange={(o) => { setShowCompForm(o); if (!o) setCompEditing(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("wb.newCompetition")} — {compFor?.name}</DialogTitle>
+            <DialogTitle>
+              {compEditing ? t("wb.editCompetition") : t("wb.newCompetition")} — {compEditing?.water_body_name || compFor?.name}
+            </DialogTitle>
           </DialogHeader>
-          <form onSubmit={createCompetition} className="space-y-3">
+          <form onSubmit={saveCompetition} className="space-y-3">
             <div className="space-y-1.5">
               <Label>{t("wb.titleLabel")} *</Label>
               <Input value={compForm.title} onChange={(e) => setCompForm((f) => ({ ...f, title: e.target.value }))} required className="min-h-[44px]" />
@@ -528,12 +696,13 @@ export default function WaterBodyManagement() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t("wb.fishingType")}</Label>
-                <Select value={compForm.fishing_type} onValueChange={(v) => setCompForm((f) => ({ ...f, fishing_type: v }))}>
-                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {FISHING_TYPE_VALUES.map((ft) => <SelectItem key={ft} value={ft}>{t("fishing." + ft)}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Input
+                  value={compForm.fishing_type}
+                  onChange={(e) => setCompForm((f) => ({ ...f, fishing_type: e.target.value }))}
+                  placeholder={t("wb.fishingTypePlaceholder")}
+                  required
+                  className="min-h-[44px]"
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("wb.prizeFund")}</Label>
@@ -568,9 +737,58 @@ export default function WaterBodyManagement() {
               <Label>{t("wb.conditions")}</Label>
               <Textarea value={compForm.conditions} onChange={(e) => setCompForm((f) => ({ ...f, conditions: e.target.value }))} rows={3} />
             </div>
+
+            {/* v2.83 — named sectors, each with its own box count. Stored as
+                JSON on Competition.sectors_config (see
+                src/lib/competitionSectors.js). Blank rows are silently
+                dropped on save, so an unused trailing row is harmless. */}
+            <div className="space-y-1.5">
+              <Label>{t("wb.sectorsBoxesConfig")}</Label>
+              <div className="space-y-2">
+                {compForm.sectors.map((s, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <Input
+                      value={s.name}
+                      onChange={(e) => updateSectorRow(i, "name", e.target.value)}
+                      placeholder={t("wb.sectorNameLabel")}
+                      className="min-h-[44px] flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min="1"
+                      value={s.boxCount}
+                      onChange={(e) => updateSectorRow(i, "boxCount", e.target.value)}
+                      placeholder={t("wb.boxCountLabel")}
+                      className="min-h-[44px] w-24"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeSectorRow(i)}
+                      disabled={compForm.sectors.length === 1}
+                      className="min-h-[44px] shrink-0 text-slate-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
+                <Button type="button" variant="outline" size="sm" onClick={addSectorRow} className="min-h-[36px] text-xs">
+                  <PlusCircle className="w-3.5 h-3.5 mr-1" /> {t("wb.addSector")}
+                </Button>
+                <span className="text-xs text-slate-400">
+                  {t("wb.totalBoxes")}: {totalBoxes(compForm.sectors.map((s) => ({ ...s, boxCount: Number(s.boxCount) || 0 })))}
+                </span>
+              </div>
+            </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCompForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>
-              <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("wb.create")}</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowCompForm(false); setCompEditing(null); }} className="min-h-[44px]">{t("wb.cancel")}</Button>
+              <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
+                {compEditing ? t("common.save") : t("wb.create")}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -629,7 +847,12 @@ export default function WaterBodyManagement() {
             const reserve = regs.filter((r) => r.slot_type === "reserve");
             const ParticipantRow = ({ r }) => (
               <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
-                <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
+                  <Button variant="ghost" size="icon" onClick={() => openEditReg(r)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
                 {r.registered_by_email && (
                   <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
                     <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
@@ -640,6 +863,17 @@ export default function WaterBodyManagement() {
                     <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
                   </p>
                 )}
+                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
+                    {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
+                  </span>
+                  {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
+                  {r.assigned_box != null && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+                      {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+                    </span>
+                  )}
+                </div>
               </div>
             );
             return (
@@ -665,14 +899,77 @@ export default function WaterBodyManagement() {
               </div>
             );
           })()}
-          <DialogFooter>
+          <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" onClick={() => setParticipantsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
+            <Button
+              variant="outline"
+              onClick={() => drawLotsFor(participantsFor)}
+              className="min-h-[44px]"
+            >
+              <Shuffle className="w-4 h-4 mr-1" /> {t("wb.drawLots")}
+            </Button>
             <Button
               onClick={() => exportParticipantsCsv(participantsFor)}
               className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* v2.83 — edit one registration's name/phone/slot/payment status, or
+          cancel it outright. Reachable from the pencil icon on each
+          ParticipantRow above. */}
+      <Dialog open={!!editingReg} onOpenChange={(o) => !o && setEditingReg(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("wb.editParticipant")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t("comp.fullName")} *</Label>
+              <Input value={regEditForm.participant_name} onChange={(e) => setRegEditForm((f) => ({ ...f, participant_name: e.target.value }))} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("comp.phone")}</Label>
+              <Input value={regEditForm.participant_phone} onChange={(e) => setRegEditForm((f) => ({ ...f, participant_phone: e.target.value }))} className="min-h-[44px]" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("wb.slotTypeLabel")}</Label>
+                <Select value={regEditForm.slot_type} onValueChange={(v) => setRegEditForm((f) => ({ ...f, slot_type: v }))}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">{t("comp.participants")}</SelectItem>
+                    <SelectItem value="reserve">{t("comp.reserves")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("wb.paymentStatus")}</Label>
+                <Select value={regEditForm.payment_status} onValueChange={(v) => setRegEditForm((f) => ({ ...f, payment_status: v }))}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">{t("wb.paymentStatusPending")}</SelectItem>
+                    <SelectItem value="paid">{t("wb.paymentStatusPaid")}</SelectItem>
+                    <SelectItem value="transferred">{t("wb.paymentStatusTransferred")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => cancelRegistrationAsOrganizer(editingReg)}
+              className="min-h-[44px] text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20"
+            >
+              <X className="w-4 h-4 mr-1" /> {t("wb.cancelRegistration")}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setEditingReg(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
+            <Button type="button" onClick={saveRegEdit} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

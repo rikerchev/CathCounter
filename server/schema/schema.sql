@@ -185,7 +185,11 @@ CREATE TABLE competitions (
   water_body_id TEXT,
   water_body_name TEXT,
   title TEXT,
-  fishing_type TEXT CHECK (fishing_type IN ('feeder', 'float', 'carp', 'predator', 'match', 'other')) DEFAULT 'feeder',
+  -- v2.83: was CHECK (fishing_type IN (...)) — dropped (see the v2.83 ALTER
+  -- block near the bottom of this file) so the organizer can type any text
+  -- instead of picking from a fixed list. Shown here without the CHECK, for
+  -- a fresh database; existing databases need the migration to drop it.
+  fishing_type TEXT DEFAULT 'feeder',
   max_participants INTEGER DEFAULT 20,
   max_reserves INTEGER DEFAULT 5,
   conditions TEXT,
@@ -194,6 +198,9 @@ CREATE TABLE competitions (
   date TEXT,
   registration_deadline TEXT,
   status TEXT CHECK (status IN ('open', 'closed', 'completed', 'cancelled')) DEFAULT 'open',
+  -- v2.83: JSON-encoded [{name, boxCount}, ...] — see the matching column
+  -- comment in server/schema/entities.generated.ts.
+  sectors_config TEXT,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -208,6 +215,10 @@ CREATE TABLE competition_registrations (
   slot_type TEXT CHECK (slot_type IN ('main', 'reserve')) DEFAULT 'main',
   payment_status TEXT CHECK (payment_status IN ('pending', 'paid', 'transferred')) DEFAULT 'pending',
   status TEXT CHECK (status IN ('active', 'cancelled')) DEFAULT 'active',
+  -- v2.83: set by the organizer's "draw lots" action — see the matching
+  -- column comments in server/schema/entities.generated.ts.
+  assigned_sector TEXT,
+  assigned_box INTEGER,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -529,3 +540,24 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('pendi
 -- create. Safe to re-run. Applied via the same "Приложи обновление" admin
 -- button as v2.68/v2.69/v2.71/v2.77 — see server/routes/adminMigrations.ts.
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS registered_by_email TEXT;
+
+-- v2.83: (1) fishing_type on competitions becomes free text — drop its old
+-- fixed-list CHECK constraint (auto-named by Postgres as
+-- "<table>_<column>_check" since it was declared inline with no explicit
+-- name). (2) sectors_config on competitions holds the organizer's named
+-- sectors + box counts (JSON). (3) assigned_sector/assigned_box on
+-- competition_registrations hold each participant's drawn box. Safe to
+-- re-run. Applied via the same "Приложи обновление" admin button as
+-- v2.68/v2.69/v2.71/v2.77/v2.80 — see server/routes/adminMigrations.ts.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_name = 'competitions' AND constraint_name = 'competitions_fishing_type_check'
+  ) THEN
+    ALTER TABLE competitions DROP CONSTRAINT competitions_fishing_type_check;
+  END IF;
+END $$;
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS sectors_config TEXT;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_sector TEXT;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_box INTEGER;
