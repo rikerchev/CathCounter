@@ -1,5 +1,14 @@
+// v2.78 — an admin account automatically counts as holding every other role
+// too (water_owner/advertiser/...), so admin never has to be separately
+// granted a role just to see or use the screens gated behind it. This is
+// checked first and short-circuits the normal per-role lookup below.
+function isAdminAccount(user) {
+  return user.role === "admin" || (Array.isArray(user.roles) && user.roles.includes("admin"));
+}
+
 export function hasRole(user, role) {
   if (!user) return false;
+  if (isAdminAccount(user)) return true;
   if (user.role === role) return true;
   if (Array.isArray(user.roles) && user.roles.includes(role)) return true;
   return false;

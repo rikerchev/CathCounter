@@ -10,21 +10,23 @@ import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
+import { hasRole } from "@/lib/roles";
 
 /**
  * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
- * v2.77). Editing screen for the signed-in merchant's OWN commercial
- * venues only — creating a new one now happens through the shared
- * MerchantRequest.jsx form (Водоем/Търговски обект type picker) and goes to
- * admin approval, same as water bodies. Admin-only actions (approve, bonus
- * ad-time, brochure download for someone else, reassigning the owner) moved
- * to AdminTraders.jsx — this page always shows only the current user's own
- * venues, admin account or not.
+ * v2.77, admin bypass restored v2.78). Editing screen for the signed-in
+ * merchant's OWN commercial venues — creating a new one happens through the
+ * shared MerchantRequest.jsx form (Водоем/Търговски обект type picker) and
+ * goes to admin approval, same as water bodies. Approve/reject, bonus
+ * ad-time and reassigning the owner still live only in AdminTraders.jsx, but
+ * an admin account also sees and can edit EVERY merchant's venues here, not
+ * just their own — same reasoning as WaterBodyManagement.jsx.
  */
 export default function TraderVenues() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  const isAdmin = hasRole(user, "admin");
 
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,13 +41,13 @@ export default function TraderVenues() {
     if (!user) return;
     try {
       const all = await base44.entities.Venue.list("-created_date", 200);
-      setVenues((all || []).filter((v) => v.created_by_id === user.id));
+      setVenues(isAdmin ? (all || []) : (all || []).filter((v) => v.created_by_id === user.id));
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [user, toast, t]);
+  }, [user, toast, t, isAdmin]);
 
   useEffect(() => {
     load();

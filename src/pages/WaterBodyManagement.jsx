@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
+import { hasRole } from "@/lib/roles";
 import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2 } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
@@ -48,16 +49,19 @@ export default function WaterBodyManagement() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
 
-  // v2.77 — always scoped to the signed-in merchant's own water bodies, even
-  // for an admin account. Admins manage every merchant's objects (approval,
-  // bonus ad-time, brochure, reassigning the owner) from the new dedicated
-  // "Търговци" admin screen (AdminTraders.jsx) instead — this page is purely
-  // "my own approved water bodies", matching how "Одобрени търговци" reads.
+  // v2.77 scoped this to the signed-in merchant's own water bodies only.
+  // v2.78 — reverted that for admin accounts specifically: rkerchev@gmail.com
+  // (and any admin) should be able to see and edit every merchant's objects
+  // straight from "Одобрени търговци" too, not only from the dedicated
+  // "Търговци" admin screen (AdminTraders.jsx) — that screen still owns
+  // approval/rejection, bonus ad-time and reassigning the owner, but a plain
+  // admin account is never blocked from this page anymore either.
+  const isAdmin = hasRole(user, "admin");
   const load = useCallback(async () => {
     if (!user) return;
     try {
       const allWb = await base44.entities.WaterBody.list();
-      const mine = (allWb || []).filter((w) => w.created_by_id === user.id);
+      const mine = isAdmin ? (allWb || []) : (allWb || []).filter((w) => w.created_by_id === user.id);
       setWaterBodies(mine);
 
       const allComps = await base44.entities.Competition.list("-date", 200);
@@ -78,7 +82,7 @@ export default function WaterBodyManagement() {
     } finally {
       setLoading(false);
     }
-  }, [toast, user, t]);
+  }, [toast, user, t, isAdmin]);
 
   useEffect(() => {
     load();
