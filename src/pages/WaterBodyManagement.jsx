@@ -638,9 +638,19 @@ export default function WaterBodyManagement() {
           const wbComps = competitions.filter((c) => c.water_body_id === wb.id);
           return (
             <div key={wb.id} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-4 shadow-sm space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h2 className="font-bold text-slate-800 dark:text-foreground">{wb.name}</h2>
+              {/* v2.86 — name/location on its own full-width row, action
+                  buttons in a SEPARATE row right below it (not beside the
+                  name). Previously this was one "justify-between" row with
+                  name on the left and buttons on the right, which squeezed
+                  the buttons into whatever narrow space was left next to the
+                  name — on a phone that meant 4 buttons fighting for ~120px,
+                  wrapping into a cramped, hard-to-tap column. Stacking them
+                  gives the button row the FULL card width to wrap in, same
+                  pattern already used for each competition card's own button
+                  row below. */}
+              <div className="space-y-2">
+                <div className="min-w-0">
+                  <h2 className="font-bold text-slate-800 dark:text-foreground break-words">{wb.name}</h2>
                   <p className="text-xs text-slate-400">{wb.location}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -961,7 +971,7 @@ export default function WaterBodyManagement() {
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-cyan-600" /> {t("wb.participants")} — {participantsFor?.title}
+              <ClipboardList className="w-5 h-5 text-cyan-600 shrink-0" /> <span className="break-words">{t("wb.participants")} — {participantsFor?.title}</span>
             </DialogTitle>
           </DialogHeader>
           {participantsFor && (() => {

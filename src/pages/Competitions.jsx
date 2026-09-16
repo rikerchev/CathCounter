@@ -83,8 +83,16 @@ export default function Competitions() {
     };
   }
 
-  function myRegistration(compId) {
-    return registrations.find((r) => r.competition_id === compId && r.created_by_id === user?.id && r.status === "active");
+  // v2.86 — was myRegistration() (singular, .find()): one account could only
+  // ever have ONE active registration per competition, because as soon as it
+  // existed the whole "register" button was replaced by the "you're
+  // registered" view. Now returns ALL of the account's active registrations
+  // for a competition, so someone can register several participants (e.g.
+  // themselves plus family/friends) from the same account — see the render
+  // below, which lists every one of them and keeps offering a "register
+  // another participant" button as long as there's room.
+  function myRegistrations(compId) {
+    return registrations.filter((r) => r.competition_id === compId && r.created_by_id === user?.id && r.status === "active");
   }
 
   async function handleRegister() {
@@ -260,7 +268,7 @@ export default function Competitions() {
                 const mainFull = counts.main >= c.max_participants;
                 const reserveFull = counts.reserve >= c.max_reserves;
                 const allFull = mainFull && reserveFull;
-                const myReg = myRegistration(c.id);
+                const myRegs = myRegistrations(c.id);
                 return (
                   <div key={c.id} className={`rounded-2xl bg-white border p-4 shadow-sm transition-all ${highlightComp === c.id ? "border-cyan-400 ring-2 ring-cyan-200 dark:bg-card dark:border-cyan-500" : "border-slate-100 dark:bg-card dark:border-border"}`}>
                     <div className="flex items-start justify-between gap-2">
@@ -315,39 +323,55 @@ export default function Competitions() {
                           {notifying === c.id ? t("comp.notifying") : t("comp.notifyUsers")}
                         </Button>
                       )}
-                      {myReg ? (
+                      {myRegs.length > 0 && (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${
-                              myReg.slot_type === "main"
-                                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
-                            }`}>
-                              {myReg.slot_type === "main" ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                              {myReg.slot_type === "main" ? t("comp.registeredAsMain") : t("comp.registeredAsReserve")}
-                            </span>
-                            <Button variant="outline" size="sm" onClick={() => cancelRegistration(myReg)} className="min-h-[40px] text-xs">
-                              {t("comp.unregister")}
-                            </Button>
-                          </div>
-                          {/* v2.83 — set once the organizer runs the draw
-                              (WaterBodyManagement.jsx). Shown as soon as it's
-                              assigned so the participant knows where to fish
-                              without asking the organizer. */}
-                          {myReg.assigned_box != null && (
-                            <div className="rounded-xl bg-cyan-50 border border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-800 px-3 py-2 text-xs font-medium text-cyan-800 dark:text-cyan-300">
-                              {t("comp.yourBox")}: {myReg.assigned_sector} — {myReg.assigned_box}
+                          {/* v2.86 — one card per registration the account
+                              holds for this competition, not just one: the
+                              same account can now register more than one
+                              participant (see myRegistrations above). Each
+                              row shows WHO it's for (participant_name) since
+                              they can be different people, and cancels
+                              independently of the others. */}
+                          {myRegs.map((r) => (
+                            <div key={r.id} className="space-y-1.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 min-w-0 ${
+                                  r.slot_type === "main"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                    : "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400"
+                                }`}>
+                                  {r.slot_type === "main" ? <CheckCircle2 className="w-3 h-3 shrink-0" /> : <Clock className="w-3 h-3 shrink-0" />}
+                                  <span className="truncate">
+                                    {r.participant_name} — {r.slot_type === "main" ? t("comp.registeredAsMain") : t("comp.registeredAsReserve")}
+                                  </span>
+                                </span>
+                                <Button variant="outline" size="sm" onClick={() => cancelRegistration(r)} className="min-h-[40px] text-xs shrink-0">
+                                  {t("comp.unregister")}
+                                </Button>
+                              </div>
+                              {/* v2.83 — set once the organizer runs the draw
+                                  (WaterBodyManagement.jsx). Shown as soon as
+                                  it's assigned so the participant knows where
+                                  to fish without asking the organizer. */}
+                              {r.assigned_box != null && (
+                                <div className="rounded-xl bg-cyan-50 border border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-800 px-3 py-2 text-xs font-medium text-cyan-800 dark:text-cyan-300">
+                                  {t("comp.yourBox")}: {r.assigned_sector} — {r.assigned_box}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          ))}
                         </div>
-                      ) : allFull ? (
-                        <span className="text-xs text-slate-400">{t("comp.allFull")}</span>
+                      )}
+                      {allFull ? (
+                        <span className="text-xs text-slate-400">
+                          {myRegs.length === 0 ? t("comp.allFull") : t("comp.allFullCantAddMore")}
+                        </span>
                       ) : (
                         <Button
-                          onClick={() => { setRegisterFor(c); setRegName(user?.full_name || ""); }}
+                          onClick={() => { setRegisterFor(c); setRegName(myRegs.length > 0 ? "" : (user?.full_name || "")); }}
                           className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px] w-full"
                         >
-                          {t("comp.register")} {mainFull ? t("comp.asReserve") : ""}
+                          {myRegs.length > 0 ? t("comp.registerAnother") : t("comp.register")} {mainFull ? t("comp.asReserve") : ""}
                         </Button>
                       )}
                     </div>
