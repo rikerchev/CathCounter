@@ -448,6 +448,11 @@ export const bg = {
     "wb.confirmEditResetsDraw": "Вече е изтеглен жребий за това състезание. Записването на промените ще изчисти изтеглените боксове, за да може жребият да се тегли наново. Продължавате ли?",
     "wb.reopenCompetition": "Отвори отново",
     "wb.registrationReopened": "Записването е отворено отново",
+    // v2.91 — permanently delete a CLOSED competition (and its participant
+    // list with it) — see deleteClosedCompetition in WaterBodyManagement.jsx.
+    "wb.deleteCompetition": "Изтрий",
+    "wb.confirmDeleteCompetition": "Сигурни ли сте, че искате да изтриете това състезание? Заедно с него ще бъдат изтрити и всички записани участници. Действието е необратимо.",
+    "wb.competitionDeleted": "Състезанието е изтрито",
     "wb.cloneCompetition": "Клонирай",
     "wb.notEnoughBoxes": "Няма достатъчно боксове за всички участници",
     "wb.noBoxesConfigured": "Първо въведете сектори и боксове за състезанието.",
@@ -477,6 +482,16 @@ export const bg = {
     "wb.kg": "кг",
     "wb.standings": "Класиране",
     "wb.noResultsYet": "Все още няма въведени резултати.",
+    // v2.91 — text drawn onto the standings download PNG's bottom banner
+    // (src/lib/standingsImage.js) — shared by both WaterBodyManagement.jsx
+    // and Competitions.jsx, hence the standalone "standingsImg." prefix
+    // rather than "wb."/"comp.".
+    "standingsImg.tagline": "Риболовен дневник",
+    "standingsImg.scanToDownload": "СКАНИРАЙ И ИЗТЕГЛИ",
+    "standingsImg.location": "Локация",
+    "standingsImg.fish": "Риба",
+    "standingsImg.fee": "Такса",
+    "standingsImg.phone": "Тел.",
     "wb.noOpenSectors": "Няма отворени боксове за резервация.",
     "wb.reserved": "резервирани",
     "wb.closeReservations": "Затвори резервациите",

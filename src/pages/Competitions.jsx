@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import html2canvas from "html2canvas";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -18,6 +17,7 @@ import { Filter } from "lucide-react";
 import {
   parseCatchResults, totalCatchWeight, hasAnyResult, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
+import { downloadStandingsImage } from "@/lib/standingsImage";
 
 // v2.83 — fishing_type used to be a fixed enum; competition creation now
 // takes free text instead (see WaterBodyManagement.jsx). Old competitions
@@ -211,22 +211,24 @@ export default function Competitions() {
     }
   }
 
-  // v2.89 — "generate on request" image export for the standings dialog:
-  // html2canvas rasterizes whatever's inside standingsRef into a PNG,
-  // downloaded straight away — nothing is pre-rendered or stored anywhere.
-  // Same pattern as WaterBodyManagement.jsx's downloadStandingsImage.
-  async function downloadStandingsImage(comp) {
+  // v2.89 — "generate on request" image export for the standings dialog,
+  // nothing pre-rendered or stored anywhere. v2.91 — now built by the
+  // shared src/lib/standingsImage.js (ranked list on top, a brochure-styled
+  // banner with this water body's own QR code/attributes glued to the
+  // bottom) instead of a plain html2canvas screenshot — see that module's
+  // own comment for the full design rationale. Same shared function as
+  // WaterBodyManagement.jsx's handleDownloadStandingsImage.
+  async function handleDownloadStandingsImage(comp) {
     if (!standingsRef.current) return;
     setGeneratingImage(true);
     try {
-      const canvas = await html2canvas(standingsRef.current, { backgroundColor: "#ffffff", scale: 2 });
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      await downloadStandingsImage({
+        node: standingsRef.current,
+        competition: comp,
+        waterBody: waterBodies.find((w) => w.id === comp.water_body_id),
+        filename: `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
+        t,
+      });
     } catch (e) {
       toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
     } finally {
@@ -590,7 +592,7 @@ export default function Competitions() {
             <Button variant="outline" onClick={() => setStandingsFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
             <Button
               variant="outline"
-              onClick={() => downloadStandingsImage(standingsFor)}
+              onClick={() => handleDownloadStandingsImage(standingsFor)}
               disabled={generatingImage}
               className="min-h-[44px]"
             >

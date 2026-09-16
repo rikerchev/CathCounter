@@ -40,7 +40,10 @@ import QRCode from "qrcode";
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
-const APP_ICON_URL = "/icon-512.png";
+// v2.91 — exported: reused by src/lib/standingsImage.js so the competition
+// standings download shares this same app icon and house font instead of
+// loading/registering its own copies.
+export const APP_ICON_URL = "/icon-512.png";
 const FONT_BOLD_URL = "/fonts/CatchCountBrochure-Bold.ttf";
 const TEMPLATE_W = 1376;
 const TEMPLATE_H = 768;
@@ -65,7 +68,8 @@ const ICON_SIZE = 36;
 const ICON_BACKING = 44;
 const ICON_BACKING_R = 9;
 
-function roundRectPath(ctx, x, y, w, h, r) {
+// v2.91 — exported for src/lib/standingsImage.js (see APP_ICON_URL above).
+export function roundRectPath(ctx, x, y, w, h, r) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
   ctx.moveTo(x + rr, y);
@@ -76,7 +80,8 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function loadImage(src) {
+// v2.91 — exported for src/lib/standingsImage.js (see APP_ICON_URL above).
+export function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -88,7 +93,9 @@ function loadImage(src) {
 // Loaded once per page and cached — every brochure download after the first
 // reuses the already-registered font instead of re-fetching the .ttf.
 let brochureFontPromise = null;
-function ensureBrochureFont() {
+// v2.91 — exported for src/lib/standingsImage.js (see APP_ICON_URL above) —
+// both modules share the same cached load/registration.
+export function ensureBrochureFont() {
   if (!brochureFontPromise) {
     brochureFontPromise = (async () => {
       try {

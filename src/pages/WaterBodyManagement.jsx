@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import html2canvas from "html2canvas";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
@@ -14,6 +13,7 @@ import {
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
+import { downloadStandingsImage } from "@/lib/standingsImage";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,6 +102,8 @@ export default function WaterBodyManagement() {
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
+  // v2.91 — "delete a closed competition" (see deleteClosedCompetition).
+  const [deletingCompId, setDeletingCompId] = useState("");
   // v2.80 — participant list + CSV export for a competition, per the
   // organizer's request: see participantsFor/regsFor/exportRegistrations.
   const [participantsFor, setParticipantsFor] = useState(null);
@@ -543,6 +545,36 @@ export default function WaterBodyManagement() {
     return registrations.filter((r) => r.competition_id === compId && r.status === "active");
   }
 
+  // v2.91 — organizer's request: permanently delete a competition that's no
+  // longer accepting registrations (registration already closed — a
+  // competition that's still "open" has no delete option, only close/
+  // reopen, to avoid accidentally destroying a live event). Also cleans up
+  // every registration under it first — competition_id on
+  // competition_registrations is a plain TEXT column, not a real foreign
+  // key (see schema.sql), so nothing does this automatically and an
+  // orphaned participant list would otherwise be left behind with no
+  // competition to belong to. Both deletes go through the existing generic
+  // entity rules (Competition.delete = owner; CompetitionRegistration.delete
+  // = owner_or_relation, which already covers "the competition's own
+  // organizer") — no new endpoint needed.
+  async function deleteClosedCompetition(comp) {
+    if (!window.confirm(t("wb.confirmDeleteCompetition"))) return;
+    setDeletingCompId(comp.id);
+    try {
+      const allRegs = registrations.filter((r) => r.competition_id === comp.id);
+      for (const r of allRegs) {
+        await base44.entities.CompetitionRegistration.delete(r.id);
+      }
+      await base44.entities.Competition.delete(comp.id);
+      toast({ title: t("wb.competitionDeleted") });
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingCompId("");
+    }
+  }
+
   // v2.80 — one CSV cell must never break the file just because a name or
   // phone happens to contain a comma/quote/newline: wrap in quotes and
   // double up any embedded quote, the standard CSV escaping rule.
@@ -592,24 +624,23 @@ export default function WaterBodyManagement() {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
-  // v2.89 — "generate on request" image export for the standings dialog:
-  // html2canvas rasterizes whatever's inside standingsRef (see the Dialog
-  // below) into a PNG, downloaded straight away — nothing is pre-rendered
-  // or stored server-side. Fixed light colors for that whole block
-  // (no dark: classes there — see the JSX) so the exported picture always
-  // looks the same regardless of the viewer's own theme.
-  async function downloadStandingsImage(comp) {
+  // v2.89 — "generate on request" image export for the standings dialog,
+  // nothing pre-rendered or stored server-side. v2.91 — now built by the
+  // shared src/lib/standingsImage.js (ranked list on top, a brochure-styled
+  // banner with this water body's own QR code/attributes glued to the
+  // bottom) instead of a plain html2canvas screenshot — see that module's
+  // own comment for the full design rationale.
+  async function handleDownloadStandingsImage(comp) {
     if (!standingsRef.current) return;
     setGeneratingImage(true);
     try {
-      const canvas = await html2canvas(standingsRef.current, { backgroundColor: "#ffffff", scale: 2 });
-      const url = canvas.toDataURL("image/png");
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      await downloadStandingsImage({
+        node: standingsRef.current,
+        competition: comp,
+        waterBody: wbMap[comp.water_body_id],
+        filename: `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
+        t,
+      });
     } catch (e) {
       toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
     } finally {
@@ -824,6 +855,21 @@ export default function WaterBodyManagement() {
                           ) : (
                             <Button variant="outline" size="sm" onClick={() => reopenCompetition(c)} className="min-h-[36px] text-xs">
                               <RotateCcw className="w-3.5 h-3.5 mr-1" /> {t("wb.reopenCompetition")}
+                            </Button>
+                          )}
+                          {/* v2.91 — only offered once registration is
+                              closed, so a live/open competition can't be
+                              destroyed by mistake with one click. */}
+                          {c.status === "closed" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteClosedCompetition(c)}
+                              disabled={deletingCompId === c.id}
+                              className="min-h-[36px] text-xs text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20"
+                            >
+                              {deletingCompId === c.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+                              {t("wb.deleteCompetition")}
                             </Button>
                           )}
                         </div>
@@ -1289,7 +1335,7 @@ export default function WaterBodyManagement() {
             <Button variant="outline" onClick={() => setStandingsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
             <Button
               variant="outline"
-              onClick={() => downloadStandingsImage(standingsFor)}
+              onClick={() => handleDownloadStandingsImage(standingsFor)}
               disabled={generatingImage}
               className="min-h-[44px]"
             >

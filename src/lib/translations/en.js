@@ -461,6 +461,11 @@ export const en = {
     "wb.confirmEditResetsDraw": "Lots have already been drawn for this competition. Saving these changes will clear the drawn boxes so lots can be drawn again. Continue?",
     "wb.reopenCompetition": "Reopen",
     "wb.registrationReopened": "Registration reopened",
+    // v2.91 — permanently delete a CLOSED competition (and its participant
+    // list with it) — see deleteClosedCompetition in WaterBodyManagement.jsx.
+    "wb.deleteCompetition": "Delete",
+    "wb.confirmDeleteCompetition": "Are you sure you want to delete this competition? All of its registered participants will be deleted along with it. This cannot be undone.",
+    "wb.competitionDeleted": "Competition deleted",
     "wb.cloneCompetition": "Clone",
     "wb.notEnoughBoxes": "Not enough boxes for all participants",
     "wb.noBoxesConfigured": "Set up sectors and boxes for the competition first.",
@@ -490,6 +495,16 @@ export const en = {
     "wb.kg": "kg",
     "wb.standings": "Standings",
     "wb.noResultsYet": "No results recorded yet.",
+    // v2.91 — text drawn onto the standings download PNG's bottom banner
+    // (src/lib/standingsImage.js) — shared by both WaterBodyManagement.jsx
+    // and Competitions.jsx, hence the standalone "standingsImg." prefix
+    // rather than "wb."/"comp.".
+    "standingsImg.tagline": "Fishing log",
+    "standingsImg.scanToDownload": "SCAN & DOWNLOAD",
+    "standingsImg.location": "Location",
+    "standingsImg.fish": "Fish",
+    "standingsImg.fee": "Fee",
+    "standingsImg.phone": "Phone",
     "wb.noOpenSectors": "No open boxes for reservation.",
     "wb.reserved": "reserved",
     "wb.closeReservations": "Close reservations",
