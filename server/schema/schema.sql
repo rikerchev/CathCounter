@@ -520,3 +520,12 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_url TEXT;
 -- обновление" admin button as v2.68/v2.69/v2.71 — see
 -- server/routes/adminMigrations.ts.
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('pending','approved','rejected')) NOT NULL DEFAULT 'approved';
+
+-- v2.80: snapshot of the logged-in account's email at the moment of a
+-- competition registration (participant_name is free-typed and can name
+-- someone else, e.g. a family member) — lets the organizer's participant
+-- list (WaterBodyManagement.jsx, "Участници" dialog + CSV export) always
+-- trace a registration back to a real account. Never written to after
+-- create. Safe to re-run. Applied via the same "Приложи обновление" admin
+-- button as v2.68/v2.69/v2.71/v2.77 — see server/routes/adminMigrations.ts.
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS registered_by_email TEXT;

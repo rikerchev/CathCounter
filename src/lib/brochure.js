@@ -30,10 +30,18 @@ import QRCode from "qrcode";
  * canvas recreation of the reference style) — this replaces both: the
  * trader asked for the reference graphic itself, unchanged, not an
  * approximation of it.
+ *
+ * v2.80 — the venue/water body's own name is drawn in the empty dark
+ * background strip directly above the QR badge (see drawVenueName below),
+ * so a trader/admin handing out several brochures can tell them apart
+ * without opening each PDF. Uses the CatchCountBrochure custom font
+ * (public/fonts/*.ttf) so the added text matches the reference graphic's
+ * own "СКАНИРАЙ И ИЗТЕГЛИ" label style instead of a generic system font.
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
 const APP_ICON_URL = "/icon-512.png";
+const FONT_BOLD_URL = "/fonts/CatchCountBrochure-Bold.ttf";
 const TEMPLATE_W = 1376;
 const TEMPLATE_H = 768;
 
@@ -77,7 +85,75 @@ function loadImage(src) {
   });
 }
 
-async function renderBrochureCanvas({ link }) {
+// Loaded once per page and cached — every brochure download after the first
+// reuses the already-registered font instead of re-fetching the .ttf.
+let brochureFontPromise = null;
+function ensureBrochureFont() {
+  if (!brochureFontPromise) {
+    brochureFontPromise = (async () => {
+      try {
+        const font = new FontFace("CatchCountBrochure", `url(${FONT_BOLD_URL})`, { weight: "700" });
+        await font.load();
+        document.fonts.add(font);
+      } catch {
+        // Custom font failed to load (unsupported browser, blocked asset,
+        // etc.) — drawVenueName() falls back to a generic bold sans-serif
+        // below, so the name still renders, just not in the house font.
+      }
+    })();
+  }
+  return brochureFontPromise;
+}
+
+// Draws `name` centered in the dark, mostly-empty strip directly above the
+// QR badge. Auto-shrinks (and, as a last resort, truncates with "…") to fit
+// a fixed max width, since venue/water body names are free text of
+// unbounded length. Coordinates are hand-measured against the template the
+// same way BADGE_* above are: the badge's own top edge sits at BADGE_Y
+// (460), the template's "cart" decoration glow ends around y=400, so the
+// label is vertically centered in that ~55px gap.
+const NAME_MAX_WIDTH = 320;
+const NAME_BASELINE_Y = BADGE_Y - 18;
+const NAME_MAX_FONT = 24;
+const NAME_MIN_FONT = 13;
+
+function drawVenueName(ctx, name) {
+  const label = (name || "").trim().toUpperCase();
+  if (!label) return;
+
+  const centerX = BADGE_X + BADGE_W / 2;
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+
+  let fontSize = NAME_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  while (fontSize > NAME_MIN_FONT && ctx.measureText(label).width > NAME_MAX_WIDTH) {
+    fontSize -= 1;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+  }
+
+  let text = label;
+  if (ctx.measureText(text).width > NAME_MAX_WIDTH) {
+    while (text.length > 1 && ctx.measureText(`${text}…`).width > NAME_MAX_WIDTH) {
+      text = text.slice(0, -1);
+    }
+    text = `${text}…`;
+  }
+
+  // Soft dark shadow so the white text stays legible over whatever mix of
+  // sky/particle-line background happens to sit behind it.
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, centerX, NAME_BASELINE_Y);
+  ctx.restore();
+}
+
+async function renderBrochureCanvas({ link, name }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,
@@ -92,6 +168,7 @@ async function renderBrochureCanvas({ link }) {
     loadImage(TEMPLATE_URL),
     loadImage(qrDataUrl),
     loadImage(APP_ICON_URL),
+    ensureBrochureFont(),
   ]);
 
   const canvas = document.createElement("canvas");
@@ -101,6 +178,9 @@ async function renderBrochureCanvas({ link }) {
 
   // 1. The fixed reference graphic, pixel-for-pixel, untouched.
   ctx.drawImage(template, 0, 0, TEMPLATE_W, TEMPLATE_H);
+
+  // 1.5. This venue/water body's name, above the QR badge (v2.80).
+  drawVenueName(ctx, name);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
   //    exact same spot.
@@ -127,7 +207,7 @@ async function renderBrochureCanvas({ link }) {
 }
 
 export async function downloadInviteBrochure({ name, link, filename }) {
-  const canvas = await renderBrochureCanvas({ link });
+  const canvas = await renderBrochureCanvas({ link, name });
   // PNG, not JPEG — this is a QR code; any lossy compression noise around
   // its modules risks scan failures, which matters far more here than the
   // larger file size (a one-off client-side download, not a network cost).

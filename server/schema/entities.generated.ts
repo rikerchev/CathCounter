@@ -200,6 +200,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "slot_type", type: "enum", required: false, enumValues: ["main", "reserve"] },
       { name: "payment_status", type: "enum", required: false, enumValues: ["pending", "paid", "transferred"] },
       { name: "status", type: "enum", required: false, enumValues: ["active", "cancelled"] },
+      // v2.80 — snapshot of the logged-in account's email at the moment of
+      // registration (participant_name is free-typed and can be someone
+      // else, e.g. a family member). Lets the organizer's participant list
+      // (WaterBodyManagement.jsx) always trace a registration back to a
+      // real account. Never touched after create.
+      { name: "registered_by_email", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

@@ -93,6 +93,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS status TEXT CHECK (status IN ('pending','approved','rejected')) NOT NULL DEFAULT 'approved'`);
     },
   },
+  "v2.80-competition-registered-by": {
+    label: "v2.80 — Записвания за състезания: акаунт на регистриралия",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS registered_by_email TEXT`);
+    },
+  },
 };
 
 /**
@@ -139,6 +145,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'venues' AND column_name = 'status'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.80-competition-registered-by") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'competition_registrations' AND column_name = 'registered_by_email'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

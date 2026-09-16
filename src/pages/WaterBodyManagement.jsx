@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2 } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
@@ -48,6 +48,9 @@ export default function WaterBodyManagement() {
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
+  // v2.80 — participant list + CSV export for a competition, per the
+  // organizer's request: see participantsFor/regsFor/exportRegistrations.
+  const [participantsFor, setParticipantsFor] = useState(null);
 
   // v2.77 scoped this to the signed-in merchant's own water bodies only.
   // v2.78 — reverted that for admin accounts specifically: rkerchev@gmail.com
@@ -214,6 +217,51 @@ export default function WaterBodyManagement() {
 
   function regsFor(compId) {
     return registrations.filter((r) => r.competition_id === compId && r.status === "active");
+  }
+
+  // v2.80 — one CSV cell must never break the file just because a name or
+  // phone happens to contain a comma/quote/newline: wrap in quotes and
+  // double up any embedded quote, the standard CSV escaping rule.
+  function csvCell(value) {
+    const s = value == null ? "" : String(value);
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+
+  const PAYMENT_STATUS_LABEL_KEYS = {
+    pending: "wb.paymentStatusPending",
+    paid: "wb.paymentStatusPaid",
+    transferred: "wb.paymentStatusTransferred",
+  };
+
+  function exportParticipantsCsv(comp) {
+    const regs = regsFor(comp.id);
+    const header = [
+      t("wb.participantName"),
+      t("wb.participantPhone"),
+      t("wb.slotType"),
+      t("wb.registeredByAccount"),
+      t("wb.paymentStatus"),
+    ];
+    const rows = regs.map((r) => [
+      r.participant_name || "",
+      r.participant_phone || "",
+      r.slot_type === "reserve" ? t("comp.reserves") : t("comp.participants"),
+      r.registered_by_email || "",
+      t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending"),
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    // — UTF-8 BOM so Excel on Windows (this app's whole userbase, per
+    // the device-bridge platform: win32) opens Cyrillic text correctly
+    // instead of mangling it as if it were a different encoding.
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `uchastnici-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
   async function markTransferred(regId, type) {
@@ -387,11 +435,22 @@ export default function WaterBodyManagement() {
                           <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {regs.filter((r) => r.slot_type === "main").length}/{c.max_participants}</span>
                           <span className="flex items-center gap-1"><Medal className="w-3 h-3" /> {regs.filter((r) => r.slot_type === "reserve").length}/{c.max_reserves}</span>
                         </div>
-                        {c.status === "open" && (
-                          <Button variant="outline" size="sm" onClick={() => closeCompetition(c)} className="min-h-[36px] mt-2 text-xs">
-                            {t("wb.closeRegistration")}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setParticipantsFor(c)}
+                            disabled={regs.length === 0}
+                            className="min-h-[36px] text-xs"
+                          >
+                            <ClipboardList className="w-3.5 h-3.5 mr-1" /> {t("wb.participants")} ({regs.length})
                           </Button>
-                        )}
+                          {c.status === "open" && (
+                            <Button variant="outline" size="sm" onClick={() => closeCompetition(c)} className="min-h-[36px] text-xs">
+                              {t("wb.closeRegistration")}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -548,6 +607,73 @@ export default function WaterBodyManagement() {
               <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("wb.openBtn")}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* v2.80 — full participant list for one competition + CSV export.
+          Each row shows the name the participant entered AND the account
+          (email) that actually submitted the registration — useful when
+          someone registers a family member/friend under a different name
+          than their own account, so the organizer can still tell who to
+          contact. */}
+      <Dialog open={!!participantsFor} onOpenChange={(o) => !o && setParticipantsFor(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-cyan-600" /> {t("wb.participants")} — {participantsFor?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {participantsFor && (() => {
+            const regs = regsFor(participantsFor.id);
+            const main = regs.filter((r) => r.slot_type !== "reserve");
+            const reserve = regs.filter((r) => r.slot_type === "reserve");
+            const ParticipantRow = ({ r }) => (
+              <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
+                <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
+                {r.registered_by_email && (
+                  <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+                    <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
+                  </p>
+                )}
+                {r.participant_phone && (
+                  <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+                    <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
+                  </p>
+                )}
+              </div>
+            );
+            return (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    {t("comp.participants")} ({main.length}/{participantsFor.max_participants})
+                  </h3>
+                  {main.length === 0 ? (
+                    <p className="text-xs text-slate-400">{t("wb.noParticipantsYet")}</p>
+                  ) : (
+                    <div className="space-y-2">{main.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                  )}
+                </div>
+                {reserve.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      {t("comp.reserves")} ({reserve.length}/{participantsFor.max_reserves})
+                    </h3>
+                    <div className="space-y-2">{reserve.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setParticipantsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
+            <Button
+              onClick={() => exportParticipantsCsv(participantsFor)}
+              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
+            >
+              <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

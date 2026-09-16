@@ -102,11 +102,19 @@ export default function Competitions() {
       // the row (still permanently inert, nothing ever flips it to "paid"
       // from here anymore) so re-enabling this later doesn't need a schema
       // change — see markPaid()/showPayment, removed below in this version.
+      //
+      // v2.80 — regName is a free-typed name (someone can register a family
+      // member/friend under a different name than their own account), so
+      // registered_by_email snapshots the actually-logged-in account's email
+      // alongside it. The organizer's participant list (WaterBodyManagement.jsx)
+      // shows both, so a registration can always be traced back to a real
+      // account even when the entered name isn't the account holder's own.
       await base44.entities.CompetitionRegistration.create({
         competition_id: registerFor.id,
         participant_name: regName,
         participant_phone: regPhone,
         slot_type: slotType,
+        registered_by_email: user?.email || null,
         payment_status: "pending",
         status: "active",
       });
