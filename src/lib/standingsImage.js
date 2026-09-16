@@ -137,7 +137,19 @@ function drawRankedRow(ctx, box, r, t) {
   }
 }
 
-async function drawHeader(ctx, box, title, t) {
+// v2.93 — the competition's own date (comp.date, an ISO string), formatted
+// the same way the on-screen pages already show it (WaterBodyManagement.jsx
+// / Competitions.jsx's own local formatDate — day/month/year only here,
+// since the header line is about identifying WHICH competition this is, not
+// exact kickoff time).
+function formatCompetitionDate(date, lang) {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+async function drawHeader(ctx, box, title, dateLabel, t) {
   await ensureBrochureFont();
   const { x, y, w, h } = box;
   ctx.textAlign = "left";
@@ -145,7 +157,7 @@ async function drawHeader(ctx, box, title, t) {
   ctx.fillStyle = "#ffffff";
   ctx.font = `700 30px Arial, sans-serif`;
   ctx.fillText("🏆", x, y + h * 0.62);
-  const label = `${t("wb.standings")} — ${title || ""}`;
+  const label = `${t("wb.standings")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
   const fitted = fitFontSize(ctx, label, w - 52, 30, 18, 700, `"CatchCountBrochure", Arial, sans-serif`);
   ctx.font = `700 ${fitted.size}px "CatchCountBrochure", Arial, sans-serif`;
   ctx.fillText(fitted.text, x + 46, y + h * 0.62);
@@ -160,8 +172,10 @@ async function drawHeader(ctx, box, title, t) {
  * fallback, water_body_name.
  * waterBody: the matching WaterBody record, if loaded — its own `name` is
  * preferred for the brochure label; optional.
+ * lang: current UI language ("bg"/"en"), used only to format competition.date
+ * (v2.93) the same way the on-screen pages do; optional, defaults to "bg".
  */
-export async function downloadStandingsImage({ ranked, title, competition, waterBody, filename, t }) {
+export async function downloadStandingsImage({ ranked, title, competition, waterBody, filename, t, lang }) {
   const list = ranked || [];
   const colCount = list.length > COLUMN_SPLIT_THRESHOLD ? 2 : 1;
   const rowH = colCount === 2 ? 58 : 66;
@@ -204,7 +218,8 @@ export async function downloadStandingsImage({ ranked, title, competition, water
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, PAGE_W, totalH);
 
-  await drawHeader(ctx, { x: PAD, y: PAD, w: PAGE_W - PAD * 2, h: HEADER_H }, title, t);
+  const dateLabel = formatCompetitionDate(competition?.date, lang);
+  await drawHeader(ctx, { x: PAD, y: PAD, w: PAGE_W - PAD * 2, h: HEADER_H }, title, dateLabel, t);
 
   if (list.length === 0) {
     ctx.textAlign = "left";

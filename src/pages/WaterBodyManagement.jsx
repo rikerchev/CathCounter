@@ -641,6 +641,7 @@ export default function WaterBodyManagement() {
         waterBody: wbMap[comp.water_body_id],
         filename: `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
         t,
+        lang,
       });
     } catch (e) {
       toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
