@@ -4,12 +4,15 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
+import {
+  parseCatchResults, stringifyCatchResults, totalCatchWeight, rankByTotalWeight,
+} from "@/lib/competitionResults";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,12 +73,17 @@ export default function WaterBodyManagement() {
   const [compForm, setCompForm] = useState({
     title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
     conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
-    sectors: [EMPTY_SECTOR_ROW],
+    sectors: [EMPTY_SECTOR_ROW], rounds_count: "1",
   });
   // v2.83 — editing one participant's name/phone/slot/payment status from
   // the organizer's participant list (see participantsFor below).
+  // v2.87 — catch_results is an array of per-round weight-input strings,
+  // sized to the competition's rounds_count (see openEditReg).
   const [editingReg, setEditingReg] = useState(null);
-  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending" });
+  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending", catch_results: [] });
+  // v2.87 — competition whose standings dialog is open (ranked descending by
+  // total catch weight — see rankByTotalWeight).
+  const [standingsFor, setStandingsFor] = useState(null);
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
@@ -133,7 +141,7 @@ export default function WaterBodyManagement() {
     setCompForm({
       title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
       conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
-      sectors: [EMPTY_SECTOR_ROW],
+      sectors: [EMPTY_SECTOR_ROW], rounds_count: "1",
     });
     setShowCompForm(true);
   }
@@ -159,6 +167,7 @@ export default function WaterBodyManagement() {
       date: toDatetimeLocal(comp.date),
       registration_deadline: toDatetimeLocal(comp.registration_deadline),
       sectors: parsed.length > 0 ? parsed : [EMPTY_SECTOR_ROW],
+      rounds_count: String(comp.rounds_count || 1),
     });
     setShowCompForm(true);
   }
@@ -187,6 +196,7 @@ export default function WaterBodyManagement() {
       date: "",
       registration_deadline: "",
       sectors: parsed.length > 0 ? parsed : [EMPTY_SECTOR_ROW],
+      rounds_count: String(comp.rounds_count || 1),
     });
     setShowCompForm(true);
   }
@@ -334,6 +344,7 @@ export default function WaterBodyManagement() {
       date: compForm.date ? new Date(compForm.date).toISOString() : null,
       registration_deadline: compForm.registration_deadline ? new Date(compForm.registration_deadline).toISOString() : null,
       sectors_config: stringifySectorsConfig(compForm.sectors),
+      rounds_count: Math.max(1, Number(compForm.rounds_count) || 1),
     };
     try {
       if (compEditing) {
@@ -406,13 +417,31 @@ export default function WaterBodyManagement() {
     }
   }
 
-  function openEditReg(r) {
+  // v2.87 — roundsCount comes from the competition this registration
+  // belongs to (participantsFor.rounds_count at the call site below), so the
+  // form shows exactly one weight input per round, prefilled from whatever
+  // was already recorded (parseCatchResults) and padded with blanks for any
+  // round not weighed in yet.
+  function openEditReg(r, roundsCount) {
     setEditingReg(r);
+    const results = parseCatchResults(r.catch_results);
+    const catchResults = Array.from({ length: Math.max(1, roundsCount || 1) }, (_, i) => (
+      results[i] != null ? String(results[i]) : ""
+    ));
     setRegEditForm({
       participant_name: r.participant_name || "",
       participant_phone: r.participant_phone || "",
       slot_type: r.slot_type || "main",
       payment_status: r.payment_status || "pending",
+      catch_results: catchResults,
+    });
+  }
+
+  function updateRegEditCatchResult(index, value) {
+    setRegEditForm((f) => {
+      const catch_results = f.catch_results.slice();
+      catch_results[index] = value;
+      return { ...f, catch_results };
     });
   }
 
@@ -424,6 +453,7 @@ export default function WaterBodyManagement() {
         participant_phone: regEditForm.participant_phone,
         slot_type: regEditForm.slot_type,
         payment_status: regEditForm.payment_status,
+        catch_results: stringifyCatchResults(regEditForm.catch_results),
       });
       toast({ title: t("wb.participantUpdated") });
       setEditingReg(null);
@@ -835,6 +865,10 @@ export default function WaterBodyManagement() {
                 <Label>{t("wb.maxReserves")}</Label>
                 <Input type="number" value={compForm.max_reserves} onChange={(e) => setCompForm((f) => ({ ...f, max_reserves: e.target.value }))} className="min-h-[44px]" />
               </div>
+              <div className="space-y-1.5">
+                <Label>{t("wb.roundsCount")}</Label>
+                <Input type="number" min="1" value={compForm.rounds_count} onChange={(e) => setCompForm((f) => ({ ...f, rounds_count: e.target.value }))} className="min-h-[44px]" />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -978,37 +1012,49 @@ export default function WaterBodyManagement() {
             const regs = regsFor(participantsFor.id);
             const main = regs.filter((r) => r.slot_type !== "reserve");
             const reserve = regs.filter((r) => r.slot_type === "reserve");
-            const ParticipantRow = ({ r }) => (
-              <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
-                  <Button variant="ghost" size="icon" onClick={() => openEditReg(r)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-                {r.registered_by_email && (
-                  <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
-                    <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
-                  </p>
-                )}
-                {r.participant_phone && (
-                  <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
-                    <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
-                  </p>
-                )}
-                <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
-                    {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
-                  </span>
-                  {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
-                  {r.assigned_box != null && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-                      {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
-                    </span>
+            const roundsCount = Math.max(1, participantsFor.rounds_count || 1);
+            const ParticipantRow = ({ r }) => {
+              // v2.87 — total across every round with a recorded weight;
+              // 0 (no results yet) renders nothing, same treatment as the
+              // draw badge below (only shown once there's something to show).
+              const total = totalCatchWeight(parseCatchResults(r.catch_results));
+              return (
+                <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</p>
+                    <Button variant="ghost" size="icon" onClick={() => openEditReg(r, roundsCount)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                  {r.registered_by_email && (
+                    <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+                      <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
+                    </p>
                   )}
+                  {r.participant_phone && (
+                    <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+                      <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
+                      {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
+                    </span>
+                    {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
+                    {r.assigned_box != null && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+                        {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+                      </span>
+                    )}
+                    {total > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                        {t("wb.totalWeight")}: {total} {t("wb.kg")}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
+              );
+            };
             return (
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -1042,11 +1088,63 @@ export default function WaterBodyManagement() {
               <Shuffle className="w-4 h-4 mr-1" /> {t("wb.drawLots")}
             </Button>
             <Button
+              variant="outline"
+              onClick={() => setStandingsFor(participantsFor)}
+              className="min-h-[44px]"
+            >
+              <Trophy className="w-4 h-4 mr-1" /> {t("wb.standings")}
+            </Button>
+            <Button
               onClick={() => exportParticipantsCsv(participantsFor)}
               className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* v2.87 — standings for one competition: everyone with at least one
+          round's weight recorded, ranked descending by total catch weight
+          (heaviest first, per drawBoxes/rankByTotalWeight). Read-only —
+          weights are entered via the pencil icon on each ParticipantRow
+          above (organizer/admin) or by the registrant themselves
+          (Competitions.jsx). */}
+      <Dialog open={!!standingsFor} onOpenChange={(o) => !o && setStandingsFor(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500 shrink-0" /> <span className="break-words">{t("wb.standings")} — {standingsFor?.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          {standingsFor && (() => {
+            const ranked = rankByTotalWeight(regsFor(standingsFor.id));
+            return ranked.length === 0 ? (
+              <p className="text-sm text-slate-400">{t("wb.noResultsYet")}</p>
+            ) : (
+              <div className="space-y-2">
+                {ranked.map((r) => (
+                  <div key={r.id} className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-accent p-3">
+                    <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                      r.rank === 1
+                        ? "bg-amber-400 text-white"
+                        : r.rank === 2
+                        ? "bg-slate-300 text-slate-700"
+                        : r.rank === 3
+                        ? "bg-amber-700 text-white"
+                        : "bg-slate-200 dark:bg-accent text-slate-500 dark:text-muted-foreground"
+                    }`}>
+                      {r.rank}
+                    </span>
+                    <span className="flex-1 min-w-0 truncate text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</span>
+                    <span className="shrink-0 text-sm font-bold text-amber-700 dark:text-amber-400">{r.total} {t("wb.kg")}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStandingsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1091,6 +1189,33 @@ export default function WaterBodyManagement() {
                 </Select>
               </div>
             </div>
+            {/* v2.87 — one weight input per round ("манш"), sized to the
+                competition's rounds_count (see openEditReg). Blank = that
+                round hasn't been weighed in yet, kept distinct from 0 kg. */}
+            {regEditForm.catch_results.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>{t("wb.catchResultsLabel")}</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {regEditForm.catch_results.map((w, i) => (
+                    <div key={i} className="space-y-1">
+                      <span className="text-xs text-slate-400">{t("wb.roundLabel")} {i + 1}</span>
+                      <Input
+                        type="number"
+                        step="any"
+                        min="0"
+                        value={w}
+                        onChange={(e) => updateRegEditCatchResult(i, e.target.value)}
+                        placeholder={t("wb.kg")}
+                        className="min-h-[44px]"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400">
+                  {t("wb.totalWeight")}: {totalCatchWeight(regEditForm.catch_results.map((v) => (v === "" ? null : Number(v))))} {t("wb.kg")}
+                </p>
+              </div>
+            )}
           </div>
           <DialogFooter className="flex-wrap gap-2">
             <Button

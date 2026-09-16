@@ -196,6 +196,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // via src/lib/competitionSectors.js. Empty/null = no sectors
       // configured yet (draw disabled in the UI).
       { name: "sectors_config", type: "string", required: false },
+      // v2.87 — how many rounds ("манш") this competition is fished over.
+      // Drives how many per-round weight input cells the organizer/
+      // registrant sees when entering CompetitionRegistration.catch_results
+      // (see src/lib/competitionResults.js). Defaults to 1 (a single
+      // overall weigh-in) when unset, for competitions created before this
+      // existed.
+      { name: "rounds_count", type: "integer", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -230,6 +237,15 @@ export const ENTITIES: Record<string, EntityDef> = {
       // is a string, not an integer.
       { name: "assigned_sector", type: "string", required: false },
       { name: "assigned_box", type: "string", required: false },
+      // v2.87 — JSON-encoded array of this participant's catch weight (kg)
+      // per round, e.g. "[12.5,null,8.3]" — null means that round hasn't
+      // been weighed in yet. Parsed/written via
+      // src/lib/competitionResults.js. Editing this goes through the same
+      // `update` rule as everything else on this entity (see below), which
+      // already covers exactly who this feature needs to allow: the user
+      // who registered this participant, the competition's organizer, and
+      // admins.
+      { name: "catch_results", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

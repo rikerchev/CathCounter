@@ -202,6 +202,9 @@ CREATE TABLE competitions (
   -- individually named/numbered boxes: [{name, boxes: [...]}, ...] — see
   -- the matching column comment in server/schema/entities.generated.ts.
   sectors_config TEXT,
+  -- v2.87: how many rounds ("манш") this competition is fished over. NULL/
+  -- unset reads as 1 (a single overall weigh-in) client-side.
+  rounds_count INTEGER,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -222,6 +225,9 @@ CREATE TABLE competition_registrations (
   -- labels, not just an auto-numbered sequence.
   assigned_sector TEXT,
   assigned_box TEXT,
+  -- v2.87: JSON-encoded per-round catch weight in kg, e.g. "[12.5,null,8.3]"
+  -- — see the matching column comment in server/schema/entities.generated.ts.
+  catch_results TEXT,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -576,3 +582,14 @@ BEGIN
     ALTER TABLE competition_registrations ALTER COLUMN assigned_box TYPE TEXT USING assigned_box::TEXT;
   END IF;
 END $$;
+
+-- v2.87: multi-round ("манш") catch-weight results. rounds_count on
+-- competitions is how many rounds it's fished over (NULL/unset reads as 1
+-- client-side). catch_results on competition_registrations is a
+-- JSON-encoded array of that participant's per-round weight in kg — see the
+-- matching column comments in server/schema/entities.generated.ts and
+-- src/lib/competitionResults.js. Safe to re-run. Applied via the same
+-- "Приложи обновление" admin button as the migrations above — see
+-- server/routes/adminMigrations.ts.
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS rounds_count INTEGER;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results TEXT;

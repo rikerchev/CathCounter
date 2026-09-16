@@ -136,6 +136,13 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       `);
     },
   },
+  "v2.87-competition-results": {
+    label: "v2.87 — Състезания: манши и тегло на улова",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE competitions ADD COLUMN IF NOT EXISTS rounds_count INTEGER`);
+      await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results TEXT`);
+    },
+  },
 };
 
 /**
@@ -199,6 +206,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type = 'text'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.87-competition-results") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'competition_registrations' AND column_name = 'catch_results'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
