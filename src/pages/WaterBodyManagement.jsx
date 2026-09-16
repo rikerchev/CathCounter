@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import {
@@ -163,6 +163,34 @@ export default function WaterBodyManagement() {
     setShowCompForm(true);
   }
 
+  // v2.85 — clone an existing competition as the starting point for a new
+  // one, mainly so its sectors/boxes config doesn't have to be retyped by
+  // hand. Opens the same dialog in CREATE mode (compEditing stays null, so
+  // saveCompetition makes a brand-new row) prefilled from `comp` — except
+  // the date/deadline, left blank on purpose: the date input is required,
+  // so the organizer has to consciously pick a new date rather than risk
+  // accidentally duplicating the source competition's own date. Participants
+  // and any existing draw are naturally NOT copied, since this creates a
+  // fresh competition with no registrations of its own.
+  function openCloneCompForm(wb, comp) {
+    setCompFor(wb);
+    setCompEditing(null);
+    const parsed = parseSectorsConfig(comp.sectors_config).map((s) => ({ ...s, boxCount: String(s.boxes.length) }));
+    setCompForm({
+      title: comp.title || "",
+      fishing_type: fishingTypeLabel(comp.fishing_type, t),
+      max_participants: String(comp.max_participants ?? "20"),
+      max_reserves: String(comp.max_reserves ?? "5"),
+      conditions: comp.conditions || "",
+      prize_fund: comp.prize_fund || "",
+      fee: comp.fee ? String(comp.fee) : "",
+      date: "",
+      registration_deadline: "",
+      sectors: parsed.length > 0 ? parsed : [EMPTY_SECTOR_ROW],
+    });
+    setShowCompForm(true);
+  }
+
   function addSectorRow() {
     setCompForm((f) => ({ ...f, sectors: [...f.sectors, EMPTY_SECTOR_ROW] }));
   }
@@ -285,6 +313,14 @@ export default function WaterBodyManagement() {
 
   // v2.83 — handles both create (compEditing === null) and edit
   // (compEditing === the competition being changed) through the one dialog.
+  //
+  // v2.85 — the draw is meant to be one-shot (see drawLotsFor), and editing
+  // the competition is the one deliberate escape hatch: saving an edit to a
+  // competition that already has a draw clears every participant's
+  // assigned_sector/assigned_box, which both un-blocks drawLotsFor and makes
+  // sure no one is left with a box assignment that no longer matches a
+  // possibly-changed sectors/boxes config. Confirmed first since it's
+  // destructive to existing assignments.
   async function saveCompetition(e) {
     e.preventDefault();
     const payload = {
@@ -301,7 +337,14 @@ export default function WaterBodyManagement() {
     };
     try {
       if (compEditing) {
+        const drawnRegs = regsFor(compEditing.id).filter((r) => r.assigned_box != null);
+        if (drawnRegs.length > 0 && !window.confirm(t("wb.confirmEditResetsDraw"))) return;
         await base44.entities.Competition.update(compEditing.id, payload);
+        if (drawnRegs.length > 0) {
+          await base44.entities.CompetitionRegistration.bulkUpdate(
+            drawnRegs.map((r) => ({ id: r.id, assigned_sector: null, assigned_box: null }))
+          );
+        }
         toast({ title: t("wb.competitionUpdated") });
       } else {
         if (!compFor) return;
@@ -323,9 +366,13 @@ export default function WaterBodyManagement() {
 
   // v2.83 — random box-per-participant draw. Only MAIN-slot registrations
   // are drawn (reserves aren't guaranteed a spot until promoted), and only
-  // when the competition has at least one sector/box configured. Re-running
-  // it after a previous draw overwrites every main participant's assignment
-  // (confirmed first) — there's no "keep old, fill in new" partial mode.
+  // when the competition has at least one sector/box configured.
+  //
+  // v2.85 — the draw is now one-shot: once any main participant has a box
+  // assigned, this refuses to run again outright (no more "confirm to
+  // overwrite"). The only way to draw again is to edit the competition
+  // (openEditCompForm/saveCompetition), which explicitly clears the old
+  // assignments as part of saving — see saveCompetition above.
   async function drawLotsFor(comp) {
     const sectors = parseSectorsConfig(comp.sectors_config);
     const boxCount = totalBoxes(sectors);
@@ -339,7 +386,10 @@ export default function WaterBodyManagement() {
       return;
     }
     const alreadyDrawn = mainRegs.some((r) => r.assigned_box != null);
-    if (alreadyDrawn && !window.confirm(t("wb.confirmRedraw"))) return;
+    if (alreadyDrawn) {
+      toast({ title: t("wb.drawAlreadyDone"), variant: "destructive" });
+      return;
+    }
     try {
       const assignments = drawBoxes(mainRegs, sectors);
       await base44.entities.CompetitionRegistration.bulkUpdate(
@@ -399,6 +449,18 @@ export default function WaterBodyManagement() {
     try {
       await base44.entities.Competition.update(comp.id, { status: "closed" });
       toast({ title: t("wb.registrationClosed") });
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  // v2.85 — undo of closeCompetition: reopens registration on a competition
+  // the organizer closed too early or wants to accept more entries for.
+  async function reopenCompetition(comp) {
+    try {
+      await base44.entities.Competition.update(comp.id, { status: "open" });
+      toast({ title: t("wb.registrationReopened") });
       await load();
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
@@ -645,9 +707,16 @@ export default function WaterBodyManagement() {
                           <Button variant="outline" size="sm" onClick={() => drawLotsFor(c)} className="min-h-[36px] text-xs">
                             <Shuffle className="w-3.5 h-3.5 mr-1" /> {t("wb.drawLots")}
                           </Button>
-                          {c.status === "open" && (
+                          <Button variant="outline" size="sm" onClick={() => openCloneCompForm(wb, c)} className="min-h-[36px] text-xs">
+                            <Copy className="w-3.5 h-3.5 mr-1" /> {t("wb.cloneCompetition")}
+                          </Button>
+                          {c.status === "open" ? (
                             <Button variant="outline" size="sm" onClick={() => closeCompetition(c)} className="min-h-[36px] text-xs">
                               {t("wb.closeRegistration")}
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" onClick={() => reopenCompetition(c)} className="min-h-[36px] text-xs">
+                              <RotateCcw className="w-3.5 h-3.5 mr-1" /> {t("wb.reopenCompetition")}
                             </Button>
                           )}
                         </div>
