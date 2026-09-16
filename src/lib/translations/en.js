@@ -489,7 +489,7 @@ export const en = {
     "comp.mainFullReserve": "Main slots are full — you will be registered as a reserve.",
     "comp.willBeRegistered": "You will be registered as a participant.",
     "comp.participationFee": "Entry fee",
-    "comp.paymentLinkInfo": "After registration you will receive a payment link via Revolut.",
+    "comp.paymentLinkInfo": "The fee is paid in person to the organizer.",
     "comp.paymentViaRevolut": "Payment via Revolut",
     "comp.competitionLabel": "Competition",
     "comp.amountToPay": "Amount to pay",

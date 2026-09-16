@@ -476,7 +476,7 @@ export const bg = {
     "comp.mainFullReserve": "Основните места са запълнени — ще бъдете записан като резерва.",
     "comp.willBeRegistered": "Ще бъдете записан като участник.",
     "comp.participationFee": "Такса за участие",
-    "comp.paymentLinkInfo": "След записване ще получите линк за плащане през Revolut.",
+    "comp.paymentLinkInfo": "Таксата се заплаща на място при организатора.",
     "comp.paymentViaRevolut": "Плащане през Revolut",
     "comp.competitionLabel": "Състезание",
     "comp.amountToPay": "Сума за плащане",

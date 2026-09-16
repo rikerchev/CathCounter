@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send, CreditCard, ExternalLink } from "lucide-react";
+import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,11 +12,6 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import CompetitionCalendar from "@/components/CompetitionCalendar";
-// v2.77 — calcOwnerPayout was imported but never actually used in this file
-// (the owner-facing 75% display it powered lived only in
-// WaterBodyManagement.jsx and was removed there); PLATFORM_REVOLUT_URL is
-// still used below for competition entry-fee payment, which is unaffected.
-import { PLATFORM_REVOLUT_URL } from "@/lib/payment";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 
@@ -42,7 +37,6 @@ export default function Competitions() {
   const [submitting, setSubmitting] = useState(false);
   const [notifying, setNotifying] = useState(null);
   const [waterBodies, setWaterBodies] = useState([]);
-  const [showPayment, setShowPayment] = useState(null);
   const [filterCountry, setFilterCountry] = useState("");
   const [filterRegion, setFilterRegion] = useState("");
   const country = user?.country || "";
@@ -70,12 +64,6 @@ export default function Competitions() {
 
   useEffect(() => {
     load();
-    if (searchParams.get("paid")) {
-      toast({ title: t("comp.paymentSuccess") });
-    }
-    if (searchParams.get("cancelled")) {
-      toast({ title: t("comp.paymentCancelled"), variant: "destructive" });
-    }
   }, [load]);
 
   function countsFor(compId) {
@@ -107,7 +95,14 @@ export default function Competitions() {
         return;
       }
       const slotType = isMainFull ? "reserve" : "main";
-      const reg = await base44.entities.CompetitionRegistration.create({
+      // v2.79 — competition entry-fee payment (Revolut) is paused for now,
+      // same treatment SectorReservations.jsx got in v2.77: no in-app payment
+      // step, `fee` on the competition is purely an informational price the
+      // organizer collects in person. `payment_status: "pending"` is kept on
+      // the row (still permanently inert, nothing ever flips it to "paid"
+      // from here anymore) so re-enabling this later doesn't need a schema
+      // change — see markPaid()/showPayment, removed below in this version.
+      await base44.entities.CompetitionRegistration.create({
         competition_id: registerFor.id,
         participant_name: regName,
         participant_phone: regPhone,
@@ -115,7 +110,6 @@ export default function Competitions() {
         payment_status: "pending",
         status: "active",
       });
-      const fee = registerFor.fee || 0;
       toast({
         title: slotType === "main" ? t("comp.registeredAsMainToast") : t("comp.registeredAsReserveToast"),
         description: `${t("comp.registerFor")} „${registerFor.title}“`,
@@ -123,27 +117,10 @@ export default function Competitions() {
       setRegisterFor(null);
       setRegPhone("");
       await load();
-      if (fee > 0) {
-        setShowPayment({ competition: registerFor, fee, registrationId: reg.id });
-      }
     } catch (e) {
       toast({ title: t("comp.errorRegistering"), description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function markPaid() {
-    if (!showPayment) return;
-    try {
-      await base44.entities.CompetitionRegistration.update(showPayment.registrationId, {
-        payment_status: "paid",
-      });
-      toast({ title: t("comp.paymentConfirmed"), description: t("comp.confirmationPending") });
-      setShowPayment(null);
-      await load();
-    } catch (e) {
-      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
     }
   }
 
@@ -381,44 +358,6 @@ export default function Competitions() {
             <Button variant="outline" onClick={() => setRegisterFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
             <Button onClick={handleRegister} disabled={submitting} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
               {submitting ? t("comp.register") + "..." : t("common.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!showPayment} onOpenChange={(o) => !o && setShowPayment(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CreditCard className="w-5 h-5 text-cyan-600" /> {t("comp.paymentViaRevolut")}
-            </DialogTitle>
-          </DialogHeader>
-          {showPayment && (
-            <div className="space-y-3">
-              <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 text-sm space-y-1">
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("comp.competitionLabel")}:</span> {showPayment.competition.title}</p>
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("comp.amountToPay")}:</span> <span className="font-bold text-emerald-600">{showPayment.fee} €</span></p>
-              </div>
-              <div className="rounded-xl border border-cyan-200 dark:border-cyan-800 p-4 space-y-3">
-                <p className="text-sm font-medium text-slate-700 dark:text-foreground">{t("comp.payViaRevolut")}:</p>
-                <a href={PLATFORM_REVOLUT_URL} target="_blank" rel="noopener noreferrer" className="block">
-                  <Button className="w-full bg-black hover:bg-black/90 min-h-[48px] gap-2">
-                    <ExternalLink className="w-4 h-4" /> {t("comp.pay")} {showPayment.fee} € {t("comp.viaRevolut")}
-                  </Button>
-                </a>
-                <p className="text-xs text-slate-500 dark:text-muted-foreground text-center">
-                  {t("comp.revolutLink")}
-                </p>
-              </div>
-              <div className="rounded-xl bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
-                {t("comp.paymentConfirmInfo")}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPayment(null)} className="min-h-[44px]">{t("comp.close")}</Button>
-            <Button onClick={markPaid} className="bg-emerald-600 hover:bg-emerald-700 min-h-[44px]">
-              {t("comp.iPaid")}
             </Button>
           </DialogFooter>
         </DialogContent>

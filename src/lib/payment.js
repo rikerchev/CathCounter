@@ -5,8 +5,12 @@
 // with the "pay for a sector reservation via Revolut" flow (see
 // SectorReservations.jsx and the "Pending Transfers" panel that used to be
 // in WaterBodyManagement.jsx) — see claude/... project doc for the merchant
-// restructuring this was part of. PLATFORM_REVOLUT_URL is kept: competition
-// entry fees (Competitions.jsx) still use it and were NOT part of that
-// change — only reservation payments and the commission split were removed.
+// restructuring this was part of.
+//
+// v2.79 — the competition entry-fee "pay via Revolut" flow in
+// Competitions.jsx was paused too (for now — not a permanent removal like
+// v2.77's), so nothing in the app currently imports these two constants.
+// Left in place rather than deleted so re-enabling that flow later is just
+// re-adding the UI, not re-inventing the payment link.
 export const PLATFORM_REVOLUT_TAG = "rkerchev";
 export const PLATFORM_REVOLUT_URL = "https://revolut.me/rkerchev";
