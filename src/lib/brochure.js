@@ -167,7 +167,11 @@ function drawVenueName(ctx, name) {
   ctx.restore();
 }
 
-async function renderBrochureCanvas({ link, name }) {
+// v2.92 — exported: src/lib/standingsImage.js embeds this SAME rendered
+// brochure (unchanged) at the bottom of the competition standings image,
+// per the organizer's request that the standings download use "the actual
+// individual brochure", not an approximation of it.
+export async function renderBrochureCanvas({ link, name }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,

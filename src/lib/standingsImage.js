@@ -1,199 +1,232 @@
-import html2canvas from "html2canvas";
-import QRCode from "qrcode";
-import { roundRectPath, loadImage, ensureBrochureFont, APP_ICON_URL } from "./brochure";
+import { roundRectPath, ensureBrochureFont, renderBrochureCanvas } from "./brochure";
 import { getMerchantBrochureLink } from "./referral";
 
 /**
- * downloadStandingsImage — v2.91. The competition standings PNG (the
- * "Изтегли като снимка" button in both WaterBodyManagement.jsx and
- * Competitions.jsx's standings dialogs) used to be a plain html2canvas
- * screenshot of the ranked list and nothing else. The organizer asked for
- * it to double as a small piece of marketing, styled like the existing
- * printed brochure (src/lib/brochure.js — same dark background, house
- * font, and QR-in-a-white-badge treatment): the ranked list on top, and a
- * banner strip glued to the bottom with the water body's own QR code (so
- * anyone who receives/sees this image can scan straight into the app,
- * already attributed to that water body — reuses the same
- * getMerchantBrochureLink() link as the brochure) plus a handful of its
- * public attributes (location, species, fee, phone).
+ * downloadStandingsImage — v2.91, redesigned in v2.92. The competition
+ * standings PNG (the "Изтегли като снимка" button in both
+ * WaterBodyManagement.jsx and Competitions.jsx's standings dialogs).
  *
- * Page shape: fixed A4 width, "top half / bottom half" ONLY as a target for
- * a typical-sized standings list — BANNER_H is fixed, but the table section
- * above it is never shrunk below legibility to force an exact half: a short
- * list gets padded to fill the top half (so the overall image really does
- * look like a clean A4 half/half split), while a long participant list is
- * simply allowed to make the whole image taller instead of squeezing text.
+ * v2.91 first shipped this as an html2canvas screenshot of the on-screen
+ * dialog with a hand-drawn banner glued underneath. Both were wrong in
+ * practice: html2canvas, screenshotting a node inside a scrollable
+ * "max-h-[85vh] overflow-y-auto" dialog, produced a badly clipped, far-too-
+ * tall image (nowhere near A4) with names cut off; and the organizer's
+ * actual ask was to embed the REAL per-water-body brochure (the exact
+ * output of downloadInviteBrochure/renderBrochureCanvas — golden-fish
+ * photo, phone mockups, this water body's own QR baked in) at the bottom,
+ * not a custom-drawn approximation of it.
  *
- * Deliberately does NOT attempt to draw the water body's own logo_url onto
- * the canvas: unlike the brochure's own same-origin assets (app icon,
- * template), logo_url is an arbitrary externally-hosted URL with no
- * guaranteed CORS headers — drawing a non-CORS image onto a canvas taints
- * it and makes canvas.toDataURL() throw, which would break the ENTIRE
- * download rather than just omit one logo. Not worth that risk for a
- * decorative image.
+ * v2.92 draws the whole page itself instead of screenshotting DOM:
+ * - The ranked list is drawn row by row directly onto the canvas (rank
+ *   badge, name auto-shrunk to always fit on one line, sector/box moved
+ *   next to the name instead of below it, points/weight on the right),
+ *   split into two columns once the list is long enough that a single
+ *   column would make the page unreasonably tall.
+ * - The bottom of the page is the water body's actual brochure image,
+ *   embedded unchanged via renderBrochureCanvas (same QR/name it already
+ *   carries — nothing duplicated here).
+ * - The page background behind the ranked list is the SAME dark gradient
+ *   as the brochure's own background, so the two sections read as one
+ *   continuous page; each ranked row still sits on its own white card
+ *   (the "бяла част" the organizer asked for) for legibility.
+ *
+ * Full control over layout is exactly why this no longer goes through
+ * html2canvas at all — a live DOM screenshot can't be reliably forced into
+ * fixed row heights, a two-column split, or a guaranteed one-line name.
  */
 
 const PAGE_W = 1240; // A4 width @ ~150dpi
-const PAGE_H = 1754; // A4 height @ ~150dpi — PAGE_H/2 is the banner's fixed height
-const BANNER_H = Math.round(PAGE_H / 2);
-const PAD = 56;
+const PAGE_TARGET_H = 1754; // A4 height @ ~150dpi — the target when content is short
+const PAD = 40;
+const HEADER_H = 96;
+const GUTTER = 28;
+const ROW_GAP = 10;
+const RANK_SIZE = 34;
+// More rows than this and a single column would make the page unreasonably
+// tall — switch to two columns (ranks 1..N/2 in the left column, the rest
+// continuing in the right one) instead.
+const COLUMN_SPLIT_THRESHOLD = 12;
 
-function wrapLines(ctx, text, maxWidth, maxLines) {
-  const words = (text || "").trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return [];
-  const lines = [];
-  let current = "";
-  for (const word of words) {
-    const attempt = current ? `${current} ${word}` : word;
-    if (ctx.measureText(attempt).width <= maxWidth || !current) {
-      current = attempt;
-    } else {
-      lines.push(current);
-      current = word;
-      if (lines.length === maxLines - 1) break;
-    }
+const BG_TOP = "#0b1f33";
+const BG_BOTTOM = "#0e3a52";
+
+function fitFontSize(ctx, text, maxWidth, maxSize, minSize, weight, family) {
+  let size = maxSize;
+  ctx.font = `${weight} ${size}px ${family}`;
+  while (size > minSize && ctx.measureText(text).width > maxWidth) {
+    size -= 1;
+    ctx.font = `${weight} ${size}px ${family}`;
   }
-  if (current) lines.push(current);
-  if (lines.length > maxLines) lines.length = maxLines;
-  // Ellipsize the last kept line if there's leftover text that didn't fit.
-  const consumed = lines.join(" ").split(/\s+/).length;
-  if (consumed < words.length) {
-    let last = lines[lines.length - 1];
-    while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth) {
-      last = last.slice(0, -1);
-    }
-    lines[lines.length - 1] = `${last}…`;
-  }
-  return lines;
+  if (ctx.measureText(text).width <= maxWidth) return { size, text };
+  // Still doesn't fit even at the minimum size (an extremely long name) —
+  // ellipsize as a last-resort safety net rather than overflow the card.
+  let t = text;
+  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
+  return { size, text: `${t}…` };
 }
 
-async function drawBanner(ctx, bannerY, { competition, waterBody }, t) {
-  const x = 0;
-  const y = bannerY;
-  const w = PAGE_W;
-  const h = BANNER_H;
+function rankColors(rank) {
+  if (rank === 1) return { bg: "#fbbf24", fg: "#ffffff" };
+  if (rank === 2) return { bg: "#cbd5e1", fg: "#334155" };
+  if (rank === 3) return { bg: "#b45309", fg: "#ffffff" };
+  return { bg: "#e2e8f0", fg: "#64748b" };
+}
 
-  // 1. Dark brand-colored background, same visual language as the printed
-  // brochure (dark navy, white/cyan text, white QR badge).
-  const gradient = ctx.createLinearGradient(0, y, w, y + h);
-  gradient.addColorStop(0, "#0b1f33");
-  gradient.addColorStop(1, "#0e3a52");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(x, y, w, h);
+function drawRankedRow(ctx, box, r, t) {
+  const { x, y, w, h } = box;
+  const cy = y + h / 2;
 
-  const [appIcon, qrDataUrl] = await Promise.all([
-    loadImage(APP_ICON_URL),
-    competition?.water_body_id
-      ? QRCode.toDataURL(getMerchantBrochureLink("water_body", competition.water_body_id), {
-          width: 500,
-          margin: 2,
-          errorCorrectionLevel: "H",
-          color: { dark: "#0b3554", light: "#ffffff" },
-        })
-      : Promise.resolve(null),
-    ensureBrochureFont(),
-  ]);
+  // Rank badge, left of the card.
+  const { bg, fg } = rankColors(r.rank);
+  const rcx = x + RANK_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(rcx, cy, RANK_SIZE / 2, 0, Math.PI * 2);
+  ctx.fillStyle = bg;
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = fg;
+  ctx.font = `700 15px Arial, sans-serif`;
+  ctx.fillText(String(r.rank), rcx, cy + 1);
 
-  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
-  const badgeSize = Math.round(h * 0.42);
-  const badgeX = x + w - PAD - badgeSize;
-  const badgeY = y + Math.round((h - badgeSize) / 2) - 10;
+  // White card — the "бяла част" the ranked list sits in, against the
+  // page's dark background.
+  const cardX = x + RANK_SIZE + 10;
+  const cardW = w - RANK_SIZE - 10;
+  ctx.save();
+  ctx.shadowColor = "rgba(8, 15, 28, 0.25)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  roundRectPath(ctx, cardX, y, cardW, h, 12);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.restore();
 
-  // 2. QR badge, right side — same white-rounded-badge + centered app-icon
-  // treatment as the brochure, just smaller.
-  if (qrDataUrl) {
-    const qrImg = await loadImage(qrDataUrl);
-    roundRectPath(ctx, badgeX, badgeY, badgeSize, badgeSize, 16);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
-    const qrPad = Math.round(badgeSize * 0.08);
-    const qrSize = badgeSize - qrPad * 2;
-    ctx.drawImage(qrImg, badgeX + qrPad, badgeY + qrPad, qrSize, qrSize);
-    const iconBacking = Math.round(badgeSize * 0.22);
-    const cx = badgeX + badgeSize / 2;
-    const cy = badgeY + badgeSize / 2;
-    roundRectPath(ctx, cx - iconBacking / 2, cy - iconBacking / 2, iconBacking, iconBacking, 8);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
-    const iconSize = Math.round(iconBacking * 0.8);
-    ctx.drawImage(appIcon, cx - iconSize / 2, cy - iconSize / 2, iconSize, iconSize);
+  // Right side: penalty points + total weight, stacked, right-aligned.
+  const rightW = 96;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#4338ca";
+  ctx.font = `700 15px Arial, sans-serif`;
+  ctx.fillText(`${r.penalty} ${t("comp.pointsUnit")}`, cardX + cardW - 14, cy - 3);
+  ctx.fillStyle = "#b45309";
+  ctx.font = `600 12px Arial, sans-serif`;
+  ctx.fillText(`${r.total} ${t("wb.kg")}`, cardX + cardW - 14, cy + 14);
 
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `700 20px ${fontStack}`;
-    ctx.fillText(t("standingsImg.scanToDownload"), badgeX + badgeSize / 2, badgeY + badgeSize + 30);
-  }
-
-  // 3. App wordmark, top-left of the banner.
-  const contentX = x + PAD;
-  const contentW = badgeX - PAD - contentX;
+  // Left side: name + sector/box on the SAME line (moved next to the name
+  // instead of on a second line — see this module's own comment above),
+  // name auto-shrunk so it always fits without being cut off.
+  const leftX = cardX + 14;
+  const leftMaxW = cardW - 28 - rightW;
+  const sectorBox = r.assigned_box != null ? `${r.assigned_sector}/${r.assigned_box}` : "";
+  ctx.font = `600 12px Arial, sans-serif`;
+  const sbWidth = sectorBox ? ctx.measureText(sectorBox).width + 10 : 0;
+  const nameMaxW = Math.max(30, leftMaxW - sbWidth);
+  const nameMaxSize = h >= 62 ? 18 : 15;
+  const fitted = fitFontSize(ctx, r.participant_name || "", nameMaxW, nameMaxSize, 12, 700, "Arial, sans-serif");
   ctx.textAlign = "left";
+  ctx.fillStyle = "#1e293b";
+  ctx.font = `700 ${fitted.size}px Arial, sans-serif`;
+  ctx.fillText(fitted.text, leftX, cy + fitted.size * 0.32);
+
+  if (sectorBox) {
+    const nameW = ctx.measureText(fitted.text).width;
+    ctx.font = `600 12px Arial, sans-serif`;
+    ctx.fillStyle = "#94a3b8";
+    ctx.fillText(sectorBox, leftX + nameW + 10, cy + 4);
+  }
+}
+
+async function drawHeader(ctx, box, title, t) {
+  await ensureBrochureFont();
+  const { x, y, w, h } = box;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 30px ${fontStack}`;
-  ctx.fillText("CatchCount", contentX, y + PAD + 20);
-  ctx.fillStyle = "#67e8f9";
-  ctx.font = `400 18px Arial, sans-serif`;
-  ctx.fillText(t("standingsImg.tagline"), contentX, y + PAD + 46);
-
-  // 4. Water body name + a handful of its public attributes.
-  let cursorY = y + PAD + 100;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 34px ${fontStack}`;
-  const nameLines = wrapLines(ctx, (competition?.water_body_name || "").toUpperCase(), contentW, 2);
-  for (const line of nameLines) {
-    ctx.fillText(line, contentX, cursorY);
-    cursorY += 38;
-  }
-  cursorY += 12;
-
-  ctx.font = `400 22px Arial, sans-serif`;
-  ctx.fillStyle = "#e2f4f9";
-  const attrLines = [];
-  if (waterBody?.location) attrLines.push(`${t("standingsImg.location")}: ${waterBody.location}`);
-  if (waterBody?.fish_population) attrLines.push(`${t("standingsImg.fish")}: ${waterBody.fish_population}`);
-  if (waterBody?.fee_per_person != null && waterBody.fee_per_person > 0) {
-    attrLines.push(`${t("standingsImg.fee")}: ${waterBody.fee_per_person} €`);
-  }
-  if (waterBody?.contact_phone) attrLines.push(`${t("standingsImg.phone")}: ${waterBody.contact_phone}`);
-
-  for (const raw of attrLines) {
-    if (cursorY > y + h - PAD) break; // out of room — skip the rest rather than overflow the banner
-    const lines = wrapLines(ctx, raw, contentW, 1);
-    for (const line of lines) {
-      ctx.fillText(line, contentX, cursorY);
-      cursorY += 30;
-    }
-  }
+  ctx.font = `700 30px Arial, sans-serif`;
+  ctx.fillText("🏆", x, y + h * 0.62);
+  const label = `${t("wb.standings")} — ${title || ""}`;
+  const fitted = fitFontSize(ctx, label, w - 52, 30, 18, 700, `"CatchCountBrochure", Arial, sans-serif`);
+  ctx.font = `700 ${fitted.size}px "CatchCountBrochure", Arial, sans-serif`;
+  ctx.fillText(fitted.text, x + 46, y + h * 0.62);
 }
 
 /**
- * node: the DOM node to screenshot for the ranked list (same as before —
- * WaterBodyManagement.jsx/Competitions.jsx's standingsRef div).
- * competition: the Competition record (needs water_body_id, water_body_name).
- * waterBody: the matching WaterBody record, if the caller has it loaded —
- * optional; when missing, the banner still shows the name + QR, just none
- * of the extra attribute lines.
+ * ranked: the array from rankByPenaltyAndWeight (id, participant_name,
+ * assigned_sector, assigned_box, rank, penalty, total) — caller already has
+ * this computed for the on-screen dialog.
+ * title: the competition's title, shown in the header.
+ * competition: needs water_body_id (for the brochure's QR) and, as a
+ * fallback, water_body_name.
+ * waterBody: the matching WaterBody record, if loaded — its own `name` is
+ * preferred for the brochure label; optional.
  */
-export async function downloadStandingsImage({ node, competition, waterBody, filename, t }) {
-  if (!node) return;
+export async function downloadStandingsImage({ ranked, title, competition, waterBody, filename, t }) {
+  const list = ranked || [];
+  const colCount = list.length > COLUMN_SPLIT_THRESHOLD ? 2 : 1;
+  const rowH = colCount === 2 ? 58 : 66;
+  const rowsPerCol = Math.max(1, Math.ceil(list.length / colCount));
+  const listH = list.length > 0 ? rowsPerCol * (rowH + ROW_GAP) - ROW_GAP : 40;
+  const topContentH = HEADER_H + listH + PAD * 2;
 
-  const tableCanvas = await html2canvas(node, { backgroundColor: "#ffffff", scale: 2 });
-  const scale = PAGE_W / tableCanvas.width;
-  const drawnTableH = Math.round(tableCanvas.height * scale);
-  const tableSectionH = Math.max(PAGE_H - BANNER_H, drawnTableH);
-  const totalH = tableSectionH + BANNER_H;
+  let brochureCanvas = null;
+  if (competition?.water_body_id) {
+    try {
+      brochureCanvas = await renderBrochureCanvas({
+        link: getMerchantBrochureLink("water_body", competition.water_body_id),
+        name: waterBody?.name || competition?.water_body_name || "",
+      });
+    } catch {
+      brochureCanvas = null; // template asset failed to load — standings alone still work
+    }
+  }
+  const brochureH = brochureCanvas ? Math.round((PAGE_W * brochureCanvas.height) / brochureCanvas.width) : 0;
+
+  // A4-shaped when the list is short: the top section is padded up to fill
+  // what would be "the rest of the page" above the brochure. A long list is
+  // never shrunk to force that — the page just grows taller instead.
+  const targetTopH = Math.max(0, PAGE_TARGET_H - brochureH);
+  const topH = Math.max(targetTopH, topContentH);
+  const totalH = topH + brochureH;
 
   const canvas = document.createElement("canvas");
   canvas.width = PAGE_W;
   canvas.height = totalH;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#ffffff";
+
+  // One continuous dark gradient behind the WHOLE page (not just the top
+  // section) — same colors as the brochure's own background — so the
+  // ranked list and the embedded brochure read as one page, not two
+  // stacked blocks.
+  const gradient = ctx.createLinearGradient(0, 0, 0, totalH);
+  gradient.addColorStop(0, BG_TOP);
+  gradient.addColorStop(1, BG_BOTTOM);
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, PAGE_W, totalH);
 
-  const tableY = Math.round((tableSectionH - drawnTableH) / 2);
-  ctx.drawImage(tableCanvas, 0, tableY, PAGE_W, drawnTableH);
+  await drawHeader(ctx, { x: PAD, y: PAD, w: PAGE_W - PAD * 2, h: HEADER_H }, title, t);
 
-  await drawBanner(ctx, tableSectionH, { competition, waterBody }, t);
+  if (list.length === 0) {
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#cbd5e1";
+    ctx.font = `400 18px Arial, sans-serif`;
+    ctx.fillText(t("wb.noResultsYet"), PAD, PAD + HEADER_H + 30);
+  } else {
+    const listTop = PAD + HEADER_H;
+    const colW = colCount === 2 ? (PAGE_W - PAD * 2 - GUTTER) / 2 : PAGE_W - PAD * 2;
+    list.forEach((r, i) => {
+      const col = colCount === 2 ? Math.floor(i / rowsPerCol) : 0;
+      const rowInCol = colCount === 2 ? i % rowsPerCol : i;
+      const rowX = PAD + col * (colW + GUTTER);
+      const rowY = listTop + rowInCol * (rowH + ROW_GAP);
+      drawRankedRow(ctx, { x: rowX, y: rowY, w: colW, h: rowH }, r, t);
+    });
+  }
+
+  if (brochureCanvas) {
+    ctx.drawImage(brochureCanvas, 0, topH, PAGE_W, brochureH);
+  }
 
   const dataUrl = canvas.toDataURL("image/png");
   const a = document.createElement("a");

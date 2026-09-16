@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
@@ -89,10 +89,10 @@ export default function WaterBodyManagement() {
   const [reassigning, setReassigning] = useState(false);
   // v2.87 — competition whose standings dialog is open. v2.89 — ranked by
   // penalty points first, total catch weight only as the tie-break — see
-  // rankByPenaltyAndWeight. standingsRef/generatingImage back the "Изтегли
-  // като снимка" button (html2canvas captures the dialog's ranked-list div).
+  // rankByPenaltyAndWeight. v2.92 — generatingImage backs the "Изтегли
+  // като снимка" button (src/lib/standingsImage.js draws its own canvas
+  // now, no DOM screenshot involved).
   const [standingsFor, setStandingsFor] = useState(null);
-  const standingsRef = useRef(null);
   const [generatingImage, setGeneratingImage] = useState(false);
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
@@ -625,17 +625,18 @@ export default function WaterBodyManagement() {
   }
 
   // v2.89 — "generate on request" image export for the standings dialog,
-  // nothing pre-rendered or stored server-side. v2.91 — now built by the
-  // shared src/lib/standingsImage.js (ranked list on top, a brochure-styled
-  // banner with this water body's own QR code/attributes glued to the
-  // bottom) instead of a plain html2canvas screenshot — see that module's
-  // own comment for the full design rationale.
+  // nothing pre-rendered or stored server-side. v2.91/v2.92 — now drawn
+  // entirely by the shared src/lib/standingsImage.js (own canvas rendering
+  // of the ranked list, the water body's REAL brochure embedded unchanged
+  // at the bottom) instead of an html2canvas screenshot of the dialog — see
+  // that module's own comment for the full design rationale.
   async function handleDownloadStandingsImage(comp) {
-    if (!standingsRef.current) return;
     setGeneratingImage(true);
     try {
+      const roundsCount = Math.max(1, comp.rounds_count || 1);
       await downloadStandingsImage({
-        node: standingsRef.current,
+        ranked: rankByPenaltyAndWeight(regsFor(comp.id), roundsCount),
+        title: comp.title,
         competition: comp,
         waterBody: wbMap[comp.water_body_id],
         filename: `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
@@ -1273,11 +1274,9 @@ export default function WaterBodyManagement() {
           points first (fewer is better — see rankByPenaltyAndWeight),
           total catch weight only the tie-break. Read-only — weights are
           entered via the pencil icon on each ParticipantRow above
-          (organizer/admin) or by the registrant themselves
-          (Competitions.jsx). The whole block inside standingsRef uses FIXED
-          light colors (no dark: classes) on purpose, so the downloaded PNG
-          (see downloadStandingsImage) always looks the same regardless of
-          the viewer's own theme. */}
+          (organizer/admin). v2.92 — this dialog is now purely for on-screen
+          viewing; the downloaded PNG (see downloadStandingsImage) is drawn
+          separately, straight onto a canvas, not screenshotted from here. */}
       <Dialog open={!!standingsFor} onOpenChange={(o) => !o && setStandingsFor(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -1289,7 +1288,7 @@ export default function WaterBodyManagement() {
             const roundsCount = Math.max(1, standingsFor.rounds_count || 1);
             const ranked = rankByPenaltyAndWeight(regsFor(standingsFor.id), roundsCount);
             return (
-              <div ref={standingsRef} className="bg-white p-3 rounded-xl space-y-3">
+              <div className="bg-white p-3 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
                   <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
                   <p className="text-sm font-bold text-slate-800 break-words">{standingsFor.title}</p>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
@@ -62,7 +62,8 @@ export default function Competitions() {
   // showing its standings dialog (all-registrations, read-only).
   const [standingsFor, setStandingsFor] = useState(null);
   // v2.89 — backs the "Изтегли като снимка" button in the standings dialog.
-  const standingsRef = useRef(null);
+  // v2.92 — the download itself draws its own canvas now (see
+  // src/lib/standingsImage.js), so this just tracks the button's busy state.
   const [generatingImage, setGeneratingImage] = useState(false);
 
   const load = useCallback(async () => {
@@ -212,18 +213,19 @@ export default function Competitions() {
   }
 
   // v2.89 — "generate on request" image export for the standings dialog,
-  // nothing pre-rendered or stored anywhere. v2.91 — now built by the
-  // shared src/lib/standingsImage.js (ranked list on top, a brochure-styled
-  // banner with this water body's own QR code/attributes glued to the
-  // bottom) instead of a plain html2canvas screenshot — see that module's
-  // own comment for the full design rationale. Same shared function as
-  // WaterBodyManagement.jsx's handleDownloadStandingsImage.
+  // nothing pre-rendered or stored anywhere. v2.91/v2.92 — now drawn
+  // entirely by the shared src/lib/standingsImage.js (own canvas rendering
+  // of the ranked list, the water body's REAL brochure embedded unchanged
+  // at the bottom) instead of an html2canvas screenshot of the dialog — see
+  // that module's own comment for the full design rationale. Same shared
+  // function as WaterBodyManagement.jsx's handleDownloadStandingsImage.
   async function handleDownloadStandingsImage(comp) {
-    if (!standingsRef.current) return;
     setGeneratingImage(true);
     try {
+      const roundsCount = Math.max(1, comp.rounds_count || 1);
       await downloadStandingsImage({
-        node: standingsRef.current,
+        ranked: rankByPenaltyAndWeight(regsFor(comp.id), roundsCount),
+        title: comp.title,
         competition: comp,
         waterBody: waterBodies.find((w) => w.id === comp.water_body_id),
         filename: `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
@@ -531,10 +533,10 @@ export default function Competitions() {
 
       {/* v2.87 — read-only standings for one competition; v2.89 — ranked by
           penalty points first (fewer is better — see rankByPenaltyAndWeight),
-          total catch weight only the tie-break. The block inside
-          standingsRef uses FIXED light colors (no dark: classes) on
-          purpose, so the downloaded PNG (see downloadStandingsImage) always
-          looks the same regardless of the viewer's own theme. */}
+          total catch weight only the tie-break. v2.92 — this dialog is now
+          purely for on-screen viewing; the downloaded PNG (see
+          downloadStandingsImage) is drawn separately, straight onto a
+          canvas, not screenshotted from here. */}
       <Dialog open={!!standingsFor} onOpenChange={(o) => !o && setStandingsFor(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -546,7 +548,7 @@ export default function Competitions() {
             const roundsCount = Math.max(1, standingsFor.rounds_count || 1);
             const ranked = rankByPenaltyAndWeight(regsFor(standingsFor.id), roundsCount);
             return (
-              <div ref={standingsRef} className="bg-white p-3 rounded-xl space-y-3">
+              <div className="bg-white p-3 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
                   <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
                   <p className="text-sm font-bold text-slate-800 break-words">{standingsFor.title}</p>
