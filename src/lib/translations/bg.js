@@ -562,6 +562,12 @@ export const bg = {
     "comp.totalWeight": "Общо тегло",
     "comp.kg": "кг",
     "comp.noResultsYet": "Все още няма въведени резултати.",
+    "comp.penaltyPoints": "Наказателни точки",
+    "comp.pointsUnit": "т.",
+    "comp.downloadImage": "Изтегли като снимка",
+    "comp.generatingImage": "Генерира се...",
+    "comp.errorGeneratingImage": "Грешка при генериране на снимката",
+    "comp.registrationClosedLabel": "Записването е затворено",
 
     "sr.title": "Резервации на боксове",
     "sr.noOpenDates": "Няма отворени дати за резервация.",

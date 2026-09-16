@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import html2canvas from "html2canvas";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
@@ -11,7 +12,7 @@ import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
 import {
-  parseCatchResults, stringifyCatchResults, totalCatchWeight, rankByTotalWeight,
+  parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
@@ -81,9 +82,13 @@ export default function WaterBodyManagement() {
   // sized to the competition's rounds_count (see openEditReg).
   const [editingReg, setEditingReg] = useState(null);
   const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending", catch_results: [] });
-  // v2.87 — competition whose standings dialog is open (ranked descending by
-  // total catch weight — see rankByTotalWeight).
+  // v2.87 — competition whose standings dialog is open. v2.89 — ranked by
+  // penalty points first, total catch weight only as the tie-break — see
+  // rankByPenaltyAndWeight. standingsRef/generatingImage back the "Изтегли
+  // като снимка" button (html2canvas captures the dialog's ranked-list div).
   const [standingsFor, setStandingsFor] = useState(null);
+  const standingsRef = useRef(null);
+  const [generatingImage, setGeneratingImage] = useState(false);
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
@@ -550,6 +555,31 @@ export default function WaterBodyManagement() {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
+  // v2.89 — "generate on request" image export for the standings dialog:
+  // html2canvas rasterizes whatever's inside standingsRef (see the Dialog
+  // below) into a PNG, downloaded straight away — nothing is pre-rendered
+  // or stored server-side. Fixed light colors for that whole block
+  // (no dark: classes there — see the JSX) so the exported picture always
+  // looks the same regardless of the viewer's own theme.
+  async function downloadStandingsImage(comp) {
+    if (!standingsRef.current) return;
+    setGeneratingImage(true);
+    try {
+      const canvas = await html2canvas(standingsRef.current, { backgroundColor: "#ffffff", scale: 2 });
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `klasirane-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingImage(false);
+    }
+  }
+
   async function markTransferred(regId, type) {
     try {
       if (type === "competition") {
@@ -1013,11 +1043,19 @@ export default function WaterBodyManagement() {
             const main = regs.filter((r) => r.slot_type !== "reserve");
             const reserve = regs.filter((r) => r.slot_type === "reserve");
             const roundsCount = Math.max(1, participantsFor.rounds_count || 1);
+            // v2.89 — per-round sector points (one Map per round index) and
+            // the overall penalty-points ranking, both computed once here
+            // from the SAME regs list every ParticipantRow reads from below,
+            // so every row's numbers are always consistent with each other.
+            const roundPointsMatrix = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(regs, i));
+            const rankedMap = new Map(rankByPenaltyAndWeight(regs, roundsCount).map((x) => [x.id, x]));
             const ParticipantRow = ({ r }) => {
               // v2.87 — total across every round with a recorded weight;
               // 0 (no results yet) renders nothing, same treatment as the
               // draw badge below (only shown once there's something to show).
               const total = totalCatchWeight(parseCatchResults(r.catch_results));
+              const ranked = rankedMap.get(r.id);
+              const roundPoints = roundPointsMatrix.map((m) => m.get(r.id));
               return (
                 <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
                   <div className="flex items-start justify-between gap-2">
@@ -1051,7 +1089,29 @@ export default function WaterBodyManagement() {
                         {t("wb.totalWeight")}: {total} {t("wb.kg")}
                       </span>
                     )}
+                    {/* v2.89 — overall standing (penalty points first, total
+                        weight as tie-break — see rankByPenaltyAndWeight),
+                        shown only once this participant has at least one
+                        scored round. */}
+                    {ranked && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+                        {t("comp.standings")} #{ranked.rank} · {ranked.penalty} {t("comp.pointsUnit")}
+                      </span>
+                    )}
                   </div>
+                  {/* v2.89 — per-round placing within the participant's own
+                      sector (see roundSectorPoints); a round with no points
+                      yet (not weighed in yet for anyone in the sector, or
+                      no box assigned) simply isn't shown for that round. */}
+                  {roundsCount > 1 && roundPoints.some((p) => typeof p === "number") && (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                      {roundPoints.map((p, i) => typeof p === "number" && (
+                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+                          {t("wb.roundLabel")} {i + 1}: {p} {t("comp.pointsUnit")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             };
@@ -1104,12 +1164,15 @@ export default function WaterBodyManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* v2.87 — standings for one competition: everyone with at least one
-          round's weight recorded, ranked descending by total catch weight
-          (heaviest first, per drawBoxes/rankByTotalWeight). Read-only —
-          weights are entered via the pencil icon on each ParticipantRow
-          above (organizer/admin) or by the registrant themselves
-          (Competitions.jsx). */}
+      {/* v2.87 — standings for one competition; v2.89 — ranked by penalty
+          points first (fewer is better — see rankByPenaltyAndWeight),
+          total catch weight only the tie-break. Read-only — weights are
+          entered via the pencil icon on each ParticipantRow above
+          (organizer/admin) or by the registrant themselves
+          (Competitions.jsx). The whole block inside standingsRef uses FIXED
+          light colors (no dark: classes) on purpose, so the downloaded PNG
+          (see downloadStandingsImage) always looks the same regardless of
+          the viewer's own theme. */}
       <Dialog open={!!standingsFor} onOpenChange={(o) => !o && setStandingsFor(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -1118,33 +1181,62 @@ export default function WaterBodyManagement() {
             </DialogTitle>
           </DialogHeader>
           {standingsFor && (() => {
-            const ranked = rankByTotalWeight(regsFor(standingsFor.id));
-            return ranked.length === 0 ? (
-              <p className="text-sm text-slate-400">{t("wb.noResultsYet")}</p>
-            ) : (
-              <div className="space-y-2">
-                {ranked.map((r) => (
-                  <div key={r.id} className="flex items-center gap-3 rounded-xl bg-slate-50 dark:bg-accent p-3">
-                    <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                      r.rank === 1
-                        ? "bg-amber-400 text-white"
-                        : r.rank === 2
-                        ? "bg-slate-300 text-slate-700"
-                        : r.rank === 3
-                        ? "bg-amber-700 text-white"
-                        : "bg-slate-200 dark:bg-accent text-slate-500 dark:text-muted-foreground"
-                    }`}>
-                      {r.rank}
-                    </span>
-                    <span className="flex-1 min-w-0 truncate text-sm font-medium text-slate-800 dark:text-foreground">{r.participant_name}</span>
-                    <span className="shrink-0 text-sm font-bold text-amber-700 dark:text-amber-400">{r.total} {t("wb.kg")}</span>
+            const roundsCount = Math.max(1, standingsFor.rounds_count || 1);
+            const ranked = rankByPenaltyAndWeight(regsFor(standingsFor.id), roundsCount);
+            return (
+              <div ref={standingsRef} className="bg-white p-3 rounded-xl space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-100">
+                  <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+                  <p className="text-sm font-bold text-slate-800 break-words">{standingsFor.title}</p>
+                </div>
+                {ranked.length === 0 ? (
+                  <p className="text-sm text-slate-400">{t("wb.noResultsYet")}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {ranked.map((r) => (
+                      <div key={r.id} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+                        <span className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                          r.rank === 1
+                            ? "bg-amber-400 text-white"
+                            : r.rank === 2
+                            ? "bg-slate-300 text-slate-700"
+                            : r.rank === 3
+                            ? "bg-amber-700 text-white"
+                            : "bg-slate-200 text-slate-500"
+                        }`}>
+                          {r.rank}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="truncate text-sm font-medium text-slate-800">{r.participant_name}</p>
+                          {r.assigned_box != null && (
+                            <p className="text-[10px] text-slate-400">
+                              {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+                            </p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-xs font-bold text-indigo-700">{r.penalty} {t("comp.pointsUnit")}</p>
+                          <p className="text-[10px] text-amber-700">{r.total} {t("wb.kg")}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+                <p className="text-[10px] text-slate-300 text-right">{t("app.name")} · CatchCount</p>
               </div>
             );
           })()}
-          <DialogFooter>
+          <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" onClick={() => setStandingsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
+            <Button
+              variant="outline"
+              onClick={() => downloadStandingsImage(standingsFor)}
+              disabled={generatingImage}
+              className="min-h-[44px]"
+            >
+              {generatingImage ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+              {generatingImage ? t("comp.generatingImage") : t("comp.downloadImage")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1191,31 +1283,50 @@ export default function WaterBodyManagement() {
             </div>
             {/* v2.87 — one weight input per round ("манш"), sized to the
                 competition's rounds_count (see openEditReg). Blank = that
-                round hasn't been weighed in yet, kept distinct from 0 kg. */}
-            {regEditForm.catch_results.length > 0 && (
-              <div className="space-y-1.5">
-                <Label>{t("wb.catchResultsLabel")}</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  {regEditForm.catch_results.map((w, i) => (
-                    <div key={i} className="space-y-1">
-                      <span className="text-xs text-slate-400">{t("wb.roundLabel")} {i + 1}</span>
-                      <Input
-                        type="number"
-                        step="any"
-                        min="0"
-                        value={w}
-                        onChange={(e) => updateRegEditCatchResult(i, e.target.value)}
-                        placeholder={t("wb.kg")}
-                        className="min-h-[44px]"
-                      />
-                    </div>
-                  ))}
+                round hasn't been weighed in yet, kept distinct from 0 kg.
+                v2.89 — each round also shows this participant's LIVE
+                sector points (draftRegs below substitutes the currently-
+                typed, not-yet-saved values for this one registration, so
+                the points update as the organizer types instead of only
+                after "Запази"), plus a live overall summary. */}
+            {regEditForm.catch_results.length > 0 && editingReg && (() => {
+              const draftRegs = regsFor(editingReg.competition_id).map((r) => (
+                r.id === editingReg.id
+                  ? { ...r, catch_results: stringifyCatchResults(regEditForm.catch_results) }
+                  : r
+              ));
+              const roundsCount = regEditForm.catch_results.length;
+              const roundPoints = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(draftRegs, i).get(editingReg.id));
+              const overall = rankByPenaltyAndWeight(draftRegs, roundsCount).find((x) => x.id === editingReg.id);
+              return (
+                <div className="space-y-1.5">
+                  <Label>{t("wb.catchResultsLabel")}</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {regEditForm.catch_results.map((w, i) => (
+                      <div key={i} className="space-y-1">
+                        <span className="text-xs text-slate-400">
+                          {t("wb.roundLabel")} {i + 1}
+                          {typeof roundPoints[i] === "number" && ` · ${roundPoints[i]} ${t("comp.pointsUnit")}`}
+                        </span>
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0"
+                          value={w}
+                          onChange={(e) => updateRegEditCatchResult(i, e.target.value)}
+                          placeholder={t("wb.kg")}
+                          className="min-h-[44px]"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {t("wb.totalWeight")}: {totalCatchWeight(regEditForm.catch_results.map((v) => (v === "" ? null : Number(v))))} {t("wb.kg")}
+                    {overall && ` · ${t("comp.penaltyPoints")}: ${overall.penalty} ${t("comp.pointsUnit")} · ${t("comp.standings")} #${overall.rank}`}
+                  </p>
                 </div>
-                <p className="text-xs text-slate-400">
-                  {t("wb.totalWeight")}: {totalCatchWeight(regEditForm.catch_results.map((v) => (v === "" ? null : Number(v))))} {t("wb.kg")}
-                </p>
-              </div>
-            )}
+              );
+            })()}
           </div>
           <DialogFooter className="flex-wrap gap-2">
             <Button

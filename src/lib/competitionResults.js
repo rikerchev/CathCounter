@@ -1,4 +1,4 @@
-// src/lib/competitionResults.js — v2.87
+// src/lib/competitionResults.js — v2.87, extended v2.89
 //
 // Multi-round ("манш") catch-weight results for a competition. A competition
 // now declares how many rounds it has (Competition.rounds_count); each
@@ -17,6 +17,14 @@
 // support: the user who registered that participant, the competition's
 // organizer, and admins (global bypass) — so no new access-rule plumbing
 // was needed here.
+//
+// v2.89 — added sector "zone points" (наказателни точки) and
+// rankByPenaltyAndWeight, the app's real standings ranking from here on:
+// penalty points first (fewer is better), total weight only as the
+// tie-break. Everything needed to compute this (assigned_sector/
+// assigned_box from src/lib/competitionSectors.js's drawBoxes, plus
+// catch_results already covered above) already existed — no new stored
+// field, this is pure derived data computed fresh every render.
 
 // Parses Competition.sectors_config-style JSON into an array of numbers/
 // nulls. Never throws — a bad/legacy value just reads as "no rounds weighed
@@ -54,12 +62,11 @@ export function hasAnyResult(results) {
 }
 
 // Standings, descending by total weight — heaviest total catch first,
-// lightest last, exactly as requested. Only registrations with at least one
-// round's weight entered are ranked; everyone else hasn't been weighed in
-// yet and doesn't belong on a leaderboard. `rank` is 1-based. Ties keep
-// their relative registration order (stable sort) — this app doesn't track
-// a tiebreaker (e.g. biggest single fish), so exact ties are left as-is
-// rather than guessing an order.
+// lightest last. Superseded as the STANDINGS ranking by
+// rankByPenaltyAndWeight below (v2.89 — sector penalty points became the
+// primary criterion, weight only the tie-break), kept here since it's still
+// a simple, useful "total weight only" ranking on its own. `rank` is
+// 1-based. Ties keep their relative registration order (stable sort).
 export function rankByTotalWeight(registrations) {
   return (registrations || [])
     .map((r) => {
@@ -68,5 +75,84 @@ export function rankByTotalWeight(registrations) {
     })
     .filter((r) => hasAnyResult(r.results))
     .sort((a, b) => b.total - a.total)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
+}
+
+// v2.89 — sector "zone points" (наказателни точки / penalty points), the
+// classic match-fishing scoring system: for one round, every participant is
+// ranked AGAINST THE OTHERS IN THEIR OWN SECTOR ONLY, by that round's catch
+// weight. The heaviest catch in the sector scores 1 point (best); the
+// lightest scores N points, where N is how many of that sector's
+// competitors actually have a recorded weight for this round — which
+// equals the sector's full box count once everyone in it has weighed in
+// (exactly "сектор със 7 бокса → последният получава 7 точки"), and is
+// simply lower than that while some of the sector's boxes haven't reported
+// yet for this round (self-corrects as more weights are entered — nothing
+// here waits for the whole sector to be complete first). Two competitors
+// with the exact same weight split the average of their tied rank
+// positions (the standard tie convention in this scoring system) instead of
+// an arbitrary order.
+//
+// A registration with no assigned sector/box yet (жребий not drawn), or
+// with no recorded weight for THIS round, simply isn't in the returned map
+// for this round — it contributes nothing to that round's points (not a
+// bad instant last place) and is picked up automatically once it does have
+// a weight.
+//
+// Returns Map<registrationId, points> for this one round.
+export function roundSectorPoints(registrations, roundIndex) {
+  const bySector = new Map();
+  for (const r of registrations || []) {
+    if (!r.assigned_sector || r.assigned_box == null) continue;
+    const w = parseCatchResults(r.catch_results)[roundIndex];
+    if (typeof w !== "number") continue;
+    if (!bySector.has(r.assigned_sector)) bySector.set(r.assigned_sector, []);
+    bySector.get(r.assigned_sector).push({ id: r.id, weight: w });
+  }
+  const points = new Map();
+  for (const entries of bySector.values()) {
+    entries.sort((a, b) => b.weight - a.weight); // heaviest first = rank 1
+    let i = 0;
+    while (i < entries.length) {
+      let j = i;
+      while (j + 1 < entries.length && entries[j + 1].weight === entries[i].weight) j++;
+      const avgRank = (i + 1 + (j + 1)) / 2; // 1-based positions i+1..j+1, averaged
+      for (let k = i; k <= j; k++) points.set(entries[k].id, avgRank);
+      i = j + 1;
+    }
+  }
+  return points;
+}
+
+// Sums roundSectorPoints across every round of the competition. A
+// registration only contributes for the rounds it actually has a weight
+// recorded for — a round nobody's weighed in for yet adds nothing to
+// anyone's total (it isn't treated as a free pass or a penalty).
+export function totalPenaltyPoints(registrations, roundsCount) {
+  const totals = new Map();
+  for (let i = 0; i < Math.max(1, roundsCount || 1); i++) {
+    for (const [id, pts] of roundSectorPoints(registrations, i)) {
+      totals.set(id, (totals.get(id) || 0) + pts);
+    }
+  }
+  return totals;
+}
+
+// Final standings, as requested: FEWER total penalty points is better (rank
+// 1 = lowest total); total catch weight (heaviest first) is the SECOND,
+// tie-break criterion only. Only registrations that were actually scored in
+// at least one round (assigned a box AND weighed in at least once) are
+// ranked — same "hasn't fished yet, not on the leaderboard" rule as
+// rankByTotalWeight, just driven by the penalty map instead of a plain
+// hasAnyResult check. `rank` is 1-based.
+export function rankByPenaltyAndWeight(registrations, roundsCount) {
+  const penaltyMap = totalPenaltyPoints(registrations, roundsCount);
+  return (registrations || [])
+    .filter((r) => penaltyMap.has(r.id))
+    .map((r) => {
+      const results = parseCatchResults(r.catch_results);
+      return { ...r, results, total: totalCatchWeight(results), penalty: penaltyMap.get(r.id) };
+    })
+    .sort((a, b) => (a.penalty !== b.penalty ? a.penalty - b.penalty : b.total - a.total))
     .map((r, i) => ({ ...r, rank: i + 1 }));
 }

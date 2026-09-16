@@ -575,6 +575,12 @@ export const en = {
     "comp.totalWeight": "Total weight",
     "comp.kg": "kg",
     "comp.noResultsYet": "No results recorded yet.",
+    "comp.penaltyPoints": "Penalty points",
+    "comp.pointsUnit": "pts",
+    "comp.downloadImage": "Download as image",
+    "comp.generatingImage": "Generating...",
+    "comp.errorGeneratingImage": "Error generating the image",
+    "comp.registrationClosedLabel": "Registration closed",
 
     "sr.title": "Box reservations",
     "sr.noOpenDates": "No open dates for reservation.",
