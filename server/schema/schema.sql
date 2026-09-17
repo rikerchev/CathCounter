@@ -643,3 +643,9 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_contact_messages_user_id ON contact_messages(user_id);
+
+-- v2.98: mandatory Terms & Conditions acceptance — NULL means never accepted
+-- (blocks the app behind TermsGate.jsx, see server/routes/auth.ts's
+-- "accept-terms" action and middleware/auth.ts). Safe to re-run. Applied via
+-- the same "Приложи обновление" admin button as the migrations above.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;

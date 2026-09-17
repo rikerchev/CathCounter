@@ -178,6 +178,8 @@ export const base44 = {
       window.location.href = `${API_BASE}/api/auth/google?${params.toString()}`;
     },
     register: (payload) => apiFetch("/api/auth/register", { method: "POST", body: payload }),
+    // v2.98 — see server/routes/auth.ts's "accept-terms" action / TermsGate.jsx.
+    acceptTerms: () => apiFetch("/api/auth/accept-terms", { method: "POST" }),
     verifyOtp: (payload) => apiFetch("/api/auth/verify-otp", { method: "POST", body: payload }),
     resendOtp: (email) => apiFetch("/api/auth/resend-otp", { method: "POST", body: { email } }),
     resetPasswordRequest: (email) =>

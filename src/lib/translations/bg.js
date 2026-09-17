@@ -965,6 +965,7 @@ export const bg = {
   "menuGroup.userDeleted": "Потребителят е изтрит",
   "nav.translations": "Преводи",
   "nav.contactUs": "Връзка с нас",
+  "nav.terms": "Общи условия",
   "contact.title": "Връзка с нас",
   "contact.description": "Изпратете съобщение до администратора на CatchCount. Имейл и телефон са задължителни, за да можем да Ви отговорим.",
   "contact.email": "Имейл",

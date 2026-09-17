@@ -344,7 +344,15 @@ export default function Layout() {
               <ThemeToggle />
               <LanguageSelector />
             </div>
-            <span className="text-[10px] text-slate-400 dark:text-muted-foreground">v{APP_VERSION}</span>
+            <div className="flex flex-col items-end gap-0.5">
+              {/* v2.98 — always-reachable link to the Общи условия, next to
+                  the app version, on both the desktop sidebar and the mobile
+                  menu footer below. See src/pages/Terms.jsx. */}
+              <Link to="/terms" className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline">
+                {t("nav.terms")}
+              </Link>
+              <span className="text-[10px] text-slate-400 dark:text-muted-foreground">v{APP_VERSION}</span>
+            </div>
          </div>
         </aside>
 
@@ -402,7 +410,12 @@ export default function Layout() {
             </div>
             <div className="px-5 py-3 border-t border-slate-100 dark:border-border flex-shrink-0 flex items-center justify-between gap-2">
               <LanguageSelector />
-              <span className="text-[10px] text-slate-400 dark:text-muted-foreground">v{APP_VERSION}</span>
+              <div className="flex flex-col items-end gap-0.5">
+                <Link to="/terms" onClick={() => setMobileOpen(false)} className="text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline">
+                  {t("nav.terms")}
+                </Link>
+                <span className="text-[10px] text-slate-400 dark:text-muted-foreground">v{APP_VERSION}</span>
+              </div>
             </div>
           </div>
         </div>

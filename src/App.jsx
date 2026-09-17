@@ -51,6 +51,7 @@ import UserInventoryPage from './pages/UserInventoryPage';
 import AdminTranslations from './pages/AdminTranslations';
 import ContactUs from './pages/ContactUs';
 import Terms from './pages/Terms';
+import TermsGate from './components/TermsGate';
 
 // v2.68/v2.69 — capture a ?ref=<code> (peer invite) or ?merchant=<type:id>
 // (printed brochure) param as early as possible (module load, before
@@ -61,7 +62,7 @@ captureReferralFromUrl();
 captureMerchantFromUrl();
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated, user } = useAuth();
   const isAuthPage = ["/login", "/register", "/forgot-password", "/reset-password"].includes(window.location.pathname);
 
   // Show loading spinner while checking app public settings or auth
@@ -82,6 +83,14 @@ const AuthenticatedApp = () => {
       navigateToLogin();
       return null;
     }
+  }
+
+  // v2.98 — every logged-in account (new or pre-existing, registered with a
+  // password or via Google) must accept the Terms & Conditions once before
+  // using anything else. Rendered in place of the whole <Routes> tree so it
+  // can't be bypassed by deep-linking a specific page — see TermsGate.jsx.
+  if (isAuthenticated && user && !user.terms_accepted_at) {
+    return <TermsGate />;
   }
 
   // Render the main app

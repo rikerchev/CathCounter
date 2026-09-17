@@ -211,6 +211,17 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_contact_messages_user_id ON contact_messages(user_id)`);
     },
   },
+  "v2.98-terms-acceptance": {
+    label: "v2.98 — Задължително приемане на общите условия",
+    run: async () => {
+      // NULL = never accepted yet — every account that existed before this
+      // migration (and every Google sign-in, which has no registration-form
+      // checkbox of its own) starts out NULL and is blocked behind
+      // TermsGate.jsx (src/App.jsx) until they click through it once. See
+      // middleware/auth.ts and routes/auth.ts's "accept-terms" action.
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`);
+    },
+  },
 };
 
 /**
@@ -306,6 +317,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.tables
           WHERE table_name = 'contact_messages'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.98-terms-acceptance") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'terms_accepted_at'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

@@ -15,6 +15,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
@@ -27,9 +28,13 @@ export default function Register() {
       setError("Паролите не съвпадат");
       return;
     }
+    if (!acceptedTerms) {
+      setError("Трябва да приемете общите условия, за да продължите");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await base44.auth.register({ email, password });
+      const result = await base44.auth.register({ email, password, acceptedTerms });
       if (result?.access_token) {
         // First account on a freshly set up database — created as admin
         // and already verified, so log straight in instead of asking for
@@ -225,7 +230,22 @@ export default function Register() {
             />
           </div>
         </div>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading}>
+        <label className="flex items-start gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={acceptedTerms}
+            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-cyan-600 flex-shrink-0"
+          />
+          <span className="text-sm text-muted-foreground">
+            Съгласен/на съм с{" "}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+              общите условия
+            </a>{" "}
+            и обработката на личните ми данни
+          </span>
+        </label>
+        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !acceptedTerms}>
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

@@ -20,6 +20,15 @@ export default function AuthLayout({ icon: Icon, appName, title, subtitle, foote
         {footer && (
           <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
         )}
+        {/* v2.98 — always-visible link to the Terms & Conditions / privacy
+            notice, even for a visitor who hasn't registered yet. See
+            src/pages/Terms.jsx; the logged-in sidebar/mobile menu links to
+            the same page (Layout.jsx footer). */}
+        <p className="text-center text-xs text-muted-foreground mt-3">
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
+            Общи условия
+          </a>
+        </p>
       </div>
     </div>
   );

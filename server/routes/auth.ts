@@ -82,10 +82,18 @@ export async function handleAuthRoute(
   const [action] = path;
   const url = absoluteUrl(req);
 
-  // ---- POST /api/auth/register { email, password } ----
+  // ---- POST /api/auth/register { email, password, acceptedTerms } ----
   if (action === "register" && req.method === "POST") {
-    const { email, password } = await req.json();
+    const { email, password, acceptedTerms } = await req.json();
     if (!email || !password) return json({ error: "Missing email or password" }, 400);
+    // v2.98 — the checkbox is required client-side too (Register.jsx), this
+    // is the actual enforcement. A Google sign-in has no registration form
+    // of its own to carry a checkbox, so those accounts (and every account
+    // that existed before v2.98) are instead caught by the app-wide
+    // TermsGate.jsx the first time they use the app post-login.
+    if (!acceptedTerms) {
+      return json({ error: "Трябва да приемете общите условия" }, 400);
+    }
 
     const existing = await sql<{ id: string; email_verified: boolean }[]>`
       SELECT id, email_verified FROM users WHERE email = ${email}
@@ -119,11 +127,28 @@ export async function handleAuthRoute(
     // one-time code emailed to them before they can log in (issueOtp +
     // trySendEmail + `return json({ success: true })` below, mirroring the
     // "existing unverified account" branch above it).
-    const rows = await sql<AuthUser[]>`
-      INSERT INTO users (email, password_hash, role, email_verified)
-      VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first})
-      RETURNING *
-    `;
+    // terms_accepted_at may not exist yet if the code deployed (git push)
+    // before the admin clicked "Приложи обновление" for v2.98 — fall back to
+    // an insert without it rather than 500ing every registration in that
+    // gap; see the matching fallback in middleware/auth.ts's getUserFromRequest.
+    let rows: AuthUser[];
+    try {
+      rows = await sql<AuthUser[]>`
+        INSERT INTO users (email, password_hash, role, email_verified, terms_accepted_at)
+        VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first}, now())
+        RETURNING *
+      `;
+    } catch (e) {
+      if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
+        rows = await sql<AuthUser[]>`
+          INSERT INTO users (email, password_hash, role, email_verified)
+          VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first})
+          RETURNING *
+        `;
+      } else {
+        throw e;
+      }
+    }
 
     const u = rows[0];
     if (first) {
@@ -290,6 +315,30 @@ export async function handleAuthRoute(
       UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
     `;
     return json(publicUser(rows[0]));
+  }
+
+  // ---- POST /api/auth/accept-terms ----
+  // v2.98 — records acceptance for an already-logged-in account: existing
+  // accounts (created before this feature) and Google sign-ins (no
+  // registration-form checkbox of their own) both reach this via
+  // TermsGate.jsx, which blocks the rest of the app until it succeeds.
+  if (action === "accept-terms" && req.method === "POST") {
+    if (!user) return json({ error: "Not authenticated" }, 401);
+    try {
+      const rows = await sql<AuthUser[]>`
+        UPDATE users SET terms_accepted_at = now() WHERE id = ${user.id} RETURNING *
+      `;
+      return json(publicUser(rows[0]));
+    } catch (e) {
+      if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
+        // v2.98 migration not applied yet — nothing to record; the gate
+        // wouldn't have shown ("pending-migration" sentinel, see
+        // middleware/auth.ts) so this shouldn't normally be reachable, but
+        // fail soft instead of a raw 500 either way.
+        return json({ error: "Функцията все още се активира. Опитайте по-късно." }, 503);
+      }
+      throw e;
+    }
   }
 
   // ---- POST /api/auth/invite { email, role } (admin only) ----

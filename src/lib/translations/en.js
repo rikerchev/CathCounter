@@ -969,6 +969,7 @@ export const en = {
   "menuGroup.userDeleted": "User deleted",
   "nav.translations": "Translations",
   "nav.contactUs": "Contact Us",
+  "nav.terms": "Terms & Conditions",
   "contact.title": "Contact Us",
   "contact.description": "Send a message to the CatchCount administrator. Email and phone are required so we can get back to you.",
   "contact.email": "Email",
