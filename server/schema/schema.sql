@@ -629,3 +629,17 @@ BEGIN
     ALTER TABLE sector_reservations ALTER COLUMN sector_number TYPE TEXT USING sector_number::text;
   END IF;
 END $$;
+
+-- v2.97: "Връзка с нас" (Contact Us) — messages submitted by users, always
+-- both stored here and emailed to the fixed site-owner address (see
+-- server/routes/contact.ts). Safe to re-run. Applied via the same "Приложи
+-- обновление" admin button as the migrations above.
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_user_id ON contact_messages(user_id);

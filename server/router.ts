@@ -15,6 +15,7 @@ import { handleCompetitionRegistrationsRoute } from "./routes/competitionRegistr
 import { handlePublicSettingsRoute } from "./routes/publicSettings.js";
 import { handleReferralsRoute } from "./routes/referrals.js";
 import { handleMerchantReferralsRoute } from "./routes/merchantReferrals.js";
+import { handleContactRoute } from "./routes/contact.js";
 import { handleAdRenewalsCron } from "./routes/adRenewals.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
@@ -87,6 +88,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "settings") {
       return await handlePublicSettingsRoute(req, segments.slice(2));
+    }
+    if (segments[1] === "contact") {
+      return await handleContactRoute(req, segments.slice(2), user);
     }
     if (segments[1] === "health") {
       return new Response(JSON.stringify({ ok: true }), {

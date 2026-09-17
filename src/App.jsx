@@ -49,6 +49,8 @@ import AdminDataExport from './pages/AdminDataExport';
 import BaseItems from './pages/BaseItems';
 import UserInventoryPage from './pages/UserInventoryPage';
 import AdminTranslations from './pages/AdminTranslations';
+import ContactUs from './pages/ContactUs';
+import Terms from './pages/Terms';
 
 // v2.68/v2.69 — capture a ?ref=<code> (peer invite) or ?merchant=<type:id>
 // (printed brochure) param as early as possible (module load, before
@@ -128,8 +130,11 @@ const AuthenticatedApp = () => {
           <Route path="/inventory/base-items" element={<BaseItems />} />
           <Route path="/inventory/my-inventory" element={<UserInventoryPage />} />
           <Route path="/admin-translations" element={<AdminTranslations />} />
+          <Route path="/contact-us" element={<ContactUs />} />
         </Route>
       </Route>
+      {/* Terms is reachable without being logged in too (public legal page) */}
+      <Route path="/terms" element={<Terms />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

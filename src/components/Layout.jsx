@@ -32,6 +32,7 @@ import {
   Download,
   Languages,
   Store,
+  Mail,
 } from "lucide-react";
 import { LanguageSelector, useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
@@ -78,6 +79,9 @@ const navItems = [
   { to: "/admin-role-requests", labelKey: "nav.roleRequests", icon: UserCog, adminOnly: true },
   { to: "/admin-data-export", labelKey: "nav.dataExport", icon: Download, adminOnly: true },
   { to: "/admin-translations", labelKey: "nav.translations", icon: Languages, adminOnly: true },
+  // v2.97 — "Връзка с нас": visible to every logged-in user (no role flag),
+  // same as Профил below. See src/pages/ContactUs.jsx.
+  { to: "/contact-us", labelKey: "nav.contactUs", icon: Mail },
   { to: "/profile", labelKey: "nav.profile", icon: User, profileItem: true },
 ];
 

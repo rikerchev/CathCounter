@@ -52,6 +52,7 @@ export const DEFAULT_MENU_ORDER = {
     "/admin-users", "/admin-setup", "/admin-traders", "/admin-role-requests", "/admin-data-export", "/admin-translations",
     "group:traders",
     "group:ads",
+    "/contact-us",
   ],
   groups: {
     inventory: ["/inventory/base-items", "/inventory/my-inventory", "/bait-inventory"],

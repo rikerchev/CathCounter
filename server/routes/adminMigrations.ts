@@ -192,6 +192,25 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       `);
     },
   },
+  "v2.97-contact-messages": {
+    label: "v2.97 — Връзка с нас: съобщения от потребители",
+    run: async () => {
+      // See server/routes/contact.ts — every submission is both stored here
+      // (so nothing is lost if the notification email fails/is delayed) and
+      // emailed to the fixed site-owner address.
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS contact_messages (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+          email TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          message TEXT NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `);
+      await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_contact_messages_user_id ON contact_messages(user_id)`);
+    },
+  },
 };
 
 /**
@@ -280,6 +299,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type = 'text'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.97-contact-messages") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.tables
+          WHERE table_name = 'contact_messages'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

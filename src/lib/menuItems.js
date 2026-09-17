@@ -29,6 +29,7 @@ export const ALL_MENU_ITEMS = [
   { path: "/admin-role-requests", labelKey: "nav.roleRequests" },
   { path: "/admin-data-export", labelKey: "nav.dataExport" },
   { path: "/admin-translations", labelKey: "nav.translations" },
+  { path: "/contact-us", labelKey: "nav.contactUs" },
   { path: "/profile", labelKey: "nav.profile" },
 ];
 

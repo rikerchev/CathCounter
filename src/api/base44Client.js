@@ -307,6 +307,12 @@ export const base44 = {
     stats: (type, id) => apiFetch(`/api/merchant-referrals/stats?type=${type}&id=${id}`),
   },
 
+  // v2.97 — "Връзка с нас" (Contact Us). See server/routes/contact.ts.
+  contact: {
+    send: (email, phone, message) =>
+      apiFetch("/api/contact", { method: "POST", body: { email, phone, message } }),
+  },
+
   // Not part of the original base44 SDK surface — admin-only "apply the
   // latest database update" buttons (Admin → Настройка → База данни),
   // powered by server/routes/adminMigrations.ts. See that file for why this
