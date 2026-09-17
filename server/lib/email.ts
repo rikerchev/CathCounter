@@ -13,6 +13,11 @@ export async function sendEmail(opts: {
   subject: string;
   html?: string;
   text?: string;
+  // v3.03 — lets a reply from the recipient's own mail client go straight to
+  // a real person (e.g. the participant who triggered a
+  // "contact-competition-organizer" email) instead of the platform's
+  // no-reply sender address.
+  replyTo?: string;
 }): Promise<void> {
   const [host, port, secure, user, password, from] = await Promise.all([
     getConfig("SMTP_HOST"),
@@ -52,6 +57,7 @@ export async function sendEmail(opts: {
   await transporter.sendMail({
     from: from || "CatchCount <noreply@example.com>",
     to: opts.to,
+    replyTo: opts.replyTo,
     subject: opts.subject,
     html: opts.html,
     text: opts.text,

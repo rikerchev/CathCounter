@@ -222,6 +222,19 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ`);
     },
   },
+  "v3.03-user-phone": {
+    label: "v3.03 — Телефон на потребителя",
+    run: async () => {
+      // NULL on every account created before this — see Register.jsx (Name+
+      // Phone shown right after the terms checkbox) and Profile.jsx (lets a
+      // Google-OAuth account, or anyone who skipped it, fill it in later).
+      // Used to auto-fill the phone field on a registrant's first
+      // competition registration (Competitions.jsx) and gives the site
+      // owner/organizers a direct-contact option per the mandatory phone-at-
+      // registration request.
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`);
+    },
+  },
 };
 
 /**
@@ -324,6 +337,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'users' AND column_name = 'terms_accepted_at'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.03-user-phone") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'phone'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

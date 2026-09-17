@@ -4,10 +4,11 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send, Download, Loader2 } from "lucide-react";
+import { Trophy, Calendar, Users, Medal, CheckCircle2, Clock, Send, Download, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -46,7 +47,12 @@ export default function Competitions() {
   const [loading, setLoading] = useState(true);
   const [registerFor, setRegisterFor] = useState(null);
   const [regName, setRegName] = useState(user?.full_name || "");
-  const [regPhone, setRegPhone] = useState("");
+  // v3.03 — phone is now mandatory (see handleRegister below); pre-filled
+  // from the account's own phone (Register.jsx/Profile.jsx) the same way
+  // regName is already pre-filled from full_name, for the account's FIRST
+  // registration only — every later "register another participant" starts
+  // blank so it isn't accidentally left as the account holder's own number.
+  const [regPhone, setRegPhone] = useState(user?.phone || "");
   const [submitting, setSubmitting] = useState(false);
   const [notifying, setNotifying] = useState(null);
   const [waterBodies, setWaterBodies] = useState([]);
@@ -69,6 +75,12 @@ export default function Competitions() {
   // (see handleDownloadParticipantsImage below), independent of
   // generatingImage so the two download buttons never share a spinner.
   const [generatingParticipantsImage, setGeneratingParticipantsImage] = useState(false);
+  // v3.03 — "a registered participant can email the organizer" (see
+  // sendContactOrganizer below): the competition the dialog is open for, the
+  // participant's free-text message, and a busy flag.
+  const [contactingFor, setContactingFor] = useState(null);
+  const [contactMessage, setContactMessage] = useState("");
+  const [sendingContact, setSendingContact] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -143,6 +155,14 @@ export default function Competitions() {
       toast({ title: t("comp.enterName"), variant: "destructive" });
       return;
     }
+    // v3.03 — "направи полето телефон задължително при записване в
+    // състезание" (the site owner's request), so the organizer always has a
+    // direct-contact option for every participant, not just whichever ones
+    // happened to type a phone in voluntarily.
+    if (!regPhone.trim()) {
+      toast({ title: t("comp.enterPhone"), variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
       const counts = countsFor(registerFor.id);
@@ -196,13 +216,35 @@ export default function Competitions() {
     try {
       const res = await base44.functions.invoke("notify-competition-users", { competition_id: comp.id });
       toast({
-        title: `${t("comp.notifiedUsers")} ${res.data.notified} ${t("comp.users")}`,
-        description: res.data.country === "all" ? t("comp.allCountriesLabel") : res.data.country,
+        title: `${t("comp.notifiedUsers")} ${res.notified} ${t("comp.users")}`,
+        description: res.country === "all" ? t("comp.allCountriesLabel") : res.country,
       });
     } catch (e) {
       toast({ title: t("comp.errorNotifying"), description: e.message, variant: "destructive" });
     } finally {
       setNotifying(null);
+    }
+  }
+
+  // v3.03 — "дай възможност на всеки потребител, който се е записал за
+  // участие да изпраща мейл до организатора" — resolved server-side via
+  // competitions.created_by_id -> users.email (see
+  // server/routes/functions.ts's "contact-competition-organizer").
+  async function sendContactOrganizer() {
+    if (!contactingFor || !contactMessage.trim()) return;
+    setSendingContact(true);
+    try {
+      await base44.functions.invoke("contact-competition-organizer", {
+        competition_id: contactingFor.id,
+        message: contactMessage.trim(),
+      });
+      toast({ title: t("comp.messageSent") });
+      setContactingFor(null);
+      setContactMessage("");
+    } catch (e) {
+      toast({ title: t("comp.errorSendingMessage"), description: e.message, variant: "destructive" });
+    } finally {
+      setSendingContact(false);
     }
   }
 
@@ -517,6 +559,18 @@ export default function Competitions() {
                           ))}
                         </div>
                       )}
+                      {/* v3.03 — any account with at least one active
+                          registration for this competition can email its
+                          organizer directly — see sendContactOrganizer. */}
+                      {myRegs.length > 0 && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setContactingFor(c)}
+                          className="min-h-[40px] w-full text-xs"
+                        >
+                          <Mail className="w-3.5 h-3.5 mr-1" /> {t("comp.contactOrganizer")}
+                        </Button>
+                      )}
                       {/* v2.89 — a closed competition can now appear here
                           (see load()) so its standings/results stay
                           reachable, but registration itself is genuinely
@@ -530,7 +584,14 @@ export default function Competitions() {
                         </span>
                       ) : (
                         <Button
-                          onClick={() => { setRegisterFor(c); setRegName(myRegs.length > 0 ? "" : (user?.full_name || "")); }}
+                          onClick={() => {
+                            setRegisterFor(c);
+                            setRegName(myRegs.length > 0 ? "" : (user?.full_name || ""));
+                            // v3.03 — phone auto-fills from the account's own
+                            // number only for the FIRST registration, same
+                            // reasoning as regName above.
+                            setRegPhone(myRegs.length > 0 ? "" : (user?.phone || ""));
+                          }}
                           className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px] w-full"
                         >
                           {myRegs.length > 0 ? t("comp.registerAnother") : t("comp.register")} {mainFull ? t("comp.asReserve") : ""}
@@ -556,7 +617,7 @@ export default function Competitions() {
               <Input value={regName} onChange={(e) => setRegName(e.target.value)} className="min-h-[44px]" />
             </div>
             <div className="space-y-1.5">
-              <Label>{t("comp.phone")}</Label>
+              <Label>{t("comp.phone")} *</Label>
               <Input value={regPhone} onChange={(e) => setRegPhone(e.target.value)} className="min-h-[44px]" />
             </div>
             <p className="text-xs text-slate-400">
@@ -574,6 +635,36 @@ export default function Competitions() {
             <Button variant="outline" onClick={() => setRegisterFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
             <Button onClick={handleRegister} disabled={submitting} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
               {submitting ? t("comp.register") + "..." : t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* v3.03 — "Съобщение до организатора": any account with an active
+          registration for this competition can email its organizer
+          directly (see sendContactOrganizer/contact-competition-organizer). */}
+      <Dialog open={!!contactingFor} onOpenChange={(o) => !o && setContactingFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="break-words">{t("comp.contactOrganizer")} — {contactingFor?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Textarea
+              value={contactMessage}
+              onChange={(e) => setContactMessage(e.target.value)}
+              rows={5}
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setContactingFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
+            <Button
+              onClick={sendContactOrganizer}
+              disabled={sendingContact || !contactMessage.trim()}
+              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
+            >
+              {sendingContact ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              {t("comp.send")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -92,5 +92,113 @@ export async function handleFunctionsRoute(
     }
   }
 
+  // v3.03 — "message everyone who's registered", grouped so a single
+  // account that registered several participants (family/friends under one
+  // login, see Competitions.jsx's handleRegister) gets exactly ONE email
+  // listing all of them, not one per participant. Distinct from
+  // notify-competition-users above, which announces a brand-new competition
+  // to everyone in the water body's country — this one only reaches people
+  // who already registered, with a custom message from the organizer.
+  // Authorization mirrors competitionRegistrations.ts's reassign endpoint:
+  // admin, or the competition's own organizer (competitions.created_by_id).
+  if (name === "message-competition-participants" && req.method === "POST") {
+    try {
+      if (!user) return json({ error: "Unauthorized" }, 401);
+      const body = await req.json().catch(() => ({}));
+      const competitionId = body?.competition_id;
+      const message = typeof body?.message === "string" ? body.message.trim() : "";
+      if (!competitionId) return json({ error: "Missing competition_id" }, 400);
+      if (!message) return json({ error: "Съобщението е задължително" }, 400);
+
+      const comps = await sql`SELECT * FROM competitions WHERE id = ${competitionId}`;
+      if (!comps.length) return json({ error: "Competition not found" }, 404);
+      const competition = comps[0];
+
+      const isAuthorized = isAdmin(user) || competition.created_by_id === user.id;
+      if (!isAuthorized) return json({ error: "Forbidden" }, 403);
+
+      const regs = await sql`
+        SELECT participant_name, registered_by_email FROM competition_registrations
+        WHERE competition_id = ${competitionId} AND status = 'active'
+      `;
+
+      // One email per registering ACCOUNT (registered_by_email), not per
+      // participant row — see the comment above.
+      const groups = new Map<string, string[]>();
+      let skipped = 0;
+      for (const r of regs) {
+        const email = (r.registered_by_email || "").trim().toLowerCase();
+        if (!email) { skipped++; continue; }
+        if (!groups.has(email)) groups.set(email, []);
+        groups.get(email)!.push(r.participant_name);
+      }
+
+      if (!groups.size) return json({ notified: 0, skipped });
+
+      // Fire-and-forget, same pattern as notify-competition-users above —
+      // respond immediately, keep sending in the background.
+      (async () => {
+        for (const [email, names] of groups) {
+          try {
+            await sendEmail({
+              to: email,
+              subject: `Съобщение от организатора — ${competition.title}`,
+              html: `<p>Съобщение от организатора на състезание „${competition.title}“, относно записан(и) от Вас участник(ци): <b>${names.join(", ")}</b>.</p><p>${message.replace(/\n/g, "<br>")}</p>`,
+            });
+          } catch { /* best-effort */ }
+        }
+      })();
+
+      return json({ notified: groups.size, skipped });
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
+  }
+
+  // v3.03 — "a registered participant can email the organizer" (the other
+  // direction from the function above). Resolved via
+  // competitions.created_by_id -> users.email; replyTo is set to the
+  // sender's own email so the organizer can just hit reply.
+  if (name === "contact-competition-organizer" && req.method === "POST") {
+    try {
+      if (!user) return json({ error: "Unauthorized" }, 401);
+      const body = await req.json().catch(() => ({}));
+      const competitionId = body?.competition_id;
+      const message = typeof body?.message === "string" ? body.message.trim() : "";
+      if (!competitionId) return json({ error: "Missing competition_id" }, 400);
+      if (!message) return json({ error: "Съобщението е задължително" }, 400);
+
+      const comps = await sql`SELECT * FROM competitions WHERE id = ${competitionId}`;
+      if (!comps.length) return json({ error: "Competition not found" }, 404);
+      const competition = comps[0];
+
+      const myRegs = await sql<{ participant_name: string }[]>`
+        SELECT participant_name FROM competition_registrations
+        WHERE competition_id = ${competitionId} AND created_by_id = ${user.id} AND status = 'active'
+      `;
+      if (!myRegs.length && !isAdmin(user)) {
+        return json({ error: "Трябва да сте записани за това състезание" }, 403);
+      }
+
+      if (!competition.created_by_id) return json({ error: "Организаторът не е намерен" }, 404);
+      const orgRows = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${competition.created_by_id}`;
+      const organizerEmail = orgRows[0]?.email;
+      if (!organizerEmail) return json({ error: "Организаторът не е намерен" }, 404);
+
+      const names = myRegs.map((r: { participant_name: string }) => r.participant_name).join(", ") || user.full_name || user.email;
+
+      await sendEmail({
+        to: organizerEmail,
+        replyTo: user.email,
+        subject: `Съобщение от участник — ${competition.title}`,
+        html: `<p>Съобщение от <b>${names}</b> (${user.email}), записан(и) за „${competition.title}“:</p><p>${message.replace(/\n/g, "<br>")}</p>`,
+      });
+
+      return json({ success: true });
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
+  }
+
   return json({ error: `Unknown function: ${name}` }, 404);
 }

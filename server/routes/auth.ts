@@ -74,6 +74,90 @@ async function trySendEmail(opts: Parameters<typeof sendEmail>[0]) {
   }
 }
 
+// v3.03 — "known за всеки нов потребител" (the site owner's request): every
+// account with admin — via either `role` or `roles`, same check as
+// isAdmin() — gets an email whenever someone new registers or signs in with
+// Google for the first time. Queried fresh each time (not cached) so a role
+// change takes effect immediately, same reasoning as getUserFromRequest.
+// Best-effort only — never blocks the actual registration.
+async function notifyAdminsOfNewUser(newUser: {
+  email: string;
+  full_name?: string | null;
+  phone?: string | null;
+}): Promise<void> {
+  try {
+    const admins = await sql<{ email: string }[]>`
+      SELECT email FROM users
+      WHERE role = 'admin' OR 'admin' = ANY(COALESCE(roles, ARRAY[]::text[]))
+    `;
+    if (!admins.length) return;
+    const who = newUser.full_name ? `${newUser.full_name} (${newUser.email})` : newUser.email;
+    const phoneLine = newUser.phone ? `<p><b>Телефон:</b> ${newUser.phone}</p>` : "";
+    await sendEmail({
+      to: admins.map((a: { email: string }) => a.email),
+      subject: "Нов потребител в CatchCount",
+      html: `<p>Регистрира се нов потребител: <b>${who}</b>.</p>${phoneLine}`,
+    });
+  } catch (e) {
+    console.error("[auth] Failed to notify admins of new user:", e);
+  }
+}
+
+// v3.03 — insert a freshly registering account, tolerating either or both of
+// the two newest, migration-gated columns (phone, terms_accepted_at) not
+// existing in the DB yet — code and schema deploy as two separate steps, see
+// adminMigrations.ts. Tries the fullest insert first, then narrows by
+// exactly which column Postgres says is missing, same reasoning as
+// middleware/auth.ts's selectUser.
+async function insertNewUser(opts: {
+  email: string;
+  passwordHash: string;
+  full_name: string;
+  phone: string;
+  role: string;
+  verified: boolean;
+}): Promise<AuthUser> {
+  const { email, passwordHash, full_name, phone, role, verified } = opts;
+  try {
+    const rows = await sql<AuthUser[]>`
+      INSERT INTO users (email, password_hash, full_name, phone, role, email_verified, terms_accepted_at)
+      VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${verified}, now())
+      RETURNING *
+    `;
+    return rows[0];
+  } catch (e) {
+    if (e instanceof Error && /phone/.test(e.message)) {
+      try {
+        const rows = await sql<AuthUser[]>`
+          INSERT INTO users (email, password_hash, full_name, role, email_verified, terms_accepted_at)
+          VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${verified}, now())
+          RETURNING *
+        `;
+        return rows[0];
+      } catch (e2) {
+        if (e2 instanceof Error && /terms_accepted_at/.test(e2.message)) {
+          const rows = await sql<AuthUser[]>`
+            INSERT INTO users (email, password_hash, full_name, role, email_verified)
+            VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${verified})
+            RETURNING *
+          `;
+          return rows[0];
+        }
+        throw e2;
+      }
+    }
+    if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
+      const rows = await sql<AuthUser[]>`
+        INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
+        VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${verified})
+        RETURNING *
+      `;
+      return rows[0];
+    }
+    throw e;
+  }
+}
+
 export async function handleAuthRoute(
   req: Request,
   path: string[],
@@ -82,9 +166,9 @@ export async function handleAuthRoute(
   const [action] = path;
   const url = absoluteUrl(req);
 
-  // ---- POST /api/auth/register { email, password, acceptedTerms } ----
+  // ---- POST /api/auth/register { email, password, acceptedTerms, full_name, phone } ----
   if (action === "register" && req.method === "POST") {
-    const { email, password, acceptedTerms } = await req.json();
+    const { email, password, acceptedTerms, full_name, phone } = await req.json();
     if (!email || !password) return json({ error: "Missing email or password" }, 400);
     // v2.98 — the checkbox is required client-side too (Register.jsx), this
     // is the actual enforcement. A Google sign-in has no registration form
@@ -93,6 +177,13 @@ export async function handleAuthRoute(
     // TermsGate.jsx the first time they use the app post-login.
     if (!acceptedTerms) {
       return json({ error: "Трябва да приемете общите условия" }, 400);
+    }
+    // v3.03 — Name + Phone, shown right after the terms checkbox
+    // (Register.jsx), so the organizer of any competition this person later
+    // registers for always has a direct-contact option (see also
+    // Competitions.jsx's auto-fill of these on the first registration).
+    if (!full_name || !String(full_name).trim() || !phone || !String(phone).trim()) {
+      return json({ error: "Име и телефон са задължителни" }, 400);
     }
 
     const existing = await sql<{ id: string; email_verified: boolean }[]>`
@@ -127,30 +218,18 @@ export async function handleAuthRoute(
     // one-time code emailed to them before they can log in (issueOtp +
     // trySendEmail + `return json({ success: true })` below, mirroring the
     // "existing unverified account" branch above it).
-    // terms_accepted_at may not exist yet if the code deployed (git push)
-    // before the admin clicked "Приложи обновление" for v2.98 — fall back to
-    // an insert without it rather than 500ing every registration in that
-    // gap; see the matching fallback in middleware/auth.ts's getUserFromRequest.
-    let rows: AuthUser[];
-    try {
-      rows = await sql<AuthUser[]>`
-        INSERT INTO users (email, password_hash, role, email_verified, terms_accepted_at)
-        VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first}, now())
-        RETURNING *
-      `;
-    } catch (e) {
-      if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
-        rows = await sql<AuthUser[]>`
-          INSERT INTO users (email, password_hash, role, email_verified)
-          VALUES (${email}, ${passwordHash}, ${first ? "admin" : "user"}, ${first})
-          RETURNING *
-        `;
-      } else {
-        throw e;
-      }
-    }
+    const u = await insertNewUser({
+      email,
+      passwordHash,
+      full_name: String(full_name).trim(),
+      phone: String(phone).trim(),
+      role: first ? "admin" : "user",
+      verified: first,
+    });
 
-    const u = rows[0];
+    // Best-effort, never blocks registration — see notifyAdminsOfNewUser.
+    void notifyAdminsOfNewUser({ email: u.email, full_name: u.full_name, phone: u.phone });
+
     if (first) {
       const token = signToken({ sub: u.id, email: u.email, role: u.role });
       return json({ access_token: token, user: publicUser(u) });
@@ -242,6 +321,13 @@ export async function handleAuthRoute(
           VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${first ? "admin" : "user"}, TRUE)
           RETURNING *
         `;
+        // v3.03 — a Google sign-in has no registration form of its own to
+        // collect Name/Phone (profile.name is whatever Google itself has),
+        // and no acceptedTerms checkbox either (see TermsGate.jsx) — a brand
+        // new account this way still counts as "a new user" for the site
+        // owner's admin-notification request, same as the email/password
+        // path above.
+        void notifyAdminsOfNewUser({ email: rows[0].email, full_name: rows[0].full_name, phone: null });
       }
     }
     const u = rows[0];
@@ -306,15 +392,33 @@ export async function handleAuthRoute(
   if (action === "me" && req.method === "PUT") {
     if (!user) return json({ error: "Not authenticated" }, 401);
     const patch = await req.json();
-    const allowed = ["full_name", "country", "menu_group_id"] as const;
+    // v3.03 — "phone" added so a Google-OAuth account (no phone from Google)
+    // or anyone who skipped/needs to change it can fill it in later from
+    // Profile.jsx, not just at registration time.
+    const allowed = ["full_name", "phone", "country", "menu_group_id"] as const;
     const set: Record<string, unknown> = {};
     for (const k of allowed) if (k in patch) set[k] = patch[k];
     set.updated_at = new Date();
     const keys = Object.keys(set);
-    const rows = await sql<AuthUser[]>`
-      UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
-    `;
-    return json(publicUser(rows[0]));
+    try {
+      const rows = await sql<AuthUser[]>`
+        UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
+      `;
+      return json(publicUser(rows[0]));
+    } catch (e) {
+      // v3.03 migration not applied yet — retry without "phone" rather than
+      // failing the whole update just because one optional field can't be
+      // saved yet (see adminMigrations.ts).
+      if (e instanceof Error && /phone/.test(e.message) && "phone" in set) {
+        const { phone: _phone, ...rest } = set;
+        const restKeys = Object.keys(rest);
+        const rows = await sql<AuthUser[]>`
+          UPDATE users SET ${sql(rest, ...restKeys)} WHERE id = ${user.id} RETURNING *
+        `;
+        return json(publicUser(rows[0]));
+      }
+      throw e;
+    }
   }
 
   // ---- POST /api/auth/accept-terms ----

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
@@ -83,6 +83,12 @@ export default function Profile() {
   const [user, setUser] = useState(null);
   const [fullName, setFullName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  // v3.03 — lets a Google-OAuth account (no phone from Google) or anyone who
+  // skipped/needs to change it fill it in here — used to auto-fill the
+  // phone field on this account's first competition registration (see
+  // Competitions.jsx's handleRegister/setRegPhone).
+  const [phone, setPhone] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
   const [defaultLocations, setDefaultLocations] = useState(loadLocations);
   const [newLocation, setNewLocation] = useState("");
   const [myRoleRequests, setMyRoleRequests] = useState([]);
@@ -102,6 +108,7 @@ export default function Profile() {
       const u = await base44.auth.me();
       setUser(u);
       setFullName(u.full_name || "");
+      setPhone(u.phone || "");
     } catch {
       // non-blocking
     }
@@ -158,6 +165,19 @@ export default function Profile() {
     }
   };
 
+  const savePhone = async () => {
+    setSavingPhone(true);
+    try {
+      await base44.auth.updateMe({ phone });
+      setUser((u) => ({ ...u, phone }));
+      toast({ title: t("profile.phoneUpdated") });
+    } catch {
+      toast({ title: t("profile.couldNotUpdate"), variant: "destructive" });
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
   const addLocation = (e) => {
     e.preventDefault();
     if (!newLocation.trim()) return;
@@ -187,6 +207,21 @@ export default function Profile() {
           {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : t("profile.saveName")}
         </Button>
         {user?.email && <p className="text-xs text-slate-400">{t("profile.signedInAs")} {user.email}</p>}
+      </div>
+
+      {/* v3.03 — phone, so an organizer always has a direct-contact option
+          (see Competitions.jsx's auto-fill on the first registration) —
+          especially important for a Google-OAuth account, which has no
+          phone of its own to carry over. */}
+      <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <Phone className="w-4 h-4 text-cyan-600" />
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("profile.phone")}</h2>
+        </div>
+        <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={t("profile.yourPhone")} />
+        <Button onClick={savePhone} disabled={savingPhone} className="bg-cyan-600 hover:bg-cyan-700 w-full">
+          {savingPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : t("profile.savePhone")}
+        </Button>
       </div>
 
       {/* Default fishing locations */}

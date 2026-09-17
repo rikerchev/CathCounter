@@ -4,7 +4,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole, effectiveRoles, highestRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical, Upload, Image as ImageIcon } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical, Upload, Image as ImageIcon, Send } from "lucide-react";
+import { maskEmail } from "@/lib/emailMask";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
@@ -90,6 +91,12 @@ export default function WaterBodyManagement() {
   // reset whenever a different participant is opened for editing (openEditReg).
   const [reassignEmail, setReassignEmail] = useState("");
   const [reassigning, setReassigning] = useState(false);
+  // v3.03 — "message everyone registered for this competition" (see
+  // sendParticipantsMessage below): the competition the dialog is currently
+  // open for, the organizer's free-text message, and a busy flag.
+  const [messagingFor, setMessagingFor] = useState(null);
+  const [messageText, setMessageText] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   // v2.87 — competition whose standings dialog is open. v2.89 — ranked by
   // penalty points first, total catch weight only as the tie-break — see
   // rankByPenaltyAndWeight. v2.92 — generatingImage backs the "Изтегли
@@ -695,7 +702,7 @@ export default function WaterBodyManagement() {
       r.participant_name || "",
       r.participant_phone || "",
       r.slot_type === "reserve" ? t("comp.reserves") : t("comp.participants"),
-      r.registered_by_email || "",
+      r.registered_by_email ? maskEmail(r.registered_by_email) : "",
       t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending"),
       r.assigned_sector || "",
       r.assigned_box != null ? String(r.assigned_box) : "",
@@ -713,6 +720,28 @@ export default function WaterBodyManagement() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  // v3.03 — one email per registering account for this competition, listing
+  // every participant that account registered, plus the organizer's own
+  // free-text message — see server/routes/functions.ts's
+  // "message-competition-participants" for the actual grouping/sending.
+  async function sendParticipantsMessage() {
+    if (!messagingFor || !messageText.trim()) return;
+    setSendingMessage(true);
+    try {
+      const res = await base44.functions.invoke("message-competition-participants", {
+        competition_id: messagingFor.id,
+        message: messageText.trim(),
+      });
+      toast({ title: t("wb.messageSent"), description: `${res.notified} ${t("comp.users")}` });
+      setMessagingFor(null);
+      setMessageText("");
+    } catch (e) {
+      toast({ title: t("wb.errorSending"), description: e.message, variant: "destructive" });
+    } finally {
+      setSendingMessage(false);
+    }
   }
 
   // v2.94 — manual drag-and-drop reordering of the participants list. The
@@ -1493,7 +1522,12 @@ export default function WaterBodyManagement() {
                   </div>
                   {r.registered_by_email && (
                     <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
-                      <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {r.registered_by_email}
+                      {/* v3.03 — masked (see src/lib/emailMask.js): the
+                          organizer can still tell registrations apart by
+                          account without seeing another user's full email —
+                          the "Съобщение до участниците"/CSV-export flows
+                          below reach the real address server-side. */}
+                      <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {maskEmail(r.registered_by_email)}
                     </p>
                   )}
                   {/* v2.90 — set only by the organizer's "assign to user"
@@ -1502,7 +1536,7 @@ export default function WaterBodyManagement() {
                       whoever originally submitted it above. */}
                   {r.assigned_user_email && (
                     <p className="text-xs text-cyan-700 dark:text-cyan-400 flex items-center gap-1 font-medium">
-                      <ArrowRightLeft className="w-3 h-3 shrink-0" /> {t("wb.assignedToAccount")}: {r.assigned_user_email}
+                      <ArrowRightLeft className="w-3 h-3 shrink-0" /> {t("wb.assignedToAccount")}: {maskEmail(r.assigned_user_email)}
                     </p>
                   )}
                   {r.participant_phone && (
@@ -1645,6 +1679,15 @@ export default function WaterBodyManagement() {
           })()}
           <DialogFooter className="flex-wrap gap-2">
             <Button variant="outline" onClick={() => closeParticipants()} className="min-h-[44px]">{t("comp.close")}</Button>
+            {/* v3.03 — one email per registering account, listing every
+                participant they registered — see sendParticipantsMessage. */}
+            <Button
+              variant="outline"
+              onClick={() => setMessagingFor(participantsFor)}
+              className="min-h-[44px]"
+            >
+              <Send className="w-4 h-4 mr-1" /> {t("wb.messageParticipants")}
+            </Button>
             <Button
               variant="outline"
               onClick={() => drawLotsFor(participantsFor)}
@@ -1676,6 +1719,38 @@ export default function WaterBodyManagement() {
               className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* v3.03 — "Съобщение до участниците": one free-text message, emailed
+          to every account that registered a participant for this
+          competition (grouped — see sendParticipantsMessage/
+          message-competition-participants). */}
+      <Dialog open={!!messagingFor} onOpenChange={(o) => !o && setMessagingFor(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="break-words">{t("wb.messageParticipants")} — {messagingFor?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">{t("wb.messageParticipantsHint")}</p>
+            <Textarea
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              rows={5}
+              className="min-h-[120px]"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMessagingFor(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
+            <Button
+              onClick={sendParticipantsMessage}
+              disabled={sendingMessage || !messageText.trim()}
+              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
+            >
+              {sendingMessage ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
+              {t("wb.send")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1856,7 +1931,7 @@ export default function WaterBodyManagement() {
                 </Label>
                 {editingReg.assigned_user_email && (
                   <p className="text-xs text-cyan-700 dark:text-cyan-400">
-                    {t("wb.assignedToAccount")}: {editingReg.assigned_user_email}
+                    {t("wb.assignedToAccount")}: {maskEmail(editingReg.assigned_user_email)}
                   </p>
                 )}
                 <div className="flex items-center gap-2">

@@ -649,3 +649,10 @@ CREATE INDEX IF NOT EXISTS idx_contact_messages_user_id ON contact_messages(user
 -- "accept-terms" action and middleware/auth.ts). Safe to re-run. Applied via
 -- the same "Приложи обновление" admin button as the migrations above.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+
+-- v3.03: the user's own phone number — collected at registration
+-- (Register.jsx, right after the terms checkbox) or filled in later from
+-- Profile.jsx, so an organizer always has a direct-contact option for
+-- whoever registers for their competitions. Safe to re-run. Applied via the
+-- same "Приложи обновление" admin button as the migrations above.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;

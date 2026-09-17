@@ -16,6 +16,12 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  // v3.03 — collected right after the terms checkbox (see the conditional
+  // block below): Name so the account isn't just an email address, Phone so
+  // whoever later registers this account for a competition already gives
+  // its organizer a direct-contact option (see Competitions.jsx's handleRegister).
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
@@ -32,9 +38,17 @@ export default function Register() {
       setError("Трябва да приемете общите условия, за да продължите");
       return;
     }
+    if (!fullName.trim() || !phone.trim()) {
+      setError("Моля, въведете име и телефон");
+      return;
+    }
     setLoading(true);
     try {
-      const result = await base44.auth.register({ email, password, acceptedTerms });
+      const result = await base44.auth.register({
+        email, password, acceptedTerms,
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+      });
       if (result?.access_token) {
         // First account on a freshly set up database — created as admin
         // and already verified, so log straight in instead of asking for
@@ -245,7 +259,44 @@ export default function Register() {
             и обработката на личните ми данни
           </span>
         </label>
-        <Button type="submit" className="w-full h-12 font-medium" disabled={loading || !acceptedTerms}>
+        {/* v3.03 — shown right after accepting the terms, per the site
+            owner's request: Name so the account isn't just an email, Phone
+            so an organizer always has a direct-contact option for whoever
+            this account later registers for a competition. */}
+        {acceptedTerms && (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Име</Label>
+              <Input
+                id="fullName"
+                autoComplete="name"
+                placeholder="Име и фамилия"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="h-12"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Телефон</Label>
+              <Input
+                id="phone"
+                type="tel"
+                autoComplete="tel"
+                placeholder="08XX XXX XXX"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="h-12"
+                required
+              />
+            </div>
+          </>
+        )}
+        <Button
+          type="submit"
+          className="w-full h-12 font-medium"
+          disabled={loading || !acceptedTerms || !fullName.trim() || !phone.trim()}
+        >
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

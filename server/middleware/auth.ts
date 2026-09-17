@@ -5,6 +5,11 @@ export interface AuthUser {
   id: string;
   email: string;
   full_name: string | null;
+  // v3.03 — the registering/registered user's own phone number, so an
+  // organizer always has a direct-contact option (see routes/auth.ts's
+  // "register" action and Register.jsx). null on accounts created before
+  // this existed, or while the migration below hasn't been applied yet.
+  phone: string | null;
   role: "user" | "admin" | "water_owner" | "advertiser";
   roles: string[];
   country: string | null;
@@ -21,6 +26,53 @@ export interface AuthUser {
   terms_accepted_at: string | null;
 }
 
+const BASE_USER_COLUMNS = [
+  "id", "email", "full_name", "role", "roles", "country", "menu_group_id",
+  "email_verified", "created_at", "updated_at",
+];
+
+// Columns whose code (git push, automatic on Vercel) and schema change
+// (Admin → Настройка → База данни, a manual click — see adminMigrations.ts)
+// deploy as two separate steps. Selecting one of these can 500 for a window
+// after the code deploys until the admin applies its migration; each is
+// probed independently below (rather than falling back to ALL-or-nothing)
+// so e.g. a pending v3.03 (phone) migration doesn't also blank out an
+// already-applied v2.98 (terms_accepted_at) for every request in that gap.
+const OPTIONAL_USER_COLUMNS = ["premium_until", "terms_accepted_at", "phone"] as const;
+type OptionalUserColumn = (typeof OPTIONAL_USER_COLUMNS)[number];
+
+function defaultForMissing(col: OptionalUserColumn): string | null {
+  // Non-null sentinel for terms_accepted_at specifically: with the column
+  // not migrated yet, `null` would force EVERY account through TermsGate.jsx
+  // the instant this code deploys, well before the admin has had a chance to
+  // click "Приложи обновление" — worse than just not enforcing acceptance yet.
+  return col === "terms_accepted_at" ? "pending-migration" : null;
+}
+
+async function selectUser(id: string, skip: OptionalUserColumn[]): Promise<AuthUser | null> {
+  const columns = [...BASE_USER_COLUMNS, ...OPTIONAL_USER_COLUMNS.filter((c) => !skip.includes(c))];
+  try {
+    const rows = await sql.unsafe<AuthUser[]>(
+      `SELECT ${columns.join(", ")} FROM users WHERE id = $1`,
+      [id],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    const result = { ...row } as AuthUser;
+    for (const c of skip) (result as unknown as Record<string, unknown>)[c] = defaultForMissing(c);
+    return result;
+  } catch (e) {
+    // Postgres reports one missing column per error — recurse, dropping
+    // exactly that column from the next attempt, until the select succeeds
+    // or the error is something else entirely (rethrown as-is).
+    const missing = OPTIONAL_USER_COLUMNS.find(
+      (c) => !skip.includes(c) && e instanceof Error && new RegExp(c).test(e.message),
+    );
+    if (missing) return selectUser(id, [...skip, missing]);
+    throw e;
+  }
+}
+
 /**
  * Reads the user fresh from the DB on every request (rather than trusting
  * the JWT's embedded role) so a role change or ban takes effect immediately
@@ -34,55 +86,7 @@ export async function getUserFromRequest(req: Request): Promise<AuthUser | null>
   const payload = verifyToken(token);
   if (!payload) return null;
 
-  try {
-    const rows = await sql<AuthUser[]>`
-      SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
-             created_at, updated_at, premium_until, terms_accepted_at
-      FROM users WHERE id = ${payload.sub}
-    `;
-    return rows[0] ?? null;
-  } catch (e) {
-    // v2.68/v2.98 each deploy their code (auto, on git push) and their own
-    // new column (manual, via the Admin → Настройка → База данни button) as
-    // two separate steps — this SELECT would otherwise 500 on EVERY request
-    // in the gap between them. Fall back column-by-column so the whole app
-    // doesn't go down just because a button hasn't been clicked yet; each
-    // missing column simply reads as null until it has been added.
-    if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
-      try {
-        const rows = await sql<Omit<AuthUser, "terms_accepted_at">[]>`
-          SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
-                 created_at, updated_at, premium_until
-          FROM users WHERE id = ${payload.sub}
-        `;
-        // terms_accepted_at reads as a non-null placeholder (not `null`) here
-        // on purpose: with the column not migrated yet, EVERY account would
-        // otherwise be forced through TermsGate.jsx the instant the code
-        // deploys, well before the admin has had a chance to click "Приложи
-        // обновление" — worse than just not enforcing acceptance yet.
-        return rows[0] ? { ...rows[0], terms_accepted_at: "pending-migration" } : null;
-      } catch (e2) {
-        if (e2 instanceof Error && /premium_until/.test(e2.message)) {
-          const rows = await sql<Omit<AuthUser, "premium_until" | "terms_accepted_at">[]>`
-            SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
-                   created_at, updated_at
-            FROM users WHERE id = ${payload.sub}
-          `;
-          return rows[0] ? { ...rows[0], premium_until: null, terms_accepted_at: "pending-migration" } : null;
-        }
-        throw e2;
-      }
-    }
-    if (e instanceof Error && /premium_until/.test(e.message)) {
-      const rows = await sql<Omit<AuthUser, "premium_until">[]>`
-        SELECT id, email, full_name, role, roles, country, menu_group_id, email_verified,
-               created_at, updated_at, terms_accepted_at
-        FROM users WHERE id = ${payload.sub}
-      `;
-      return rows[0] ? { ...rows[0], premium_until: null } : null;
-    }
-    throw e;
-  }
+  return selectUser(payload.sub, []);
 }
 
 // `role` (singular, legacy/primary) and `roles` (array, supports someone
