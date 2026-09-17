@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { boxLabelsFor } from "@/lib/sectorLabels";
 
 function formatDate(d, lang) {
   if (!d) return "—";
@@ -40,7 +41,11 @@ export default function SectorReservations() {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reserveFor, setReserveFor] = useState(null);
-  const [sectorNum, setSectorNum] = useState("");
+  // v2.96 — was a free-typed integer (1..total_sectors); now a chosen label
+  // string from boxLabelsFor(avail), which falls back to plain sequential
+  // numbers ("1", "2", ...) when the owner hasn't set custom box_labels, so
+  // old availabilities keep working exactly as before.
+  const [sectorLabel, setSectorLabel] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -79,7 +84,7 @@ export default function SectorReservations() {
 
   function openReserve(avail, wb) {
     setReserveFor({ avail, wb });
-    setSectorNum("");
+    setSectorLabel("");
     setName(user?.full_name || "");
     setPhone("");
   }
@@ -87,13 +92,13 @@ export default function SectorReservations() {
   async function confirmReservation() {
     if (!reserveFor) return;
     const { avail, wb } = reserveFor;
-    const sector = parseInt(sectorNum, 10);
-    if (!sector || sector < 1 || sector > avail.total_sectors) {
-      toast({ title: t("sr.invalidSector"), description: `${t("sr.selectSectorRange")} ${avail.total_sectors}`, variant: "destructive" });
+    const labels = boxLabelsFor(avail);
+    if (!sectorLabel || !labels.includes(sectorLabel)) {
+      toast({ title: t("sr.invalidSector"), description: t("sr.selectSectorRange"), variant: "destructive" });
       return;
     }
     const taken = takenSectors(avail.id);
-    if (taken[sector]) {
+    if (taken[sectorLabel]) {
       toast({ title: t("sr.sectorTaken"), description: t("sr.chooseAnotherSector"), variant: "destructive" });
       return;
     }
@@ -109,7 +114,7 @@ export default function SectorReservations() {
         water_body_name: wb.name,
         availability_id: avail.id,
         date: avail.date,
-        sector_number: sector,
+        sector_number: sectorLabel,
         reserved_by_name: name,
         reserved_by_phone: phone,
         fee: avail.fee_per_person || 0,
@@ -157,10 +162,19 @@ export default function SectorReservations() {
             if (wbAvail.length === 0) return null;
             return (
               <div key={wb.id} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-4 shadow-sm space-y-3">
-                <div>
-                  <h2 className="font-bold text-slate-800 dark:text-foreground">{wb.name}</h2>
-                  <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
-                    <MapPin className="w-3 h-3" /> {wb.location}
+                <div className="flex items-start gap-3">
+                  {wb.scheme_image_url && (
+                    <img
+                      src={wb.scheme_image_url}
+                      alt={t("wb.schemeImage")}
+                      className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-border shrink-0"
+                    />
+                  )}
+                  <div>
+                    <h2 className="font-bold text-slate-800 dark:text-foreground">{wb.name}</h2>
+                    <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
+                      <MapPin className="w-3 h-3" /> {wb.location}
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -222,14 +236,49 @@ export default function SectorReservations() {
             <div className="space-y-3">
               <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 text-sm">
                 <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.date")}:</span> {formatDate(reserveFor.avail.date, lang)}</p>
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.sectors")}:</span> 1–{reserveFor.avail.total_sectors}</p>
+                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.sectors")}:</span> {reserveFor.avail.total_sectors}</p>
                 {reserveFor.avail.fee_per_person > 0 && (
                   <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.fee")}:</span> <span className="text-emerald-600 font-medium">{reserveFor.avail.fee_per_person} €</span></p>
                 )}
               </div>
+              {reserveFor.wb.scheme_image_url && (
+                <div className="space-y-1.5">
+                  <Label>{t("wb.schemeImage")}</Label>
+                  <img
+                    src={reserveFor.wb.scheme_image_url}
+                    alt={t("wb.schemeImage")}
+                    className="w-full max-h-48 object-contain rounded-lg border border-slate-200 dark:border-border bg-white"
+                  />
+                </div>
+              )}
+              {/* v2.96 — was a free-typed number; now a grid of the
+                  availability's actual box labels (boxLabelsFor falls back
+                  to plain sequential numbers when the owner hasn't set
+                  custom box_labels), with already-taken boxes disabled. */}
               <div className="space-y-1.5">
                 <Label>{t("sr.sectorNumber")} *</Label>
-                <Input type="number" min="1" max={reserveFor.avail.total_sectors} value={sectorNum} onChange={(e) => setSectorNum(e.target.value)} className="min-h-[44px]" />
+                <div className="flex flex-wrap gap-1.5">
+                  {boxLabelsFor(reserveFor.avail).map((label) => {
+                    const taken = !!takenSectors(reserveFor.avail.id)[label];
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        disabled={taken}
+                        onClick={() => setSectorLabel(label)}
+                        className={`min-h-[40px] min-w-[40px] px-2 rounded-md text-sm border transition-colors ${
+                          taken
+                            ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed dark:bg-accent dark:text-muted-foreground dark:border-border"
+                            : sectorLabel === label
+                            ? "bg-cyan-600 text-white border-cyan-600"
+                            : "bg-white text-slate-700 border-slate-300 hover:border-cyan-400 dark:bg-card dark:text-foreground dark:border-border"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               <div className="space-y-1.5">
                 <Label>{t("sr.name")} *</Label>

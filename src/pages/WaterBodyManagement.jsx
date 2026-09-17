@@ -4,13 +4,14 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole, effectiveRoles, highestRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical, Upload, Image as ImageIcon } from "lucide-react";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
+import { parseBoxLabels, stringifyBoxLabels, boxLabelsFor } from "@/lib/sectorLabels";
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
@@ -112,7 +113,14 @@ export default function WaterBodyManagement() {
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
   const [sectorFor, setSectorFor] = useState(null);
-  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", total_sectors: "10", fee_per_person: "" });
+  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", total_sectors: "10", fee_per_person: "", box_labels: [] });
+  // v2.96 — scheme/layout reference photo, uploaded from the same sector
+  // declaration dialog but saved straight onto the WaterBody itself (see
+  // uploadSchemeImage below and the column comment in
+  // server/schema/entities.generated.ts) rather than onto the
+  // SectorAvailability row, since a water body's physical layout doesn't
+  // change between different reservation-date declarations.
+  const [uploadingSchemeImage, setUploadingSchemeImage] = useState(false);
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
@@ -314,8 +322,66 @@ export default function WaterBodyManagement() {
 
   function openSectorForm(wb) {
     setSectorFor(wb);
-    setSectorForm({ date: "", end_date: "", total_sectors: "10", fee_per_person: wb.fee_per_person ? String(wb.fee_per_person) : "" });
+    const n = 10;
+    setSectorForm({
+      date: "",
+      end_date: "",
+      total_sectors: String(n),
+      fee_per_person: wb.fee_per_person ? String(wb.fee_per_person) : "",
+      box_labels: Array.from({ length: n }, (_, i) => String(i + 1)),
+    });
     setShowSectorForm(true);
+  }
+
+  // v2.96 — changing the box count resizes box_labels to match, same
+  // grow/shrink behavior as updateSectorRow above: growing appends default
+  // sequential labels for the new slots, shrinking truncates, and any
+  // custom label already typed into a kept slot is left alone.
+  function updateSectorBoxCount(value) {
+    setSectorForm((f) => {
+      const n = Math.max(0, Number(value) || 0);
+      const labels = (f.box_labels || []).slice(0, n);
+      for (let i = labels.length; i < n; i++) labels.push(String(i + 1));
+      return { ...f, total_sectors: value, box_labels: labels };
+    });
+  }
+
+  function updateSectorBoxLabel(index, value) {
+    setSectorForm((f) => {
+      const labels = (f.box_labels || []).slice();
+      labels[index] = value;
+      return { ...f, box_labels: labels };
+    });
+  }
+
+  // v2.96 — uploaded once per water body and reused for every future sector
+  // declaration; saves straight onto WaterBody.scheme_image_url (Postgres-
+  // backed storage via UploadFile, same mechanism as ad logos/catch photos).
+  async function uploadSchemeImage(file) {
+    if (!file || !sectorFor) return;
+    setUploadingSchemeImage(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      await base44.entities.WaterBody.update(sectorFor.id, { scheme_image_url: file_url });
+      setSectorFor((f) => (f ? { ...f, scheme_image_url: file_url } : f));
+      toast({ title: t("wb.schemeImageUploaded") });
+      await load();
+    } catch (err) {
+      toast({ title: t("wb.errorSaving"), description: err.message, variant: "destructive" });
+    } finally {
+      setUploadingSchemeImage(false);
+    }
+  }
+
+  async function removeSchemeImage() {
+    if (!sectorFor) return;
+    try {
+      await base44.entities.WaterBody.update(sectorFor.id, { scheme_image_url: "" });
+      setSectorFor((f) => (f ? { ...f, scheme_image_url: "" } : f));
+      await load();
+    } catch (err) {
+      toast({ title: t("wb.errorSaving"), description: err.message, variant: "destructive" });
+    }
   }
 
   async function createSectorAvailability(e) {
@@ -329,6 +395,7 @@ export default function WaterBodyManagement() {
         end_date: sectorForm.end_date || sectorForm.date,
         total_sectors: Number(sectorForm.total_sectors),
         fee_per_person: sectorForm.fee_per_person ? Number(sectorForm.fee_per_person) : 0,
+        box_labels: stringifyBoxLabels(sectorForm.box_labels),
         status: "open",
       });
       toast({ title: t("wb.sectorsOpened") });
@@ -1266,7 +1333,7 @@ export default function WaterBodyManagement() {
       </Dialog>
 
       <Dialog open={showSectorForm} onOpenChange={setShowSectorForm}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("wb.sectorsForReservation")} — {sectorFor?.name}</DialogTitle>
           </DialogHeader>
@@ -1284,13 +1351,81 @@ export default function WaterBodyManagement() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t("wb.sectorCount")} *</Label>
-                <Input type="number" min="1" value={sectorForm.total_sectors} onChange={(e) => setSectorForm((f) => ({ ...f, total_sectors: e.target.value }))} required className="min-h-[44px]" />
+                <Input type="number" min="1" value={sectorForm.total_sectors} onChange={(e) => updateSectorBoxCount(e.target.value)} required className="min-h-[44px]" />
               </div>
               <div className="space-y-1.5">
                 <Label>{t("wb.feePerPerson")}</Label>
                 <Input type="number" step="any" value={sectorForm.fee_per_person} onChange={(e) => setSectorForm((f) => ({ ...f, fee_per_person: e.target.value }))} className="min-h-[44px]" />
               </div>
             </div>
+
+            {/* v2.96 — each box gets its own editable label, mirroring the
+                competition editor's updateBoxLabel cells (see above), but
+                flat since the general reservation system has no named
+                sector GROUPS — just one availability with N boxes.
+                Defaults to sequential numbers; the owner can rename any
+                cell (e.g. "VIP-1") before customers start booking. */}
+            {sectorForm.box_labels?.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>{t("wb.boxLabelsConfig")}</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {sectorForm.box_labels.map((label, i) => (
+                    <Input
+                      key={i}
+                      value={label}
+                      onChange={(e) => updateSectorBoxLabel(i, e.target.value)}
+                      title={`${t("wb.boxLabel")} ${i + 1}`}
+                      className="min-h-[40px] w-12 text-center px-1"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* v2.96 — water body layout scheme, a purely visual reference
+                photo/map, uploaded once and reused across every future
+                sector declaration for this water body (see
+                uploadSchemeImage — saves onto WaterBody.scheme_image_url,
+                not this SectorAvailability). Shown to customers in
+                SectorReservations.jsx alongside the box picker. */}
+            <div className="space-y-1.5">
+              <Label>{t("wb.schemeImage")}</Label>
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
+                  {sectorFor?.scheme_image_url ? (
+                    <img src={sectorFor.scheme_image_url} alt={t("wb.schemeImage")} className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-slate-300" />
+                  )}
+                </div>
+                <label className="flex-1 cursor-pointer">
+                  <span className="inline-flex items-center justify-center gap-2 min-h-[44px] w-full rounded-md border border-input bg-transparent text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                    {uploadingSchemeImage ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {t("wb.uploading")}</>
+                    ) : (
+                      <><Upload className="w-4 h-4" /> {sectorFor?.scheme_image_url ? t("wb.changeSchemeImage") : t("wb.uploadSchemeImage")}</>
+                    )}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingSchemeImage}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) uploadSchemeImage(file);
+                    }}
+                  />
+                </label>
+                {sectorFor?.scheme_image_url && (
+                  <button type="button" onClick={removeSchemeImage} className="text-slate-400 hover:text-red-600 shrink-0">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowSectorForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>
               <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("wb.openBtn")}</Button>

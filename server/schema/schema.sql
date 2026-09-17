@@ -604,3 +604,28 @@ ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results TEX
 -- registered_by_email (who originally submitted it). Safe to re-run.
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS list_order_at TEXT;
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_user_email TEXT;
+
+-- v2.96: box_labels on sector_availabilities is a JSON-encoded array of
+-- custom box/sector names (string[]), mirroring the sectors_config box
+-- naming already used by competitions since v2.84 — see src/lib/sectorLabels.js
+-- and the matching column comment in server/schema/entities.generated.ts.
+-- NULL/empty falls back to plain sequential numbering ("1".."total_sectors").
+-- scheme_image_url on water_bodies is an uploaded reference photo/map of the
+-- water body's layout (Postgres-backed storage via /api/catch-photos, same
+-- mechanism as catch photos and ad logos — not the optional S3 integration).
+-- sector_number on sector_reservations is widened from INTEGER to TEXT so it
+-- can hold a chosen custom box label instead of only a numeric index — same
+-- pattern as assigned_box on competition_registrations (v2.84 block above).
+-- Safe to re-run. Applied via the same "Приложи обновление" admin button as
+-- the migrations above — see server/routes/adminMigrations.ts.
+ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS box_labels TEXT;
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS scheme_image_url TEXT;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type <> 'text'
+  ) THEN
+    ALTER TABLE sector_reservations ALTER COLUMN sector_number TYPE TEXT USING sector_number::text;
+  END IF;
+END $$;

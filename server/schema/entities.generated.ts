@@ -396,6 +396,14 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "date", type: "string", required: true },
       { name: "end_date", type: "string", required: false },
       { name: "total_sectors", type: "integer", required: true },
+      // v2.96 — optional JSON string[] of custom per-box labels ("1", "2",
+      // "VIP-1", ...), same idea as Competition.sectors_config's boxes
+      // (v2.84) but flat — a SectorAvailability is one plain list of boxes,
+      // no named sub-groups. Absent/empty on any row created before v2.96
+      // (or when the owner never customizes it) — the app then falls back
+      // to the legacy 1..total_sectors numeric range, so old data keeps
+      // working unchanged. See src/lib/sectorLabels.js.
+      { name: "box_labels", type: "string", required: false },
       { name: "fee_per_person", type: "number", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["open", "closed"] },
     ],
@@ -414,7 +422,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "water_body_name", type: "string", required: false },
       { name: "availability_id", type: "string", required: false },
       { name: "date", type: "string", required: true },
-      { name: "sector_number", type: "integer", required: true },
+      // v2.96 — TEXT, not INTEGER: holds whichever box label the customer
+      // picked (a plain number as a string for availabilities without
+      // custom box_labels, or a custom label like "VIP-1"). Mirrors the
+      // exact same integer→text change CompetitionRegistration.assigned_box
+      // went through in v2.84, for the same reason.
+      { name: "sector_number", type: "string", required: true },
       { name: "reserved_by_name", type: "string", required: true },
       { name: "reserved_by_phone", type: "string", required: false },
       { name: "fee", type: "number", required: false },
@@ -519,6 +532,15 @@ export const ENTITIES: Record<string, EntityDef> = {
       // server/routes/merchantReferrals.ts.
       { name: "bonus_days_per_referral", type: "integer", required: false },
       { name: "linked_custom_ad_id", type: "string", required: false },
+      // v2.96 — a photo of the water body's own sector/box layout (e.g. a
+      // printed lake map), uploaded once from the same "Одобрени водоеми"
+      // sector-declaration dialog the owner opens dates/boxes from — purely
+      // a visual reference for whoever's reserving, shown next to the
+      // custom box labels (box_labels on SectorAvailability). Uploaded via
+      // base44.integrations.Core.UploadFile, same Postgres-backed photo
+      // storage as catch photos and ad logos — not the optional S3
+      // integration, so it works with zero extra setup.
+      { name: "scheme_image_url", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

@@ -157,6 +157,41 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS assigned_user_email TEXT`);
     },
   },
+  "v2.96-sector-box-labels-scheme-image": {
+    label: "v2.96 — Именувани сектори/боксове за резервация + снимка на схема на водоема",
+    run: async () => {
+      // v2.96 — mirrors the v2.83/2.84 competition boxes model (named
+      // labels, not just an auto-numbered range), applied here to the
+      // GENERAL date-based reservation system (SectorAvailability/
+      // SectorReservation, "Резервации" menu) instead of competitions.
+      // box_labels: optional JSON string[] on SectorAvailability — when
+      // absent (any row created before this version), the app falls back
+      // to the legacy 1..total_sectors numbering, so nothing existing
+      // breaks. sector_number moves from INTEGER to TEXT on
+      // SectorReservation so a reservation can hold a custom label
+      // ("VIP-1"), not just a number — existing integer values are cast to
+      // their text form automatically. scheme_image_url: a photo of the
+      // water body's own layout/map, uploaded once per water body (not per
+      // date) from the same "Одобрени водоеми" screen the sectors/boxes are
+      // declared from, shown to anyone reserving as a purely visual
+      // reference — no coordinates/parsing, see src/lib/brochure.js's
+      // UploadFile pattern (same underlying Postgres-backed photo storage
+      // as catch photos and ad logos, not the optional S3 integration).
+      await sql.unsafe(`ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS box_labels TEXT`);
+      await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS scheme_image_url TEXT`);
+      await sql.unsafe(`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type <> 'text'
+          ) THEN
+            ALTER TABLE sector_reservations ALTER COLUMN sector_number TYPE TEXT USING sector_number::text;
+          END IF;
+        END $$;
+      `);
+    },
+  },
 };
 
 /**
@@ -234,6 +269,17 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'competition_registrations' AND column_name = 'list_order_at'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v2.96-sector-box-labels-scheme-image") {
+        // Checks sector_number is TEXT specifically (not just box_labels'
+        // presence) so this stays "not applied" — safe to click again — if
+        // an earlier partial run added box_labels/scheme_image_url but the
+        // ALTER COLUMN TYPE step didn't complete.
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type = 'text'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
