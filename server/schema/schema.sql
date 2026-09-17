@@ -656,3 +656,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
 -- whoever registers for their competitions. Safe to re-run. Applied via the
 -- same "Приложи обновление" admin button as the migrations above.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+
+-- v3.04: named sector GROUPS (each with its own individually-labeled boxes)
+-- for the general reservation system, same {name, boxes} JSON model as
+-- Competition.sectors_config — see src/lib/sectorLabels.js's fallback chain
+-- and src/lib/competitionSectors.js. Safe to re-run. Applied via the same
+-- "Приложи обновление" admin button as the migrations above.
+ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS sectors_config TEXT;

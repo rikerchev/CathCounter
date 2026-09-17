@@ -235,6 +235,19 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`);
     },
   },
+  "v3.04-reservation-sectors-config": {
+    label: "v3.04 — Резервации: именувани сектори и боксове",
+    run: async () => {
+      // Same {name, boxes} model as Competition.sectors_config (v2.83/2.84,
+      // see src/lib/competitionSectors.js) — reused here so the general
+      // (non-competition) reservation system can also have named sector
+      // GROUPS, not just one flat list of boxes. See src/lib/sectorLabels.js
+      // for the full fallback chain (sectors_config -> box_labels ->
+      // sequential 1..total_sectors) that keeps every existing availability
+      // working unchanged.
+      await sql.unsafe(`ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS sectors_config TEXT`);
+    },
+  },
 };
 
 /**
@@ -344,6 +357,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_name = 'users' AND column_name = 'phone'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.04-reservation-sectors-config") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'sector_availabilities' AND column_name = 'sectors_config'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

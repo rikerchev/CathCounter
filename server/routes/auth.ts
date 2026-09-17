@@ -57,6 +57,23 @@ async function isFirstUser(): Promise<boolean> {
 
 function publicUser(u: AuthUser) {
   // Never send password_hash/google_id to the client.
+  // v3.05 — login (`SELECT *`) and insertNewUser's migration-not-applied
+  // fallback both return a raw row that simply has no "phone" key at all
+  // when that column doesn't exist yet, unlike getUserFromRequest/selectUser
+  // (middleware/auth.ts) which always normalizes it (null +
+  // phone_migration_pending: true). Normalize it here too, so App.jsx's
+  // PhoneGate.jsx sees the same signal no matter which endpoint returned the
+  // user — otherwise the very first account to register on a freshly
+  // deployed-but-not-yet-migrated instance would get gated for a phone it
+  // has no way yet to save, locking itself out before it can even reach the
+  // admin migration button.
+  // Cast to a plain record for the presence check: AuthUser's type declares
+  // `phone` as always present, so TS would otherwise narrow the negative
+  // branch to `never` (the type promises it can't happen) even though the
+  // raw DB row actually can lack the column at runtime.
+  if (!("phone" in (u as unknown as Record<string, unknown>))) {
+    return { ...u, phone: null, phone_migration_pending: true } as AuthUser;
+  }
   return u;
 }
 
@@ -74,33 +91,57 @@ async function trySendEmail(opts: Parameters<typeof sendEmail>[0]) {
   }
 }
 
-// v3.03 — "known за всеки нов потребител" (the site owner's request): every
-// account with admin — via either `role` or `roles`, same check as
-// isAdmin() — gets an email whenever someone new registers or signs in with
-// Google for the first time. Queried fresh each time (not cached) so a role
-// change takes effect immediately, same reasoning as getUserFromRequest.
-// Best-effort only — never blocks the actual registration.
-async function notifyAdminsOfNewUser(newUser: {
-  email: string;
-  full_name?: string | null;
-  phone?: string | null;
-}): Promise<void> {
+// v3.03 — shared by both notifyAdminsOfNewUser and (v3.05)
+// notifyAdminsOfPhoneAdded below. Queried fresh each time (not cached) so a
+// role change takes effect immediately, same reasoning as
+// getUserFromRequest. Best-effort only — never blocks the caller's real work.
+async function notifyAdmins(subject: string, html: string): Promise<void> {
   try {
     const admins = await sql<{ email: string }[]>`
       SELECT email FROM users
       WHERE role = 'admin' OR 'admin' = ANY(COALESCE(roles, ARRAY[]::text[]))
     `;
     if (!admins.length) return;
-    const who = newUser.full_name ? `${newUser.full_name} (${newUser.email})` : newUser.email;
-    const phoneLine = newUser.phone ? `<p><b>Телефон:</b> ${newUser.phone}</p>` : "";
-    await sendEmail({
-      to: admins.map((a: { email: string }) => a.email),
-      subject: "Нов потребител в CatchCount",
-      html: `<p>Регистрира се нов потребител: <b>${who}</b>.</p>${phoneLine}`,
-    });
+    await sendEmail({ to: admins.map((a: { email: string }) => a.email), subject, html });
   } catch (e) {
-    console.error("[auth] Failed to notify admins of new user:", e);
+    console.error(`[auth] Failed to notify admins (${subject}):`, e);
   }
+}
+
+// v3.03 — "known за всеки нов потребител" (the site owner's request): every
+// admin account (via either `role` or `roles`, same check as isAdmin())
+// gets an email whenever someone new registers or signs in with Google for
+// the first time.
+async function notifyAdminsOfNewUser(newUser: {
+  email: string;
+  full_name?: string | null;
+  phone?: string | null;
+}): Promise<void> {
+  const who = newUser.full_name ? `${newUser.full_name} (${newUser.email})` : newUser.email;
+  const phoneLine = newUser.phone ? `<p><b>Телефон:</b> ${newUser.phone}</p>` : "";
+  await notifyAdmins(
+    "Нов потребител в CatchCount",
+    `<p>Регистрира се нов потребител: <b>${who}</b>.</p>${phoneLine}`,
+  );
+}
+
+// v3.05 — a Google sign-in has no phone of its own (see google/callback
+// below), and every account created before v3.03 has none either, so
+// notifyAdminsOfNewUser above never got a phone for those. PhoneGate.jsx now
+// requires every such account to supply one before using the rest of the
+// app, so this fires the moment that first happens (PUT /api/auth/me,
+// below) — the site owner's "send me the phone" request, closed for these
+// accounts too, not just the ones that had a phone at registration.
+async function notifyAdminsOfPhoneAdded(u: {
+  email: string;
+  full_name?: string | null;
+  phone: string;
+}): Promise<void> {
+  const who = u.full_name ? `${u.full_name} (${u.email})` : u.email;
+  await notifyAdmins(
+    "Потребител добави телефон в CatchCount",
+    `<p>Потребителят <b>${who}</b> въведе телефонен номер: <b>${u.phone}</b>.</p>`,
+  );
 }
 
 // v3.03 — insert a freshly registering account, tolerating either or both of
@@ -400,10 +441,16 @@ export async function handleAuthRoute(
     for (const k of allowed) if (k in patch) set[k] = patch[k];
     set.updated_at = new Date();
     const keys = Object.keys(set);
+    // v3.05 — captured before the UPDATE so we can tell "just added a phone
+    // for the first time" apart from "changed an existing phone" below.
+    const hadNoPhone = !user.phone;
     try {
       const rows = await sql<AuthUser[]>`
         UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
       `;
+      if (hadNoPhone && "phone" in set && rows[0].phone) {
+        void notifyAdminsOfPhoneAdded({ email: rows[0].email, full_name: rows[0].full_name, phone: rows[0].phone });
+      }
       return json(publicUser(rows[0]));
     } catch (e) {
       // v3.03 migration not applied yet — retry without "phone" rather than

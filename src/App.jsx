@@ -52,6 +52,7 @@ import AdminTranslations from './pages/AdminTranslations';
 import ContactUs from './pages/ContactUs';
 import Terms from './pages/Terms';
 import TermsGate from './components/TermsGate';
+import PhoneGate from './components/PhoneGate';
 
 // v2.68/v2.69 — capture a ?ref=<code> (peer invite) or ?merchant=<type:id>
 // (printed brochure) param as early as possible (module load, before
@@ -91,6 +92,18 @@ const AuthenticatedApp = () => {
   // can't be bypassed by deep-linking a specific page — see TermsGate.jsx.
   if (isAuthenticated && user && !user.terms_accepted_at) {
     return <TermsGate />;
+  }
+
+  // v3.05 — every logged-in account must have a phone number on file, not
+  // just brand-new registrations (which already require it — see
+  // Register.jsx/auth.ts's register action): both a Google sign-in (no
+  // phone of its own) and every pre-v3.03 account (created before the phone
+  // field existed) reach this gate too. `phone_migration_pending` is only
+  // ever true while the v3.03-user-phone migration hasn't been applied —
+  // see middleware/auth.ts/PhoneGate.jsx — so this can never lock everyone
+  // (admin included) out of the app before then.
+  if (isAuthenticated && user && !user.phone && !user.phone_migration_pending) {
+    return <PhoneGate />;
   }
 
   // Render the main app

@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { boxLabelsFor } from "@/lib/sectorLabels";
+import { boxLabelsFor, labeledSectorGroupsFor } from "@/lib/sectorLabels";
+import ZoomableImage from "@/components/ZoomableImage";
 
 function formatDate(d, lang) {
   if (!d) return "—";
@@ -164,7 +165,7 @@ export default function SectorReservations() {
               <div key={wb.id} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-4 shadow-sm space-y-3">
                 <div className="flex items-start gap-3">
                   {wb.scheme_image_url && (
-                    <img
+                    <ZoomableImage
                       src={wb.scheme_image_url}
                       alt={t("wb.schemeImage")}
                       className="w-14 h-14 rounded-lg object-cover border border-slate-200 dark:border-border shrink-0"
@@ -184,7 +185,12 @@ export default function SectorReservations() {
                     const free = avail.total_sectors - takenCount;
                     return (
                       <div key={avail.id} className="rounded-xl bg-slate-50 dark:bg-accent p-3">
-                        <div className="flex items-start justify-between gap-2">
+                        {/* v3.04 — stacked on mobile (button gets its own
+                            full-width row below the info) rather than
+                            squeezed onto the same row, now that the button
+                            itself is bigger/more prominent (per the site
+                            owner's request) and its label is longer. */}
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                           <div>
                             <p className="font-medium text-sm text-slate-800 dark:text-foreground">{formatDateRange(avail.date, avail.end_date, lang)}</p>
                             <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-muted-foreground">
@@ -199,7 +205,10 @@ export default function SectorReservations() {
                             </div>
                           </div>
                           {free > 0 ? (
-                            <Button size="sm" onClick={() => openReserve(avail, wb)} className="bg-cyan-600 hover:bg-cyan-700 min-h-[40px]">
+                            <Button
+                              onClick={() => openReserve(avail, wb)}
+                              className="bg-cyan-600 hover:bg-cyan-700 min-h-[48px] w-full sm:w-auto px-6 text-base font-semibold"
+                            >
                               {t("sr.reserve")}
                             </Button>
                           ) : (
@@ -244,7 +253,7 @@ export default function SectorReservations() {
               {reserveFor.wb.scheme_image_url && (
                 <div className="space-y-1.5">
                   <Label>{t("wb.schemeImage")}</Label>
-                  <img
+                  <ZoomableImage
                     src={reserveFor.wb.scheme_image_url}
                     alt={t("wb.schemeImage")}
                     className="w-full max-h-48 object-contain rounded-lg border border-slate-200 dark:border-border bg-white"
@@ -252,33 +261,43 @@ export default function SectorReservations() {
                 </div>
               )}
               {/* v2.96 — was a free-typed number; now a grid of the
-                  availability's actual box labels (boxLabelsFor falls back
-                  to plain sequential numbers when the owner hasn't set
-                  custom box_labels), with already-taken boxes disabled. */}
-              <div className="space-y-1.5">
+                  availability's actual box labels, with already-taken boxes
+                  disabled. v3.04 — grouped under its sector's name when the
+                  owner configured more than one named sector
+                  (labeledSectorGroupsFor); a single unnamed sector (still
+                  the common case) renders exactly as before — one flat grid,
+                  no header. */}
+              <div className="space-y-2">
                 <Label>{t("sr.sectorNumber")} *</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {boxLabelsFor(reserveFor.avail).map((label) => {
-                    const taken = !!takenSectors(reserveFor.avail.id)[label];
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        disabled={taken}
-                        onClick={() => setSectorLabel(label)}
-                        className={`min-h-[40px] min-w-[40px] px-2 rounded-md text-sm border transition-colors ${
-                          taken
-                            ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed dark:bg-accent dark:text-muted-foreground dark:border-border"
-                            : sectorLabel === label
-                            ? "bg-cyan-600 text-white border-cyan-600"
-                            : "bg-white text-slate-700 border-slate-300 hover:border-cyan-400 dark:bg-card dark:text-foreground dark:border-border"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
+                {labeledSectorGroupsFor(reserveFor.avail).map((group, gi) => (
+                  <div key={gi} className="space-y-1">
+                    {group.name && (
+                      <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{group.name}</p>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {group.boxes.map((label) => {
+                        const taken = !!takenSectors(reserveFor.avail.id)[label];
+                        return (
+                          <button
+                            key={label}
+                            type="button"
+                            disabled={taken}
+                            onClick={() => setSectorLabel(label)}
+                            className={`min-h-[40px] min-w-[40px] px-2 rounded-md text-sm border transition-colors ${
+                              taken
+                                ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed dark:bg-accent dark:text-muted-foreground dark:border-border"
+                                : sectorLabel === label
+                                ? "bg-cyan-600 text-white border-cyan-600"
+                                : "bg-white text-slate-700 border-slate-300 hover:border-cyan-400 dark:bg-card dark:text-foreground dark:border-border"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
               <div className="space-y-1.5">
                 <Label>{t("sr.name")} *</Label>

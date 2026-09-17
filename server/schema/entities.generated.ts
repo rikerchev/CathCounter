@@ -404,6 +404,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // to the legacy 1..total_sectors numeric range, so old data keeps
       // working unchanged. See src/lib/sectorLabels.js.
       { name: "box_labels", type: "string", required: false },
+      // v3.04 — named sector GROUPS, each with its own individually-labeled
+      // boxes: '[{"name":"А","boxes":["1","2","3"]},{"name":"Б","boxes":["VIP-1"]}]',
+      // same JSON model as Competition.sectors_config. Takes priority over
+      // box_labels when present; see src/lib/sectorLabels.js for the full
+      // fallback chain that keeps every pre-v3.04 availability working
+      // unchanged.
+      { name: "sectors_config", type: "string", required: false },
       { name: "fee_per_person", type: "number", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["open", "closed"] },
     ],

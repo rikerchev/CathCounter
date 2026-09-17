@@ -12,7 +12,7 @@ import { downloadInviteBrochure } from "@/lib/brochure";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
-import { parseBoxLabels, stringifyBoxLabels, boxLabelsFor } from "@/lib/sectorLabels";
+import ZoomableImage from "@/components/ZoomableImage";
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
@@ -120,7 +120,12 @@ export default function WaterBodyManagement() {
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
   const [sectorFor, setSectorFor] = useState(null);
-  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", total_sectors: "10", fee_per_person: "", box_labels: [] });
+  // v3.04 — was a flat box count + flat label list; now the same named
+  // {name, boxCount, boxes} sector-row shape the competition form already
+  // uses (see EMPTY_SECTOR_ROW/compForm.sectors above), so a water body's
+  // general reservation places can also be grouped into named sectors, not
+  // just one flat list of boxes.
+  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", fee_per_person: "", sectors: [EMPTY_SECTOR_ROW] });
   // v2.96 — scheme/layout reference photo, uploaded from the same sector
   // declaration dialog but saved straight onto the WaterBody itself (see
   // uploadSchemeImage below and the column comment in
@@ -333,32 +338,54 @@ export default function WaterBodyManagement() {
     setSectorForm({
       date: "",
       end_date: "",
-      total_sectors: String(n),
       fee_per_person: wb.fee_per_person ? String(wb.fee_per_person) : "",
-      box_labels: Array.from({ length: n }, (_, i) => String(i + 1)),
+      // Default: one unnamed sector of 10 sequential boxes — same starting
+      // point a pre-v3.04 declaration had, so an owner who doesn't need
+      // named groups sees no extra complexity; they can still rename it or
+      // add more sector rows (see addResSectorRow) if they want groups.
+      sectors: [{ name: "", boxCount: String(n), boxes: Array.from({ length: n }, (_, i) => String(i + 1)) }],
     });
     setShowSectorForm(true);
   }
 
-  // v2.96 — changing the box count resizes box_labels to match, same
-  // grow/shrink behavior as updateSectorRow above: growing appends default
-  // sequential labels for the new slots, shrinking truncates, and any
-  // custom label already typed into a kept slot is left alone.
-  function updateSectorBoxCount(value) {
+  // v3.04 — same row-editing behavior as the competition form's
+  // addSectorRow/updateSectorRow/updateBoxLabel/removeSectorRow above, just
+  // operating on sectorForm.sectors instead of compForm.sectors (kept as
+  // separate functions rather than shared, since the two forms' state lives
+  // in different pieces of state and this is simpler than threading a setter
+  // through).
+  function addResSectorRow() {
+    setSectorForm((f) => ({ ...f, sectors: [...f.sectors, EMPTY_SECTOR_ROW] }));
+  }
+
+  function updateResSectorRow(index, field, value) {
     setSectorForm((f) => {
-      const n = Math.max(0, Number(value) || 0);
-      const labels = (f.box_labels || []).slice(0, n);
-      for (let i = labels.length; i < n; i++) labels.push(String(i + 1));
-      return { ...f, total_sectors: value, box_labels: labels };
+      const sectors = f.sectors.slice();
+      if (field === "boxCount") {
+        const n = Math.max(0, Number(value) || 0);
+        const oldBoxes = sectors[index].boxes || [];
+        const boxes = oldBoxes.slice(0, n);
+        for (let i = boxes.length; i < n; i++) boxes.push(String(i + 1));
+        sectors[index] = { ...sectors[index], boxCount: value, boxes };
+      } else {
+        sectors[index] = { ...sectors[index], [field]: value };
+      }
+      return { ...f, sectors };
     });
   }
 
-  function updateSectorBoxLabel(index, value) {
+  function updateResBoxLabel(sectorIndex, boxIndex, value) {
     setSectorForm((f) => {
-      const labels = (f.box_labels || []).slice();
-      labels[index] = value;
-      return { ...f, box_labels: labels };
+      const sectors = f.sectors.slice();
+      const boxes = (sectors[sectorIndex].boxes || []).slice();
+      boxes[boxIndex] = value;
+      sectors[sectorIndex] = { ...sectors[sectorIndex], boxes };
+      return { ...f, sectors };
     });
+  }
+
+  function removeResSectorRow(index) {
+    setSectorForm((f) => ({ ...f, sectors: f.sectors.filter((_, i) => i !== index) }));
   }
 
   // v2.96 — uploaded once per water body and reused for every future sector
@@ -394,15 +421,23 @@ export default function WaterBodyManagement() {
   async function createSectorAvailability(e) {
     e.preventDefault();
     if (!sectorFor) return;
+    // v3.04 — total_sectors is now DERIVED from the sector rows (it still
+    // drives the free/taken count everywhere that reads it, e.g.
+    // SectorReservations.jsx), not typed in directly.
+    const total = totalBoxes(sectorForm.sectors);
+    if (total < 1) {
+      toast({ title: t("wb.errorCreating"), description: t("wb.needAtLeastOneBox"), variant: "destructive" });
+      return;
+    }
     try {
       await base44.entities.SectorAvailability.create({
         water_body_id: sectorFor.id,
         water_body_name: sectorFor.name,
         date: sectorForm.date,
         end_date: sectorForm.end_date || sectorForm.date,
-        total_sectors: Number(sectorForm.total_sectors),
+        total_sectors: total,
         fee_per_person: sectorForm.fee_per_person ? Number(sectorForm.fee_per_person) : 0,
-        box_labels: stringifyBoxLabels(sectorForm.box_labels),
+        sectors_config: stringifySectorsConfig(sectorForm.sectors),
         status: "open",
       });
       toast({ title: t("wb.sectorsOpened") });
@@ -1377,39 +1412,74 @@ export default function WaterBodyManagement() {
                 <Input type="date" value={sectorForm.end_date} min={sectorForm.date} onChange={(e) => setSectorForm((f) => ({ ...f, end_date: e.target.value }))} className="min-h-[44px]" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{t("wb.sectorCount")} *</Label>
-                <Input type="number" min="1" value={sectorForm.total_sectors} onChange={(e) => updateSectorBoxCount(e.target.value)} required className="min-h-[44px]" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("wb.feePerPerson")}</Label>
-                <Input type="number" step="any" value={sectorForm.fee_per_person} onChange={(e) => setSectorForm((f) => ({ ...f, fee_per_person: e.target.value }))} className="min-h-[44px]" />
-              </div>
+            <div className="space-y-1.5">
+              <Label>{t("wb.feePerPerson")}</Label>
+              <Input type="number" step="any" value={sectorForm.fee_per_person} onChange={(e) => setSectorForm((f) => ({ ...f, fee_per_person: e.target.value }))} className="min-h-[44px]" />
             </div>
 
-            {/* v2.96 — each box gets its own editable label, mirroring the
-                competition editor's updateBoxLabel cells (see above), but
-                flat since the general reservation system has no named
-                sector GROUPS — just one availability with N boxes.
-                Defaults to sequential numbers; the owner can rename any
-                cell (e.g. "VIP-1") before customers start booking. */}
-            {sectorForm.box_labels?.length > 0 && (
-              <div className="space-y-1.5">
-                <Label>{t("wb.boxLabelsConfig")}</Label>
-                <div className="flex flex-wrap gap-1.5">
-                  {sectorForm.box_labels.map((label, i) => (
-                    <Input
-                      key={i}
-                      value={label}
-                      onChange={(e) => updateSectorBoxLabel(i, e.target.value)}
-                      title={`${t("wb.boxLabel")} ${i + 1}`}
-                      className="min-h-[40px] w-12 text-center px-1"
-                    />
-                  ))}
-                </div>
+            {/* v3.04 — was a single flat count + flat label list; now the
+                same named-sectors editor the competition form uses (see
+                compForm.sectors above): each sector has its own name and its
+                own individually-labeled boxes. A water body that doesn't
+                need groups just keeps the one default unnamed sector
+                (openSectorForm's default) — nothing new to configure for
+                the common case. */}
+            <div className="space-y-1.5">
+              <Label>{t("wb.sectorsBoxesConfig")}</Label>
+              <div className="space-y-3">
+                {sectorForm.sectors.map((s, i) => (
+                  <div key={i} className="rounded-lg border border-slate-200 dark:border-border p-2 space-y-2">
+                    <div className="flex gap-2 items-center">
+                      <Input
+                        value={s.name}
+                        onChange={(e) => updateResSectorRow(i, "name", e.target.value)}
+                        placeholder={t("wb.sectorNameLabel")}
+                        className="min-h-[44px] flex-1"
+                      />
+                      <Input
+                        type="number"
+                        min="1"
+                        value={s.boxCount}
+                        onChange={(e) => updateResSectorRow(i, "boxCount", e.target.value)}
+                        placeholder={t("wb.boxCountLabel")}
+                        className="min-h-[44px] w-24"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeResSectorRow(i)}
+                        disabled={sectorForm.sectors.length === 1}
+                        className="min-h-[44px] shrink-0 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {s.boxes.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.boxes.map((label, bi) => (
+                          <Input
+                            key={bi}
+                            value={label}
+                            onChange={(e) => updateResBoxLabel(i, bi, e.target.value)}
+                            title={`${t("wb.boxLabel")} ${bi + 1}`}
+                            className="min-h-[40px] w-12 text-center px-1"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            )}
+              <div className="flex items-center justify-between">
+                <Button type="button" variant="outline" size="sm" onClick={addResSectorRow} className="min-h-[36px] text-xs">
+                  <PlusCircle className="w-3.5 h-3.5 mr-1" /> {t("wb.addSector")}
+                </Button>
+                <span className="text-xs text-slate-400">
+                  {t("wb.totalBoxes")}: {totalBoxes(sectorForm.sectors)}
+                </span>
+              </div>
+            </div>
 
             {/* v2.96 — water body layout scheme, a purely visual reference
                 photo/map, uploaded once and reused across every future
@@ -1422,7 +1492,7 @@ export default function WaterBodyManagement() {
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
                   {sectorFor?.scheme_image_url ? (
-                    <img src={sectorFor.scheme_image_url} alt={t("wb.schemeImage")} className="w-full h-full object-contain p-1" />
+                    <ZoomableImage src={sectorFor.scheme_image_url} alt={t("wb.schemeImage")} className="w-full h-full object-contain p-1" />
                   ) : (
                     <ImageIcon className="w-5 h-5 text-slate-300" />
                   )}

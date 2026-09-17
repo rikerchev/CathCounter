@@ -24,6 +24,14 @@ export interface AuthUser {
   // least once; App.jsx blocks the whole app behind TermsGate.jsx until this
   // is set. See routes/auth.ts's "accept-terms" action.
   terms_accepted_at: string | null;
+  // v3.05 — true only while the v3.03-user-phone migration hasn't been
+  // applied yet, so App.jsx's PhoneGate.jsx can tell "no column yet" (don't
+  // gate — nobody could save a phone anyway, admin included) apart from
+  // "column exists but this account has no phone" (do gate). Deliberately
+  // NOT a sentinel string on `phone` itself (unlike terms_accepted_at's
+  // "pending-migration") — that would show up as literal text in
+  // Profile.jsx's phone field.
+  phone_migration_pending?: boolean;
 }
 
 const BASE_USER_COLUMNS = [
@@ -59,7 +67,10 @@ async function selectUser(id: string, skip: OptionalUserColumn[]): Promise<AuthU
     const row = rows[0];
     if (!row) return null;
     const result = { ...row } as AuthUser;
-    for (const c of skip) (result as unknown as Record<string, unknown>)[c] = defaultForMissing(c);
+    for (const c of skip) {
+      (result as unknown as Record<string, unknown>)[c] = defaultForMissing(c);
+      if (c === "phone") result.phone_migration_pending = true;
+    }
     return result;
   } catch (e) {
     // Postgres reports one missing column per error — recurse, dropping

@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import CompetitionCalendar from "@/components/CompetitionCalendar";
+import ZoomableImage from "@/components/ZoomableImage";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 import {
@@ -612,6 +613,19 @@ export default function Competitions() {
             <DialogTitle>{t("comp.registerFor")} „{registerFor?.title}“</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
+            {/* v3.04 — the water body's scheme/layout image is now tied to the
+                water body itself (not to box reservation specifically), so it
+                is shown here too, on competition registration. */}
+            {registerFor && waterBodies.find((w) => w.id === registerFor.water_body_id)?.scheme_image_url && (
+              <div className="space-y-1.5">
+                <Label>{t("wb.schemeImage")}</Label>
+                <ZoomableImage
+                  src={waterBodies.find((w) => w.id === registerFor.water_body_id)?.scheme_image_url}
+                  alt={t("wb.schemeImage")}
+                  className="w-full max-h-48 object-contain rounded-lg border border-slate-200 dark:border-border bg-white"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>{t("comp.fullName")} *</Label>
               <Input value={regName} onChange={(e) => setRegName(e.target.value)} className="min-h-[44px]" />
