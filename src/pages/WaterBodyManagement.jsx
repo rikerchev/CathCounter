@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { hasRole } from "@/lib/roles";
+import { hasRole, effectiveRoles, highestRole } from "@/lib/roles";
 import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale } from "lucide-react";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
@@ -13,7 +13,7 @@ import {
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
-import { downloadStandingsImage } from "@/lib/standingsImage";
+import { downloadStandingsImage, downloadParticipantsImage } from "@/lib/standingsImage";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,6 +94,18 @@ export default function WaterBodyManagement() {
   // now, no DOM screenshot involved).
   const [standingsFor, setStandingsFor] = useState(null);
   const [generatingImage, setGeneratingImage] = useState(false);
+  // v2.94 — separate busy flag for the "Списък участници" button (next to
+  // "Класиране" in the participants dialog footer): its own
+  // downloadParticipantsImage call, kept independent of generatingImage so
+  // clicking one button never shows the other's spinner.
+  const [generatingParticipantsImage, setGeneratingParticipantsImage] = useState(false);
+  // v2.94 — "assign an owner to a water body the admin created/still owns"
+  // (see reassignWaterBodyOwner below) — same email-draft + busy-id pattern
+  // as AdminTraders.jsx's own reassignOwner, now also reachable from here
+  // (admin-only) since this is where admin already manages every water body
+  // day to day (v2.78), not just from the separate "Търговци" screen.
+  const [reassignOwnerEmail, setReassignOwnerEmail] = useState({});
+  const [reassigningOwnerId, setReassigningOwnerId] = useState("");
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
   const [showSectorForm, setShowSectorForm] = useState(false);
@@ -650,6 +662,78 @@ export default function WaterBodyManagement() {
     }
   }
 
+  // v2.94 — "who's registered so far" image, downloadable during
+  // registration (independent of whether the competition has a draw or any
+  // results yet) so a participant/organizer can show how many people have
+  // joined and share it, along with the water body's own brochure, to help
+  // promote the competition and the app. Same shared canvas renderer as
+  // handleDownloadStandingsImage above (see standingsImage.js), just fed
+  // the raw registrations instead of a ranked list — ordering/numbering by
+  // registration order happens inside downloadParticipantsImage itself.
+  async function handleDownloadParticipantsImage(comp) {
+    setGeneratingParticipantsImage(true);
+    try {
+      await downloadParticipantsImage({
+        registrations: regsFor(comp.id),
+        title: comp.title,
+        competition: comp,
+        waterBody: wbMap[comp.water_body_id],
+        filename: `uchastnici-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
+        t,
+        lang,
+      });
+    } catch (e) {
+      toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingParticipantsImage(false);
+    }
+  }
+
+  // v2.94 — "assign an owner to a water body the admin created/still owns"
+  // — same pattern as AdminTraders.jsx's own reassignOwner/grantMerchantRole
+  // (look a registered user up by email, PATCH created_by_id through the
+  // dedicated admin-only endpoint since it's excluded from the generic
+  // entity-update path, then fold "water_owner" into their roles), just
+  // reachable from here too since admin already manages every water body
+  // from this page (v2.78) — see this file's own isAdmin comment above.
+  async function grantMerchantRole(userId) {
+    if (!userId) return;
+    try {
+      const users = await base44.asServiceRole.entities.User.filter({ id: userId });
+      const u = users && users[0];
+      if (!u) return;
+      const currentRoles = effectiveRoles(u);
+      const newRoles = currentRoles.includes("water_owner") ? currentRoles : [...currentRoles, "water_owner"];
+      const newRole = highestRole(newRoles);
+      await base44.asServiceRole.entities.User.update(u.id, { roles: newRoles, role: newRole });
+    } catch (e) {
+      console.error("Failed to grant merchant role:", e);
+    }
+  }
+
+  async function reassignWaterBodyOwner(wb) {
+    const email = (reassignOwnerEmail[wb.id] || "").trim();
+    if (!email) return;
+    setReassigningOwnerId(wb.id);
+    try {
+      const users = await base44.entities.User.filter({ email });
+      const target = users && users[0];
+      if (!target) {
+        toast({ title: t("at.userNotFound"), variant: "destructive" });
+        return;
+      }
+      await base44.admin.merchants.reassignOwner("water_body", wb.id, target.id);
+      await grantMerchantRole(target.id);
+      toast({ title: t("at.ownerChanged") });
+      setReassignOwnerEmail((f) => ({ ...f, [wb.id]: "" }));
+      await load();
+    } catch (e) {
+      toast({ title: t("wb.errorLoading"), description: e.message, variant: "destructive" });
+    } finally {
+      setReassigningOwnerId("");
+    }
+  }
+
   async function markTransferred(regId, type) {
     try {
       if (type === "competition") {
@@ -804,6 +888,38 @@ export default function WaterBodyManagement() {
                     {t("tv.downloadBrochure")}
                   </Button>
                 </div>
+                {/* v2.94 — admin-only "assign an owner" control, e.g. for a
+                    water body the admin created/still owns in advance
+                    (before the real trader signs up) — same email-lookup +
+                    reassign endpoint AdminTraders.jsx already uses, just
+                    reachable here too since admin already manages every
+                    water body from this page (v2.78). Not shown to a
+                    non-admin owner viewing their own water body. */}
+                {isAdmin && (
+                  <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-2">
+                    <p className="text-xs font-medium text-slate-600 dark:text-muted-foreground flex items-center gap-1.5">
+                      <ArrowRightLeft className="w-3.5 h-3.5" /> {t("at.reassignOwner")}
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder={t("at.ownerEmailPlaceholder")}
+                        value={reassignOwnerEmail[wb.id] || ""}
+                        onChange={(e) => setReassignOwnerEmail((f) => ({ ...f, [wb.id]: e.target.value }))}
+                        className="min-h-[40px] text-sm"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={reassigningOwnerId === wb.id || !reassignOwnerEmail[wb.id]}
+                        onClick={() => reassignWaterBodyOwner(wb)}
+                        className="min-h-[40px] shrink-0"
+                      >
+                        {reassigningOwnerId === wb.id ? <Loader2 className="w-4 h-4 animate-spin" /> : t("at.change")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {wbComps.length === 0 ? (
@@ -1260,6 +1376,18 @@ export default function WaterBodyManagement() {
               className="min-h-[44px]"
             >
               <Trophy className="w-4 h-4 mr-1" /> {t("wb.standings")}
+            </Button>
+            {/* v2.94 — "who's registered so far" image, next to "Класиране"
+                per the organizer's request — downloadable during
+                registration, independent of any draw/results. */}
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadParticipantsImage(participantsFor)}
+              disabled={generatingParticipantsImage}
+              className="min-h-[44px]"
+            >
+              {generatingParticipantsImage ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+              {t("comp.downloadParticipantsImage")}
             </Button>
             <Button
               onClick={() => exportParticipantsCsv(participantsFor)}

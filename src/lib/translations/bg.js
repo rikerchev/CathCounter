@@ -492,6 +492,10 @@ export const bg = {
     "standingsImg.fish": "Риба",
     "standingsImg.fee": "Такса",
     "standingsImg.phone": "Тел.",
+    // v2.94 — downloadParticipantsImage's own header text + the small
+    // "резерва" tag on a reserve-slot row (src/lib/standingsImage.js).
+    "standingsImg.participantsTitle": "Записани участници",
+    "standingsImg.reserveTag": "резерва",
     "wb.noOpenSectors": "Няма отворени боксове за резервация.",
     "wb.reserved": "резервирани",
     "wb.closeReservations": "Затвори резервациите",
@@ -591,6 +595,11 @@ export const bg = {
     "comp.downloadImage": "Изтегли като снимка",
     "comp.generatingImage": "Генерира се...",
     "comp.errorGeneratingImage": "Грешка при генериране на снимката",
+    // v2.94 — button next to "Класиране"/wb.standings that downloads the
+    // "who's registered so far" image (downloadParticipantsImage) — shown
+    // during registration, independent of whether there are any results/
+    // standings yet.
+    "comp.downloadParticipantsImage": "Списък участници",
     "comp.registrationClosedLabel": "Записването е затворено",
 
     "sr.title": "Резервации на боксове",

@@ -505,6 +505,8 @@ export const en = {
     "standingsImg.fish": "Fish",
     "standingsImg.fee": "Fee",
     "standingsImg.phone": "Phone",
+    "standingsImg.participantsTitle": "Registered participants",
+    "standingsImg.reserveTag": "reserve",
     "wb.noOpenSectors": "No open boxes for reservation.",
     "wb.reserved": "reserved",
     "wb.closeReservations": "Close reservations",
@@ -604,6 +606,7 @@ export const en = {
     "comp.downloadImage": "Download as image",
     "comp.generatingImage": "Generating...",
     "comp.errorGeneratingImage": "Error generating the image",
+    "comp.downloadParticipantsImage": "Participants list",
     "comp.registrationClosedLabel": "Registration closed",
 
     "sr.title": "Box reservations",

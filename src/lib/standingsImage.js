@@ -2,9 +2,19 @@ import { roundRectPath, ensureBrochureFont, renderBrochureCanvas } from "./broch
 import { getMerchantBrochureLink } from "./referral";
 
 /**
- * downloadStandingsImage — v2.91, redesigned in v2.92. The competition
- * standings PNG (the "Изтегли като снимка" button in both
- * WaterBodyManagement.jsx and Competitions.jsx's standings dialogs).
+ * downloadStandingsImage / downloadParticipantsImage — v2.91, redesigned in
+ * v2.92, shared A4-style page renderer factored out in v2.94. Both are the
+ * canvas-drawn PNGs behind a "Изтегли като снимка"-style button:
+ * downloadStandingsImage is the competition's ranked results (sector/box,
+ * points, weight); downloadParticipantsImage (new in v2.94) is the simpler
+ * "who has signed up so far, in registration order" list, meant to be
+ * downloaded and shared DURING registration — before there's anything to
+ * rank yet — so an organizer/participant can show how many people have
+ * already joined and help promote the competition. Both share the exact
+ * same page shape (header, one/two-column rows on a continuous dark
+ * gradient, the water body's real brochure embedded unchanged at the
+ * bottom) via the internal renderRowsPage() below — only the row content
+ * (drawRankedRow vs drawParticipantRow) and header text/icon differ.
  *
  * v2.91 first shipped this as an html2canvas screenshot of the on-screen
  * dialog with a hand-drawn banner glued underneath. Both were wrong in
@@ -17,18 +27,16 @@ import { getMerchantBrochureLink } from "./referral";
  * not a custom-drawn approximation of it.
  *
  * v2.92 draws the whole page itself instead of screenshotting DOM:
- * - The ranked list is drawn row by row directly onto the canvas (rank
- *   badge, name auto-shrunk to always fit on one line, sector/box moved
- *   next to the name instead of below it, points/weight on the right),
- *   split into two columns once the list is long enough that a single
- *   column would make the page unreasonably tall.
+ * - Rows are drawn one by one directly onto the canvas, split into two
+ *   columns once the list is long enough that a single column would make
+ *   the page unreasonably tall.
  * - The bottom of the page is the water body's actual brochure image,
  *   embedded unchanged via renderBrochureCanvas (same QR/name it already
  *   carries — nothing duplicated here).
- * - The page background behind the ranked list is the SAME dark gradient
- *   as the brochure's own background, so the two sections read as one
- *   continuous page; each ranked row still sits on its own white card
- *   (the "бяла част" the organizer asked for) for legibility.
+ * - The page background behind the rows is the SAME dark gradient as the
+ *   brochure's own background, so the two sections read as one continuous
+ *   page; each row still sits on its own white card (the "бяла част" the
+ *   organizer asked for) for legibility.
  *
  * Full control over layout is exactly why this no longer goes through
  * html2canvas at all — a live DOM screenshot can't be reliably forced into
@@ -137,6 +145,64 @@ function drawRankedRow(ctx, box, r, t) {
   }
 }
 
+// v2.94 — the "who's registered so far" row: just a sequence badge (plain
+// accent color, NOT the gold/silver/bronze of drawRankedRow above — this is
+// registration order, not a competitive placing, so medal colors here would
+// misleadingly read as "this person is winning") and the participant's
+// name. Deliberately no sector/box/points/weight columns: none of that
+// exists yet at registration time (sectors are drawn later, results are
+// entered after weigh-in) — this list is only ever downloaded DURING
+// registration, before any of it is known. The one thing that IS already
+// known and worth showing is reserve status, so a reserve-slot participant
+// gets a small tag instead of being indistinguishable from a main-slot one.
+function drawParticipantRow(ctx, box, reg, seq, t) {
+  const { x, y, w, h } = box;
+  const cy = y + h / 2;
+
+  const rcx = x + RANK_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(rcx, cy, RANK_SIZE / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#0e7490";
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 15px Arial, sans-serif`;
+  ctx.fillText(String(seq), rcx, cy + 1);
+
+  const cardX = x + RANK_SIZE + 10;
+  const cardW = w - RANK_SIZE - 10;
+  ctx.save();
+  ctx.shadowColor = "rgba(8, 15, 28, 0.25)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  roundRectPath(ctx, cardX, y, cardW, h, 12);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.restore();
+
+  let rightW = 0;
+  if (reg.slot_type === "reserve") {
+    const tag = t("standingsImg.reserveTag");
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#b45309";
+    ctx.font = `600 12px Arial, sans-serif`;
+    ctx.fillText(tag, cardX + cardW - 14, cy);
+    rightW = ctx.measureText(tag).width + 20;
+  }
+
+  const leftX = cardX + 14;
+  const leftMaxW = cardW - 28 - rightW;
+  const nameMaxSize = h >= 62 ? 20 : 16;
+  const fitted = fitFontSize(ctx, reg.participant_name || "", leftMaxW, nameMaxSize, 12, 700, "Arial, sans-serif");
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#1e293b";
+  ctx.font = `700 ${fitted.size}px Arial, sans-serif`;
+  ctx.fillText(fitted.text, leftX, cy + fitted.size * 0.32);
+}
+
 // v2.93 — the competition's own date (comp.date, an ISO string), formatted
 // the same way the on-screen pages already show it (WaterBodyManagement.jsx
 // / Competitions.jsx's own local formatDate — day/month/year only here,
@@ -149,38 +215,38 @@ function formatCompetitionDate(date, lang) {
   return d.toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-async function drawHeader(ctx, box, title, dateLabel, t) {
+// v2.94 — generalized from v2.93's drawHeader: now takes the emoji/icon and
+// the already-composed label text, so both the standings header ("🏆
+// Класиране — …") and the participants-list header ("📋 Записани
+// участници — …") share the same drawing code.
+async function drawHeader(ctx, box, icon, text, t) {
   await ensureBrochureFont();
   const { x, y, w, h } = box;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#ffffff";
   ctx.font = `700 30px Arial, sans-serif`;
-  ctx.fillText("🏆", x, y + h * 0.62);
-  const label = `${t("wb.standings")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
-  const fitted = fitFontSize(ctx, label, w - 52, 30, 18, 700, `"CatchCountBrochure", Arial, sans-serif`);
+  ctx.fillText(icon, x, y + h * 0.62);
+  const fitted = fitFontSize(ctx, text, w - 52, 30, 18, 700, `"CatchCountBrochure", Arial, sans-serif`);
   ctx.font = `700 ${fitted.size}px "CatchCountBrochure", Arial, sans-serif`;
   ctx.fillText(fitted.text, x + 46, y + h * 0.62);
 }
 
-/**
- * ranked: the array from rankByPenaltyAndWeight (id, participant_name,
- * assigned_sector, assigned_box, rank, penalty, total) — caller already has
- * this computed for the on-screen dialog.
- * title: the competition's title, shown in the header.
- * competition: needs water_body_id (for the brochure's QR) and, as a
- * fallback, water_body_name.
- * waterBody: the matching WaterBody record, if loaded — its own `name` is
- * preferred for the brochure label; optional.
- * lang: current UI language ("bg"/"en"), used only to format competition.date
- * (v2.93) the same way the on-screen pages do; optional, defaults to "bg".
- */
-export async function downloadStandingsImage({ ranked, title, competition, waterBody, filename, t, lang }) {
-  const list = ranked || [];
-  const colCount = list.length > COLUMN_SPLIT_THRESHOLD ? 2 : 1;
+// v2.94 — the shared page-building/download core behind both
+// downloadStandingsImage and downloadParticipantsImage: layout (one/two
+// columns, A4-target height, continuous background), the real brochure
+// embedded at the bottom, and the final PNG download. `drawRow(ctx, box, i)`
+// draws row `i` of `rowCount` total rows into `box`; everything else about
+// the page (header, brochure, background) is identical between the two
+// callers.
+async function renderRowsPage({
+  rowCount, drawRow, headerIcon, headerText, emptyMessage,
+  competition, waterBody, filename,
+}) {
+  const colCount = rowCount > COLUMN_SPLIT_THRESHOLD ? 2 : 1;
   const rowH = colCount === 2 ? 58 : 66;
-  const rowsPerCol = Math.max(1, Math.ceil(list.length / colCount));
-  const listH = list.length > 0 ? rowsPerCol * (rowH + ROW_GAP) - ROW_GAP : 40;
+  const rowsPerCol = Math.max(1, Math.ceil(rowCount / colCount));
+  const listH = rowCount > 0 ? rowsPerCol * (rowH + ROW_GAP) - ROW_GAP : 40;
   const topContentH = HEADER_H + listH + PAD * 2;
 
   let brochureCanvas = null;
@@ -191,7 +257,7 @@ export async function downloadStandingsImage({ ranked, title, competition, water
         name: waterBody?.name || competition?.water_body_name || "",
       });
     } catch {
-      brochureCanvas = null; // template asset failed to load — standings alone still work
+      brochureCanvas = null; // template asset failed to load — the list alone still works
     }
   }
   const brochureH = brochureCanvas ? Math.round((PAGE_W * brochureCanvas.height) / brochureCanvas.width) : 0;
@@ -209,34 +275,32 @@ export async function downloadStandingsImage({ ranked, title, competition, water
   const ctx = canvas.getContext("2d");
 
   // One continuous dark gradient behind the WHOLE page (not just the top
-  // section) — same colors as the brochure's own background — so the
-  // ranked list and the embedded brochure read as one page, not two
-  // stacked blocks.
+  // section) — same colors as the brochure's own background — so the list
+  // and the embedded brochure read as one page, not two stacked blocks.
   const gradient = ctx.createLinearGradient(0, 0, 0, totalH);
   gradient.addColorStop(0, BG_TOP);
   gradient.addColorStop(1, BG_BOTTOM);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, PAGE_W, totalH);
 
-  const dateLabel = formatCompetitionDate(competition?.date, lang);
-  await drawHeader(ctx, { x: PAD, y: PAD, w: PAGE_W - PAD * 2, h: HEADER_H }, title, dateLabel, t);
+  await drawHeader(ctx, { x: PAD, y: PAD, w: PAGE_W - PAD * 2, h: HEADER_H }, headerIcon, headerText);
 
-  if (list.length === 0) {
+  if (rowCount === 0) {
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     ctx.fillStyle = "#cbd5e1";
     ctx.font = `400 18px Arial, sans-serif`;
-    ctx.fillText(t("wb.noResultsYet"), PAD, PAD + HEADER_H + 30);
+    ctx.fillText(emptyMessage, PAD, PAD + HEADER_H + 30);
   } else {
     const listTop = PAD + HEADER_H;
     const colW = colCount === 2 ? (PAGE_W - PAD * 2 - GUTTER) / 2 : PAGE_W - PAD * 2;
-    list.forEach((r, i) => {
+    for (let i = 0; i < rowCount; i++) {
       const col = colCount === 2 ? Math.floor(i / rowsPerCol) : 0;
       const rowInCol = colCount === 2 ? i % rowsPerCol : i;
       const rowX = PAD + col * (colW + GUTTER);
       const rowY = listTop + rowInCol * (rowH + ROW_GAP);
-      drawRankedRow(ctx, { x: rowX, y: rowY, w: colW, h: rowH }, r, t);
-    });
+      drawRow(ctx, { x: rowX, y: rowY, w: colW, h: rowH }, i);
+    }
   }
 
   if (brochureCanvas) {
@@ -250,4 +314,65 @@ export async function downloadStandingsImage({ ranked, title, competition, water
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+/**
+ * ranked: the array from rankByPenaltyAndWeight (id, participant_name,
+ * assigned_sector, assigned_box, rank, penalty, total) — caller already has
+ * this computed for the on-screen dialog.
+ * title: the competition's title, shown in the header.
+ * competition: needs water_body_id (for the brochure's QR) and, as a
+ * fallback, water_body_name.
+ * waterBody: the matching WaterBody record, if loaded — its own `name` is
+ * preferred for the brochure label; optional.
+ * lang: current UI language ("bg"/"en"), used only to format competition.date
+ * (v2.93) the same way the on-screen pages do; optional, defaults to "bg".
+ */
+export async function downloadStandingsImage({ ranked, title, competition, waterBody, filename, t, lang }) {
+  const list = ranked || [];
+  const dateLabel = formatCompetitionDate(competition?.date, lang);
+  const headerText = `${t("wb.standings")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
+  await renderRowsPage({
+    rowCount: list.length,
+    drawRow: (ctx, box, i) => drawRankedRow(ctx, box, list[i], t),
+    headerIcon: "🏆",
+    headerText,
+    emptyMessage: t("wb.noResultsYet"),
+    competition,
+    waterBody,
+    filename,
+  });
+}
+
+/**
+ * downloadParticipantsImage — v2.94. Same page shape as
+ * downloadStandingsImage (see this module's own top comment), but for the
+ * "who has signed up so far" list — meant to be downloaded and shared
+ * DURING registration, before there's a draw or any results, so a
+ * participant/organizer can show how many people have already joined and
+ * help promote the competition on social media.
+ *
+ * registrations: the competition's active registrations (main + reserve),
+ * in ANY order — this function itself sorts them into registration order
+ * (list_order_at || created_at ascending, same rule as the numbered
+ * participants list in WaterBodyManagement.jsx's own dialog — v2.90) and
+ * numbers them continuously across main+reserve.
+ * title/competition/waterBody/filename/t/lang — same as downloadStandingsImage.
+ */
+export async function downloadParticipantsImage({ registrations, title, competition, waterBody, filename, t, lang }) {
+  const list = (registrations || [])
+    .slice()
+    .sort((a, b) => new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at));
+  const dateLabel = formatCompetitionDate(competition?.date, lang);
+  const headerText = `${t("standingsImg.participantsTitle")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
+  await renderRowsPage({
+    rowCount: list.length,
+    drawRow: (ctx, box, i) => drawParticipantRow(ctx, box, list[i], i + 1, t),
+    headerIcon: "📋",
+    headerText,
+    emptyMessage: t("wb.noParticipantsYet"),
+    competition,
+    waterBody,
+    filename,
+  });
 }

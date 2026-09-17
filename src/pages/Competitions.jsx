@@ -17,7 +17,7 @@ import { Filter } from "lucide-react";
 import {
   parseCatchResults, totalCatchWeight, hasAnyResult, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
-import { downloadStandingsImage } from "@/lib/standingsImage";
+import { downloadStandingsImage, downloadParticipantsImage } from "@/lib/standingsImage";
 
 // v2.83 — fishing_type used to be a fixed enum; competition creation now
 // takes free text instead (see WaterBodyManagement.jsx). Old competitions
@@ -65,6 +65,10 @@ export default function Competitions() {
   // v2.92 — the download itself draws its own canvas now (see
   // src/lib/standingsImage.js), so this just tracks the button's busy state.
   const [generatingImage, setGeneratingImage] = useState(false);
+  // v2.94 — separate busy flag for the "Списък участници" card button
+  // (see handleDownloadParticipantsImage below), independent of
+  // generatingImage so the two download buttons never share a spinner.
+  const [generatingParticipantsImage, setGeneratingParticipantsImage] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -239,6 +243,33 @@ export default function Competitions() {
     }
   }
 
+  // v2.94 — "who's registered so far" image, downloadable during
+  // registration (independent of whether there's a draw or any results
+  // yet — unlike the standings button above, which only shows once
+  // standings.length > 0) so anyone browsing this competition can see how
+  // many people have signed up and share the image, together with the
+  // water body's own brochure, to help promote the competition and the
+  // app. Same shared canvas renderer as handleDownloadStandingsImage (see
+  // standingsImage.js) and the same function WaterBodyManagement.jsx uses.
+  async function handleDownloadParticipantsImage(comp) {
+    setGeneratingParticipantsImage(true);
+    try {
+      await downloadParticipantsImage({
+        registrations: regsFor(comp.id),
+        title: comp.title,
+        competition: comp,
+        waterBody: waterBodies.find((w) => w.id === comp.water_body_id),
+        filename: `uchastnici-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
+        t,
+        lang,
+      });
+    } catch (e) {
+      toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingParticipantsImage(false);
+    }
+  }
+
   const compWbIds = {};
   competitions.forEach((c) => { if (c.water_body_id) compWbIds[c.water_body_id] = true; });
 
@@ -409,6 +440,22 @@ export default function Competitions() {
                           className="min-h-[40px] w-full text-xs"
                         >
                           <Trophy className="w-3.5 h-3.5 mr-1" /> {t("comp.standings")}
+                        </Button>
+                      )}
+                      {/* v2.94 — "who's registered so far" image, next to
+                          "Класиране" — shown whenever there's at least one
+                          registration, independent of standings (this is
+                          meant to be used DURING registration, before any
+                          draw/results exist). */}
+                      {regsForComp.length > 0 && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleDownloadParticipantsImage(c)}
+                          disabled={generatingParticipantsImage}
+                          className="min-h-[40px] w-full text-xs"
+                        >
+                          {generatingParticipantsImage ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
+                          {t("comp.downloadParticipantsImage")}
                         </Button>
                       )}
                       {myRegs.length > 0 && (
