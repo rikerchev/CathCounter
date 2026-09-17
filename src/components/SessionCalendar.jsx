@@ -1,19 +1,33 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-const MONTHS_BG = [
-  "Януари", "Февруари", "Март", "Април", "Май", "Юни",
-  "Юли", "Август", "Септември", "Октомври", "Ноември", "Декември",
-];
-const WEEKDAYS_BG = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
+import { useLanguage } from "@/lib/i18n";
+import { getBcp47Locale } from "@/lib/dateLocales";
 
 export default function SessionCalendar({ sessionDates, selectedDate, onSelectDate }) {
+  const { lang } = useLanguage();
   const today = new Date();
   const [viewDate, setViewDate] = useState(
     selectedDate
       ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
       : new Date(today.getFullYear(), today.getMonth(), 1)
   );
+
+  // v3.01 — month/weekday names used to be a hardcoded Bulgarian array
+  // (MONTHS_BG/WEEKDAYS_BG) shown to every user regardless of their chosen
+  // language. Now generated from the browser's own Intl support for the
+  // app's current language (see src/lib/dateLocales.js), same idea as
+  // CompetitionCalendar.jsx's date-fns locale.
+  const locale = getBcp47Locale(lang);
+  const monthNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(locale, { month: "long" });
+    return Array.from({ length: 12 }, (_, i) => fmt.format(new Date(2000, i, 1)));
+  }, [locale]);
+  const weekdayNames = useMemo(() => {
+    const fmt = new Intl.DateTimeFormat(locale, { weekday: "short" });
+    // 2000-01-03 was a Monday — start there so index 0 = Monday, matching
+    // this calendar's Monday-first week layout below.
+    return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2000, 0, 3 + i)));
+  }, [locale]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -44,8 +58,8 @@ export default function SessionCalendar({ sessionDates, selectedDate, onSelectDa
         >
           <ChevronLeft className="w-5 h-5 text-slate-600" />
         </button>
-        <h2 className="font-bold text-slate-800 text-sm">
-          {MONTHS_BG[month]} {year}
+        <h2 className="font-bold text-slate-800 text-sm capitalize">
+          {monthNames[month]} {year}
         </h2>
         <button
           onClick={nextMonth}
@@ -56,8 +70,8 @@ export default function SessionCalendar({ sessionDates, selectedDate, onSelectDa
       </div>
 
       <div className="grid grid-cols-7 gap-1">
-        {WEEKDAYS_BG.map((day, i) => (
-          <div key={i} className="text-center text-xs font-medium text-slate-400 py-1">
+        {weekdayNames.map((day, i) => (
+          <div key={i} className="text-center text-xs font-medium text-slate-400 py-1 capitalize">
             {day}
           </div>
         ))}

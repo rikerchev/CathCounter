@@ -2,9 +2,13 @@ import React, { useState } from "react";
 import { DayPicker } from "react-day-picker";
 import { isSameDay } from "date-fns";
 import "react-day-picker/dist/style.css";
+import { useLanguage } from "@/lib/i18n";
+import { getDateFnsLocale, getBcp47Locale } from "@/lib/dateLocales";
 
 export default function CompetitionCalendar({ competitions }) {
+  const { t, lang } = useLanguage();
   const [selected, setSelected] = useState(null);
+  const locale = getBcp47Locale(lang);
 
   const compDays = competitions
     .filter((c) => c.date)
@@ -47,27 +51,30 @@ export default function CompetitionCalendar({ competitions }) {
         modifiers={dayModifiers}
         modifiersClassNames={{ hasEvent: "rdp-day_hasEvent" }}
         components={{ DayContent: (props) => dayContent(props.date) }}
-        locale={undefined}
+        // v3.01 — was always `undefined` (react-day-picker's English
+        // default) regardless of the user's chosen language; now follows it
+        // via date-fns' own locale objects (see src/lib/dateLocales.js).
+        locale={getDateFnsLocale(lang)}
         weekStartsOn={1}
         className="rdp"
       />
       {selected && (
         <div className="mt-3 pt-3 border-t border-slate-100 dark:border-border">
-          <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground mb-2">
-            {selected.toLocaleDateString("bg-BG", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground mb-2 capitalize">
+            {selected.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
           {selectedDayComps.length === 0 ? (
-            <p className="text-xs text-slate-400">Няма състезания на тази дата.</p>
+            <p className="text-xs text-slate-400">{t("common.noCompetitions")}</p>
           ) : (
             <div className="space-y-2">
               {selectedDayComps.map((c) => (
                 <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg bg-cyan-50 dark:bg-accent px-3 py-2">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800 dark:text-foreground truncate">{c.title}</p>
-                    <p className="text-xs text-slate-400">{c.water_body_name || "Водоем"}</p>
+                    <p className="text-xs text-slate-400">{c.water_body_name || t("comp.waterBody")}</p>
                   </div>
                   <span className="text-xs text-slate-500 dark:text-muted-foreground whitespace-nowrap">
-                    {new Date(c.date).toLocaleTimeString("bg-BG", { hour: "2-digit", minute: "2-digit" })} ч.
+                    {new Date(c.date).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
               ))}
