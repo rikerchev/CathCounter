@@ -4,7 +4,8 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole, effectiveRoles, highestRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import {
@@ -18,6 +19,7 @@ import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -119,6 +121,16 @@ export default function WaterBodyManagement() {
   // v2.80 — participant list + CSV export for a competition, per the
   // organizer's request: see participantsFor/regsFor/exportRegistrations.
   const [participantsFor, setParticipantsFor] = useState(null);
+  // v2.94 — manual drag-and-drop reordering of the participants list (see
+  // startParticipantsReorder/finishParticipantsReorder/onParticipantsDragEnd
+  // below), same on/off-switch-IS-the-save-action pattern as AdminSetup.jsx's
+  // menu reorder (v2.88). orderDraft holds registration IDs in draft order
+  // while the switch is on; reset to null/false whenever the participants
+  // dialog is opened for a (possibly different) competition or closed, so a
+  // stale draft never leaks between competitions.
+  const [reorderParticipants, setReorderParticipants] = useState(false);
+  const [participantsOrderDraft, setParticipantsOrderDraft] = useState(null);
+  const [savingParticipantsOrder, setSavingParticipantsOrder] = useState(false);
 
   // v2.77 scoped this to the signed-in merchant's own water bodies only.
   // v2.78 — reverted that for admin accounts specifically: rkerchev@gmail.com
@@ -479,13 +491,13 @@ export default function WaterBodyManagement() {
         slot_type: regEditForm.slot_type,
         payment_status: regEditForm.payment_status,
         catch_results: stringifyCatchResults(regEditForm.catch_results),
-        // v2.90 — every save from this dialog counts as "editing a
-        // participant" (organizer's request): this timestamp takes over
-        // from created_at and pushes them to the end of the participants
-        // list — see entities.generated.ts's list_order_at comment. The
-        // draw (drawLotsFor) and the quick "mark transferred" toggle don't
-        // touch this field, only this dialog's Save does.
-        list_order_at: new Date().toISOString(),
+        // v2.94 — editing a participant used to also bump list_order_at,
+        // pushing them to the end of the list (v2.90's original behavior).
+        // The organizer asked for that to stop: editing name/phone/status/
+        // results no longer touches their position — list_order_at is now
+        // ONLY ever set by the manual drag-and-drop reorder below
+        // (saveManualOrder), so a participant's spot in the list stays put
+        // through any number of edits.
       });
       toast({ title: t("wb.participantUpdated") });
       setEditingReg(null);
@@ -634,6 +646,67 @@ export default function WaterBodyManagement() {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  // v2.94 — manual drag-and-drop reordering of the participants list. The
+  // organizer's own numbers used to shift on every edit (v2.90); now the
+  // ONLY way list_order_at ever changes is this explicit reorder — turning
+  // the switch on drafts the current order, dragging rearranges the draft,
+  // and turning the switch back off is itself the save (same "switch off =
+  // save" pattern as AdminSetup.jsx's menu reorder, v2.88), writing fresh,
+  // strictly increasing list_order_at timestamps (1s apart, so they always
+  // sort in the intended order regardless of clock resolution) for every
+  // registration via a single bulk update.
+  function startParticipantsReorder(orderedRegs) {
+    setParticipantsOrderDraft(orderedRegs.map((r) => r.id));
+    setReorderParticipants(true);
+  }
+
+  async function finishParticipantsReorder() {
+    setReorderParticipants(false);
+    const toSave = participantsOrderDraft;
+    setParticipantsOrderDraft(null);
+    if (!toSave || toSave.length === 0) return;
+    setSavingParticipantsOrder(true);
+    try {
+      const base = Date.now();
+      const records = toSave.map((id, i) => ({ id, list_order_at: new Date(base + i * 1000).toISOString() }));
+      await base44.entities.CompetitionRegistration.bulkUpdate(records);
+      toast({ title: t("wb.participantsOrderSaved") });
+      await load();
+    } catch (e) {
+      toast({ title: t("wb.errorSaving"), description: e.message, variant: "destructive" });
+    } finally {
+      setSavingParticipantsOrder(false);
+    }
+  }
+
+  function onParticipantsDragEnd(result) {
+    const { source, destination } = result;
+    if (!destination || source.index === destination.index) return;
+    setParticipantsOrderDraft((prev) => {
+      if (!prev) return prev;
+      const next = prev.slice();
+      const [moved] = next.splice(source.index, 1);
+      next.splice(destination.index, 0, moved);
+      return next;
+    });
+  }
+
+  // v2.94 — opening the dialog for a (possibly different) competition
+  // always starts with reorder mode off and no leftover draft, so a draft
+  // built for one competition's registrations can never be saved against
+  // another's.
+  function openParticipants(comp) {
+    setParticipantsFor(comp);
+    setReorderParticipants(false);
+    setParticipantsOrderDraft(null);
+  }
+
+  function closeParticipants() {
+    setParticipantsFor(null);
+    setReorderParticipants(false);
+    setParticipantsOrderDraft(null);
   }
 
   // v2.89 — "generate on request" image export for the standings dialog,
@@ -954,7 +1027,7 @@ export default function WaterBodyManagement() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setParticipantsFor(c)}
+                            onClick={() => openParticipants(c)}
                             disabled={regs.length === 0}
                             className="min-h-[36px] text-xs"
                           >
@@ -1232,7 +1305,7 @@ export default function WaterBodyManagement() {
           someone registers a family member/friend under a different name
           than their own account, so the organizer can still tell who to
           contact. */}
-      <Dialog open={!!participantsFor} onOpenChange={(o) => !o && setParticipantsFor(null)}>
+      <Dialog open={!!participantsFor} onOpenChange={(o) => !o && closeParticipants()}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1241,17 +1314,22 @@ export default function WaterBodyManagement() {
           </DialogHeader>
           {participantsFor && (() => {
             const regs = regsFor(participantsFor.id);
-            // v2.90 — display order: whoever hasn't been edited yet is
-            // ordered by created_at (first to register = #1, top of the
-            // list); once an admin/owner edits a participant (saveRegEdit
-            // sets list_order_at), that timestamp takes over and the
-            // participant moves to the end. Purely a display/numbering
-            // concern — never read by roundSectorPoints/rankByPenaltyAndWeight
-            // below, which only ever look at assigned_sector/box/catch_results.
+            // v2.90 — display order: whoever hasn't been manually reordered
+            // yet is ordered by created_at (first to register = #1, top of
+            // the list). v2.94 — editing a participant no longer bumps
+            // list_order_at (that used to push them to the end on every
+            // edit); the ONLY way this order changes now is the manual
+            // drag-and-drop reorder below (startParticipantsReorder/
+            // finishParticipantsReorder), which writes fresh list_order_at
+            // values for everyone at once. Purely a display/numbering
+            // concern either way — never read by
+            // roundSectorPoints/rankByPenaltyAndWeight below, which only
+            // ever look at assigned_sector/box/catch_results.
             const orderedRegs = regs.slice().sort((a, b) =>
               new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at)
             );
             const seqById = new Map(orderedRegs.map((r, i) => [r.id, i + 1]));
+            const regsById = new Map(regs.map((r) => [r.id, r]));
             const main = orderedRegs.filter((r) => r.slot_type !== "reserve");
             const reserve = orderedRegs.filter((r) => r.slot_type === "reserve");
             const roundsCount = Math.max(1, participantsFor.rounds_count || 1);
@@ -1340,29 +1418,98 @@ export default function WaterBodyManagement() {
             };
             return (
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                    {t("comp.participants")} ({main.length}/{participantsFor.max_participants})
-                  </h3>
-                  {main.length === 0 ? (
-                    <p className="text-xs text-slate-400">{t("wb.noParticipantsYet")}</p>
-                  ) : (
-                    <div className="space-y-2">{main.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
-                  )}
-                </div>
-                {reserve.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      {t("comp.reserves")} ({reserve.length}/{participantsFor.max_reserves})
-                    </h3>
-                    <div className="space-y-2">{reserve.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                {/* v2.94 — manual drag-and-drop reordering: same
+                    "switch off = save" pattern as AdminSetup.jsx's menu
+                    reorder (v2.88). Only worth showing once there's more
+                    than one participant to reorder. */}
+                {orderedRegs.length > 1 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-accent/50">
+                      <div className="text-sm text-slate-600 dark:text-muted-foreground flex items-center gap-2">
+                        {savingParticipantsOrder && <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />}
+                        {t("wb.reorderParticipants")}
+                      </div>
+                      <Switch
+                        checked={reorderParticipants}
+                        onCheckedChange={(checked) => (checked ? startParticipantsReorder(orderedRegs) : finishParticipantsReorder())}
+                        disabled={savingParticipantsOrder}
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 dark:text-muted-foreground">
+                      {reorderParticipants ? t("wb.reorderParticipantsHintOn") : t("wb.reorderParticipantsHintOff")}
+                    </p>
                   </div>
+                )}
+                {reorderParticipants && participantsOrderDraft ? (
+                  <DragDropContext onDragEnd={onParticipantsDragEnd}>
+                    <Droppable droppableId="participants">
+                      {(provided) => (
+                        <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-1.5">
+                          {participantsOrderDraft.map((id, index) => {
+                            const r = regsById.get(id);
+                            if (!r) return null;
+                            return (
+                              <Draggable key={id} draggableId={id} index={index}>
+                                {(dragProvided, snapshot) => (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm ${
+                                      snapshot.isDragging
+                                        ? "border-cyan-400 shadow-lg bg-white dark:bg-card"
+                                        : "border-slate-100 dark:border-border bg-white dark:bg-card"
+                                    }`}
+                                  >
+                                    <span
+                                      {...dragProvided.dragHandleProps}
+                                      className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-muted-foreground flex-shrink-0"
+                                    >
+                                      <GripVertical className="w-4 h-4" />
+                                    </span>
+                                    <span className="text-slate-400 dark:text-muted-foreground font-normal shrink-0">#{index + 1}</span>
+                                    <span className="flex-1 min-w-0 break-words text-slate-700 dark:text-foreground">{r.participant_name}</span>
+                                    {r.slot_type === "reserve" && (
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 shrink-0">
+                                        {t("comp.reserves")}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                        {t("comp.participants")} ({main.length}/{participantsFor.max_participants})
+                      </h3>
+                      {main.length === 0 ? (
+                        <p className="text-xs text-slate-400">{t("wb.noParticipantsYet")}</p>
+                      ) : (
+                        <div className="space-y-2">{main.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                      )}
+                    </div>
+                    {reserve.length > 0 && (
+                      <div className="space-y-2">
+                        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                          {t("comp.reserves")} ({reserve.length}/{participantsFor.max_reserves})
+                        </h3>
+                        <div className="space-y-2">{reserve.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             );
           })()}
           <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setParticipantsFor(null)} className="min-h-[44px]">{t("comp.close")}</Button>
+            <Button variant="outline" onClick={() => closeParticipants()} className="min-h-[44px]">{t("comp.close")}</Button>
             <Button
               variant="outline"
               onClick={() => drawLotsFor(participantsFor)}

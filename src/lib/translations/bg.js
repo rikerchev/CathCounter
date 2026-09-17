@@ -473,6 +473,13 @@ export const bg = {
     "wb.reassign": "Назначи",
     "wb.reassignSuccess": "Участникът е назначен на потребителя",
     "wb.reassignError": "Грешка при назначаването",
+    // v2.94 — manual drag-and-drop reordering of the participants list
+    // (собственикът на водоема / администраторът сам подрежда реда, вместо
+    // редакцията на участник да го премества автоматично).
+    "wb.reorderParticipants": "Ръчна подредба на списъка",
+    "wb.reorderParticipantsHintOn": "Влачете участниците (мишка или пръст на телефона), за да зададете новия ред. Изключете превключвателя, за да запазите.",
+    "wb.reorderParticipantsHintOff": "Включете превключвателя, за да пренаредите ръчно списъка с влачене. Изключете го, когато подредбата ви устройва — тогава новият ред се запазва.",
+    "wb.participantsOrderSaved": "Подредбата на участниците е запазена",
     "wb.assignedBox": "Бокс",
     "wb.competitionSector": "Сектор",
     "wb.roundsCount": "Брой манши",
