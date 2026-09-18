@@ -217,6 +217,14 @@ export default function AdminUsers() {
                           {u.full_name || u.email}
                         </p>
                         <p className="text-xs text-slate-400 truncate">{u.email}</p>
+                        {/* v3.18 — the admin's own explicit ask: show each
+                            user's phone here too, not just email. Only the
+                            list/filter/get routes in userEntity.ts return
+                            `phone` now (see that file's comment) — blank
+                            when a user genuinely hasn't set one yet. */}
+                        {u.phone && (
+                          <p className="text-xs text-slate-400 truncate">{u.phone}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className="text-xs px-2 py-1 rounded-full font-medium bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-400 whitespace-nowrap">

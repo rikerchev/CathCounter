@@ -16,12 +16,21 @@ function json(body: unknown, status = 200): Response {
 // load of Admin → Управление на потребители), so it needs the identical
 // try-the-new-column-first-then-fall-back treatment, via withSafeColumns()
 // below, instead of assuming the migration has already run.
+//
+// v3.18 — `phone` (the users.phone column, migrated back in v3.03 and
+// already load-bearing everywhere else — PhoneGate.jsx blocks the whole app
+// until it's set) was never added to either column list here, so the admin
+// Users screen (AdminUsers.jsx) had no way to show it even though the data
+// has existed since v3.03/v3.05. Added to both tiers directly (not a third
+// fallback tier) since a deployment this far past v3.05 can safely assume
+// that migration has already run — the app would already be broken
+// elsewhere (PhoneGate) if it hadn't.
 const SAFE_COLUMNS_FULL = `
-  id, email, full_name, role, roles, country, menu_group_id,
+  id, email, full_name, phone, role, roles, country, menu_group_id,
   email_verified, created_at, updated_at, premium_until
 `;
 const SAFE_COLUMNS_BASE = `
-  id, email, full_name, role, roles, country, menu_group_id,
+  id, email, full_name, phone, role, roles, country, menu_group_id,
   email_verified, created_at, updated_at
 `;
 
