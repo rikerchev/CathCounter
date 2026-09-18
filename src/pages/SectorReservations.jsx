@@ -217,7 +217,13 @@ export default function SectorReservations() {
       // already fully succeeded by this point.
       try {
         await base44.functions.invoke("notify-sector-reservation", { reservation_id: created.id });
-      } catch { /* best-effort — the reservation itself already succeeded */ }
+      } catch (err) {
+        // v3.17 — was a silent no-op; now at least visible in the browser
+        // console, since a failed invoke() here (network hiccup, an
+        // unexpected 4xx/5xx) used to leave zero trace anywhere that the
+        // confirmation emails never even got triggered server-side.
+        console.error("notify-sector-reservation failed:", err);
+      }
     } catch (e) {
       toast({ title: t("sr.errorReserving"), description: e.message, variant: "destructive" });
     } finally {

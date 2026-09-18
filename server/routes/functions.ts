@@ -147,19 +147,29 @@ export async function handleFunctionsRoute(
       // v3.16 — registered_by_email is a client-supplied SNAPSHOT taken at
       // registration time (see Competitions.jsx's handleRegister); it can be
       // blank on a row created before that column existed, or for any other
-      // reason the snapshot never got written. Before this fix, a blank
-      // value meant that registration was silently dropped from `groups`
-      // below (just a `skipped` counter never surfaced in the organizer's
-      // own success toast — see sendParticipantsMessage in
-      // WaterBodyManagement.jsx) — so an organizer who was ALSO one of
-      // their own competition's participants, registered before that
-      // column existed, never got their own "message to participants"
-      // email and had no way to know why. created_by_id, unlike
+      // reason the snapshot never got written. created_by_id, unlike
       // registered_by_email, is set SERVER-SIDE on every single create
       // (see entities.ts's sanitizePayload) and never blank for an account
       // that still exists — joining through it to the account's current
-      // email is a far more reliable fallback than trusting the snapshot
-      // alone.
+      // email is a far more reliable source than the snapshot.
+      //
+      // v3.18 — that join is now the PRIMARY source, not just a fallback
+      // for a blank snapshot. Reason: WaterBodyManagement.jsx's "назначи
+      // към потребител" (reassign) endpoint
+      // (competitionRegistrations.ts's /reassign) moves created_by_id to a
+      // different account after registration — by design, that's the whole
+      // point of the feature (e.g. an organizer registers a participant on
+      // their own account first, then hands the registration off to the
+      // participant's own account once they sign up). It deliberately
+      // leaves registered_by_email untouched as a historical record of who
+      // originally entered the registration. With registered_by_email
+      // still given priority, every message/draw-result email kept going
+      // to the ORIGINAL registering account instead of the newly assigned
+      // one — the reassignment had no effect on where notifications
+      // actually went. created_by_id always reflects the CURRENT owner of
+      // the registration (reassigned or not), so it's now checked first;
+      // registered_by_email is only a fallback for the rare case the
+      // joined account no longer exists.
       const regs = await sql<{
         participant_name: string; registered_by_email: string | null; account_email: string | null;
       }[]>`
@@ -169,13 +179,14 @@ export async function handleFunctionsRoute(
         WHERE cr.competition_id = ${competitionId} AND cr.status = 'active'
       `;
 
-      // One email per registering ACCOUNT (registered_by_email, falling
-      // back to the account's own current email — see the comment above),
-      // not per participant row — see the comment further above.
+      // One email per registering ACCOUNT (the CURRENT owner via
+      // created_by_id, falling back to the original registration snapshot
+      // — see the comment above), not per participant row — see the
+      // comment further above.
       const groups = new Map<string, string[]>();
       let skipped = 0;
       for (const r of regs) {
-        const email = (r.registered_by_email || r.account_email || "").trim().toLowerCase();
+        const email = (r.account_email || r.registered_by_email || "").trim().toLowerCase();
         if (!email) { skipped++; continue; }
         if (!groups.has(email)) groups.set(email, []);
         groups.get(email)!.push(r.participant_name);
@@ -236,12 +247,15 @@ export async function handleFunctionsRoute(
       const isAuthorized = isAdmin(user) || competition.created_by_id === user.id;
       if (!isAuthorized) return json({ error: "Forbidden" }, 403);
 
-      // v3.16 — same fallback as message-competition-participants above:
-      // registered_by_email is a client-supplied snapshot that can be blank
-      // (a pre-migration row, or any other gap), which used to silently
-      // drop that registration out of `groups` below with no visible
-      // signal to the organizer. created_by_id is set server-side on every
-      // create and joins to a reliable, always-current account email.
+      // v3.16 / v3.18 — same reasoning as message-competition-participants
+      // above: created_by_id (joined to the account's current email) is
+      // the PRIMARY source, since it reflects the CURRENT owner of the
+      // registration — including after a "назначи към потребител"
+      // reassignment (competitionRegistrations.ts's /reassign), which
+      // moves created_by_id but deliberately leaves the original
+      // registered_by_email snapshot untouched. registered_by_email is
+      // only a fallback for the rare case the joined account no longer
+      // exists.
       const regs = await sql<{
         participant_name: string; registered_by_email: string | null; account_email: string | null;
         assigned_sector: string | null; assigned_box: string | null;
@@ -253,14 +267,15 @@ export async function handleFunctionsRoute(
         WHERE cr.competition_id = ${competitionId} AND cr.status = 'active' AND cr.assigned_box IS NOT NULL
       `;
 
-      // One email per registering ACCOUNT (registered_by_email, falling
-      // back to the account's own current email — see the comment above),
-      // listing every one of their participants' own drawn sector/box —
-      // same grouping rationale as message-competition-participants above.
+      // One email per registering ACCOUNT (the CURRENT owner via
+      // created_by_id, falling back to the original registration snapshot
+      // — see the comment above), listing every one of their participants'
+      // own drawn sector/box — same grouping rationale as
+      // message-competition-participants above.
       const groups = new Map<string, { name: string; sector: string | null; box: string | null }[]>();
       let skipped = 0;
       for (const r of regs) {
-        const email = (r.registered_by_email || r.account_email || "").trim().toLowerCase();
+        const email = (r.account_email || r.registered_by_email || "").trim().toLowerCase();
         if (!email) { skipped++; continue; }
         if (!groups.has(email)) groups.set(email, []);
         groups.get(email)!.push({ name: r.participant_name, sector: r.assigned_sector, box: r.assigned_box });
@@ -402,6 +417,25 @@ export async function handleFunctionsRoute(
       // sending in the background, without risking Vercel freezing this
       // invocation mid-send — this was the actual cause of reservation
       // emails sometimes arriving many minutes late.
+      //
+      // v3.17 — every catch below used to be a silent `{ /* best-effort */
+      // }`: if sendEmail() ever threw (wrong/expired SMTP credentials, the
+      // provider rate-limiting or blocking the send, a DNS/network hiccup,
+      // an invalid recipient), NOTHING was logged anywhere — the HTTP
+      // response had already gone out as a success, and the reservation
+      // itself always looked fine to the customer, so a real delivery
+      // failure was completely invisible on both ends. Now every failure
+      // (including "no owner email found at all", which used to be
+      // indistinguishable from "owner email sent fine") is logged to the
+      // function's own console output (visible in the Vercel dashboard
+      // under the deployment's Functions/Logs tab) so a report of "no email
+      // arrived" can actually be diagnosed instead of guessed at.
+      if (!ownerEmail) {
+        console.warn(`[notify-sector-reservation] no owner email for water_body_id=${reservation.water_body_id} (reservation ${reservationId})`);
+      }
+      if (!user.email) {
+        console.warn(`[notify-sector-reservation] booking user ${user.id} has no email on file — skipping their confirmation copy (reservation ${reservationId})`);
+      }
       waitUntil((async () => {
         if (ownerEmail) {
           try {
@@ -410,7 +444,9 @@ export async function handleFunctionsRoute(
               subject: `Нова резервация — ${wbName}`,
               html: `<p>Направена е нова резервация за <b>${wbName}</b>.</p>${detailsHtml}`,
             });
-          } catch { /* best-effort */ }
+          } catch (err) {
+            console.error(`[notify-sector-reservation] sendEmail to owner (${ownerEmail}) failed for reservation ${reservationId}:`, (err as Error)?.message || err);
+          }
         }
         if (user.email) {
           try {
@@ -419,7 +455,9 @@ export async function handleFunctionsRoute(
               subject: `Потвърждение на резервация — ${wbName}`,
               html: `<p>Резервацията Ви е потвърдена.</p>${detailsHtml}`,
             });
-          } catch { /* best-effort */ }
+          } catch (err) {
+            console.error(`[notify-sector-reservation] sendEmail to customer (${user.email}) failed for reservation ${reservationId}:`, (err as Error)?.message || err);
+          }
         }
       })());
 
