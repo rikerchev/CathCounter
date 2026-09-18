@@ -109,7 +109,7 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
         BEGIN
           IF EXISTS (
             SELECT 1 FROM information_schema.table_constraints
-            WHERE table_name = 'competitions' AND constraint_name = 'competitions_fishing_type_check'
+            WHERE table_schema = 'public' AND table_name = 'competitions' AND constraint_name = 'competitions_fishing_type_check'
           ) THEN
             ALTER TABLE competitions DROP CONSTRAINT competitions_fishing_type_check;
           END IF;
@@ -128,7 +128,7 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
         BEGIN
           IF EXISTS (
             SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type <> 'text'
+            WHERE table_schema = 'public' AND table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type <> 'text'
           ) THEN
             ALTER TABLE competition_registrations ALTER COLUMN assigned_box TYPE TEXT USING assigned_box::TEXT;
           END IF;
@@ -184,7 +184,7 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
         BEGIN
           IF EXISTS (
             SELECT 1 FROM information_schema.columns
-            WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type <> 'text'
+            WHERE table_schema = 'public' AND table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type <> 'text'
           ) THEN
             ALTER TABLE sector_reservations ALTER COLUMN sector_number TYPE TEXT USING sector_number::text;
           END IF;
@@ -296,35 +296,35 @@ export async function handleAdminMigrationsRoute(
       if (id === "v2.68-referrals") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'premium_until'
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'premium_until'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.69-venues") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'water_bodies' AND column_name = 'bonus_days_per_referral'
+          WHERE table_schema = 'public' AND table_name = 'water_bodies' AND column_name = 'bonus_days_per_referral'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.71-venue-contact") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'venues' AND column_name = 'website'
+          WHERE table_schema = 'public' AND table_name = 'venues' AND column_name = 'website'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.77-venue-status") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'venues' AND column_name = 'status'
+          WHERE table_schema = 'public' AND table_name = 'venues' AND column_name = 'status'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.80-competition-registered-by") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'competition_registrations' AND column_name = 'registered_by_email'
+          WHERE table_schema = 'public' AND table_name = 'competition_registrations' AND column_name = 'registered_by_email'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
@@ -334,21 +334,21 @@ export async function handleAdminMigrationsRoute(
         // earlier partial run left it as the old INTEGER type (v2.84 fix).
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type = 'text'
+          WHERE table_schema = 'public' AND table_name = 'competition_registrations' AND column_name = 'assigned_box' AND data_type = 'text'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.87-competition-results") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'competition_registrations' AND column_name = 'catch_results'
+          WHERE table_schema = 'public' AND table_name = 'competition_registrations' AND column_name = 'catch_results'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.90-competition-registration-order") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'competition_registrations' AND column_name = 'list_order_at'
+          WHERE table_schema = 'public' AND table_name = 'competition_registrations' AND column_name = 'list_order_at'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
@@ -359,44 +359,46 @@ export async function handleAdminMigrationsRoute(
         // ALTER COLUMN TYPE step didn't complete.
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type = 'text'
+          WHERE table_schema = 'public' AND table_name = 'sector_reservations' AND column_name = 'sector_number' AND data_type = 'text'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.97-contact-messages") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.tables
-          WHERE table_name = 'contact_messages'
+          WHERE table_schema = 'public' AND table_name = 'contact_messages'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v2.98-terms-acceptance") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'terms_accepted_at'
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'terms_accepted_at'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v3.03-user-phone") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'phone'
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'phone'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v3.04-reservation-sectors-config") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE table_name = 'sector_availabilities' AND column_name = 'sectors_config'
+          WHERE table_schema = 'public' AND table_name = 'sector_availabilities' AND column_name = 'sectors_config'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v3.06-venue-hours-and-sector-defaults") {
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
-          WHERE (table_name = 'water_bodies' AND column_name IN ('working_hours', 'default_sectors_config'))
+          WHERE table_schema = 'public' AND (
+            (table_name = 'water_bodies' AND column_name IN ('working_hours', 'default_sectors_config'))
              OR (table_name = 'venues' AND column_name = 'working_hours')
              OR (table_name = 'sector_availabilities' AND column_name = 'working_hours')
+          )
         `;
         applied = (rows[0]?.n ?? 0) >= 4;
       }
