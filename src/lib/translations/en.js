@@ -668,6 +668,10 @@ export const en = {
     "sr.reservationMade": "Reservation made",
     "sr.sectorReserved": "Box reserved for you.",
     "sr.errorReserving": "Error making reservation",
+    "sr.myReservation": "Your reservation",
+    "sr.cancelReservation": "Cancel reservation",
+    "sr.confirmCancelReservation": "Are you sure you want to cancel this reservation?",
+    "sr.reservationCancelled": "Reservation cancelled",
     "sr.paymentConfirmed": "Payment confirmed",
 
     "wbd.editTitle": "Edit water body",

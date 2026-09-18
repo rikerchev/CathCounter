@@ -11,6 +11,21 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+// v3.10 — plain DD.MM.YYYY for the sector-reservation emails below (this
+// app's userbase is Bulgarian-only per the frontend's own date formatting
+// helpers) — a bare `SectorReservation.date` ("YYYY-MM-DD") on its own
+// reads awkwardly in an email body. Never throws on a bad/missing value —
+// just falls back to whatever was passed in, same "tolerant" style as the
+// rest of this file.
+function formatDateBg(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
 /**
  * Dispatch table mirroring `base44.functions.invoke(name, payload)` from the
  * frontend — same function names, same request/response shape, just backed
@@ -274,6 +289,79 @@ export async function handleFunctionsRoute(
       });
 
       return json({ success: true });
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
+  }
+
+  // v3.10 — "who booked which box" — the water body owner's own explicit
+  // ask, the sector-reservation equivalent of notify-draw-results above:
+  // the instant a customer books a spot, an email goes out immediately to
+  // BOTH the water body's owner (name/phone on hand right away, without
+  // having to open the admin screen) AND to the customer themselves (a
+  // durable confirmation of exactly what was booked — water body, date,
+  // sector/box — and under which name/phone). Triggered by
+  // SectorReservations.jsx right after SectorReservation.create()
+  // succeeds, never by an organizer action — only the reservation's own
+  // creator (or an admin) may trigger it, so nobody can fire this for
+  // somebody else's booking.
+  if (name === "notify-sector-reservation" && req.method === "POST") {
+    try {
+      if (!user) return json({ error: "Unauthorized" }, 401);
+      const body = await req.json().catch(() => ({}));
+      const reservationId = body?.reservation_id;
+      if (!reservationId) return json({ error: "Missing reservation_id" }, 400);
+
+      const resRows = await sql`SELECT * FROM sector_reservations WHERE id = ${reservationId}`;
+      if (!resRows.length) return json({ error: "Reservation not found" }, 404);
+      const reservation = resRows[0];
+
+      if (reservation.created_by_id !== user.id && !isAdmin(user)) {
+        return json({ error: "Forbidden" }, 403);
+      }
+
+      let ownerEmail: string | null = null;
+      if (reservation.water_body_id) {
+        const wbRows = await sql<{ created_by_id: string | null }[]>`
+          SELECT created_by_id FROM water_bodies WHERE id = ${reservation.water_body_id}
+        `;
+        const ownerId = wbRows[0]?.created_by_id;
+        if (ownerId) {
+          const ownerRows = await sql<{ email: string }[]>`SELECT email FROM users WHERE id = ${ownerId}`;
+          ownerEmail = ownerRows[0]?.email ?? null;
+        }
+      }
+
+      const wbName = reservation.water_body_name || "";
+      const dateLabel = formatDateBg(reservation.date);
+      const bookerLine = `<b>${reservation.reserved_by_name}</b>${reservation.reserved_by_phone ? ` · ${reservation.reserved_by_phone}` : ""}`;
+
+      // Fire-and-forget, same pattern as every function above — respond
+      // immediately (the reservation itself already succeeded; the
+      // customer's own toast/reload in SectorReservations.jsx isn't
+      // waiting on email delivery), keep sending in the background.
+      (async () => {
+        if (ownerEmail) {
+          try {
+            await sendEmail({
+              to: ownerEmail,
+              subject: `Нова резервация — ${wbName}`,
+              html: `<p>Направена е нова резервация за <b>${wbName}</b>${dateLabel ? `, ${dateLabel}` : ""}: бокс <b>${reservation.sector_number}</b>.</p><p>Резервирал: ${bookerLine}</p>`,
+            });
+          } catch { /* best-effort */ }
+        }
+        if (user.email) {
+          try {
+            await sendEmail({
+              to: user.email,
+              subject: `Потвърждение на резервация — ${wbName}`,
+              html: `<p>Резервацията Ви за <b>${wbName}</b>${dateLabel ? `, ${dateLabel}` : ""} е потвърдена: бокс <b>${reservation.sector_number}</b>.</p><p>Записани данни: ${bookerLine}</p>`,
+            });
+          } catch { /* best-effort */ }
+        }
+      })();
+
+      return json({ notifiedOwner: !!ownerEmail, notifiedUser: !!user.email });
     } catch (error) {
       return json({ error: (error as Error).message }, 500);
     }

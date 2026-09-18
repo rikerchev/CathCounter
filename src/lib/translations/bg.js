@@ -664,6 +664,10 @@ export const bg = {
     "sr.reservationMade": "Резервацията е направена",
     "sr.sectorReserved": "Боксът е запазен за вас.",
     "sr.errorReserving": "Грешка при резервация",
+    "sr.myReservation": "Твоя резервация",
+    "sr.cancelReservation": "Откажи резервация",
+    "sr.confirmCancelReservation": "Сигурни ли сте, че искате да откажете тази резервация?",
+    "sr.reservationCancelled": "Резервацията е отказана",
     "sr.paymentConfirmed": "Плащането е потвърдено",
 
     "wbd.editTitle": "Редактиране на водоема",

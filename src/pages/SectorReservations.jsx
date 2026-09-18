@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { CalendarCheck, Waves, MapPin, Users, Lock, Clock } from "lucide-react";
+import { CalendarCheck, Waves, MapPin, Users, Lock, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -133,7 +133,13 @@ export default function SectorReservations() {
     setSectorLabel("");
     setResDate(avail.date);
     setName(user?.full_name || "");
-    setPhone("");
+    // v3.10 — auto-filled from the account's own phone (same precedent as
+    // Competitions.jsx's own registration form), not left blank — the
+    // owner's request was that a reservation always carries a direct
+    // contact number without the customer having to retype it every time.
+    // Still an editable field, in case this one reservation is for someone
+    // else's number.
+    setPhone(user?.phone || "");
   }
 
   // Changing the date in the dialog can make a previously-picked box
@@ -170,7 +176,7 @@ export default function SectorReservations() {
       // removed along with the platform-commission split — see payment.js).
       // Kept as "pending" rather than dropped so the column stays meaningful
       // if a payment flow is ever reintroduced later.
-      await base44.entities.SectorReservation.create({
+      const created = await base44.entities.SectorReservation.create({
         water_body_id: wb.id,
         water_body_name: wb.name,
         availability_id: avail.id,
@@ -185,10 +191,38 @@ export default function SectorReservations() {
       toast({ title: t("sr.reservationMade"), description: t("sr.sectorReserved") });
       setReserveFor(null);
       await load();
+      // v3.10 — immediate email to BOTH the water body's owner and the
+      // person who just booked, each with the sector/box just reserved and
+      // the booker's own name/phone — see server/routes/functions.ts's
+      // "notify-sector-reservation". Deliberately AFTER the success
+      // toast/reload above and in its own try/catch: an email hiccup must
+      // never make the reservation itself look like it failed, since it
+      // already fully succeeded by this point.
+      try {
+        await base44.functions.invoke("notify-sector-reservation", { reservation_id: created.id });
+      } catch { /* best-effort — the reservation itself already succeeded */ }
     } catch (e) {
       toast({ title: t("sr.errorReserving"), description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // v3.10 — the reservation's own creator (or an admin) can cancel it
+  // directly from this same list — no need to go through the water body's
+  // owner. Soft-cancel via status update (mirrors
+  // WaterBodyManagement.jsx's cancelRegistrationAsOrganizer for
+  // competitions), not a hard delete: the box immediately reads as free
+  // again everywhere `reservations` is filtered to status === "active"
+  // (load/resForAvail/takenSectors above), while the record itself is kept.
+  async function cancelMyReservation(r) {
+    if (!window.confirm(t("sr.confirmCancelReservation"))) return;
+    try {
+      await base44.entities.SectorReservation.update(r.id, { status: "cancelled" });
+      toast({ title: t("sr.reservationCancelled") });
+      await load();
+    } catch (e) {
+      toast({ title: t("sr.errorReserving"), description: e.message, variant: "destructive" });
     }
   }
 
@@ -291,9 +325,41 @@ export default function SectorReservations() {
                             each shows its own date when the opening spans
                             more than one day, since the same box legitimately
                             belongs to different people on different days. */}
-                        {availRes.length > 0 && (
+                        {/* v3.10 — the customer's own reservation(s) for
+                            THIS availability get pulled out of the generic
+                            "taken" list below into their own row, each with
+                            an explicit cancel button — no need to go
+                            through the water body's owner to give up a
+                            spot. `created_by_id` is set server-side on
+                            create (see confirmReservation), so this is
+                            never spoofable client-side. */}
+                        {availRes.some((r) => r.created_by_id === user?.id) && (
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            {availRes.filter((r) => r.created_by_id === user?.id).map((r) => (
+                              <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-cyan-50 dark:bg-cyan-900/20 px-2.5 py-1.5">
+                                <span className="text-xs text-cyan-700 dark:text-cyan-400 font-medium">
+                                  {t("sr.myReservation")}: {t("sr.sector")} {r.sector_number}{isMultiDay ? ` · ${formatDate(r.date, lang)}` : ""}
+                                </span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => cancelMyReservation(r)}
+                                  className="h-8 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 shrink-0"
+                                >
+                                  <X className="w-3.5 h-3.5 mr-1" /> {t("sr.cancelReservation")}
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {/* Everyone else's reservation for this availability
+                            stays a plain anonymized "taken" badge — the
+                            existing v3.07 behavior, just excluding the
+                            customer's own (shown above instead). */}
+                        {availRes.filter((r) => r.created_by_id !== user?.id).length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {availRes.map((r) => (
+                            {availRes.filter((r) => r.created_by_id !== user?.id).map((r) => (
                               <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
                                 {t("sr.sector")} {r.sector_number}{isMultiDay ? ` · ${formatDate(r.date, lang)}` : ""} — {t("sr.taken")}
                               </span>
