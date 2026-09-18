@@ -83,10 +83,49 @@ export default function SectorReservations() {
     return reservations.filter((r) => r.availability_id === availId);
   }
 
-  function takenSectors(availId) {
+  // v3.07 — a box is only actually occupied on the SPECIFIC day it was
+  // reserved for (SectorReservation.date), not for every day of a multi-day
+  // opening (date..end_date). Before this, reserving box "5" for just one
+  // day within a 5-day period silently blocked that same box for all 5 days
+  // — nobody else could ever book it again for the OTHER four, even though
+  // only one day was actually taken. `date` is now required: every caller
+  // below passes the specific day it cares about, so a single-day opening
+  // (the common case, avail.date === avail.end_date) behaves exactly as
+  // before, and a multi-day one is finally checked per day.
+  function takenSectors(availId, date) {
     const set = {};
-    resForAvail(availId).forEach((r) => { set[r.sector_number] = true; });
+    resForAvail(availId).forEach((r) => {
+      if (r.date === date) set[r.sector_number] = true;
+    });
     return set;
+  }
+
+  // Every calendar day from `start` to `end` (inclusive), as ISO date
+  // strings — used to compute a safe "free" count across a whole multi-day
+  // opening (see freeCountFor below) without hand-rolling date math at each
+  // call site.
+  function datesInRange(start, end) {
+    const out = [];
+    let d = new Date(`${start}T00:00:00`);
+    const last = new Date(`${end || start}T00:00:00`);
+    while (d <= last) {
+      out.push(d.toISOString().slice(0, 10));
+      d = new Date(d.getTime() + 86400000);
+    }
+    return out;
+  }
+
+  // The BEST-case free count across every day of the opening — a single-day
+  // opening has exactly one day in range, so this is unchanged from before.
+  // For a multi-day range, "free" no longer means "free for the whole
+  // period" (that conflated every day together — the exact bug being fixed
+  // here), it means "there's still at least one day with this many boxes
+  // open" — a fair one-number summary for the card; the exact per-day
+  // picture is what the reservation dialog's date-aware box grid enforces.
+  function freeCountFor(avail) {
+    const days = datesInRange(avail.date, avail.end_date || avail.date);
+    const perDayFree = days.map((d) => avail.total_sectors - Object.keys(takenSectors(avail.id, d)).length);
+    return Math.max(...perDayFree);
   }
 
   function openReserve(avail, wb) {
@@ -95,6 +134,16 @@ export default function SectorReservations() {
     setResDate(avail.date);
     setName(user?.full_name || "");
     setPhone("");
+  }
+
+  // Changing the date in the dialog can make a previously-picked box
+  // available again (or newly taken by someone else on the new day) — clear
+  // the selection so the customer always re-confirms against the day they
+  // actually ended up choosing, instead of silently keeping a pick that no
+  // longer means what they think it does.
+  function changeResDate(date) {
+    setResDate(date);
+    setSectorLabel("");
   }
 
   async function confirmReservation() {
@@ -109,7 +158,7 @@ export default function SectorReservations() {
       toast({ title: t("sr.invalidSector"), description: t("sr.selectDateRange"), variant: "destructive" });
       return;
     }
-    const taken = takenSectors(avail.id);
+    const taken = takenSectors(avail.id, resDate);
     if (taken[sectorLabel]) {
       toast({ title: t("sr.sectorTaken"), description: t("sr.chooseAnotherSector"), variant: "destructive" });
       return;
@@ -191,9 +240,9 @@ export default function SectorReservations() {
                 </div>
                 <div className="space-y-2">
                   {wbAvail.map((avail) => {
-                    const taken = takenSectors(avail.id);
-                    const takenCount = Object.keys(taken).length;
-                    const free = avail.total_sectors - takenCount;
+                    const free = freeCountFor(avail);
+                    const availRes = resForAvail(avail.id);
+                    const isMultiDay = avail.end_date && avail.end_date !== avail.date;
                     return (
                       <div key={avail.id} className="rounded-xl bg-slate-50 dark:bg-accent p-3">
                         {/* v3.04 — stacked on mobile (button gets its own
@@ -237,11 +286,16 @@ export default function SectorReservations() {
                             </span>
                           )}
                         </div>
-                        {takenCount > 0 && (
+                        {/* v3.07 — one badge PER reservation now, not one
+                            per box-number-ever-taken-during-this-period —
+                            each shows its own date when the opening spans
+                            more than one day, since the same box legitimately
+                            belongs to different people on different days. */}
+                        {availRes.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-2">
-                            {Object.keys(taken).map((s) => (
-                              <span key={s} className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                                {t("sr.sector")} {s} — {t("sr.taken")}
+                            {availRes.map((r) => (
+                              <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                                {t("sr.sector")} {r.sector_number}{isMultiDay ? ` · ${formatDate(r.date, lang)}` : ""} — {t("sr.taken")}
                               </span>
                             ))}
                           </div>
@@ -293,7 +347,7 @@ export default function SectorReservations() {
                     value={resDate}
                     min={reserveFor.avail.date}
                     max={reserveFor.avail.end_date}
-                    onChange={(e) => setResDate(e.target.value)}
+                    onChange={(e) => changeResDate(e.target.value)}
                     className="min-h-[44px]"
                   />
                 </div>
@@ -324,7 +378,7 @@ export default function SectorReservations() {
                     )}
                     <div className="flex flex-wrap gap-1.5">
                       {group.boxes.map((label) => {
-                        const taken = !!takenSectors(reserveFor.avail.id)[label];
+                        const taken = !!takenSectors(reserveFor.avail.id, resDate)[label];
                         return (
                           <button
                             key={label}

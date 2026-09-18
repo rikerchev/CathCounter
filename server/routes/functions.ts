@@ -155,6 +155,85 @@ export async function handleFunctionsRoute(
     }
   }
 
+  // v3.07 — "the draw's results are emailed to everyone immediately, every
+  // time it runs" — the organizer's own stated reason: without this, a
+  // draw could be re-run (edit competition -> resets it, see
+  // WaterBodyManagement.jsx's saveCompetition/drawLotsFor) any number of
+  // times before anyone notices, whether by an honest mistake or not. An
+  // immediate email, sent automatically the moment `drawLotsFor` finishes
+  // (both the first draw and every re-draw, never just the first), gives
+  // every registered account durable, independent proof of what the draw
+  // actually produced at that moment — the same trust problem
+  // message-competition-participants above doesn't need to solve, since
+  // that one is just the organizer's own free-text message, not a result
+  // that needs to be tamper-evident.
+  //
+  // Grouped the same way as message-competition-participants — one email
+  // per registering ACCOUNT (registered_by_email), listing every
+  // participant that account registered along with their own drawn
+  // sector/box, not one email per participant row. Authorization mirrors it
+  // too: admin, or the competition's own organizer.
+  if (name === "notify-draw-results" && req.method === "POST") {
+    try {
+      if (!user) return json({ error: "Unauthorized" }, 401);
+      const body = await req.json().catch(() => ({}));
+      const competitionId = body?.competition_id;
+      if (!competitionId) return json({ error: "Missing competition_id" }, 400);
+
+      const comps = await sql`SELECT * FROM competitions WHERE id = ${competitionId}`;
+      if (!comps.length) return json({ error: "Competition not found" }, 404);
+      const competition = comps[0];
+
+      const isAuthorized = isAdmin(user) || competition.created_by_id === user.id;
+      if (!isAuthorized) return json({ error: "Forbidden" }, 403);
+
+      const regs = await sql<{
+        participant_name: string; registered_by_email: string | null;
+        assigned_sector: string | null; assigned_box: string | null;
+      }[]>`
+        SELECT participant_name, registered_by_email, assigned_sector, assigned_box
+        FROM competition_registrations
+        WHERE competition_id = ${competitionId} AND status = 'active' AND assigned_box IS NOT NULL
+      `;
+
+      // One email per registering ACCOUNT, listing every one of their
+      // participants' own drawn sector/box — same grouping rationale as
+      // message-competition-participants above.
+      const groups = new Map<string, { name: string; sector: string | null; box: string | null }[]>();
+      let skipped = 0;
+      for (const r of regs) {
+        const email = (r.registered_by_email || "").trim().toLowerCase();
+        if (!email) { skipped++; continue; }
+        if (!groups.has(email)) groups.set(email, []);
+        groups.get(email)!.push({ name: r.participant_name, sector: r.assigned_sector, box: r.assigned_box });
+      }
+
+      if (!groups.size) return json({ notified: 0, skipped });
+
+      // Fire-and-forget, same pattern as the functions above — respond
+      // immediately (drawLotsFor's own toast shouldn't wait on email
+      // delivery), keep sending in the background.
+      (async () => {
+        for (const [email, entries] of groups) {
+          try {
+            const rows = entries
+              .map((e) => `<li><b>${e.name}</b>: ${e.sector ? `${e.sector}/` : ""}${e.box}</li>`)
+              .join("");
+            await sendEmail({
+              to: email,
+              subject: `Резултати от жребий — ${competition.title}`,
+              html: `<p>Жребият за състезание „${competition.title}“ беше изтеглен. Изпратените по-долу резултати за записан(и) от Вас участник(ци) са получени автоматично, веднага след тегленето:</p><ul>${rows}</ul><p>Това автоматично известие гарантира, че резултатите от жребия не могат да бъдат променени незабелязано.</p>`,
+            });
+          } catch { /* best-effort */ }
+        }
+      })();
+
+      return json({ notified: groups.size, skipped });
+    } catch (error) {
+      return json({ error: (error as Error).message }, 500);
+    }
+  }
+
   // v3.03 — "a registered participant can email the organizer" (the other
   // direction from the function above). Resolved via
   // competitions.created_by_id -> users.email; replyTo is set to the

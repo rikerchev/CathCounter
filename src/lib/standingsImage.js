@@ -203,6 +203,61 @@ function drawParticipantRow(ctx, box, reg, seq, t) {
   ctx.fillText(fitted.text, leftX, cy + fitted.size * 0.32);
 }
 
+// v3.07 — the "who drew which box" row: unlike drawRankedRow (where the
+// sector/box is small secondary text next to points/weight, since ranking
+// is the point there), here the assigned box IS the entire point of the
+// image — an organizer downloads and shares this specifically so a
+// participant with no app account/social media can find their own box —
+// so it's drawn large and bold on the right, not tucked away small.
+function drawDrawResultRow(ctx, box, reg, seq, t) {
+  const { x, y, w, h } = box;
+  const cy = y + h / 2;
+
+  const rcx = x + RANK_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(rcx, cy, RANK_SIZE / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#0e7490";
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 15px Arial, sans-serif`;
+  ctx.fillText(String(seq), rcx, cy + 1);
+
+  const cardX = x + RANK_SIZE + 10;
+  const cardW = w - RANK_SIZE - 10;
+  ctx.save();
+  ctx.shadowColor = "rgba(8, 15, 28, 0.25)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 2;
+  roundRectPath(ctx, cardX, y, cardW, h, 12);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.restore();
+
+  const boxLabel = reg.assigned_box != null
+    ? `${reg.assigned_sector ? `${reg.assigned_sector}/` : ""}${reg.assigned_box}`
+    : "—";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#0e7490";
+  const rightMaxW = w * 0.4;
+  const fittedBox = fitFontSize(ctx, boxLabel, rightMaxW, 22, 14, 800, "Arial, sans-serif");
+  ctx.font = `800 ${fittedBox.size}px Arial, sans-serif`;
+  ctx.fillText(fittedBox.text, cardX + cardW - 14, cy);
+  const rightW = ctx.measureText(fittedBox.text).width + 24;
+
+  const leftX = cardX + 14;
+  const leftMaxW = cardW - 28 - rightW;
+  const nameMaxSize = h >= 62 ? 18 : 15;
+  const fitted = fitFontSize(ctx, reg.participant_name || "", leftMaxW, nameMaxSize, 12, 700, "Arial, sans-serif");
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#1e293b";
+  ctx.font = `700 ${fitted.size}px Arial, sans-serif`;
+  ctx.fillText(fitted.text, leftX, cy + fitted.size * 0.32);
+}
+
 // v2.93 — the competition's own date (comp.date, an ISO string), formatted
 // the same way the on-screen pages already show it (WaterBodyManagement.jsx
 // / Competitions.jsx's own local formatDate — day/month/year only here,
@@ -371,6 +426,47 @@ export async function downloadParticipantsImage({ registrations, title, competit
     headerIcon: "📋",
     headerText,
     emptyMessage: t("wb.noParticipantsYet"),
+    competition,
+    waterBody,
+    filename,
+  });
+}
+
+/**
+ * downloadDrawResultsImage — v3.07. Same shared page shape again, this time
+ * for "who drew which box" — meant to be downloaded and shared right after
+ * the organizer runs "Тегли жребий", specifically so participants with no
+ * app account and no presence on social media can still find out (and be
+ * shown proof of) their own assignment.
+ *
+ * registrations: the competition's active registrations; only the ones with
+ * a drawn box (assigned_box != null) are included — reserves and anyone not
+ * yet drawn are left out rather than shown as "—", since this image's whole
+ * purpose is the draw result. Sorted by sector then box (not registration
+ * order) so it reads like a seating chart — easy to look up "where's box 7"
+ * — rather than requiring a name search.
+ */
+export async function downloadDrawResultsImage({ registrations, title, competition, waterBody, filename, t, lang }) {
+  const list = (registrations || [])
+    .filter((r) => r.assigned_box != null)
+    .slice()
+    .sort((a, b) => {
+      const bySector = String(a.assigned_sector || "").localeCompare(
+        String(b.assigned_sector || ""), undefined, { numeric: true, sensitivity: "base" },
+      );
+      if (bySector !== 0) return bySector;
+      return String(a.assigned_box || "").localeCompare(
+        String(b.assigned_box || ""), undefined, { numeric: true, sensitivity: "base" },
+      );
+    });
+  const dateLabel = formatCompetitionDate(competition?.date, lang);
+  const headerText = `${t("standingsImg.drawResultsTitle")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
+  await renderRowsPage({
+    rowCount: list.length,
+    drawRow: (ctx, box, i) => drawDrawResultRow(ctx, box, list[i], i + 1, t),
+    headerIcon: "🎲",
+    headerText,
+    emptyMessage: t("wb.noResultsYet"),
     competition,
     waterBody,
     filename,

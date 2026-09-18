@@ -432,6 +432,7 @@ export const bg = {
     "wb.paymentStatusPaid": "Платено",
     "wb.paymentStatusTransferred": "Преведено",
     "wb.exportCsv": "Изтегли CSV",
+    "wb.exportDrawResults": "Изтегли жребий (снимка)",
     // v2.83 — edit competition, sectors/boxes config, draw lots, edit
     // participant. "wb.competitionSector" is the NEW meaning of "sector"
     // (a named group of boxes, competition-specific) — kept as a separate
@@ -462,6 +463,7 @@ export const bg = {
     "wb.noBoxesConfigured": "Първо въведете сектори и боксове за състезанието.",
     "wb.noMainParticipants": "Няма основни участници за теглене на жребий.",
     "wb.drawSuccess": "Жребият е изтеглен успешно.",
+    "wb.drawResultsEmailed": "Резултатите бяха изпратени по имейл на всички регистрирани участници.",
     "wb.editParticipant": "Редактирай участник",
     "wb.slotTypeLabel": "Тип място",
     "wb.cancelRegistration": "Отпиши участник",
@@ -506,6 +508,7 @@ export const bg = {
     // v2.94 — downloadParticipantsImage's own header text + the small
     // "резерва" tag on a reserve-slot row (src/lib/standingsImage.js).
     "standingsImg.participantsTitle": "Записани участници",
+    "standingsImg.drawResultsTitle": "Резултати от жребия",
     "standingsImg.reserveTag": "резерва",
     "wb.noOpenSectors": "Няма отворени боксове за резервация.",
     "wb.reserved": "резервирани",

@@ -445,6 +445,7 @@ export const en = {
     "wb.paymentStatusPaid": "Paid",
     "wb.paymentStatusTransferred": "Transferred",
     "wb.exportCsv": "Download CSV",
+    "wb.exportDrawResults": "Download draw results (image)",
     // v2.83 — edit competition, sectors/boxes config, draw lots, edit
     // participant. "wb.competitionSector" is the NEW meaning of "sector"
     // (a named group of boxes, competition-specific) — kept as a separate
@@ -475,6 +476,7 @@ export const en = {
     "wb.noBoxesConfigured": "Set up sectors and boxes for the competition first.",
     "wb.noMainParticipants": "No main participants to draw lots for.",
     "wb.drawSuccess": "Lots drawn successfully.",
+    "wb.drawResultsEmailed": "Results have been emailed to all registered participants.",
     "wb.editParticipant": "Edit participant",
     "wb.slotTypeLabel": "Slot type",
     "wb.cancelRegistration": "Cancel registration",
@@ -514,6 +516,7 @@ export const en = {
     "standingsImg.fee": "Fee",
     "standingsImg.phone": "Phone",
     "standingsImg.participantsTitle": "Registered participants",
+    "standingsImg.drawResultsTitle": "Draw results",
     "standingsImg.reserveTag": "reserve",
     "wb.noOpenSectors": "No open boxes for reservation.",
     "wb.reserved": "reserved",

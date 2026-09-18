@@ -16,7 +16,7 @@ import ZoomableImage from "@/components/ZoomableImage";
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
-import { downloadStandingsImage, downloadParticipantsImage } from "@/lib/standingsImage";
+import { downloadStandingsImage, downloadParticipantsImage, downloadDrawResultsImage } from "@/lib/standingsImage";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +109,11 @@ export default function WaterBodyManagement() {
   // downloadParticipantsImage call, kept independent of generatingImage so
   // clicking one button never shows the other's spinner.
   const [generatingParticipantsImage, setGeneratingParticipantsImage] = useState(false);
+  // v3.07 — separate busy flag for the new "Изтегли жребий (снимка)" button
+  // (participants dialog footer, shown once a draw has happened) — its own
+  // downloadDrawResultsImage call, same independent-spinner reasoning as
+  // generatingParticipantsImage above.
+  const [generatingDrawResultsImage, setGeneratingDrawResultsImage] = useState(false);
   // v2.94 — "assign an owner to a water body the admin created/still owns"
   // (see reassignWaterBodyOwner below) — same email-draft + busy-id pattern
   // as AdminTraders.jsx's own reassignOwner, now also reachable from here
@@ -581,6 +586,18 @@ export default function WaterBodyManagement() {
       );
       toast({ title: t("wb.drawSuccess") });
       await load();
+      // v3.07 — sent automatically, every time a draw runs (first draw AND
+      // any re-draw after an edit) — see server/routes/functions.ts's
+      // "notify-draw-results" for the full rationale. Deliberately AFTER
+      // the success toast/reload above and in its own try/catch: an email
+      // hiccup must never make the draw itself look like it failed, since
+      // the draw already fully succeeded by this point.
+      try {
+        const res = await base44.functions.invoke("notify-draw-results", { competition_id: comp.id });
+        if (res?.notified > 0) {
+          toast({ title: t("wb.drawResultsEmailed") });
+        }
+      } catch { /* best-effort — the draw itself already succeeded */ }
     } catch (err) {
       if (err.message === NOT_ENOUGH_BOXES) {
         toast({ title: t("wb.notEnoughBoxes"), description: `${mainRegs.length} / ${boxCount}`, variant: "destructive" });
@@ -921,6 +938,30 @@ export default function WaterBodyManagement() {
     }
   }
 
+  // v3.07 — "who drew which box" image, downloadable once drawLotsFor has
+  // run — see this module's own request/rationale on that function. Shown
+  // right next to "Изтегли CSV" in the participants dialog footer, only
+  // once at least one registration has a drawn box (see the button's own
+  // conditional render below), so there's never an empty/pointless image.
+  async function handleDownloadDrawResultsImage(comp) {
+    setGeneratingDrawResultsImage(true);
+    try {
+      await downloadDrawResultsImage({
+        registrations: regsFor(comp.id),
+        title: comp.title,
+        competition: comp,
+        waterBody: wbMap[comp.water_body_id],
+        filename: `zhrebiy-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
+        t,
+        lang,
+      });
+    } catch (e) {
+      toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
+    } finally {
+      setGeneratingDrawResultsImage(false);
+    }
+  }
+
   // v2.94 — "assign an owner to a water body the admin created/still owns"
   // — same pattern as AdminTraders.jsx's own reassignOwner/grantMerchantRole
   // (look a registered user up by email, PATCH created_by_id through the
@@ -1257,9 +1298,15 @@ export default function WaterBodyManagement() {
                           </div>
                           {sRes.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
+                              {/* v3.07 — the same box number can now legitimately
+                                  belong to different people on different days
+                                  within a multi-day opening (see
+                                  SectorReservations.jsx) — show each
+                                  reservation's own date so this doesn't read
+                                  as a double-booking of the same box. */}
                               {sRes.map((r) => (
                                 <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-                                  {t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.payment_status === "paid" ? " ✓" : " ⏳"}
+                                  {a.end_date && a.end_date !== a.date ? `${formatDate(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.payment_status === "paid" ? " ✓" : " ⏳"}
                                 </span>
                               ))}
                             </div>
@@ -1838,6 +1885,20 @@ export default function WaterBodyManagement() {
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
             </Button>
+            {/* v3.07 — only once a draw has actually happened (at least one
+                registration carries a drawn box) — no point offering an
+                image that would just show everyone with no box yet. */}
+            {regsFor(participantsFor.id).some((r) => r.assigned_box != null) && (
+              <Button
+                variant="outline"
+                onClick={() => handleDownloadDrawResultsImage(participantsFor)}
+                disabled={generatingDrawResultsImage}
+                className="min-h-[44px]"
+              >
+                {generatingDrawResultsImage ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
+                {t("wb.exportDrawResults")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
