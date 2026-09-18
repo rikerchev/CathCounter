@@ -451,7 +451,11 @@ export const ENTITIES: Record<string, EntityDef> = {
       // plan to arrive later in the day. Shown alongside the rest of the
       // reservation (see SectorReservations.jsx / WaterBodyManagement.jsx)
       // and included in notify-sector-reservation's emails.
-      { name: "arrival_time", type: "string", required: false },
+      // v3.12 — now required in the customer-facing reservation form (the
+      // owner's own follow-up request), though still free text, not a strict
+      // time format. Kept nullable at the DB level so reservations made
+      // before v3.12 (which have no value here) stay valid.
+      { name: "arrival_time", type: "string", required: true },
       { name: "fee", type: "number", required: false },
       { name: "payment_status", type: "enum", required: false, enumValues: ["pending", "paid", "refunded"] },
       { name: "status", type: "enum", required: false, enumValues: ["active", "cancelled"] },

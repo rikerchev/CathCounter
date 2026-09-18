@@ -176,6 +176,15 @@ export default function SectorReservations() {
       toast({ title: t("sr.sectorTaken"), description: t("sr.chooseAnotherSector"), variant: "destructive" });
       return;
     }
+    // v3.12 — the owner's own follow-up request: made mandatory so a
+    // customer can't leave the owner guessing whether an early-morning
+    // no-show means "cancelled" or "arriving later". Still free text (no
+    // format check) — "сутринта", "следобед" etc. are all valid answers,
+    // just not empty.
+    if (!arrivalTime.trim()) {
+      toast({ title: t("sr.invalidSector"), description: t("sr.arrivalTimeRequired"), variant: "destructive" });
+      return;
+    }
     setSubmitting(true);
     try {
       // v2.77 — payment_status is set once and never changes anymore (the
@@ -491,9 +500,11 @@ export default function SectorReservations() {
               </div>
               {/* v3.11 — free-text, not a strict time picker: "около 10:00",
                   "следобед" etc. are all fine — the point is just to give
-                  the owner a rough idea, not a precise commitment. */}
+                  the owner a rough idea, not a precise commitment.
+                  v3.12 — made mandatory (see confirmReservation's check),
+                  marked with * like the other required fields above. */}
               <div className="space-y-1.5">
-                <Label>{t("sr.arrivalTime")}</Label>
+                <Label>{t("sr.arrivalTime")} *</Label>
                 <Input
                   value={arrivalTime}
                   onChange={(e) => setArrivalTime(e.target.value)}
