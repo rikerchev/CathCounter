@@ -1160,6 +1160,7 @@ export const es = {
     "wb.messageParticipants": "Mensaje a los participantes",
     "wb.messageParticipantsHint": "El mensaje se enviará por correo electrónico a cada cuenta que haya registrado un participante, junto con los nombres que registró.",
     "wb.messageSent": "Mensaje enviado",
+    "wb.someSkippedNoEmail": "{count} sin correo conocido — no recibieron el mensaje",
     "wb.errorSending": "Error al enviar",
     "wb.send": "Enviar",
     "profile.phone": "Teléfono",

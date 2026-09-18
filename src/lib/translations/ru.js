@@ -1160,6 +1160,7 @@ export const ru = {
     "wb.messageParticipants": "Сообщение участникам",
     "wb.messageParticipantsHint": "Сообщение будет отправлено по электронной почте каждому аккаунту, зарегистрировавшему участника, вместе с именами зарегистрированных им участников.",
     "wb.messageSent": "Сообщение отправлено",
+    "wb.someSkippedNoEmail": "{count} без известного email — не получили сообщение",
     "wb.errorSending": "Ошибка при отправке",
     "wb.send": "Отправить",
     "profile.phone": "Телефон",

@@ -1160,6 +1160,7 @@ export const mk = {
     "wb.messageParticipants": "Порака до учесниците",
     "wb.messageParticipantsHint": "Пораката ќе биде испратена по е-пошта до секоја сметка што регистрирала учесник, заедно со имињата што ги регистрирала.",
     "wb.messageSent": "Пораката е испратена",
+    "wb.someSkippedNoEmail": "{count} без познат е-маил — не ја добија пораката",
     "wb.errorSending": "Грешка при испраќање",
     "wb.send": "Испрати",
     "profile.phone": "Телефон",

@@ -1160,6 +1160,7 @@ export const tr = {
     "wb.messageParticipants": "Katılımcılara mesaj",
     "wb.messageParticipantsHint": "Mesaj, bir katılımcı kaydeden her hesaba, kaydettiği isimlerle birlikte e-posta yoluyla gönderilecektir.",
     "wb.messageSent": "Mesaj gönderildi",
+    "wb.someSkippedNoEmail": "{count} bilinen e-postası olmadığı için mesajı almadı",
     "wb.errorSending": "Gönderme hatası",
     "wb.send": "Gönder",
     "profile.phone": "Telefon",

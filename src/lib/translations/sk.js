@@ -1160,6 +1160,7 @@ export const sk = {
     "wb.messageParticipants": "Správa účastníkom",
     "wb.messageParticipantsHint": "Správa bude e-mailom odoslaná každému účtu, ktorý zaregistroval účastníka, spolu s menami, ktoré zaregistroval.",
     "wb.messageSent": "Správa bola odoslaná",
+    "wb.someSkippedNoEmail": "{count} bez známeho e-mailu — správu nedostali",
     "wb.errorSending": "Chyba pri odosielaní",
     "wb.send": "Odoslať",
     "profile.phone": "Telefón",

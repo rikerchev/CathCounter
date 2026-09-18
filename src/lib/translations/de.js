@@ -1160,6 +1160,7 @@ export const de = {
     "wb.messageParticipants": "Nachricht an die Teilnehmer",
     "wb.messageParticipantsHint": "Die Nachricht wird per E-Mail an jedes Konto gesendet, das einen Teilnehmer registriert hat, zusammen mit den von ihm registrierten Namen.",
     "wb.messageSent": "Nachricht gesendet",
+    "wb.someSkippedNoEmail": "{count} ohne ermittelte E-Mail-Adresse — haben die Nachricht nicht erhalten",
     "wb.errorSending": "Fehler beim Senden",
     "wb.send": "Senden",
     "profile.phone": "Telefon",

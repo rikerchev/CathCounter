@@ -1120,7 +1120,15 @@ export default function WaterBodyManagement() {
         competition_id: messagingFor.id,
         message: messageText.trim(),
       });
-      toast({ title: t("wb.messageSent"), description: `${res.notified} ${t("comp.users")}` });
+      // v3.16 — surface `skipped` (previously silently dropped — see
+      // functions.ts's own v3.16 comment on message-competition-participants
+      // for why a registration could end up here even after that fix: an
+      // account whose created_by_id no longer resolves to a user at all,
+      // e.g. a deleted account). The organizer sending a message now always
+      // knows if someone in the list didn't actually get it, instead of a
+      // plain success toast that hid the gap.
+      const skippedNote = res.skipped > 0 ? ` · ${t("wb.someSkippedNoEmail").replace("{count}", res.skipped)}` : "";
+      toast({ title: t("wb.messageSent"), description: `${res.notified} ${t("comp.users")}${skippedNote}` });
       setMessagingFor(null);
       setMessageText("");
     } catch (e) {

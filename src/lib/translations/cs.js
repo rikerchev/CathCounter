@@ -1160,6 +1160,7 @@ export const cs = {
     "wb.messageParticipants": "Zpráva účastníkům",
     "wb.messageParticipantsHint": "Zpráva bude odeslána e-mailem každému účtu, který zaregistroval účastníka, spolu se jmény, která zaregistroval.",
     "wb.messageSent": "Zpráva byla odeslána",
+    "wb.someSkippedNoEmail": "{count} bez zjištěného e-mailu — zprávu neobdrželi",
     "wb.errorSending": "Chyba při odesílání",
     "wb.send": "Odeslat",
     "profile.phone": "Telefon",

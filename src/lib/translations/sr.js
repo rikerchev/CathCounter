@@ -1160,6 +1160,7 @@ export const sr = {
     "wb.messageParticipants": "Poruka učesnicima",
     "wb.messageParticipantsHint": "Poruka će biti poslata e-poštom svakom nalogu koji je registrovao učesnika, zajedno sa imenima koja je registrovao.",
     "wb.messageSent": "Poruka je poslata",
+    "wb.someSkippedNoEmail": "{count} без познате е-поште — нису добили поруку",
     "wb.errorSending": "Greška pri slanju",
     "wb.send": "Pošalji",
     "profile.phone": "Telefon",

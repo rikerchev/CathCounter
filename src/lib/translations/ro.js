@@ -1160,6 +1160,7 @@ export const ro = {
     "wb.messageParticipants": "Mesaj către participanți",
     "wb.messageParticipantsHint": "Mesajul va fi trimis prin e-mail către fiecare cont care a înregistrat un participant, împreună cu numele înregistrate de acesta.",
     "wb.messageSent": "Mesajul a fost trimis",
+    "wb.someSkippedNoEmail": "{count} fără e-mail cunoscut — nu au primit mesajul",
     "wb.errorSending": "Eroare la trimitere",
     "wb.send": "Trimite",
     "profile.phone": "Telefon",

@@ -1160,6 +1160,7 @@ export const nl = {
     "wb.messageParticipants": "Bericht aan deelnemers",
     "wb.messageParticipantsHint": "Het bericht wordt gemaild naar elk account dat een deelnemer heeft geregistreerd, samen met de namen die het heeft geregistreerd.",
     "wb.messageSent": "Bericht verzonden",
+    "wb.someSkippedNoEmail": "{count} zonder bekend e-mailadres — hebben het bericht niet ontvangen",
     "wb.errorSending": "Fout bij verzenden",
     "wb.send": "Verzenden",
     "profile.phone": "Telefoon",

@@ -1217,6 +1217,7 @@ export const en = {
     "wb.messageParticipants": "Message participants",
     "wb.messageParticipantsHint": "The message will be emailed to every account that registered a participant, together with the names it registered.",
     "wb.messageSent": "Message sent",
+    "wb.someSkippedNoEmail": "{count} with no known email — did not receive the message",
     "wb.errorSending": "Error sending",
     "wb.send": "Send",
     "profile.phone": "Phone",

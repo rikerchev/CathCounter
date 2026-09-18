@@ -1160,6 +1160,7 @@ export const hu = {
     "wb.messageParticipants": "Üzenet a résztvevőknek",
     "wb.messageParticipantsHint": "Az üzenetet e-mailben elküldjük minden fióknak, amely résztvevőt regisztrált, az általa regisztrált nevekkel együtt.",
     "wb.messageSent": "Üzenet elküldve",
+    "wb.someSkippedNoEmail": "{count} ismeretlen e-mail-cím miatt nem kapta meg az üzenetet",
     "wb.errorSending": "Hiba a küldés során",
     "wb.send": "Küldés",
     "profile.phone": "Telefon",

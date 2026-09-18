@@ -144,17 +144,38 @@ export async function handleFunctionsRoute(
       const isAuthorized = isAdmin(user) || competition.created_by_id === user.id;
       if (!isAuthorized) return json({ error: "Forbidden" }, 403);
 
-      const regs = await sql`
-        SELECT participant_name, registered_by_email FROM competition_registrations
-        WHERE competition_id = ${competitionId} AND status = 'active'
+      // v3.16 — registered_by_email is a client-supplied SNAPSHOT taken at
+      // registration time (see Competitions.jsx's handleRegister); it can be
+      // blank on a row created before that column existed, or for any other
+      // reason the snapshot never got written. Before this fix, a blank
+      // value meant that registration was silently dropped from `groups`
+      // below (just a `skipped` counter never surfaced in the organizer's
+      // own success toast — see sendParticipantsMessage in
+      // WaterBodyManagement.jsx) — so an organizer who was ALSO one of
+      // their own competition's participants, registered before that
+      // column existed, never got their own "message to participants"
+      // email and had no way to know why. created_by_id, unlike
+      // registered_by_email, is set SERVER-SIDE on every single create
+      // (see entities.ts's sanitizePayload) and never blank for an account
+      // that still exists — joining through it to the account's current
+      // email is a far more reliable fallback than trusting the snapshot
+      // alone.
+      const regs = await sql<{
+        participant_name: string; registered_by_email: string | null; account_email: string | null;
+      }[]>`
+        SELECT cr.participant_name, cr.registered_by_email, u.email AS account_email
+        FROM competition_registrations cr
+        LEFT JOIN users u ON u.id = cr.created_by_id
+        WHERE cr.competition_id = ${competitionId} AND cr.status = 'active'
       `;
 
-      // One email per registering ACCOUNT (registered_by_email), not per
-      // participant row — see the comment above.
+      // One email per registering ACCOUNT (registered_by_email, falling
+      // back to the account's own current email — see the comment above),
+      // not per participant row — see the comment further above.
       const groups = new Map<string, string[]>();
       let skipped = 0;
       for (const r of regs) {
-        const email = (r.registered_by_email || "").trim().toLowerCase();
+        const email = (r.registered_by_email || r.account_email || "").trim().toLowerCase();
         if (!email) { skipped++; continue; }
         if (!groups.has(email)) groups.set(email, []);
         groups.get(email)!.push(r.participant_name);
@@ -215,22 +236,31 @@ export async function handleFunctionsRoute(
       const isAuthorized = isAdmin(user) || competition.created_by_id === user.id;
       if (!isAuthorized) return json({ error: "Forbidden" }, 403);
 
+      // v3.16 — same fallback as message-competition-participants above:
+      // registered_by_email is a client-supplied snapshot that can be blank
+      // (a pre-migration row, or any other gap), which used to silently
+      // drop that registration out of `groups` below with no visible
+      // signal to the organizer. created_by_id is set server-side on every
+      // create and joins to a reliable, always-current account email.
       const regs = await sql<{
-        participant_name: string; registered_by_email: string | null;
+        participant_name: string; registered_by_email: string | null; account_email: string | null;
         assigned_sector: string | null; assigned_box: string | null;
       }[]>`
-        SELECT participant_name, registered_by_email, assigned_sector, assigned_box
-        FROM competition_registrations
-        WHERE competition_id = ${competitionId} AND status = 'active' AND assigned_box IS NOT NULL
+        SELECT cr.participant_name, cr.registered_by_email, u.email AS account_email,
+               cr.assigned_sector, cr.assigned_box
+        FROM competition_registrations cr
+        LEFT JOIN users u ON u.id = cr.created_by_id
+        WHERE cr.competition_id = ${competitionId} AND cr.status = 'active' AND cr.assigned_box IS NOT NULL
       `;
 
-      // One email per registering ACCOUNT, listing every one of their
-      // participants' own drawn sector/box — same grouping rationale as
-      // message-competition-participants above.
+      // One email per registering ACCOUNT (registered_by_email, falling
+      // back to the account's own current email — see the comment above),
+      // listing every one of their participants' own drawn sector/box —
+      // same grouping rationale as message-competition-participants above.
       const groups = new Map<string, { name: string; sector: string | null; box: string | null }[]>();
       let skipped = 0;
       for (const r of regs) {
-        const email = (r.registered_by_email || "").trim().toLowerCase();
+        const email = (r.registered_by_email || r.account_email || "").trim().toLowerCase();
         if (!email) { skipped++; continue; }
         if (!groups.has(email)) groups.set(email, []);
         groups.get(email)!.push({ name: r.participant_name, sector: r.assigned_sector, box: r.assigned_box });

@@ -1213,6 +1213,7 @@ export const bg = {
     "wb.messageParticipants": "Съобщение до участниците",
     "wb.messageParticipantsHint": "Съобщението ще бъде изпратено по имейл на всеки регистрирал акаунт, заедно с имената на записаните от него участници.",
     "wb.messageSent": "Съобщението е изпратено",
+    "wb.someSkippedNoEmail": "{count} без установен имейл — не получиха съобщението",
     "wb.errorSending": "Грешка при изпращане",
     "wb.send": "Изпрати",
     "profile.phone": "Телефон",
