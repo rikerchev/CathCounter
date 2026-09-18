@@ -209,23 +209,25 @@ function drawParticipantRow(ctx, box, reg, seq, t) {
 // image — an organizer downloads and shares this specifically so a
 // participant with no app account/social media can find their own box —
 // so it's drawn large and bold on the right, not tucked away small.
-function drawDrawResultRow(ctx, box, reg, seq, t) {
+//
+// v3.08 — deliberately NO leading seq/rank circle here, unlike
+// drawRankedRow/drawParticipantRow above. This list is sorted by
+// sector+box (not registration order, see downloadDrawResultsImage below),
+// so a row's position is purely an artifact of that sort — when a
+// competition's boxes happen to be labeled sequentially (1, 2, 3, ... —
+// the common case), a "row N" badge is mathematically guaranteed to equal
+// box N regardless of which participant landed there, which one organizer
+// mistook for proof the draw wasn't actually random (it was — the shuffle
+// only decides WHICH NAME lands on which row; the row numbering itself
+// never could have looked any other way once sorted by box). Since the
+// badge carried no real information anyway, simplest fix is to drop it
+// rather than try to relabel it into something that can't be misread.
+function drawDrawResultRow(ctx, box, reg, t) {
   const { x, y, w, h } = box;
   const cy = y + h / 2;
 
-  const rcx = x + RANK_SIZE / 2;
-  ctx.beginPath();
-  ctx.arc(rcx, cy, RANK_SIZE / 2, 0, Math.PI * 2);
-  ctx.fillStyle = "#0e7490";
-  ctx.fill();
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 15px Arial, sans-serif`;
-  ctx.fillText(String(seq), rcx, cy + 1);
-
-  const cardX = x + RANK_SIZE + 10;
-  const cardW = w - RANK_SIZE - 10;
+  const cardX = x;
+  const cardW = w;
   ctx.save();
   ctx.shadowColor = "rgba(8, 15, 28, 0.25)";
   ctx.shadowBlur = 6;
@@ -463,7 +465,7 @@ export async function downloadDrawResultsImage({ registrations, title, competiti
   const headerText = `${t("standingsImg.drawResultsTitle")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
   await renderRowsPage({
     rowCount: list.length,
-    drawRow: (ctx, box, i) => drawDrawResultRow(ctx, box, list[i], i + 1, t),
+    drawRow: (ctx, box, i) => drawDrawResultRow(ctx, box, list[i], t),
     headerIcon: "🎲",
     headerText,
     emptyMessage: t("wb.noResultsYet"),
