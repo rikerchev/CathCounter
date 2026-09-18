@@ -1887,8 +1887,14 @@ export default function WaterBodyManagement() {
             </Button>
             {/* v3.07 — only once a draw has actually happened (at least one
                 registration carries a drawn box) — no point offering an
-                image that would just show everyone with no box yet. */}
-            {regsFor(participantsFor.id).some((r) => r.assigned_box != null) && (
+                image that would just show everyone with no box yet.
+                `participantsFor &&` guard is required here (not redundant
+                with the surrounding IIFE above, which closes before this
+                DialogFooter) — this whole footer renders on every page load
+                regardless of whether the dialog is open, since only the
+                onClick handlers above are deferred; participantsFor is null
+                until a dialog is actually opened. */}
+            {participantsFor && regsFor(participantsFor.id).some((r) => r.assigned_box != null) && (
               <Button
                 variant="outline"
                 onClick={() => handleDownloadDrawResultsImage(participantsFor)}
