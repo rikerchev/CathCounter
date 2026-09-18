@@ -267,9 +267,16 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
             </Button>
           ) : (
             <>
+              {/* v3.20 — was a fixed bg-rose-600 regardless of which color
+                  the rod card itself was set to; the user's own explicit
+                  ask was for this button (and the already-matching Старт
+                  button above) to always match the rod's own banner color
+                  (${bar}, from ROD_COLORS — the same value driving the
+                  card header at the top of this component and the Старт
+                  button's own className) instead of a hardcoded color. */}
               <Button
                 onClick={handleLand}
-                className="flex-1 bg-rose-600 hover:bg-rose-700 h-11"
+                className={`flex-1 ${bar} text-white hover:opacity-90 h-11`}
               >
                 <Square className="w-4 h-4 mr-1" /> {t("rod.landFish")}
               </Button>
