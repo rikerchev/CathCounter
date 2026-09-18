@@ -551,6 +551,12 @@ export const bg = {
     "wb.ibanCopied": "IBAN копиран",
     "wb.sector": "Бокс",
 
+    "wb.deletePeriod": "Изтрий",
+    "wb.confirmDeletePeriod": "Сигурни ли сте, че искате да изтриете този период за резервации? Действието е необратимо.",
+    "wb.periodDeleted": "Периодът е изтрит",
+    "wb.cannotDeleteHasReservations": "Не може да се изтрие — все още има активни резервации",
+    "wb.viewList": "Списък",
+    "wb.viewCalendar": "Календар",
     "comp.title": "Състезания",
     "comp.filterByLocation": "Филтър по локация",
     "comp.allCountries": "— Всички държави —",

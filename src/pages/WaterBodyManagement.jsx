@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole, effectiveRoles, highestRole } from "@/lib/roles";
-import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical, Upload, Image as ImageIcon, Send } from "lucide-react";
+import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Landmark, ArrowRightLeft, Download, Loader2, ClipboardList, FileDown, Phone, Mail, Shuffle, Trash2, X, RotateCcw, Copy, Trophy, Scale, GripVertical, Upload, Image as ImageIcon, Send, Clock, Calendar as CalendarIcon, List as ListIcon } from "lucide-react";
 import { maskEmail } from "@/lib/emailMask";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
@@ -51,6 +51,23 @@ function formatDate(d, lang) {
   return new Date(d).toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// v3.14 — SectorAvailability.date/end_date and SectorReservation.date are
+// plain "YYYY-MM-DD" calendar dates with NO time component of their own
+// (unlike Competition.date above, a real timestamp with a meaningful hour —
+// e.g. the draw/start time) — they only say WHICH DAY a reservation period
+// runs or a booking is for. `new Date("2026-09-21")` parses that as
+// midnight UTC; formatDate's `hour`/`minute` options then rendered it in
+// the BROWSER's local timezone (Europe/Sofia, UTC+2/+3), producing a bogus
+// artifact time with no real meaning — e.g. "21.09.2026 г., 03:00" — that
+// the water body owner mistook for an actual opening time. Fixed by never
+// asking for hour/minute here; the water body's REAL operating hours are a
+// separate free-text field (SectorAvailability.working_hours) shown
+// alongside the date range instead — see its own card below.
+function formatDateOnly(d, lang) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 // datetime-local inputs need "YYYY-MM-DDTHH:mm" in LOCAL time, not the ISO
 // string (UTC, with seconds/millis) that Competition.date is stored as —
 // used only when opening an existing competition for editing.
@@ -60,6 +77,242 @@ function toDatetimeLocal(isoString) {
   if (Number.isNaN(d.getTime())) return "";
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// v3.14 — calendar-grid helpers for the "view by day" toggle on a
+// multi-day SectorAvailability period (see AvailabilityCalendar below).
+// Weeks start Monday (Bulgarian convention), matching a normal wall
+// calendar rather than the US Sunday-first layout.
+const WEEKDAY_LABELS_BG = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
+
+function isoDateOf(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Every {year, month} (month 0-indexed) the [startISO, endISO] range
+// touches, so a period spanning several months (like the 21.09–01.11
+// example that prompted this) renders one grid per month instead of one
+// giant one.
+function monthsBetween(startISO, endISO) {
+  const start = new Date(`${startISO}T00:00:00`);
+  const end = new Date(`${endISO}T00:00:00`);
+  const out = [];
+  let y = start.getFullYear();
+  let m = start.getMonth();
+  while (y < end.getFullYear() || (y === end.getFullYear() && m <= end.getMonth())) {
+    out.push({ year: y, month: m });
+    m += 1;
+    if (m > 11) { m = 0; y += 1; }
+  }
+  return out;
+}
+
+// A flat array of 7*N Date objects (or null for the leading/trailing
+// padding cells before day 1 / after the last day), grouped into full
+// weeks so the grid always renders as complete rows.
+function buildMonthGrid(year, month) {
+  const startOffset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let day = 1; day <= daysInMonth; day++) cells.push(new Date(year, month, day));
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+// v3.14 — the calendar view of a reservation period's own component: one
+// small month grid per month the period spans, each day cell listing that
+// day's active reservations (box + name, same info as the flat-list
+// badges), so a long multi-day period (weeks/months, e.g. 21.09–01.11) can
+// be scanned for which days are busy at a glance instead of hunting
+// through one long undifferentiated list. Days outside the availability's
+// own [date, end_date] range (padding from the month grid, or days before/
+// after the period within its own months) are dimmed and never
+// interactive — this is a read-only view, not a picker.
+function AvailabilityCalendar({ avail, reservations, t, lang }) {
+  const startISO = avail.date;
+  const endISO = avail.end_date || avail.date;
+  const months = monthsBetween(startISO, endISO);
+  return (
+    <div className="space-y-3 mt-2">
+      {months.map(({ year, month }) => {
+        const cells = buildMonthGrid(year, month);
+        const monthLabel = new Date(year, month, 1).toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", { month: "long", year: "numeric" });
+        return (
+          <div key={`${year}-${month}`} className="rounded-lg border border-slate-200 dark:border-border overflow-hidden">
+            <div className="bg-slate-100 dark:bg-accent px-2 py-1 text-xs font-medium text-slate-600 dark:text-foreground capitalize">
+              {monthLabel}
+            </div>
+            <div className="grid grid-cols-7 text-[10px] text-slate-400 dark:text-muted-foreground border-b border-slate-100 dark:border-border">
+              {WEEKDAY_LABELS_BG.map((w) => (
+                <div key={w} className="text-center py-1">{w}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {cells.map((d, i) => {
+                if (!d) {
+                  return <div key={i} className="min-h-[46px] border-t border-r border-slate-100 dark:border-border last:border-r-0" />;
+                }
+                const iso = isoDateOf(d);
+                const inRange = iso >= startISO && iso <= endISO;
+                const dayRes = inRange ? reservations.filter((r) => r.date === iso) : [];
+                return (
+                  <div
+                    key={i}
+                    className={`min-h-[46px] border-t border-r border-slate-100 dark:border-border last:border-r-0 p-1 ${inRange ? "" : "opacity-30"}`}
+                  >
+                    <div className="text-[10px] text-slate-400 dark:text-muted-foreground">{d.getDate()}</div>
+                    {dayRes.length > 0 && (
+                      <div className="space-y-0.5 mt-0.5">
+                        {dayRes.map((r) => (
+                          <div
+                            key={r.id}
+                            title={`${t("wb.sector")}.${r.sector_number} — ${r.reserved_by_name}${r.reserved_by_phone ? ` · ${r.reserved_by_phone}` : ""}${r.arrival_time ? ` · ${r.arrival_time}` : ""}`}
+                            className="text-[9px] leading-tight px-1 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 truncate"
+                          >
+                            {r.sector_number} {r.reserved_by_name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const PAYMENT_STATUS_LABEL_KEYS = {
+  pending: "wb.paymentStatusPending",
+  paid: "wb.paymentStatusPaid",
+  transferred: "wb.paymentStatusTransferred",
+};
+
+// v3.14 — was defined INSIDE the participants dialog's own render function
+// (a fresh `const ParticipantRow = ({ r }) => {...}` on every single
+// render), which is exactly the mistake it looks like: a component's
+// IDENTITY, not just its props, decides whether React updates its existing
+// DOM or tears it down and rebuilds it from scratch, and a brand-new
+// function is a brand-new identity every time — even though every
+// `<ParticipantRow key={r.id} .../>` element still had the same key. So
+// every keystroke in a weight input (updateResultDraft -> setResultsDraft
+// -> the whole dialog re-renders -> a new ParticipantRow function exists)
+// made React discard and recreate EVERY participant row's entire DOM
+// subtree, not just the one being edited — destroying the focused <Input>
+// mid-typing and resetting the dialog's scroll position back to the top on
+// every single result entered. That's exactly the site owner's report:
+// losing your place in a 28-participant list after every weigh-in, and
+// mistyping as a result. Lifted out to a stable, module-level component
+// fixes both: React now just diffs props against the SAME existing DOM
+// node, so focus and scroll position are left alone.
+function ParticipantRow({
+  r, seqById, rankedMap, roundPointsMatrix, roundsCount, resultsDraft, updateResultDraft, openEditReg, t,
+}) {
+  const draftResults = resultsDraft[r.id] || Array.from({ length: roundsCount }, () => "");
+  const total = totalCatchWeight(draftResults.map((v) => (v === "" ? null : Number(v))));
+  const ranked = rankedMap.get(r.id);
+  const roundPoints = roundPointsMatrix.map((m) => m.get(r.id));
+  return (
+    <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-slate-800 dark:text-foreground">
+          <span className="text-slate-400 dark:text-muted-foreground font-normal">#{seqById.get(r.id)}</span> {r.participant_name}
+        </p>
+        <Button variant="ghost" size="icon" onClick={() => openEditReg(r)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
+          <Pencil className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      {/* v3.09 — the whole point of this release: a weight input per round,
+          right here on the participant's own row, so recording a weigh-in
+          no longer needs the pencil button/a separate dialog at all.
+          Purely local (resultsDraft) until "Запази" in the dialog's own
+          footer below — see saveParticipantsResults. */}
+      <div className="flex items-center gap-1.5 flex-wrap pt-0.5 pb-0.5">
+        {draftResults.map((w, i) => (
+          <div key={i} className="flex items-center gap-1">
+            {roundsCount > 1 && (
+              <span className="text-[10px] text-slate-400 dark:text-muted-foreground shrink-0">{t("wb.roundLabel")} {i + 1}</span>
+            )}
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              inputMode="decimal"
+              placeholder={t("wb.kg")}
+              value={w}
+              onChange={(e) => updateResultDraft(r.id, i, e.target.value)}
+              className="h-8 w-[76px] text-xs px-2"
+            />
+          </div>
+        ))}
+      </div>
+      {r.registered_by_email && (
+        <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+          {/* v3.03 — masked (see src/lib/emailMask.js): the organizer can
+              still tell registrations apart by account without seeing
+              another user's full email — the "Съобщение до участниците"/
+              CSV-export flows below reach the real address server-side. */}
+          <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {maskEmail(r.registered_by_email)}
+        </p>
+      )}
+      {/* v2.90 — set only by the organizer's "assign to user" action
+          (reassignParticipant) — the account that now actually owns this
+          registration, when it differs from whoever originally submitted
+          it above. */}
+      {r.assigned_user_email && (
+        <p className="text-xs text-cyan-700 dark:text-cyan-400 flex items-center gap-1 font-medium">
+          <ArrowRightLeft className="w-3 h-3 shrink-0" /> {t("wb.assignedToAccount")}: {maskEmail(r.assigned_user_email)}
+        </p>
+      )}
+      {r.participant_phone && (
+        <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+          <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
+        </p>
+      )}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5">
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
+          {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
+        </span>
+        {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
+        {r.assigned_box != null && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+            {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+          </span>
+        )}
+        {total > 0 && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+            {t("wb.totalWeight")}: {total} {t("wb.kg")}
+          </span>
+        )}
+        {/* v2.89 — overall standing (penalty points first, total weight as
+            tie-break — see rankByPenaltyAndWeight), shown only once this
+            participant has at least one scored round. */}
+        {ranked && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
+            {t("comp.standings")} #{ranked.rank} · {ranked.penalty} {t("comp.pointsUnit")}
+          </span>
+        )}
+      </div>
+      {/* v2.89 — per-round placing within the participant's own sector (see
+          roundSectorPoints); a round with no points yet (not weighed in yet
+          for anyone in the sector, or no box assigned) simply isn't shown
+          for that round. */}
+      {roundsCount > 1 && roundPoints.some((p) => typeof p === "number") && (
+        <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+          {roundPoints.map((p, i) => typeof p === "number" && (
+            <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
+              {t("wb.roundLabel")} {i + 1}: {p} {t("comp.pointsUnit")}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function WaterBodyManagement() {
@@ -124,6 +377,11 @@ export default function WaterBodyManagement() {
   const [reassigningOwnerId, setReassigningOwnerId] = useState("");
   const [sectorAvail, setSectorAvail] = useState([]);
   const [sectorRes, setSectorRes] = useState([]);
+  // v3.14 — busy-id for deleteSectorAvailability below, same pattern as
+  // deletingCompId. calendarView toggles the list/calendar display per
+  // availability id (keyed by SectorAvailability.id, default = list).
+  const [deletingAvailId, setDeletingAvailId] = useState("");
+  const [calendarView, setCalendarView] = useState({});
   const [showSectorForm, setShowSectorForm] = useState(false);
   const [sectorFor, setSectorFor] = useState(null);
   // v3.04 — was a flat box count + flat label list; now the same named
@@ -506,6 +764,33 @@ export default function WaterBodyManagement() {
     }
   }
 
+  // v3.14 — delete a CLOSED reservation period (the site owner's own
+  // request, for exactly the case shown in the screenshot: an old closed
+  // period with 0 reservations left cluttering the list). Only offered
+  // once status is "closed" (same "closed only" safety rule as
+  // deleteClosedCompetition above — a live/open period can't be destroyed
+  // by mistake) AND only when it has zero active reservations left (see
+  // the button's own visibility condition below, gated on sectResFor(a.id)
+  // being empty). Deliberately does NOT try to cascade-delete reservations
+  // first the way deleteClosedCompetition does for registrations:
+  // SectorReservation's delete rule is `owner` (the customer who made it),
+  // not owner_or_relation to the water body — the water body owner has no
+  // permission to delete someone else's reservation row, so this is never
+  // attempted against a period that still has bookings on it.
+  async function deleteSectorAvailability(avail) {
+    if (!window.confirm(t("wb.confirmDeletePeriod"))) return;
+    setDeletingAvailId(avail.id);
+    try {
+      await base44.entities.SectorAvailability.delete(avail.id);
+      toast({ title: t("wb.periodDeleted") });
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingAvailId("");
+    }
+  }
+
   function sectAvailFor(wbId) {
     return sectorAvail.filter((a) => a.water_body_id === wbId);
   }
@@ -786,12 +1071,8 @@ export default function WaterBodyManagement() {
     return `"${s.replace(/"/g, '""')}"`;
   }
 
-  const PAYMENT_STATUS_LABEL_KEYS = {
-    pending: "wb.paymentStatusPending",
-    paid: "wb.paymentStatusPaid",
-    transferred: "wb.paymentStatusTransferred",
-  };
-
+  // v3.14 — moved to module scope (near ParticipantRow, which also needs
+  // it) — see that component's own comment for why.
   function exportParticipantsCsv(comp) {
     const regs = regsFor(comp.id);
     const header = [
@@ -1360,17 +1641,35 @@ export default function WaterBodyManagement() {
                   <div className="space-y-2">
                     {wbSectAvail.map((a) => {
                       const sRes = sectResFor(a.id);
+                      // v3.14 — was formatDate (always appended a bogus
+                      // hour:minute — see formatDateOnly's own comment
+                      // above for why). This card's date range is a pure
+                      // calendar range with no time of its own; the water
+                      // body's REAL hours are a.working_hours, shown below.
+                      const isMultiDay = a.end_date && a.end_date !== a.date;
+                      const showCalendar = isMultiDay && calendarView[a.id];
                       return (
                         <div key={a.id} className="rounded-xl bg-slate-50 dark:bg-accent p-3">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="font-medium text-sm text-slate-800 dark:text-foreground">{a.end_date && a.end_date !== a.date ? `${formatDate(a.date, lang)} – ${formatDate(a.end_date, lang)}` : formatDate(a.date, lang)}</p>
+                              <p className="font-medium text-sm text-slate-800 dark:text-foreground">{isMultiDay ? `${formatDateOnly(a.date, lang)} – ${formatDateOnly(a.end_date, lang)}` : formatDateOnly(a.date, lang)}</p>
                               <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-muted-foreground">
                                 <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {sRes.length}/{a.total_sectors} {t("wb.reserved")}</span>
                                 {a.fee_per_person > 0 && <span className="text-emerald-600 dark:text-emerald-400 font-medium">{a.fee_per_person} €</span>}
                               </div>
+                              {/* v3.14 — the period's own working hours
+                                  (pre-filled from the water body's default
+                                  when opened, editable per period), not
+                                  shown anywhere on this owner-facing card
+                                  before — only the customer-facing
+                                  SectorReservations.jsx had it. */}
+                              {a.working_hours && (
+                                <div className="flex items-center gap-1 mt-1 text-xs text-slate-500 dark:text-muted-foreground">
+                                  <Clock className="w-3 h-3" /> {a.working_hours}
+                                </div>
+                              )}
                             </div>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
                               a.status === "open"
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                 : "bg-slate-200 text-slate-600 dark:bg-accent dark:text-muted-foreground"
@@ -1378,7 +1677,32 @@ export default function WaterBodyManagement() {
                               {a.status === "open" ? t("wb.open") : t("wb.closed")}
                             </span>
                           </div>
-                          {sRes.length > 0 && (
+                          {/* v3.14 — list/calendar toggle, multi-day periods
+                              only (a single day already IS one "day view";
+                              a calendar grid for it would just be one cell). */}
+                          {isMultiDay && (
+                            <div className="flex items-center gap-1 mt-2">
+                              <Button
+                                type="button"
+                                variant={showCalendar ? "outline" : "secondary"}
+                                size="sm"
+                                onClick={() => setCalendarView((m) => ({ ...m, [a.id]: false }))}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <ListIcon className="w-3.5 h-3.5 mr-1" /> {t("wb.viewList")}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={showCalendar ? "secondary" : "outline"}
+                                size="sm"
+                                onClick={() => setCalendarView((m) => ({ ...m, [a.id]: true }))}
+                                className="h-7 px-2 text-xs"
+                              >
+                                <CalendarIcon className="w-3.5 h-3.5 mr-1" /> {t("wb.viewCalendar")}
+                              </Button>
+                            </div>
+                          )}
+                          {sRes.length > 0 && !showCalendar && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {/* v3.07 — the same box number can now legitimately
                                   belong to different people on different days
@@ -1393,16 +1717,42 @@ export default function WaterBodyManagement() {
                                   the customer simply plans to come later. */}
                               {sRes.map((r) => (
                                 <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-                                  {a.end_date && a.end_date !== a.date ? `${formatDate(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.reserved_by_phone ? ` · ${r.reserved_by_phone}` : ""}{r.arrival_time ? ` · 🕐 ${r.arrival_time}` : ""}{r.payment_status === "paid" ? " ✓" : " ⏳"}
+                                  {isMultiDay ? `${formatDateOnly(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.reserved_by_phone ? ` · ${r.reserved_by_phone}` : ""}{r.arrival_time ? ` · 🕐 ${r.arrival_time}` : ""}{r.payment_status === "paid" ? " ✓" : " ⏳"}
                                 </span>
                               ))}
                             </div>
                           )}
-                          {a.status === "open" && (
-                            <Button variant="outline" size="sm" onClick={() => closeSectorAvailability(a)} className="min-h-[36px] mt-2 text-xs">
-                              {t("wb.closeReservations")}
-                            </Button>
+                          {showCalendar && (
+                            <AvailabilityCalendar avail={a} reservations={sRes} t={t} lang={lang} />
                           )}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {a.status === "open" && (
+                              <Button variant="outline" size="sm" onClick={() => closeSectorAvailability(a)} className="min-h-[36px] text-xs">
+                                {t("wb.closeReservations")}
+                              </Button>
+                            )}
+                            {/* v3.14 — delete an old closed period (the site
+                                owner's own request) — only once it's closed
+                                AND has zero active reservations left; see
+                                deleteSectorAvailability's own comment for why
+                                a non-empty period can't be offered this. */}
+                            {a.status === "closed" && (
+                              sRes.length === 0 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => deleteSectorAvailability(a)}
+                                  disabled={deletingAvailId === a.id}
+                                  className="min-h-[36px] text-xs text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-900/20"
+                                >
+                                  {deletingAvailId === a.id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
+                                  {t("wb.deletePeriod")}
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-slate-400 dark:text-muted-foreground">{t("wb.cannotDeleteHasReservations")}</span>
+                              )
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -1780,118 +2130,9 @@ export default function WaterBodyManagement() {
             // so every row's numbers are always consistent with each other.
             const roundPointsMatrix = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(regsWithDraft, i));
             const rankedMap = new Map(rankByPenaltyAndWeight(regsWithDraft, roundsCount).map((x) => [x.id, x]));
-            const ParticipantRow = ({ r }) => {
-              // v3.09 — the inline draft (falls back to what's saved for a
-              // row not touched yet this session — see openParticipants).
-              const draftResults = resultsDraft[r.id] || Array.from({ length: roundsCount }, () => "");
-              // v2.87 — total across every round with a recorded weight;
-              // 0 (no results yet) renders nothing, same treatment as the
-              // draw badge below (only shown once there's something to show).
-              // v3.09 — reads the live draft, not just the saved value, so
-              // it updates as the organizer types.
-              const total = totalCatchWeight(draftResults.map((v) => (v === "" ? null : Number(v))));
-              const ranked = rankedMap.get(r.id);
-              const roundPoints = roundPointsMatrix.map((m) => m.get(r.id));
-              return (
-                <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-slate-800 dark:text-foreground">
-                      <span className="text-slate-400 dark:text-muted-foreground font-normal">#{seqById.get(r.id)}</span> {r.participant_name}
-                    </p>
-                    <Button variant="ghost" size="icon" onClick={() => openEditReg(r)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                  {/* v3.09 — the whole point of this release: a weight input
-                      per round, right here on the participant's own row, so
-                      recording a weigh-in no longer needs the pencil button/
-                      a separate dialog at all. Purely local (resultsDraft)
-                      until "Запази" in the dialog's own footer below — see
-                      saveParticipantsResults. */}
-                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5 pb-0.5">
-                    {draftResults.map((w, i) => (
-                      <div key={i} className="flex items-center gap-1">
-                        {roundsCount > 1 && (
-                          <span className="text-[10px] text-slate-400 dark:text-muted-foreground shrink-0">{t("wb.roundLabel")} {i + 1}</span>
-                        )}
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          inputMode="decimal"
-                          placeholder={t("wb.kg")}
-                          value={w}
-                          onChange={(e) => updateResultDraft(r.id, i, e.target.value)}
-                          className="h-8 w-[76px] text-xs px-2"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  {r.registered_by_email && (
-                    <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
-                      {/* v3.03 — masked (see src/lib/emailMask.js): the
-                          organizer can still tell registrations apart by
-                          account without seeing another user's full email —
-                          the "Съобщение до участниците"/CSV-export flows
-                          below reach the real address server-side. */}
-                      <Mail className="w-3 h-3 shrink-0" /> {t("wb.registeredByAccount")}: {maskEmail(r.registered_by_email)}
-                    </p>
-                  )}
-                  {/* v2.90 — set only by the organizer's "assign to user"
-                      action (reassignParticipant) — the account that now
-                      actually owns this registration, when it differs from
-                      whoever originally submitted it above. */}
-                  {r.assigned_user_email && (
-                    <p className="text-xs text-cyan-700 dark:text-cyan-400 flex items-center gap-1 font-medium">
-                      <ArrowRightLeft className="w-3 h-3 shrink-0" /> {t("wb.assignedToAccount")}: {maskEmail(r.assigned_user_email)}
-                    </p>
-                  )}
-                  {r.participant_phone && (
-                    <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
-                      <Phone className="w-3 h-3 shrink-0" /> {r.participant_phone}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
-                      {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
-                    </span>
-                    {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
-                    {r.assigned_box != null && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-                        {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
-                      </span>
-                    )}
-                    {total > 0 && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        {t("wb.totalWeight")}: {total} {t("wb.kg")}
-                      </span>
-                    )}
-                    {/* v2.89 — overall standing (penalty points first, total
-                        weight as tie-break — see rankByPenaltyAndWeight),
-                        shown only once this participant has at least one
-                        scored round. */}
-                    {ranked && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-                        {t("comp.standings")} #{ranked.rank} · {ranked.penalty} {t("comp.pointsUnit")}
-                      </span>
-                    )}
-                  </div>
-                  {/* v2.89 — per-round placing within the participant's own
-                      sector (see roundSectorPoints); a round with no points
-                      yet (not weighed in yet for anyone in the sector, or
-                      no box assigned) simply isn't shown for that round. */}
-                  {roundsCount > 1 && roundPoints.some((p) => typeof p === "number") && (
-                    <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                      {roundPoints.map((p, i) => typeof p === "number" && (
-                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400">
-                          {t("wb.roundLabel")} {i + 1}: {p} {t("comp.pointsUnit")}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            };
+            // v3.14 — ParticipantRow itself moved to module scope (see its
+            // own comment there for why) — this closure only assembles the
+            // per-render data it needs as props now.
             return (
               <div className="space-y-4">
                 {/* v2.94 — manual drag-and-drop reordering: same
@@ -1968,7 +2209,22 @@ export default function WaterBodyManagement() {
                       {main.length === 0 ? (
                         <p className="text-xs text-slate-400">{t("wb.noParticipantsYet")}</p>
                       ) : (
-                        <div className="space-y-2">{main.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                        <div className="space-y-2">
+                          {main.map((r) => (
+                            <ParticipantRow
+                              key={r.id}
+                              r={r}
+                              seqById={seqById}
+                              rankedMap={rankedMap}
+                              roundPointsMatrix={roundPointsMatrix}
+                              roundsCount={roundsCount}
+                              resultsDraft={resultsDraft}
+                              updateResultDraft={updateResultDraft}
+                              openEditReg={openEditReg}
+                              t={t}
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
                     {reserve.length > 0 && (
@@ -1976,7 +2232,22 @@ export default function WaterBodyManagement() {
                         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
                           {t("comp.reserves")} ({reserve.length}/{participantsFor.max_reserves})
                         </h3>
-                        <div className="space-y-2">{reserve.map((r) => <ParticipantRow key={r.id} r={r} />)}</div>
+                        <div className="space-y-2">
+                          {reserve.map((r) => (
+                            <ParticipantRow
+                              key={r.id}
+                              r={r}
+                              seqById={seqById}
+                              rankedMap={rankedMap}
+                              roundPointsMatrix={roundPointsMatrix}
+                              roundsCount={roundsCount}
+                              resultsDraft={resultsDraft}
+                              updateResultDraft={updateResultDraft}
+                              openEditReg={openEditReg}
+                              t={t}
+                            />
+                          ))}
+                        </div>
                       </div>
                     )}
                   </>

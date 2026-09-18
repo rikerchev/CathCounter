@@ -559,6 +559,12 @@ export const en = {
     "wb.ibanCopied": "IBAN copied",
     "wb.sector": "Box",
 
+    "wb.deletePeriod": "Delete",
+    "wb.confirmDeletePeriod": "Are you sure you want to delete this reservation period? This action cannot be undone.",
+    "wb.periodDeleted": "Period deleted",
+    "wb.cannotDeleteHasReservations": "Can't delete — it still has active reservations",
+    "wb.viewList": "List",
+    "wb.viewCalendar": "Calendar",
     "comp.title": "Competitions",
     "comp.filterByLocation": "Filter by location",
     "comp.allCountries": "— All countries —",
