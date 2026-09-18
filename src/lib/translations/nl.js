@@ -1033,6 +1033,7 @@ export const nl = {
     "wb.cancelRegistration": "Deelnemer uitschrijven",
     "wb.confirmCancelRegistration": "Weet u zeker dat u de inschrijving van deze deelnemer wilt annuleren?",
     "wb.participantUpdated": "Deelnemer bijgewerkt",
+    "wb.resultsSaved": "Resultaten opgeslagen",
     "wb.registrationCancelled": "Inschrijving geannuleerd",
     "wb.assignedToAccount": "Toegewezen aan account",
     "wb.reassignToUser": "Toewijzen aan gebruiker",

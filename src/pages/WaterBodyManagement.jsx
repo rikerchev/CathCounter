@@ -82,10 +82,11 @@ export default function WaterBodyManagement() {
   });
   // v2.83 — editing one participant's name/phone/slot/payment status from
   // the organizer's participant list (see participantsFor below).
-  // v2.87 — catch_results is an array of per-round weight-input strings,
-  // sized to the competition's rounds_count (see openEditReg).
+  // v3.09 — catch_results moved out of this dialog entirely, into inline
+  // per-row inputs on the participants list itself (see resultsDraft) — this
+  // form is name/phone/slot/payment status only now.
   const [editingReg, setEditingReg] = useState(null);
-  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending", catch_results: [] });
+  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending" });
   // v2.90 — "assign this registration to a real system account" (see
   // reassignParticipant below): a single draft email input + busy flag,
   // reset whenever a different participant is opened for editing (openEditReg).
@@ -156,6 +157,20 @@ export default function WaterBodyManagement() {
   const [reorderParticipants, setReorderParticipants] = useState(false);
   const [participantsOrderDraft, setParticipantsOrderDraft] = useState(null);
   const [savingParticipantsOrder, setSavingParticipantsOrder] = useState(false);
+  // v3.09 — inline catch-results entry, right in the participants dialog:
+  // one weight-per-round draft, keyed by registration id, seeded from
+  // whatever's already saved whenever the dialog opens (openParticipants)
+  // and edited in place by each ParticipantRow's own inputs
+  // (updateResultDraft) — no separate per-participant dialog needed just to
+  // record a weigh-in anymore. Nothing here touches the server until the
+  // organizer presses "Запази" (saveParticipantsResults); "Отказ" just
+  // discards the draft, same as closing without saving. Also the reason the
+  // participants dialog itself no longer closes on an outside click/Escape
+  // (see its DialogContent props below) — losing an afternoon's worth of
+  // typed-in weights to a stray click was exactly the failure mode this
+  // whole feature exists to prevent.
+  const [resultsDraft, setResultsDraft] = useState({});
+  const [savingResults, setSavingResults] = useState(false);
 
   // v2.77 scoped this to the signed-in merchant's own water bodies only.
   // v2.78 — reverted that for admin accounts specifically: rkerchev@gmail.com
@@ -581,9 +596,35 @@ export default function WaterBodyManagement() {
     }
     try {
       const assignments = drawBoxes(mainRegs, sectors);
-      await base44.entities.CompetitionRegistration.bulkUpdate(
-        assignments.map((a) => ({ id: a.id, assigned_sector: a.sector, assigned_box: a.box }))
-      );
+      const assignedIds = new Set(assignments.map((a) => a.id));
+      // v3.09 — a (re)draw always wipes every participant's already-entered
+      // catch results, main AND reserve — the organizer's own request: once
+      // boxes are drawn again, whatever weights were typed in against the
+      // OLD sector layout no longer mean anything (sector penalty points
+      // are computed from assigned_sector, which just changed under them),
+      // so nothing stale should survive into the new draw. mainRegs get it
+      // bundled with their new assigned_sector/box; anyone else (reserves,
+      // or in principle any regs not in this draw) only gets touched if
+      // they actually have a result to clear.
+      const allRegs = regsFor(comp.id);
+      const updates = [
+        ...assignments.map((a) => ({ id: a.id, assigned_sector: a.sector, assigned_box: a.box, catch_results: null })),
+        ...allRegs.filter((r) => !assignedIds.has(r.id) && r.catch_results).map((r) => ({ id: r.id, catch_results: null })),
+      ];
+      await base44.entities.CompetitionRegistration.bulkUpdate(updates);
+      // Keep the inline results draft (see resultsDraft/openParticipants)
+      // in sync immediately if the participants dialog happens to be open
+      // for this same competition — otherwise its fields would keep
+      // showing the just-cleared old weights until the next full reopen.
+      if (participantsFor?.id === comp.id) {
+        const roundsCount = Math.max(1, comp.rounds_count || 1);
+        const blank = Array.from({ length: roundsCount }, () => "");
+        setResultsDraft((d) => {
+          const next = { ...d };
+          for (const r of allRegs) next[r.id] = blank.slice();
+          return next;
+        });
+      }
       toast({ title: t("wb.drawSuccess") });
       await load();
       // v3.07 — sent automatically, every time a draw runs (first draw AND
@@ -607,33 +648,18 @@ export default function WaterBodyManagement() {
     }
   }
 
-  // v2.87 — roundsCount comes from the competition this registration
-  // belongs to (participantsFor.rounds_count at the call site below), so the
-  // form shows exactly one weight input per round, prefilled from whatever
-  // was already recorded (parseCatchResults) and padded with blanks for any
-  // round not weighed in yet.
-  function openEditReg(r, roundsCount) {
+  // v3.09 — no longer takes/uses roundsCount or touches catch_results at
+  // all (see resultsDraft/updateResultDraft/saveParticipantsResults above) —
+  // this is purely name/phone/slot/payment status now.
+  function openEditReg(r) {
     setEditingReg(r);
-    const results = parseCatchResults(r.catch_results);
-    const catchResults = Array.from({ length: Math.max(1, roundsCount || 1) }, (_, i) => (
-      results[i] != null ? String(results[i]) : ""
-    ));
     setRegEditForm({
       participant_name: r.participant_name || "",
       participant_phone: r.participant_phone || "",
       slot_type: r.slot_type || "main",
       payment_status: r.payment_status || "pending",
-      catch_results: catchResults,
     });
     setReassignEmail("");
-  }
-
-  function updateRegEditCatchResult(index, value) {
-    setRegEditForm((f) => {
-      const catch_results = f.catch_results.slice();
-      catch_results[index] = value;
-      return { ...f, catch_results };
-    });
   }
 
   async function saveRegEdit() {
@@ -644,12 +670,11 @@ export default function WaterBodyManagement() {
         participant_phone: regEditForm.participant_phone,
         slot_type: regEditForm.slot_type,
         payment_status: regEditForm.payment_status,
-        catch_results: stringifyCatchResults(regEditForm.catch_results),
         // v2.94 — editing a participant used to also bump list_order_at,
         // pushing them to the end of the list (v2.90's original behavior).
-        // The organizer asked for that to stop: editing name/phone/status/
-        // results no longer touches their position — list_order_at is now
-        // ONLY ever set by the manual drag-and-drop reorder below
+        // The organizer asked for that to stop: editing name/phone/status
+        // no longer touches their position — list_order_at is now ONLY
+        // ever set by the manual drag-and-drop reorder below
         // (saveManualOrder), so a participant's spot in the list stays put
         // through any number of edits.
       });
@@ -877,12 +902,69 @@ export default function WaterBodyManagement() {
     setParticipantsFor(comp);
     setReorderParticipants(false);
     setParticipantsOrderDraft(null);
+    // v3.09 — seed the inline results draft from what's actually saved,
+    // one weight-string array per registration (blank = not weighed in
+    // yet), same shape openEditReg used to build for the old per-participant
+    // dialog.
+    const roundsCount = Math.max(1, comp.rounds_count || 1);
+    const draft = {};
+    regsFor(comp.id).forEach((r) => {
+      const results = parseCatchResults(r.catch_results);
+      draft[r.id] = Array.from({ length: roundsCount }, (_, i) => (
+        results[i] != null ? String(results[i]) : ""
+      ));
+    });
+    setResultsDraft(draft);
   }
 
   function closeParticipants() {
     setParticipantsFor(null);
     setReorderParticipants(false);
     setParticipantsOrderDraft(null);
+    setResultsDraft({});
+  }
+
+  // v3.09 — one round's weight input for one participant, edited in place
+  // in the participants list (see ParticipantRow below). Purely local until
+  // "Запази" (saveParticipantsResults) actually writes it.
+  function updateResultDraft(regId, index, value) {
+    setResultsDraft((d) => {
+      const arr = (d[regId] || []).slice();
+      arr[index] = value;
+      return { ...d, [regId]: arr };
+    });
+  }
+
+  // v3.09 — commits every changed inline result in one bulk call (only
+  // registrations whose draft actually differs from what's saved, so an
+  // organizer who only touched one participant's weight doesn't churn
+  // updated_at on everyone else's row too), then closes the dialog — same
+  // "Запази"/"Отказ" pair, both of which close it, since it no longer closes
+  // on outside click/Escape (see the DialogContent props below).
+  async function saveParticipantsResults() {
+    if (!participantsFor) return;
+    setSavingResults(true);
+    try {
+      const regs = regsFor(participantsFor.id);
+      const updates = [];
+      for (const r of regs) {
+        const draft = resultsDraft[r.id];
+        if (!draft) continue;
+        const newStr = stringifyCatchResults(draft);
+        const oldStr = JSON.stringify(parseCatchResults(r.catch_results));
+        if (newStr !== oldStr) updates.push({ id: r.id, catch_results: newStr });
+      }
+      if (updates.length > 0) {
+        await base44.entities.CompetitionRegistration.bulkUpdate(updates);
+        toast({ title: t("wb.resultsSaved") });
+        await load();
+      }
+      closeParticipants();
+    } catch (e) {
+      toast({ title: t("wb.errorSaving"), description: e.message, variant: "destructive" });
+    } finally {
+      setSavingResults(false);
+    }
   }
 
   // v2.89 — "generate on request" image export for the standings dialog,
@@ -1634,8 +1716,22 @@ export default function WaterBodyManagement() {
           someone registers a family member/friend under a different name
           than their own account, so the organizer can still tell who to
           contact. */}
-      <Dialog open={!!participantsFor} onOpenChange={(o) => !o && closeParticipants()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+      {/* v3.09 — deliberately does NOT close on outside click/Escape/the
+          usual corner "X" (onInteractionOutside/onEscapeKeyDown both
+          preventDefault, hideCloseButton on DialogContent — see
+          src/components/ui/dialog.jsx) now that this dialog holds unsaved
+          inline catch-results edits (resultsDraft): a stray click used to
+          silently discard whatever was just typed in. "Запази"/"Отказ" in
+          the footer below are now the only way out, and onOpenChange itself
+          is a no-op for the same reason — nothing should be able to close
+          this from outside those two explicit actions. */}
+      <Dialog open={!!participantsFor} onOpenChange={() => {}}>
+        <DialogContent
+          className="max-h-[85vh] overflow-y-auto"
+          hideCloseButton
+          onInteractionOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-cyan-600 shrink-0" /> <span className="break-words">{t("wb.participants")} — {participantsFor?.title}</span>
@@ -1662,17 +1758,33 @@ export default function WaterBodyManagement() {
             const main = orderedRegs.filter((r) => r.slot_type !== "reserve");
             const reserve = orderedRegs.filter((r) => r.slot_type === "reserve");
             const roundsCount = Math.max(1, participantsFor.rounds_count || 1);
+            // v3.09 — same live-preview trick the old per-participant editor
+            // used to have (its own draftRegs, now removed along with that
+            // dialog): substitute each registration's catch_results with
+            // whatever's currently typed into resultsDraft (see
+            // ParticipantRow's inline inputs below), falling back to the
+            // saved value for anything not touched yet this session — so
+            // round points and standings below update live as the organizer
+            // types, not only after pressing "Запази".
+            const regsWithDraft = regs.map((r) => (
+              resultsDraft[r.id] ? { ...r, catch_results: stringifyCatchResults(resultsDraft[r.id]) } : r
+            ));
             // v2.89 — per-round sector points (one Map per round index) and
             // the overall penalty-points ranking, both computed once here
             // from the SAME regs list every ParticipantRow reads from below,
             // so every row's numbers are always consistent with each other.
-            const roundPointsMatrix = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(regs, i));
-            const rankedMap = new Map(rankByPenaltyAndWeight(regs, roundsCount).map((x) => [x.id, x]));
+            const roundPointsMatrix = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(regsWithDraft, i));
+            const rankedMap = new Map(rankByPenaltyAndWeight(regsWithDraft, roundsCount).map((x) => [x.id, x]));
             const ParticipantRow = ({ r }) => {
+              // v3.09 — the inline draft (falls back to what's saved for a
+              // row not touched yet this session — see openParticipants).
+              const draftResults = resultsDraft[r.id] || Array.from({ length: roundsCount }, () => "");
               // v2.87 — total across every round with a recorded weight;
               // 0 (no results yet) renders nothing, same treatment as the
               // draw badge below (only shown once there's something to show).
-              const total = totalCatchWeight(parseCatchResults(r.catch_results));
+              // v3.09 — reads the live draft, not just the saved value, so
+              // it updates as the organizer types.
+              const total = totalCatchWeight(draftResults.map((v) => (v === "" ? null : Number(v))));
               const ranked = rankedMap.get(r.id);
               const roundPoints = roundPointsMatrix.map((m) => m.get(r.id));
               return (
@@ -1681,9 +1793,34 @@ export default function WaterBodyManagement() {
                     <p className="text-sm font-medium text-slate-800 dark:text-foreground">
                       <span className="text-slate-400 dark:text-muted-foreground font-normal">#{seqById.get(r.id)}</span> {r.participant_name}
                     </p>
-                    <Button variant="ghost" size="icon" onClick={() => openEditReg(r, roundsCount)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
+                    <Button variant="ghost" size="icon" onClick={() => openEditReg(r)} className="w-7 h-7 shrink-0 -mt-1 -mr-1 text-slate-400 hover:text-cyan-600">
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
+                  </div>
+                  {/* v3.09 — the whole point of this release: a weight input
+                      per round, right here on the participant's own row, so
+                      recording a weigh-in no longer needs the pencil button/
+                      a separate dialog at all. Purely local (resultsDraft)
+                      until "Запази" in the dialog's own footer below — see
+                      saveParticipantsResults. */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-0.5 pb-0.5">
+                    {draftResults.map((w, i) => (
+                      <div key={i} className="flex items-center gap-1">
+                        {roundsCount > 1 && (
+                          <span className="text-[10px] text-slate-400 dark:text-muted-foreground shrink-0">{t("wb.roundLabel")} {i + 1}</span>
+                        )}
+                        <Input
+                          type="number"
+                          step="any"
+                          min="0"
+                          inputMode="decimal"
+                          placeholder={t("wb.kg")}
+                          value={w}
+                          onChange={(e) => updateResultDraft(r.id, i, e.target.value)}
+                          className="h-8 w-[76px] text-xs px-2"
+                        />
+                      </div>
+                    ))}
                   </div>
                   {r.registered_by_email && (
                     <p className="text-xs text-slate-500 dark:text-muted-foreground flex items-center gap-1">
@@ -1843,7 +1980,13 @@ export default function WaterBodyManagement() {
             );
           })()}
           <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={() => closeParticipants()} className="min-h-[44px]">{t("comp.close")}</Button>
+            {/* v3.09 — replaces the old plain "Затвори": since the dialog no
+                longer closes on outside click (see the Dialog/DialogContent
+                props above), these two are now the only way to leave it.
+                "Отказ" discards resultsDraft outright (closeParticipants
+                clears it); "Запази" is last in DOM order/rightmost, the
+                dialog's primary action. */}
+            <Button variant="outline" onClick={() => closeParticipants()} className="min-h-[44px]">{t("wb.cancel")}</Button>
             {/* v3.03 — one email per registering account, listing every
                 participant they registered — see sendParticipantsMessage. */}
             <Button
@@ -1905,6 +2048,18 @@ export default function WaterBodyManagement() {
                 {t("wb.exportDrawResults")}
               </Button>
             )}
+            {/* v3.09 — commits every inline catch-result edit at once (see
+                resultsDraft/saveParticipantsResults) and closes the dialog.
+                Last/rightmost — this dialog's actual primary action now that
+                it can't be dismissed any other way. */}
+            <Button
+              onClick={saveParticipantsResults}
+              disabled={savingResults}
+              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
+            >
+              {savingResults && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+              {t("common.save")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2056,52 +2211,6 @@ export default function WaterBodyManagement() {
                 </Select>
               </div>
             </div>
-            {/* v2.87 — one weight input per round ("манш"), sized to the
-                competition's rounds_count (see openEditReg). Blank = that
-                round hasn't been weighed in yet, kept distinct from 0 kg.
-                v2.89 — each round also shows this participant's LIVE
-                sector points (draftRegs below substitutes the currently-
-                typed, not-yet-saved values for this one registration, so
-                the points update as the organizer types instead of only
-                after "Запази"), plus a live overall summary. */}
-            {regEditForm.catch_results.length > 0 && editingReg && (() => {
-              const draftRegs = regsFor(editingReg.competition_id).map((r) => (
-                r.id === editingReg.id
-                  ? { ...r, catch_results: stringifyCatchResults(regEditForm.catch_results) }
-                  : r
-              ));
-              const roundsCount = regEditForm.catch_results.length;
-              const roundPoints = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(draftRegs, i).get(editingReg.id));
-              const overall = rankByPenaltyAndWeight(draftRegs, roundsCount).find((x) => x.id === editingReg.id);
-              return (
-                <div className="space-y-1.5">
-                  <Label>{t("wb.catchResultsLabel")}</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {regEditForm.catch_results.map((w, i) => (
-                      <div key={i} className="space-y-1">
-                        <span className="text-xs text-slate-400">
-                          {t("wb.roundLabel")} {i + 1}
-                          {typeof roundPoints[i] === "number" && ` · ${roundPoints[i]} ${t("comp.pointsUnit")}`}
-                        </span>
-                        <Input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={w}
-                          onChange={(e) => updateRegEditCatchResult(i, e.target.value)}
-                          placeholder={t("wb.kg")}
-                          className="min-h-[44px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-xs text-slate-400">
-                    {t("wb.totalWeight")}: {totalCatchWeight(regEditForm.catch_results.map((v) => (v === "" ? null : Number(v))))} {t("wb.kg")}
-                    {overall && ` · ${t("comp.penaltyPoints")}: ${overall.penalty} ${t("comp.pointsUnit")} · ${t("comp.standings")} #${overall.rank}`}
-                  </p>
-                </div>
-              );
-            })()}
             {/* v2.90 — assign this registration to a real system account
                 (reassignParticipant): typing an existing account's email and
                 pressing "Назначи" moves created_by_id to them, so that

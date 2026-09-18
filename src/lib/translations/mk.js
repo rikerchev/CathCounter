@@ -1033,6 +1033,7 @@ export const mk = {
     "wb.cancelRegistration": "Отпиши учесник",
     "wb.confirmCancelRegistration": "Дали сте сигурни дека сакате да ја отпишете пријавата на овој учесник?",
     "wb.participantUpdated": "Учесникот е ажуриран",
+    "wb.resultsSaved": "Резултатите се зачувани",
     "wb.registrationCancelled": "Пријавата е отпишана",
     "wb.assignedToAccount": "Доделено на сметка",
     "wb.reassignToUser": "Додели на корисник",

@@ -1033,6 +1033,7 @@ export const it = {
     "wb.cancelRegistration": "Annulla iscrizione partecipante",
     "wb.confirmCancelRegistration": "Sei sicuro di voler annullare l'iscrizione di questo partecipante?",
     "wb.participantUpdated": "Partecipante aggiornato",
+    "wb.resultsSaved": "Risultati salvati",
     "wb.registrationCancelled": "Iscrizione annullata",
     "wb.assignedToAccount": "Assegnato all'account",
     "wb.reassignToUser": "Assegna a un utente",

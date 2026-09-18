@@ -1033,6 +1033,7 @@ export const uk = {
     "wb.cancelRegistration": "Відписати учасника",
     "wb.confirmCancelRegistration": "Ви впевнені, що хочете скасувати реєстрацію цього учасника?",
     "wb.participantUpdated": "Учасника оновлено",
+    "wb.resultsSaved": "Результати збережено",
     "wb.registrationCancelled": "Реєстрацію скасовано",
     "wb.assignedToAccount": "Призначено обліковому запису",
     "wb.reassignToUser": "Призначити користувачу",

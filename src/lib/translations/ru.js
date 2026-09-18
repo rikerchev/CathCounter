@@ -1033,6 +1033,7 @@ export const ru = {
     "wb.cancelRegistration": "Отписать участника",
     "wb.confirmCancelRegistration": "Вы уверены, что хотите отменить регистрацию этого участника?",
     "wb.participantUpdated": "Участник обновлён",
+    "wb.resultsSaved": "Результаты сохранены",
     "wb.registrationCancelled": "Регистрация отменена",
     "wb.assignedToAccount": "Назначено аккаунту",
     "wb.reassignToUser": "Назначить пользователю",

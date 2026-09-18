@@ -469,6 +469,7 @@ export const bg = {
     "wb.cancelRegistration": "Отпиши участник",
     "wb.confirmCancelRegistration": "Сигурни ли сте, че искате да отпишете този участник?",
     "wb.participantUpdated": "Участникът е обновен",
+    "wb.resultsSaved": "Резултатите са запазени",
     "wb.registrationCancelled": "Регистрацията е отписана",
     // v2.90 — assign a registration to a real system account (organizer's
     // participant-edit dialog); "assignedToAccount" also labels the badge

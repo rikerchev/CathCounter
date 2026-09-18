@@ -1033,6 +1033,7 @@ export const sr = {
     "wb.cancelRegistration": "Odjavi učesnika",
     "wb.confirmCancelRegistration": "Da li ste sigurni da želite da otkažete prijavu ovog učesnika?",
     "wb.participantUpdated": "Učesnik je ažuriran",
+    "wb.resultsSaved": "Резултати су сачувани",
     "wb.registrationCancelled": "Prijava je otkazana",
     "wb.assignedToAccount": "Dodeljeno nalogu",
     "wb.reassignToUser": "Dodeli korisniku",

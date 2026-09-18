@@ -1033,6 +1033,7 @@ export const tr = {
     "wb.cancelRegistration": "Katılımcı kaydını sil",
     "wb.confirmCancelRegistration": "Bu katılımcının kaydını iptal etmek istediğinizden emin misiniz?",
     "wb.participantUpdated": "Katılımcı güncellendi",
+    "wb.resultsSaved": "Sonuçlar kaydedildi",
     "wb.registrationCancelled": "Kayıt iptal edildi",
     "wb.assignedToAccount": "Hesaba atandı",
     "wb.reassignToUser": "Kullanıcıya ata",

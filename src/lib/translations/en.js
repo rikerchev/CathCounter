@@ -482,6 +482,7 @@ export const en = {
     "wb.cancelRegistration": "Cancel registration",
     "wb.confirmCancelRegistration": "Are you sure you want to cancel this participant's registration?",
     "wb.participantUpdated": "Participant updated",
+    "wb.resultsSaved": "Results saved",
     "wb.registrationCancelled": "Registration cancelled",
     // v2.90 — assign a registration to a real system account (organizer's
     // participant-edit dialog); "assignedToAccount" also labels the badge

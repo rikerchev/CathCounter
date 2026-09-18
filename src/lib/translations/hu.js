@@ -1033,6 +1033,7 @@ export const hu = {
     "wb.cancelRegistration": "Résztvevő kijelentkeztetése",
     "wb.confirmCancelRegistration": "Biztosan visszavonja ennek a résztvevőnek a regisztrációját?",
     "wb.participantUpdated": "A résztvevő frissítve",
+    "wb.resultsSaved": "Az eredmények mentve",
     "wb.registrationCancelled": "A regisztráció visszavonva",
     "wb.assignedToAccount": "Fiókhoz rendelve",
     "wb.reassignToUser": "Hozzárendelés felhasználóhoz",

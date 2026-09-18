@@ -1033,6 +1033,7 @@ export const cs = {
     "wb.cancelRegistration": "Odhlásit účastníka",
     "wb.confirmCancelRegistration": "Opravdu chcete odhlásit registraci tohoto účastníka?",
     "wb.participantUpdated": "Účastník byl aktualizován",
+    "wb.resultsSaved": "Výsledky byly uloženy",
     "wb.registrationCancelled": "Registrace byla zrušena",
     "wb.assignedToAccount": "Přiřazeno k účtu",
     "wb.reassignToUser": "Přiřadit uživateli",

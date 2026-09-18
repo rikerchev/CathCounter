@@ -1033,6 +1033,7 @@ export const ro = {
     "wb.cancelRegistration": "Retrage participantul",
     "wb.confirmCancelRegistration": "Sigur doriți să anulați înscrierea acestui participant?",
     "wb.participantUpdated": "Participantul a fost actualizat",
+    "wb.resultsSaved": "Rezultatele au fost salvate",
     "wb.registrationCancelled": "Înscrierea a fost anulată",
     "wb.assignedToAccount": "Atribuit contului",
     "wb.reassignToUser": "Atribuie unui utilizator",
