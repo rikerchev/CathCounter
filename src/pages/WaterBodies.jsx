@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
-import { Waves, PlusCircle, MapPin, Phone, Fish, ShieldCheck } from "lucide-react";
+import { Waves, PlusCircle, MapPin, Phone, Fish, ShieldCheck, Clock } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 
@@ -106,6 +106,11 @@ export default function WaterBodies() {
                 {w.contact_phone && (
                   <span className="flex items-center gap-1">
                     <Phone className="w-3 h-3" /> {w.contact_phone}
+                  </span>
+                )}
+                {w.working_hours && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" /> {w.working_hours}
                   </span>
                 )}
               </div>

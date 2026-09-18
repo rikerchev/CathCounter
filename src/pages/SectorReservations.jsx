@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
-import { CalendarCheck, Waves, MapPin, Users, Lock } from "lucide-react";
+import { CalendarCheck, Waves, MapPin, Users, Lock, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,12 @@ export default function SectorReservations() {
   // numbers ("1", "2", ...) when the owner hasn't set custom box_labels, so
   // old availabilities keep working exactly as before.
   const [sectorLabel, setSectorLabel] = useState("");
+  // v3.06 — was always silently booked for the availability's start date
+  // (avail.date), even when the owner opened a whole date RANGE
+  // (date..end_date); the customer had no way to say which day within that
+  // range they actually mean. Defaults to the start date, shown/editable
+  // only when the availability actually spans more than one day.
+  const [resDate, setResDate] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -86,6 +92,7 @@ export default function SectorReservations() {
   function openReserve(avail, wb) {
     setReserveFor({ avail, wb });
     setSectorLabel("");
+    setResDate(avail.date);
     setName(user?.full_name || "");
     setPhone("");
   }
@@ -96,6 +103,10 @@ export default function SectorReservations() {
     const labels = boxLabelsFor(avail);
     if (!sectorLabel || !labels.includes(sectorLabel)) {
       toast({ title: t("sr.invalidSector"), description: t("sr.selectSectorRange"), variant: "destructive" });
+      return;
+    }
+    if (!resDate || resDate < avail.date || resDate > (avail.end_date || avail.date)) {
+      toast({ title: t("sr.invalidSector"), description: t("sr.selectDateRange"), variant: "destructive" });
       return;
     }
     const taken = takenSectors(avail.id);
@@ -114,7 +125,7 @@ export default function SectorReservations() {
         water_body_id: wb.id,
         water_body_name: wb.name,
         availability_id: avail.id,
-        date: avail.date,
+        date: resDate,
         sector_number: sectorLabel,
         reserved_by_name: name,
         reserved_by_phone: phone,
@@ -203,6 +214,15 @@ export default function SectorReservations() {
                                 </span>
                               )}
                             </div>
+                            {/* v3.06 — per-opening working hours (pre-filled
+                                from the water body's own when the owner
+                                opened this period, editable per period —
+                                see WaterBodyManagement.jsx). */}
+                            {avail.working_hours && (
+                              <div className="flex items-center gap-1 mt-1 text-xs text-slate-500 dark:text-muted-foreground">
+                                <Clock className="w-3 h-3" /> {avail.working_hours}
+                              </div>
+                            )}
                           </div>
                           {free > 0 ? (
                             <Button
@@ -244,12 +264,40 @@ export default function SectorReservations() {
           {reserveFor && (
             <div className="space-y-3">
               <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 text-sm">
-                <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.date")}:</span> {formatDate(reserveFor.avail.date, lang)}</p>
+                {/* v3.06 — a single-day opening still just shows its one
+                    date as plain text (unchanged); a multi-day opening
+                    (end_date > date) shows the picker below instead, so this
+                    line only covers the single-day case now. */}
+                {reserveFor.avail.date === (reserveFor.avail.end_date || reserveFor.avail.date) && (
+                  <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.date")}:</span> {formatDate(reserveFor.avail.date, lang)}</p>
+                )}
                 <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.sectors")}:</span> {reserveFor.avail.total_sectors}</p>
                 {reserveFor.avail.fee_per_person > 0 && (
                   <p><span className="text-slate-500 dark:text-muted-foreground">{t("sr.fee")}:</span> <span className="text-emerald-600 font-medium">{reserveFor.avail.fee_per_person} €</span></p>
                 )}
+                {reserveFor.avail.working_hours && (
+                  <p><span className="text-slate-500 dark:text-muted-foreground">{t("common.workingHours")}:</span> {reserveFor.avail.working_hours}</p>
+                )}
               </div>
+              {/* v3.06 — was completely missing: the customer had no way to
+                  say which day within a multi-day opening (date..end_date)
+                  their reservation is for, so it was always silently booked
+                  for the start date. Only shown when the opening actually
+                  spans more than one day — a single-day opening keeps the
+                  plain text line above, unchanged. */}
+              {reserveFor.avail.end_date && reserveFor.avail.end_date !== reserveFor.avail.date && (
+                <div className="space-y-1.5">
+                  <Label>{t("sr.date")} *</Label>
+                  <Input
+                    type="date"
+                    value={resDate}
+                    min={reserveFor.avail.date}
+                    max={reserveFor.avail.end_date}
+                    onChange={(e) => setResDate(e.target.value)}
+                    className="min-h-[44px]"
+                  />
+                </div>
+              )}
               {reserveFor.wb.scheme_image_url && (
                 <div className="space-y-1.5">
                   <Label>{t("wb.schemeImage")}</Label>

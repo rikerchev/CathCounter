@@ -31,7 +31,7 @@ export default function TraderVenues() {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "" };
+  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", working_hours: "" };
   const [form, setForm] = useState(emptyForm);
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -62,6 +62,7 @@ export default function TraderVenues() {
       contact_email: v.contact_email || "",
       website: v.website || "",
       logo_url: v.logo_url || "",
+      working_hours: v.working_hours || "",
     });
     setShowForm(true);
   }
@@ -79,6 +80,7 @@ export default function TraderVenues() {
       contact_email: form.contact_email,
       website: form.website,
       logo_url: form.logo_url,
+      working_hours: form.working_hours,
     };
     try {
       await base44.entities.Venue.update(editingVenue.id, payload);
@@ -221,6 +223,15 @@ export default function TraderVenues() {
             <div className="space-y-1.5">
               <Label>{t("tv.logo")}</Label>
               <Input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))} placeholder="https://" className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("common.workingHours")}</Label>
+              <Input
+                value={form.working_hours}
+                onChange={(e) => setForm((f) => ({ ...f, working_hours: e.target.value }))}
+                placeholder={t("common.workingHoursPlaceholder")}
+                className="min-h-[44px]"
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>

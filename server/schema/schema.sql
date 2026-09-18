@@ -663,3 +663,18 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
 -- and src/lib/competitionSectors.js. Safe to re-run. Applied via the same
 -- "Приложи обновление" admin button as the migrations above.
 ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS sectors_config TEXT;
+
+-- v3.06: free-text working hours on water bodies and commercial venues
+-- (e.g. "06:00 - 20:00" or "Денонощно"), a per-opening working-hours
+-- override on sector_availabilities (pre-filled from the water body's own,
+-- editable per period), and a remembered last-used {name, boxes} sector/box
+-- layout per water body (default_sectors_config, same JSON model as
+-- sector_availabilities.sectors_config) so opening a new period pre-fills
+-- the sector editor instead of resetting to a blank default every time. See
+-- WaterBodyEditDialog.jsx, TraderVenues.jsx, WaterBodyManagement.jsx. Safe
+-- to re-run. Applied via the same "Приложи обновление" admin button as the
+-- migrations above.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS working_hours TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS working_hours TEXT;
+ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS working_hours TEXT;
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS default_sectors_config TEXT;

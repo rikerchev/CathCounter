@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Store, MapPin, Phone, Mail, Globe, Image as ImageIcon, PlusCircle } from "lucide-react";
+import { Store, MapPin, Phone, Mail, Globe, Image as ImageIcon, PlusCircle, Clock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -87,6 +87,11 @@ export default function CommercialVenues() {
                   {v.address && (
                     <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
                       <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{v.address}</span>
+                    </div>
+                  )}
+                  {v.working_hours && (
+                    <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
+                      <Clock className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{v.working_hours}</span>
                     </div>
                   )}
                 </div>

@@ -14,6 +14,7 @@ const EMPTY = {
   name: "", owner_name: "", contact_phone: "", contact_email: "",
   location: "", country: "", latitude: "", longitude: "", usage_conditions: "",
   fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", region: "",
+  working_hours: "",
 };
 
 export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved }) {
@@ -40,6 +41,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: wb.capacity || "",
         fee_per_person: wb.fee_per_person != null ? String(wb.fee_per_person) : "",
         logo_url: wb.logo_url || "",
+        working_hours: wb.working_hours || "",
       });
     }
   }, [wb]);
@@ -95,6 +97,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: form.capacity,
         fee_per_person: form.fee_per_person ? Number(form.fee_per_person) : 0,
         logo_url: form.logo_url || null,
+        working_hours: form.working_hours || null,
       });
     } finally {
       setSaving(false);
@@ -195,6 +198,15 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
           <div className="space-y-1.5">
             <Label>{t("wbd.logoUrl")}</Label>
             <Input value={form.logo_url} onChange={(e) => set("logo_url", e.target.value)} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("common.workingHours")}</Label>
+            <Input
+              value={form.working_hours}
+              onChange={(e) => set("working_hours", e.target.value)}
+              placeholder={t("common.workingHoursPlaceholder")}
+              className="min-h-[44px]"
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="min-h-[44px]">{t("wbd.cancel")}</Button>

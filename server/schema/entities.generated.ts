@@ -413,6 +413,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "sectors_config", type: "string", required: false },
       { name: "fee_per_person", type: "number", required: false },
       { name: "status", type: "enum", required: false, enumValues: ["open", "closed"] },
+      // v3.06 — free-text working hours for THIS opening specifically
+      // (e.g. "06:00 - 20:00" or "Денонощно"), pre-filled from the water
+      // body's own WaterBody.working_hours when the opening is created but
+      // editable per period (a holiday/competition weekend can run
+      // different hours) — see WaterBodyManagement.jsx's
+      // createSectorAvailability and SectorReservations.jsx.
+      { name: "working_hours", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -548,6 +555,19 @@ export const ENTITIES: Record<string, EntityDef> = {
       // storage as catch photos and ad logos — not the optional S3
       // integration, so it works with zero extra setup.
       { name: "scheme_image_url", type: "string", required: false },
+      // v3.06 — free-text working hours (e.g. "06:00 - 20:00" or
+      // "Денонощно"), shown publicly wherever the water body is shown
+      // (Competitions.jsx, SectorReservations.jsx, WaterBodies.jsx). See
+      // WaterBodyEditDialog.jsx.
+      { name: "working_hours", type: "string", required: false },
+      // v3.06 — the last-used {name, boxes} sector/box layout for this water
+      // body (same JSON model as SectorAvailability.sectors_config — see
+      // src/lib/sectorLabels.js/competitionSectors.js), so opening a NEW
+      // sector availability pre-fills the sector editor with it instead of
+      // resetting to a blank default every time. Updated every time a new
+      // availability is opened — see WaterBodyManagement.jsx's
+      // openSectorForm/createSectorAvailability.
+      { name: "default_sectors_config", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -582,6 +602,9 @@ export const ENTITIES: Record<string, EntityDef> = {
       // are created with status: "pending" explicitly by the client
       // (MerchantRequest.jsx), same pattern as WaterBody above.
       { name: "status", type: "enum", required: false, enumValues: ["pending", "approved", "rejected"] },
+      // v3.06 — free-text working hours (e.g. "09:00 - 18:00"), shown
+      // publicly on CommercialVenues.jsx. See TraderVenues.jsx.
+      { name: "working_hours", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

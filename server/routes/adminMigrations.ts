@@ -248,6 +248,30 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS sectors_config TEXT`);
     },
   },
+  "v3.06-venue-hours-and-sector-defaults": {
+    label: "v3.06 — Работно време на обекти + запомнени сектори/боксове",
+    run: async () => {
+      // Free-text working hours (e.g. "06:00 - 20:00" or "Денонощно"),
+      // shown publicly on water bodies (Competitions.jsx/
+      // SectorReservations.jsx/WaterBodies.jsx) and commercial venues
+      // (CommercialVenues.jsx). See WaterBodyEditDialog.jsx / TraderVenues.jsx.
+      await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS working_hours TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS working_hours TEXT`);
+      // Per-opening override for the water body's own working_hours above —
+      // pre-filled from it when a new SectorAvailability is opened
+      // (WaterBodyManagement.jsx), editable per period since a specific
+      // opening (e.g. a holiday, a competition weekend) can run different
+      // hours than usual. Shown to whoever reserves that period
+      // (SectorReservations.jsx).
+      await sql.unsafe(`ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS working_hours TEXT`);
+      // Remembers the last-used {name, boxes} sector/box layout for a water
+      // body (see src/lib/sectorLabels.js's stringifySectorsConfig), so
+      // opening a NEW SectorAvailability pre-fills the sector editor
+      // instead of resetting to a blank 10-box default every time — see
+      // WaterBodyManagement.jsx's openSectorForm/createSectorAvailability.
+      await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS default_sectors_config TEXT`);
+    },
+  },
 };
 
 /**
@@ -366,6 +390,15 @@ export async function handleAdminMigrationsRoute(
           WHERE table_name = 'sector_availabilities' AND column_name = 'sectors_config'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.06-venue-hours-and-sector-defaults") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE (table_name = 'water_bodies' AND column_name IN ('working_hours', 'default_sectors_config'))
+             OR (table_name = 'venues' AND column_name = 'working_hours')
+             OR (table_name = 'sector_availabilities' AND column_name = 'working_hours')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 4;
       }
       out[id] = { label: m.label, applied };
     }

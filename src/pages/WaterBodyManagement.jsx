@@ -125,7 +125,7 @@ export default function WaterBodyManagement() {
   // uses (see EMPTY_SECTOR_ROW/compForm.sectors above), so a water body's
   // general reservation places can also be grouped into named sectors, not
   // just one flat list of boxes.
-  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", fee_per_person: "", sectors: [EMPTY_SECTOR_ROW] });
+  const [sectorForm, setSectorForm] = useState({ date: "", end_date: "", fee_per_person: "", working_hours: "", sectors: [EMPTY_SECTOR_ROW] });
   // v2.96 — scheme/layout reference photo, uploaded from the same sector
   // declaration dialog but saved straight onto the WaterBody itself (see
   // uploadSchemeImage below and the column comment in
@@ -334,16 +334,31 @@ export default function WaterBodyManagement() {
 
   function openSectorForm(wb) {
     setSectorFor(wb);
+    // v3.06 — was always reset to a blank 10-box default every time; now
+    // pre-fills from the water body's own last-used layout
+    // (WaterBody.default_sectors_config, saved by createSectorAvailability
+    // below every time a new opening is created) so an owner who reopens
+    // reservations for the same water body doesn't have to re-type the same
+    // sectors/boxes each time — they can still edit or replace it here
+    // before saving. Falls back to the same blank 10-box default as before
+    // when the water body has never had one saved yet.
+    const remembered = parseSectorsConfig(wb.default_sectors_config);
     const n = 10;
+    const sectors = remembered.length > 0
+      ? remembered.map((s) => ({
+          name: s.name || "",
+          boxCount: String((s.boxes || []).length),
+          boxes: [...(s.boxes || [])],
+        }))
+      : [{ name: "", boxCount: String(n), boxes: Array.from({ length: n }, (_, i) => String(i + 1)) }];
     setSectorForm({
       date: "",
       end_date: "",
       fee_per_person: wb.fee_per_person ? String(wb.fee_per_person) : "",
-      // Default: one unnamed sector of 10 sequential boxes — same starting
-      // point a pre-v3.04 declaration had, so an owner who doesn't need
-      // named groups sees no extra complexity; they can still rename it or
-      // add more sector rows (see addResSectorRow) if they want groups.
-      sectors: [{ name: "", boxCount: String(n), boxes: Array.from({ length: n }, (_, i) => String(i + 1)) }],
+      // v3.06 — pre-filled from the water body's own working hours, editable
+      // per period below.
+      working_hours: wb.working_hours || "",
+      sectors,
     });
     setShowSectorForm(true);
   }
@@ -438,8 +453,21 @@ export default function WaterBodyManagement() {
         total_sectors: total,
         fee_per_person: sectorForm.fee_per_person ? Number(sectorForm.fee_per_person) : 0,
         sectors_config: stringifySectorsConfig(sectorForm.sectors),
+        working_hours: sectorForm.working_hours || "",
         status: "open",
       });
+      // v3.06 — best-effort: remember this layout on the water body itself
+      // so the next time reservations are opened for it, openSectorForm
+      // above pre-fills from it instead of resetting to a blank default.
+      // Never blocks/fails the actual opening above if this write can't go
+      // through yet (e.g. the v3.06 migration not applied on this DB yet).
+      try {
+        await base44.entities.WaterBody.update(sectorFor.id, {
+          default_sectors_config: stringifySectorsConfig(sectorForm.sectors),
+        });
+      } catch (err) {
+        console.error("Failed to remember sector layout on water body:", err);
+      }
       toast({ title: t("wb.sectorsOpened") });
       setShowSectorForm(false);
       await load();
@@ -1343,6 +1371,8 @@ export default function WaterBodyManagement() {
                       />
                       <Input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         min="1"
                         value={s.boxCount}
                         onChange={(e) => updateSectorRow(i, "boxCount", e.target.value)}
@@ -1368,6 +1398,7 @@ export default function WaterBodyManagement() {
                             value={label}
                             onChange={(e) => updateBoxLabel(i, bi, e.target.value)}
                             title={`${t("wb.boxLabel")} ${bi + 1}`}
+                            inputMode="numeric"
                             className="min-h-[40px] w-12 text-center px-1"
                           />
                         ))}
@@ -1416,6 +1447,20 @@ export default function WaterBodyManagement() {
               <Label>{t("wb.feePerPerson")}</Label>
               <Input type="number" step="any" value={sectorForm.fee_per_person} onChange={(e) => setSectorForm((f) => ({ ...f, fee_per_person: e.target.value }))} className="min-h-[44px]" />
             </div>
+            {/* v3.06 — pre-filled from the water body's own working_hours
+                (see openSectorForm) but editable per period, since a
+                specific opening (a holiday, a competition weekend) can run
+                different hours than usual. Shown to whoever reserves this
+                period — see SectorReservations.jsx. */}
+            <div className="space-y-1.5">
+              <Label>{t("common.workingHours")}</Label>
+              <Input
+                value={sectorForm.working_hours}
+                onChange={(e) => setSectorForm((f) => ({ ...f, working_hours: e.target.value }))}
+                placeholder={t("common.workingHoursPlaceholder")}
+                className="min-h-[44px]"
+              />
+            </div>
 
             {/* v3.04 — was a single flat count + flat label list; now the
                 same named-sectors editor the competition form uses (see
@@ -1438,6 +1483,8 @@ export default function WaterBodyManagement() {
                       />
                       <Input
                         type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
                         min="1"
                         value={s.boxCount}
                         onChange={(e) => updateResSectorRow(i, "boxCount", e.target.value)}
@@ -1463,6 +1510,7 @@ export default function WaterBodyManagement() {
                             value={label}
                             onChange={(e) => updateResBoxLabel(i, bi, e.target.value)}
                             title={`${t("wb.boxLabel")} ${bi + 1}`}
+                            inputMode="numeric"
                             className="min-h-[40px] w-12 text-center px-1"
                           />
                         ))}
