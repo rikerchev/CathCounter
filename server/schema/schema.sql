@@ -343,6 +343,7 @@ CREATE TABLE sector_reservations (
   sector_number INTEGER,
   reserved_by_name TEXT,
   reserved_by_phone TEXT,
+  arrival_time TEXT,
   fee DOUBLE PRECISION DEFAULT 0,
   payment_status TEXT CHECK (payment_status IN ('pending', 'paid', 'refunded')) DEFAULT 'pending',
   status TEXT CHECK (status IN ('active', 'cancelled')) DEFAULT 'active',
@@ -678,3 +679,13 @@ ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS working_hours TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS working_hours TEXT;
 ALTER TABLE sector_availabilities ADD COLUMN IF NOT EXISTS working_hours TEXT;
 ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS default_sectors_config TEXT;
+
+-- v3.11: free-text approximate arrival time on a sector reservation (e.g.
+-- "около 10:00") — the water body owner's own explicit ask, so a customer
+-- who simply plans to arrive later in the day doesn't get mistaken for a
+-- no-show/cancelled reservation. Shown to the owner alongside the rest of
+-- the reservation (WaterBodyManagement.jsx) and to the customer in their
+-- own booking form (SectorReservations.jsx), and included in both emails
+-- notify-sector-reservation sends. Safe to re-run. Applied via the same
+-- "Приложи обновление" admin button as the migrations above.
+ALTER TABLE sector_reservations ADD COLUMN IF NOT EXISTS arrival_time TEXT;

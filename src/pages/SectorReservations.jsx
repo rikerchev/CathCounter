@@ -55,6 +55,12 @@ export default function SectorReservations() {
   const [resDate, setResDate] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  // v3.11 — free-text approximate arrival time (e.g. "около 10:00") — the
+  // water body owner's own explicit ask: without it, a customer who simply
+  // plans to arrive later in the day looks, from the owner's side, exactly
+  // like a no-show on a cancelled reservation if they aren't there early.
+  // Optional — some customers genuinely don't know yet.
+  const [arrivalTime, setArrivalTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -140,6 +146,7 @@ export default function SectorReservations() {
     // Still an editable field, in case this one reservation is for someone
     // else's number.
     setPhone(user?.phone || "");
+    setArrivalTime("");
   }
 
   // Changing the date in the dialog can make a previously-picked box
@@ -184,6 +191,7 @@ export default function SectorReservations() {
         sector_number: sectorLabel,
         reserved_by_name: name,
         reserved_by_phone: phone,
+        arrival_time: arrivalTime,
         fee: avail.fee_per_person || 0,
         payment_status: "pending",
         status: "active",
@@ -338,7 +346,7 @@ export default function SectorReservations() {
                             {availRes.filter((r) => r.created_by_id === user?.id).map((r) => (
                               <div key={r.id} className="flex items-center justify-between gap-2 rounded-lg bg-cyan-50 dark:bg-cyan-900/20 px-2.5 py-1.5">
                                 <span className="text-xs text-cyan-700 dark:text-cyan-400 font-medium">
-                                  {t("sr.myReservation")}: {t("sr.sector")} {r.sector_number}{isMultiDay ? ` · ${formatDate(r.date, lang)}` : ""}
+                                  {t("sr.myReservation")}: {t("sr.sector")} {r.sector_number}{isMultiDay ? ` · ${formatDate(r.date, lang)}` : ""}{r.arrival_time ? ` · 🕐 ${r.arrival_time}` : ""}
                                 </span>
                                 <Button
                                   type="button"
@@ -450,7 +458,13 @@ export default function SectorReservations() {
                             key={label}
                             type="button"
                             disabled={taken}
-                            onClick={() => setSectorLabel(label)}
+                            // v3.11 — toggle: clicking the already-selected
+                            // box now un-marks it (back to nothing chosen)
+                            // instead of only ever being replaceable by
+                            // picking a different box — the customer's own
+                            // request, so a pick can be undone without
+                            // having to select something else first.
+                            onClick={() => setSectorLabel((prev) => (prev === label ? "" : label))}
                             className={`min-h-[40px] min-w-[40px] px-2 rounded-md text-sm border transition-colors ${
                               taken
                                 ? "bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed dark:bg-accent dark:text-muted-foreground dark:border-border"
@@ -474,6 +488,19 @@ export default function SectorReservations() {
               <div className="space-y-1.5">
                 <Label>{t("sr.phone")}</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} className="min-h-[44px]" />
+              </div>
+              {/* v3.11 — free-text, not a strict time picker: "около 10:00",
+                  "следобед" etc. are all fine — the point is just to give
+                  the owner a rough idea, not a precise commitment. */}
+              <div className="space-y-1.5">
+                <Label>{t("sr.arrivalTime")}</Label>
+                <Input
+                  value={arrivalTime}
+                  onChange={(e) => setArrivalTime(e.target.value)}
+                  placeholder={t("sr.arrivalTimePlaceholder")}
+                  className="min-h-[44px]"
+                />
+                <p className="text-xs text-slate-400 dark:text-muted-foreground">{t("sr.arrivalTimeHint")}</p>
               </div>
             </div>
           )}

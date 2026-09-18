@@ -334,7 +334,22 @@ export async function handleFunctionsRoute(
 
       const wbName = reservation.water_body_name || "";
       const dateLabel = formatDateBg(reservation.date);
-      const bookerLine = `<b>${reservation.reserved_by_name}</b>${reservation.reserved_by_phone ? ` · ${reservation.reserved_by_phone}` : ""}`;
+      // v3.11 — the organizer's own follow-up ask: BOTH emails carry every
+      // field the reservation itself holds, not just the box/name/phone
+      // v3.10 sent — including the new approximate arrival time (see its
+      // own column comment in entities.generated.ts) and the fee, when set,
+      // so the owner isn't left guessing whether a booking is paid or free.
+      // Shared between both emails below rather than duplicated per-email —
+      // the two only differ in their opening line and recipient.
+      const detailsHtml = `<ul>
+        <li>Водоем: <b>${wbName}</b></li>
+        ${dateLabel ? `<li>Дата: <b>${dateLabel}</b></li>` : ""}
+        <li>Бокс: <b>${reservation.sector_number}</b></li>
+        <li>Име: <b>${reservation.reserved_by_name}</b></li>
+        ${reservation.reserved_by_phone ? `<li>Телефон: <b>${reservation.reserved_by_phone}</b></li>` : ""}
+        ${reservation.arrival_time ? `<li>Ориентировъчен час на пристигане: <b>${reservation.arrival_time}</b></li>` : ""}
+        ${reservation.fee ? `<li>Такса: <b>${reservation.fee} €</b></li>` : ""}
+      </ul>`;
 
       // Fire-and-forget, same pattern as every function above — respond
       // immediately (the reservation itself already succeeded; the
@@ -346,7 +361,7 @@ export async function handleFunctionsRoute(
             await sendEmail({
               to: ownerEmail,
               subject: `Нова резервация — ${wbName}`,
-              html: `<p>Направена е нова резервация за <b>${wbName}</b>${dateLabel ? `, ${dateLabel}` : ""}: бокс <b>${reservation.sector_number}</b>.</p><p>Резервирал: ${bookerLine}</p>`,
+              html: `<p>Направена е нова резервация за <b>${wbName}</b>.</p>${detailsHtml}`,
             });
           } catch { /* best-effort */ }
         }
@@ -355,7 +370,7 @@ export async function handleFunctionsRoute(
             await sendEmail({
               to: user.email,
               subject: `Потвърждение на резервация — ${wbName}`,
-              html: `<p>Резервацията Ви за <b>${wbName}</b>${dateLabel ? `, ${dateLabel}` : ""} е потвърдена: бокс <b>${reservation.sector_number}</b>.</p><p>Записани данни: ${bookerLine}</p>`,
+              html: `<p>Резервацията Ви е потвърдена.</p>${detailsHtml}`,
             });
           } catch { /* best-effort */ }
         }

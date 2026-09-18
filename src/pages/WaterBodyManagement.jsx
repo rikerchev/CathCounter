@@ -1385,10 +1385,15 @@ export default function WaterBodyManagement() {
                                   within a multi-day opening (see
                                   SectorReservations.jsx) — show each
                                   reservation's own date so this doesn't read
-                                  as a double-booking of the same box. */}
+                                  as a double-booking of the same box.
+                                  v3.11 — phone and approximate arrival time
+                                  added: the owner's own explicit ask, so a
+                                  no-show in the early hours doesn't get
+                                  mistaken for a cancelled reservation when
+                                  the customer simply plans to come later. */}
                               {sRes.map((r) => (
                                 <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-                                  {a.end_date && a.end_date !== a.date ? `${formatDate(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.payment_status === "paid" ? " ✓" : " ⏳"}
+                                  {a.end_date && a.end_date !== a.date ? `${formatDate(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.reserved_by_phone ? ` · ${r.reserved_by_phone}` : ""}{r.arrival_time ? ` · 🕐 ${r.arrival_time}` : ""}{r.payment_status === "paid" ? " ✓" : " ⏳"}
                                 </span>
                               ))}
                             </div>

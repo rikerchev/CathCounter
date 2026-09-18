@@ -272,6 +272,16 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS default_sectors_config TEXT`);
     },
   },
+  "v3.11-reservation-arrival-time": {
+    label: "v3.11 — Резервации: ориентировъчен час на пристигане",
+    run: async () => {
+      // See the matching column comment in entities.generated.ts — a
+      // no-show in the early morning shouldn't read as a cancelled
+      // reservation to the water body owner when the customer simply
+      // plans to arrive later that day.
+      await sql.unsafe(`ALTER TABLE sector_reservations ADD COLUMN IF NOT EXISTS arrival_time TEXT`);
+    },
+  },
 };
 
 /**
@@ -401,6 +411,13 @@ export async function handleAdminMigrationsRoute(
           )
         `;
         applied = (rows[0]?.n ?? 0) >= 4;
+      }
+      if (id === "v3.11-reservation-arrival-time") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'sector_reservations' AND column_name = 'arrival_time'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
       }
       out[id] = { label: m.label, applied };
     }

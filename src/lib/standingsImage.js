@@ -210,24 +210,39 @@ function drawParticipantRow(ctx, box, reg, seq, t) {
 // participant with no app account/social media can find their own box —
 // so it's drawn large and bold on the right, not tucked away small.
 //
-// v3.08 — deliberately NO leading seq/rank circle here, unlike
-// drawRankedRow/drawParticipantRow above. This list is sorted by
-// sector+box (not registration order, see downloadDrawResultsImage below),
-// so a row's position is purely an artifact of that sort — when a
-// competition's boxes happen to be labeled sequentially (1, 2, 3, ... —
-// the common case), a "row N" badge is mathematically guaranteed to equal
-// box N regardless of which participant landed there, which one organizer
-// mistook for proof the draw wasn't actually random (it was — the shuffle
-// only decides WHICH NAME lands on which row; the row numbering itself
-// never could have looked any other way once sorted by box). Since the
-// badge carried no real information anyway, simplest fix is to drop it
-// rather than try to relabel it into something that can't be misread.
-function drawDrawResultRow(ctx, box, reg, t) {
+// v3.08 — briefly dropped the leading seq circle entirely, because this
+// list used to be sorted by sector+box: a "row N" badge in THAT order is
+// mathematically guaranteed to equal box N (when a competition's boxes
+// happen to be labeled sequentially, the common case) regardless of which
+// participant landed there — which one organizer mistook for proof the
+// draw wasn't actually random.
+//
+// v3.11 — restored, because the list itself is now sorted by REGISTRATION
+// order instead (see downloadDrawResultsImage below), at the organizer's
+// own follow-up request: every participant already knows their own
+// registration number from the on-screen participants list
+// (WaterBodyManagement.jsx's own #N badges), so they can jump straight to
+// their row by that number instead of scanning 28+ names for their own —
+// and now that the sort key is registration order, not box order, this
+// badge is genuinely their own number again, not a tautological echo of
+// the box label next to it.
+function drawDrawResultRow(ctx, box, reg, seq, t) {
   const { x, y, w, h } = box;
   const cy = y + h / 2;
 
-  const cardX = x;
-  const cardW = w;
+  const rcx = x + RANK_SIZE / 2;
+  ctx.beginPath();
+  ctx.arc(rcx, cy, RANK_SIZE / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#0e7490";
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 15px Arial, sans-serif`;
+  ctx.fillText(String(seq), rcx, cy + 1);
+
+  const cardX = x + RANK_SIZE + 10;
+  const cardW = w - RANK_SIZE - 10;
   ctx.save();
   ctx.shadowColor = "rgba(8, 15, 28, 0.25)";
   ctx.shadowBlur = 6;
@@ -435,37 +450,39 @@ export async function downloadParticipantsImage({ registrations, title, competit
 }
 
 /**
- * downloadDrawResultsImage — v3.07. Same shared page shape again, this time
- * for "who drew which box" — meant to be downloaded and shared right after
- * the organizer runs "Тегли жребий", specifically so participants with no
- * app account and no presence on social media can still find out (and be
- * shown proof of) their own assignment.
+ * downloadDrawResultsImage — v3.07, resorted in v3.11. Same shared page
+ * shape again, this time for "who drew which box" — meant to be downloaded
+ * and shared right after the organizer runs "Тегли жребий", specifically so
+ * participants with no app account and no presence on social media can
+ * still find out (and be shown proof of) their own assignment.
  *
- * registrations: the competition's active registrations; only the ones with
- * a drawn box (assigned_box != null) are included — reserves and anyone not
- * yet drawn are left out rather than shown as "—", since this image's whole
- * purpose is the draw result. Sorted by sector then box (not registration
- * order) so it reads like a seating chart — easy to look up "where's box 7"
- * — rather than requiring a name search.
+ * registrations: the competition's active registrations (main + reserve —
+ * the SAME set WaterBodyManagement.jsx's on-screen participants dialog
+ * numbers as #1, #2, ...); only the ones with a drawn box
+ * (assigned_box != null) actually get a row here, but the registration
+ * NUMBER shown next to each row (see seqById below) is computed over the
+ * FULL list first, then filtered — so it's always the exact same number
+ * that participant already sees next to their own name in that on-screen
+ * list, not a renumbering of just the drawn subset.
+ *
+ * v3.11 — sorted by registration order (list_order_at || created_at), not
+ * sector/box: the organizer's own follow-up request, since every
+ * participant already knows the number they registered under and can jump
+ * straight to their own row by it — scanning a box-sorted seating chart for
+ * one name out of 28+ doesn't scale nearly as well as looking up a known
+ * number does.
  */
 export async function downloadDrawResultsImage({ registrations, title, competition, waterBody, filename, t, lang }) {
-  const list = (registrations || [])
-    .filter((r) => r.assigned_box != null)
+  const allOrdered = (registrations || [])
     .slice()
-    .sort((a, b) => {
-      const bySector = String(a.assigned_sector || "").localeCompare(
-        String(b.assigned_sector || ""), undefined, { numeric: true, sensitivity: "base" },
-      );
-      if (bySector !== 0) return bySector;
-      return String(a.assigned_box || "").localeCompare(
-        String(b.assigned_box || ""), undefined, { numeric: true, sensitivity: "base" },
-      );
-    });
+    .sort((a, b) => new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at));
+  const seqById = new Map(allOrdered.map((r, i) => [r.id, i + 1]));
+  const list = allOrdered.filter((r) => r.assigned_box != null);
   const dateLabel = formatCompetitionDate(competition?.date, lang);
   const headerText = `${t("standingsImg.drawResultsTitle")} — ${title || ""}${dateLabel ? `, ${dateLabel}` : ""}`;
   await renderRowsPage({
     rowCount: list.length,
-    drawRow: (ctx, box, i) => drawDrawResultRow(ctx, box, list[i], t),
+    drawRow: (ctx, box, i) => drawDrawResultRow(ctx, box, list[i], seqById.get(list[i].id), t),
     headerIcon: "🎲",
     headerText,
     emptyMessage: t("wb.noResultsYet"),

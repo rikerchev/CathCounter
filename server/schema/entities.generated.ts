@@ -444,6 +444,14 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "sector_number", type: "string", required: true },
       { name: "reserved_by_name", type: "string", required: true },
       { name: "reserved_by_phone", type: "string", required: false },
+      // v3.11 — free-text approximate arrival time (e.g. "около 10:00",
+      // "следобед") — the water body owner's own explicit ask: without it,
+      // a no-show in the early morning reads exactly like a cancelled
+      // reservation from the owner's side, when the customer may simply
+      // plan to arrive later in the day. Shown alongside the rest of the
+      // reservation (see SectorReservations.jsx / WaterBodyManagement.jsx)
+      // and included in notify-sector-reservation's emails.
+      { name: "arrival_time", type: "string", required: false },
       { name: "fee", type: "number", required: false },
       { name: "payment_status", type: "enum", required: false, enumValues: ["pending", "paid", "refunded"] },
       { name: "status", type: "enum", required: false, enumValues: ["active", "cancelled"] },
