@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { sql } from "../db.js";
 import { env } from "../env.js";
 import { sendEmail } from "../lib/email.js";
@@ -76,12 +77,23 @@ export async function handleFunctionsRoute(
 
       const registrationUrl = `${env.PUBLIC_APP_URL}/competitions?comp=${competition.id}`;
 
-      // Fire-and-forget, same as base44's `waitUntil` — respond immediately,
-      // keep sending in the background. `EdgeRuntime`/`waitUntil` doesn't
-      // exist as a plain Deno API, so this just lets the promise run
-      // detached; the process needs to stay alive until it settles (true for
-      // a long-running server, unlike a one-shot edge function).
-      (async () => {
+      // v3.13 — respond immediately, keep sending in the background, via
+      // Vercel's own `waitUntil()` (works for the Node.js Serverless
+      // Functions runtime this app deploys on, not just Edge — see
+      // api/[...path].ts). A plain detached `(async () => {...})()` (the
+      // v3.10 approach this replaces) is NOT safe here: this is a one-shot
+      // serverless invocation, not a long-running process — once the
+      // Response below is returned, Vercel is free to freeze/recycle the
+      // execution environment before an un-awaited promise finishes, so the
+      // emails only actually went out once/if that same warm instance
+      // happened to be reused by a later request — which is exactly why
+      // reservation/competition emails were observed arriving up to ~10
+      // minutes late (or not at all on a cold instance) instead of
+      // immediately. `waitUntil()` tells the platform to keep this
+      // invocation alive until the given promise settles (bounded by the
+      // function's own maxDuration), so this now behaves the way the
+      // original comment here assumed it already did.
+      waitUntil((async () => {
         for (const u of targetUsers) {
           try {
             await sendEmail({
@@ -99,7 +111,7 @@ export async function handleFunctionsRoute(
             `;
           } catch { /* best-effort */ }
         }
-      })();
+      })());
 
       return json({ notified: targetUsers.length, country: targetCountry || "all", fee });
     } catch (error) {
@@ -150,9 +162,10 @@ export async function handleFunctionsRoute(
 
       if (!groups.size) return json({ notified: 0, skipped });
 
-      // Fire-and-forget, same pattern as notify-competition-users above —
-      // respond immediately, keep sending in the background.
-      (async () => {
+      // v3.13 — waitUntil(), same reasoning as notify-competition-users
+      // above: respond immediately, keep sending in the background, without
+      // risking Vercel freezing this invocation mid-send.
+      waitUntil((async () => {
         for (const [email, names] of groups) {
           try {
             await sendEmail({
@@ -162,7 +175,7 @@ export async function handleFunctionsRoute(
             });
           } catch { /* best-effort */ }
         }
-      })();
+      })());
 
       return json({ notified: groups.size, skipped });
     } catch (error) {
@@ -225,10 +238,11 @@ export async function handleFunctionsRoute(
 
       if (!groups.size) return json({ notified: 0, skipped });
 
-      // Fire-and-forget, same pattern as the functions above — respond
-      // immediately (drawLotsFor's own toast shouldn't wait on email
-      // delivery), keep sending in the background.
-      (async () => {
+      // v3.13 — waitUntil(), same reasoning as notify-competition-users
+      // above: respond immediately (drawLotsFor's own toast shouldn't wait
+      // on email delivery), keep sending in the background, without risking
+      // Vercel freezing this invocation mid-send.
+      waitUntil((async () => {
         for (const [email, entries] of groups) {
           try {
             const rows = entries
@@ -241,7 +255,7 @@ export async function handleFunctionsRoute(
             });
           } catch { /* best-effort */ }
         }
-      })();
+      })());
 
       return json({ notified: groups.size, skipped });
     } catch (error) {
@@ -351,11 +365,14 @@ export async function handleFunctionsRoute(
         ${reservation.fee ? `<li>Такса: <b>${reservation.fee} €</b></li>` : ""}
       </ul>`;
 
-      // Fire-and-forget, same pattern as every function above — respond
-      // immediately (the reservation itself already succeeded; the
-      // customer's own toast/reload in SectorReservations.jsx isn't
-      // waiting on email delivery), keep sending in the background.
-      (async () => {
+      // v3.13 — waitUntil(), same reasoning as notify-competition-users
+      // above: respond immediately (the reservation itself already
+      // succeeded; the customer's own toast/reload in
+      // SectorReservations.jsx isn't waiting on email delivery), keep
+      // sending in the background, without risking Vercel freezing this
+      // invocation mid-send — this was the actual cause of reservation
+      // emails sometimes arriving many minutes late.
+      waitUntil((async () => {
         if (ownerEmail) {
           try {
             await sendEmail({
@@ -374,7 +391,7 @@ export async function handleFunctionsRoute(
             });
           } catch { /* best-effort */ }
         }
-      })();
+      })());
 
       return json({ notifiedOwner: !!ownerEmail, notifiedUser: !!user.email });
     } catch (error) {
