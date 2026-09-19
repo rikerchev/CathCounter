@@ -1141,7 +1141,7 @@ export const ro = {
     "tv.phone": "Telefon (opțional)",
     "tv.email": "E-mail (opțional)",
     "tv.website": "Site web sau link de contact (opțional)",
-    "tv.logo": "Logo — link către imagine (opțional)",
+    "tv.logo": "Logo (opțional)",
     "tv.updated": "Punctul comercial a fost actualizat",
     "mr.title": "Înregistrare comerciant",
     "mr.description": "Alegeți ce doriți să înregistrați. După aprobarea de către un administrator, veți putea edita datele din meniul „Comercianți aprobați”.",

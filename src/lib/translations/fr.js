@@ -1141,7 +1141,7 @@ export const fr = {
     "tv.phone": "Téléphone (facultatif)",
     "tv.email": "E-mail (facultatif)",
     "tv.website": "Site web ou lien de contact (facultatif)",
-    "tv.logo": "Logo — lien vers l'image (facultatif)",
+    "tv.logo": "Logo (facultatif)",
     "tv.updated": "Point de vente mis à jour",
     "mr.title": "Inscription commerçant",
     "mr.description": "Choisissez ce que vous souhaitez inscrire. Une fois approuvé par un administrateur, vous pourrez modifier les informations depuis le menu « Commerçants approuvés ».",

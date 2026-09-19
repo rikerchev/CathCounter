@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, Download, Loader2, Power, Pencil } from "lucide-react";
+import { Store, Download, Loader2, Power, Pencil, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +36,12 @@ export default function TraderVenues() {
   const [form, setForm] = useState(emptyForm);
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
+  // v3.23 — logo upload (was a plain "paste a URL" field) now goes through
+  // the same object-storage upload used for advertiser logos in
+  // CustomAds.jsx (base44.integrations.Core.UploadFile) — see the logo
+  // field below. `logo_url` keeps storing a URL either way, just one the
+  // merchant no longer has to type/host themselves.
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
   // v3.21 — the venue pending a brochure download, while
   // BrochureContactDialog is open asking for an optional contact line.
@@ -233,7 +239,55 @@ export default function TraderVenues() {
             </div>
             <div className="space-y-1.5">
               <Label>{t("tv.logo")}</Label>
-              <Input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))} placeholder="https://" className="min-h-[44px]" />
+              <div className="flex items-center gap-3">
+                <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
+                  {form.logo_url ? (
+                    <img src={form.logo_url} alt={t("ca.logoAlt")} className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <Upload className="w-5 h-5 text-slate-300" />
+                  )}
+                </div>
+                <label className="flex-1 cursor-pointer">
+                  <span className="inline-flex items-center justify-center gap-2 min-h-[44px] w-full rounded-md border border-input bg-transparent text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                    {uploadingLogo ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {t("adv.uploading")}</>
+                    ) : (
+                      <><Upload className="w-4 h-4" /> {form.logo_url ? t("ca.changeLogo") : t("adv.uploadLogo")}</>
+                    )}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingLogo}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setUploadingLogo(true);
+                      try {
+                        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                        setForm((prev) => ({ ...prev, logo_url: file_url }));
+                        toast({ title: t("adv.logoUploaded") });
+                      } catch (err) {
+                        toast({ title: t("adv.uploadError"), description: err.message });
+                      } finally {
+                        setUploadingLogo(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+                {form.logo_url && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, logo_url: "" }))}
+                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-accent"
+                    title={t("ca.removeLogo")}
+                  >
+                    <X className="w-4 h-4 text-slate-500" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>{t("common.workingHours")}</Label>

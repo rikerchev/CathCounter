@@ -1141,7 +1141,7 @@ export const es = {
     "tv.phone": "Teléfono (opcional)",
     "tv.email": "Correo electrónico (opcional)",
     "tv.website": "Sitio web o enlace de contacto (opcional)",
-    "tv.logo": "Logotipo — enlace a imagen (opcional)",
+    "tv.logo": "Logotipo (opcional)",
     "tv.updated": "Establecimiento actualizado",
     "mr.title": "Registro de comerciante",
     "mr.description": "Elige qué quieres registrar. Una vez aprobado por un administrador, podrás editar los datos desde el menú «Comerciantes aprobados».",

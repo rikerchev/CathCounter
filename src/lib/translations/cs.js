@@ -1141,7 +1141,7 @@ export const cs = {
     "tv.phone": "Telefon (volitelné)",
     "tv.email": "E-mail (volitelné)",
     "tv.website": "Web nebo kontaktní odkaz (volitelné)",
-    "tv.logo": "Logo — odkaz na obrázek (volitelné)",
+    "tv.logo": "Logo (volitelné)",
     "tv.updated": "Obchodní místo bylo aktualizováno",
     "mr.title": "Registrace obchodníka",
     "mr.description": "Vyberte, co chcete zaregistrovat. Po schválení administrátorem budete moci údaje upravovat v nabídce „Schválení obchodníci“.",

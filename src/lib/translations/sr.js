@@ -1141,7 +1141,7 @@ export const sr = {
     "tv.phone": "Telefon (opciono)",
     "tv.email": "Email (opciono)",
     "tv.website": "Veb-sajt ili kontakt link (opciono)",
-    "tv.logo": "Logo — link do slike (opciono)",
+    "tv.logo": "Logo (opciono)",
     "tv.updated": "Prodajno mesto je ažurirano",
     "mr.title": "Registracija trgovca",
     "mr.description": "Izaberite šta želite da registrujete. Nakon odobrenja od strane administratora, moći ćete da uređujete podatke iz menija „Odobreni trgovci”.",

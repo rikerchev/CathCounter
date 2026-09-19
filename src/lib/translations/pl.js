@@ -1141,7 +1141,7 @@ export const pl = {
     "tv.phone": "Telefon (opcjonalnie)",
     "tv.email": "E-mail (opcjonalnie)",
     "tv.website": "Strona internetowa lub link kontaktowy (opcjonalnie)",
-    "tv.logo": "Logo — link do obrazu (opcjonalnie)",
+    "tv.logo": "Logo (opcjonalnie)",
     "tv.updated": "Punkt sprzedaży zaktualizowany",
     "mr.title": "Rejestracja sprzedawcy",
     "mr.description": "Wybierz, co chcesz zarejestrować. Po zatwierdzeniu przez administratora będziesz mógł edytować dane z menu „Zatwierdzeni sprzedawcy”.",

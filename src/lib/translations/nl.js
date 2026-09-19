@@ -1141,7 +1141,7 @@ export const nl = {
     "tv.phone": "Telefoon (optioneel)",
     "tv.email": "E-mail (optioneel)",
     "tv.website": "Website of contactlink (optioneel)",
-    "tv.logo": "Logo — link naar afbeelding (optioneel)",
+    "tv.logo": "Logo (optioneel)",
     "tv.updated": "Verkooppunt bijgewerkt",
     "mr.title": "Registratie handelaar",
     "mr.description": "Kies wat u wilt registreren. Na goedkeuring door een beheerder kunt u de gegevens bewerken via het menu „Goedgekeurde handelaren”.",

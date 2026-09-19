@@ -1141,7 +1141,7 @@ export const sk = {
     "tv.phone": "Telefón (voliteľné)",
     "tv.email": "E-mail (voliteľné)",
     "tv.website": "Web alebo kontaktný odkaz (voliteľné)",
-    "tv.logo": "Logo — odkaz na obrázok (voliteľné)",
+    "tv.logo": "Logo (voliteľné)",
     "tv.updated": "Obchodné miesto bolo aktualizované",
     "mr.title": "Registrácia obchodníka",
     "mr.description": "Vyberte, čo chcete zaregistrovať. Po schválení administrátorom budete môcť údaje upravovať v ponuke „Schválení obchodníci“.",

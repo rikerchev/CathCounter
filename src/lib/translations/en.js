@@ -1167,7 +1167,7 @@ export const en = {
     "tv.phone": "Phone (optional)",
     "tv.email": "Email (optional)",
     "tv.website": "Website or contact link (optional)",
-    "tv.logo": "Logo — image link (optional)",
+    "tv.logo": "Logo (optional)",
     "tv.updated": "Venue updated",
 
     // v2.77 — merged request form (water body OR venue) and the merged

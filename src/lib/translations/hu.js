@@ -1141,7 +1141,7 @@ export const hu = {
     "tv.phone": "Telefon (opcionális)",
     "tv.email": "E-mail (opcionális)",
     "tv.website": "Weboldal vagy kapcsolattartási link (opcionális)",
-    "tv.logo": "Logó — kép linkje (opcionális)",
+    "tv.logo": "Logó (opcionális)",
     "tv.updated": "A kereskedelmi helyszín frissítve",
     "mr.title": "Kereskedői regisztráció",
     "mr.description": "Válassza ki, mit szeretne regisztrálni. Az adminisztrátori jóváhagyás után a „Jóváhagyott kereskedők” menüben szerkesztheti az adatokat.",

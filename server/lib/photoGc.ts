@@ -11,6 +11,13 @@ import { sql } from "../db.js";
 // one of them — without this, a future/manual use of either column could
 // have its photo wrongly swept up as "orphaned" and deleted.
 //
+// v3.23 — venues.logo_url added: TraderVenues.jsx's logo field switched
+// from a hand-typed URL to an upload button through this same pipeline
+// (src/pages/TraderVenues.jsx), so from now on it genuinely can hold a
+// catch-photos id. Missing it here would have meant the very next "Изчисти
+// неизползвани снимки" (AdminDataExport.jsx) run deletes every merchant's
+// uploaded venue logo as "orphaned", since nothing else references it.
+//
 // A photo is "orphaned" (safe to delete) only when NONE of these still
 // reference it.
 const REFERENCE_CHECKS = [
@@ -18,6 +25,7 @@ const REFERENCE_CHECKS = [
   { table: "custom_ads", column: "logo_url" },
   { table: "ad_slot_requests", column: "logo_url" },
   { table: "water_bodies", column: "logo_url" },
+  { table: "venues", column: "logo_url" },
   { table: "base_items", column: "image_url" },
 ] as const;
 

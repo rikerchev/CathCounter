@@ -1141,7 +1141,7 @@ export const de = {
     "tv.phone": "Telefon (optional)",
     "tv.email": "E-Mail (optional)",
     "tv.website": "Website oder Kontaktlink (optional)",
-    "tv.logo": "Logo — Bildlink (optional)",
+    "tv.logo": "Logo (optional)",
     "tv.updated": "Verkaufsstelle wurde aktualisiert",
     "mr.title": "Händlerregistrierung",
     "mr.description": "Wählen Sie aus, was Sie registrieren möchten. Nach der Genehmigung durch einen Administrator können Sie die Angaben im Menü „Genehmigte Händler“ bearbeiten.",

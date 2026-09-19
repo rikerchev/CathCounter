@@ -1141,7 +1141,7 @@ export const tr = {
     "tv.phone": "Telefon (isteğe bağlı)",
     "tv.email": "E-posta (isteğe bağlı)",
     "tv.website": "Web sitesi veya iletişim bağlantısı (isteğe bağlı)",
-    "tv.logo": "Logo — görsel bağlantısı (isteğe bağlı)",
+    "tv.logo": "Logo (isteğe bağlı)",
     "tv.updated": "Satış noktası güncellendi",
     "mr.title": "Satıcı kaydı",
     "mr.description": "Neyi kaydetmek istediğinizi seçin. Bir yönetici onayladıktan sonra bilgileri „Onaylı Satıcılar” menüsünden düzenleyebilirsiniz.",
