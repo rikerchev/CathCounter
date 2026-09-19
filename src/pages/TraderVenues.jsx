@@ -111,14 +111,17 @@ export default function TraderVenues() {
 
   // v3.21 — now takes the free-text contact line collected by
   // BrochureContactDialog (may be empty — entirely optional).
-  async function handleDownload(v, contactText) {
+  // v3.22 — plus `format` (PDF/JPG/PNG); `filename` dropped its extension,
+  // downloadInviteBrochure appends the right one for `format`.
+  async function handleDownload(v, contactText, format) {
     setDownloadingId(v.id);
     try {
       await downloadInviteBrochure({
         name: v.name,
         link: getMerchantBrochureLink("venue", v.id),
-        filename: `catchcount-broshura-${(v.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+        filename: `catchcount-broshura-${(v.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`,
         contactText,
+        format,
       });
       setBrochureTarget(null);
     } catch (e) {
@@ -257,7 +260,7 @@ export default function TraderVenues() {
         onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
         defaultValue={brochureTarget?.contact_phone || ""}
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
-        onConfirm={(text) => handleDownload(brochureTarget, text)}
+        onConfirm={(text, format) => handleDownload(brochureTarget, text, format)}
       />
     </div>
   );

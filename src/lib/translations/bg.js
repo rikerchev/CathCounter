@@ -1152,6 +1152,10 @@ export const bg = {
     "brochure.contactLabel": "Текст за брошурата (незадължително)",
     "brochure.contactPlaceholder": "напр. За връзка тел.: 0894 31 88 33",
     "brochure.contactHint": "Ще се покаже в долния край на брошурата — телефон, уебсайт, Facebook страница и т.н. Оставете празно, за да не добавяте нищо.",
+    "brochure.formatLabel": "Формат на файла",
+    "brochure.format.pdf": "PDF",
+    "brochure.format.jpg": "JPG (изображение)",
+    "brochure.format.png": "PNG (изображение)",
     "tv.created": "Търговският обект е създаден",
     // v2.71 — контакти/лого, показвани публично в менюто "Търговски обекти"
     "tv.editVenue": "Редактирай търговски обект",

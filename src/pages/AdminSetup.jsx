@@ -5,7 +5,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
 import { useLanguage } from "@/lib/i18n";
 import { hasRole } from "@/lib/roles";
-import { Settings, ExternalLink, CheckCircle2, CircleDashed, Loader2, Database, ListOrdered, GripVertical, RotateCcw } from "lucide-react";
+import { Settings, ExternalLink, CheckCircle2, CircleDashed, Loader2, Database, ListOrdered, GripVertical, RotateCcw, Download, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { ALL_MENU_ITEMS } from "@/lib/menuItems";
 import { GROUP_DEFS, DEFAULT_MENU_ORDER, normalizeMenuOrder, cloneOrder } from "@/lib/menuOrder";
+import { downloadInviteBrochure } from "@/lib/brochure";
+import BrochureContactDialog from "@/components/BrochureContactDialog";
 
 // Static wizard copy — deliberately not routed through the i18n dictionary
 // (admin-only, single audience), see server/lib/settings.ts for the keys.
@@ -125,6 +127,32 @@ export default function AdminSetup() {
   const [reorderMode, setReorderMode] = useState(false);
   const [orderDraft, setOrderDraft] = useState(null);
   const [savingOrder, setSavingOrder] = useState(false);
+
+  // v3.22 — "Обща брошура": the same printable flyer as WaterBodyManagement.jsx
+  // / TraderVenues.jsx / AdminTraders.jsx, but not tied to any water body or
+  // commercial venue — its QR just links to /register (no ?merchant=...), so
+  // it's meant for general marketing handouts, not for one owner's referral
+  // bonus. Reuses the same BrochureContactDialog (contact text + PDF/JPG/PNG
+  // format) and downloadInviteBrochure() as those three screens.
+  const [showGenericBrochure, setShowGenericBrochure] = useState(false);
+  const [downloadingGenericBrochure, setDownloadingGenericBrochure] = useState(false);
+
+  async function handleDownloadGenericBrochure(contactText, format) {
+    setDownloadingGenericBrochure(true);
+    try {
+      await downloadInviteBrochure({
+        link: `${window.location.origin}/register`,
+        filename: "catchcount-broshura",
+        contactText,
+        format,
+      });
+      setShowGenericBrochure(false);
+    } catch (e) {
+      toast({ title: "Неуспешно генериране на брошура", description: e.message, variant: "destructive" });
+    } finally {
+      setDownloadingGenericBrochure(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -516,6 +544,27 @@ export default function AdminSetup() {
         </CardFooter>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <FileImage className="w-4 h-4 text-cyan-600" />
+            Рекламна брошура
+          </CardTitle>
+          <CardDescription>
+            Същата брошура като при водоемите и търговските обекти, но без QR код, обвързан с конкретен обект —
+            QR-ът тук просто води към страницата за регистрация. Подходяща за обща реклама на приложението (напр. на
+            щанд, в магазин за риболовни принадлежности), не за реклама на конкретен воден обект или търговец —
+            сканиранията ѝ не носят бонус реклама на никого.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button onClick={() => setShowGenericBrochure(true)} className="bg-cyan-600 hover:bg-cyan-700 min-h-[40px]">
+            <Download className="w-4 h-4 mr-1" />
+            Изтегли обща брошура
+          </Button>
+        </CardFooter>
+      </Card>
+
       {SECTIONS.map((section) => {
         const configured = sectionConfigured(section);
         return (
@@ -597,6 +646,14 @@ export default function AdminSetup() {
           </Card>
         );
       })}
+
+      <BrochureContactDialog
+        open={showGenericBrochure}
+        onOpenChange={setShowGenericBrochure}
+        defaultValue=""
+        downloading={downloadingGenericBrochure}
+        onConfirm={handleDownloadGenericBrochure}
+      />
     </div>
   );
 }

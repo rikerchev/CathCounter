@@ -589,14 +589,17 @@ export default function WaterBodyManagement() {
   // (see src/lib/brochure.js / server/routes/merchantReferrals.ts).
   // v3.21 — now takes the free-text contact line collected by
   // BrochureContactDialog (may be empty — entirely optional).
-  async function handleDownloadBrochure(wb, contactText) {
+  // v3.22 — `filename` has no extension anymore; downloadInviteBrochure
+  // appends the right one for `format` (PDF/JPG/PNG, picked in the dialog).
+  async function handleDownloadBrochure(wb, contactText, format) {
     setDownloadingId(wb.id);
     try {
       await downloadInviteBrochure({
         name: wb.name,
         link: getMerchantBrochureLink("water_body", wb.id),
-        filename: `catchcount-broshura-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+        filename: `catchcount-broshura-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`,
         contactText,
+        format,
       });
       setBrochureTarget(null);
     } catch (e) {
@@ -2561,7 +2564,7 @@ export default function WaterBodyManagement() {
         onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
         defaultValue=""
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
-        onConfirm={(text) => handleDownloadBrochure(brochureTarget, text)}
+        onConfirm={(text, format) => handleDownloadBrochure(brochureTarget, text, format)}
       />
     </div>
   );

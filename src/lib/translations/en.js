@@ -1156,6 +1156,10 @@ export const en = {
     "brochure.contactLabel": "Brochure text (optional)",
     "brochure.contactPlaceholder": "e.g. Contact: 0894 31 88 33",
     "brochure.contactHint": "Shown at the bottom of the brochure — a phone number, website, Facebook page, etc. Leave blank to add nothing.",
+    "brochure.formatLabel": "File format",
+    "brochure.format.pdf": "PDF",
+    "brochure.format.jpg": "JPG (image)",
+    "brochure.format.png": "PNG (image)",
     "tv.created": "Venue created",
     // v2.71 — contact/logo, shown publicly on the "Commercial Venues" menu
     "tv.editVenue": "Edit venue",

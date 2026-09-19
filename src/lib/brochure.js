@@ -291,11 +291,49 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   return canvas;
 }
 
-export async function downloadInviteBrochure({ name, link, filename, contactText }) {
+// Triggers a browser download of a data: URL without any server round trip
+// — same `<a download>` trick used elsewhere in the app for client-side
+// exports (e.g. src/lib/dataPortability.js's CSV/ZIP downloads).
+function downloadDataUrl(dataUrl, filename) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// v3.22 — `format` picks the downloaded file type: "pdf" (default, one-page
+// PDF sized to the template's own aspect ratio — unchanged from v2.69), or
+// a direct image download, "png" or "jpg". `filename` is now the BASE name
+// with no extension — this function appends the right one for `format` (it
+// used to be the full "*.pdf" name; all three callers were updated to stop
+// including the extension themselves).
+export async function downloadInviteBrochure({ name, link, filename, contactText, format = "pdf" }) {
   const canvas = await renderBrochureCanvas({ link, name, contactText });
-  // PNG, not JPEG — this is a QR code; any lossy compression noise around
-  // its modules risks scan failures, which matters far more here than the
-  // larger file size (a one-off client-side download, not a network cost).
+  const baseName = filename || "catchcount-broshura";
+
+  if (format === "png") {
+    // Lossless — identical fidelity to the PNG embedded in the PDF path
+    // below, just saved directly instead of wrapped in a page.
+    downloadDataUrl(canvas.toDataURL("image/png"), `${baseName}.png`);
+    return;
+  }
+
+  if (format === "jpg") {
+    // High quality (0.97), not the browser default (~0.92): this frame
+    // contains a QR code, and JPEG's block compression can blur module
+    // edges enough to fail a scan at lower quality settings — see the PDF
+    // path's own comment below for why PNG is used wherever that risk can
+    // be avoided entirely instead.
+    downloadDataUrl(canvas.toDataURL("image/jpeg", 0.97), `${baseName}.jpg`);
+    return;
+  }
+
+  // Default: PDF. PNG, not JPEG, for the embedded image — this is a QR
+  // code; any lossy compression noise around its modules risks scan
+  // failures, which matters far more here than the larger file size (a
+  // one-off client-side download, not a network cost).
   const imageDataUrl = canvas.toDataURL("image/png");
 
   const pageWidthMm = 210;
@@ -304,5 +342,5 @@ export async function downloadInviteBrochure({ name, link, filename, contactText
   const doc = new jsPDF({ unit: "mm", format: [pageWidthMm, pageHeightMm], orientation: "landscape" });
   if (name) doc.setProperties({ title: `CatchCount — ${name}` });
   doc.addImage(imageDataUrl, "PNG", 0, 0, pageWidthMm, pageHeightMm);
-  doc.save(filename || "catchcount-broshura.pdf");
+  doc.save(`${baseName}.pdf`);
 }
