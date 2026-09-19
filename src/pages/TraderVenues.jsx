@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
+import BrochureContactDialog from "@/components/BrochureContactDialog";
 
 /**
  * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
@@ -36,6 +37,9 @@ export default function TraderVenues() {
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
+  // v3.21 — the venue pending a brochure download, while
+  // BrochureContactDialog is open asking for an optional contact line.
+  const [brochureTarget, setBrochureTarget] = useState(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -105,14 +109,18 @@ export default function TraderVenues() {
     }
   }
 
-  async function handleDownload(v) {
+  // v3.21 — now takes the free-text contact line collected by
+  // BrochureContactDialog (may be empty — entirely optional).
+  async function handleDownload(v, contactText) {
     setDownloadingId(v.id);
     try {
       await downloadInviteBrochure({
         name: v.name,
         link: getMerchantBrochureLink("venue", v.id),
         filename: `catchcount-broshura-${(v.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+        contactText,
       });
+      setBrochureTarget(null);
     } catch (e) {
       toast({ title: t("tv.brochureFailed"), description: e.message, variant: "destructive" });
     } finally {
@@ -171,7 +179,7 @@ export default function TraderVenues() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDownload(v)}
+                    onClick={() => setBrochureTarget(v)}
                     disabled={downloadingId === v.id}
                     className="min-h-[40px]"
                   >
@@ -243,6 +251,14 @@ export default function TraderVenues() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <BrochureContactDialog
+        open={!!brochureTarget}
+        onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
+        defaultValue={brochureTarget?.contact_phone || ""}
+        downloading={!!brochureTarget && downloadingId === brochureTarget.id}
+        onConfirm={(text) => handleDownload(brochureTarget, text)}
+      />
     </div>
   );
 }

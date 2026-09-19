@@ -9,6 +9,7 @@ import { maskEmail } from "@/lib/emailMask";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
+import BrochureContactDialog from "@/components/BrochureContactDialog";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
@@ -400,6 +401,9 @@ export default function WaterBodyManagement() {
   const [editWb, setEditWb] = useState(null);
   const [showEditForm, setShowEditForm] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
+  // v3.21 — the water body pending a brochure download, while
+  // BrochureContactDialog is open asking for an optional contact line.
+  const [brochureTarget, setBrochureTarget] = useState(null);
   // v2.91 — "delete a closed competition" (see deleteClosedCompetition).
   const [deletingCompId, setDeletingCompId] = useState("");
   // v2.80 — participant list + CSV export for a competition, per the
@@ -583,14 +587,18 @@ export default function WaterBodyManagement() {
 
   // v2.69 — printable brochure whose QR identifies this water body directly
   // (see src/lib/brochure.js / server/routes/merchantReferrals.ts).
-  async function handleDownloadBrochure(wb) {
+  // v3.21 — now takes the free-text contact line collected by
+  // BrochureContactDialog (may be empty — entirely optional).
+  async function handleDownloadBrochure(wb, contactText) {
     setDownloadingId(wb.id);
     try {
       await downloadInviteBrochure({
         name: wb.name,
         link: getMerchantBrochureLink("water_body", wb.id),
         filename: `catchcount-broshura-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+        contactText,
       });
+      setBrochureTarget(null);
     } catch (e) {
       toast({ title: t("tv.brochureFailed"), description: e.message, variant: "destructive" });
     } finally {
@@ -1522,7 +1530,7 @@ export default function WaterBodyManagement() {
                     <CalendarCheck className="w-4 h-4 mr-1" /> {t("wb.sectors")}
                   </Button>
                   <Button
-                    onClick={() => handleDownloadBrochure(wb)}
+                    onClick={() => setBrochureTarget(wb)}
                     size="sm"
                     variant="outline"
                     disabled={downloadingId === wb.id}
@@ -2547,6 +2555,14 @@ export default function WaterBodyManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <BrochureContactDialog
+        open={!!brochureTarget}
+        onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
+        defaultValue=""
+        downloading={!!brochureTarget && downloadingId === brochureTarget.id}
+        onConfirm={(text) => handleDownloadBrochure(brochureTarget, text)}
+      />
     </div>
   );
 }

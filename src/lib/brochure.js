@@ -37,6 +37,17 @@ import QRCode from "qrcode";
  * without opening each PDF. Uses the CatchCountBrochure custom font
  * (public/fonts/*.ttf) so the added text matches the reference graphic's
  * own "СКАНИРАЙ И ИЗТЕГЛИ" label style instead of a generic system font.
+ *
+ * v3.21 — an optional second line of free text (see drawContactText below),
+ * drawn in the template's other empty strip — directly under the existing
+ * "Сканирай. Изтегли. Лови." caption, bottom-left — for the owner/admin/
+ * merchant to add their own contact info before downloading (prompted by
+ * src/components/BrochureContactDialog.jsx on all three download screens).
+ * Deliberately free text with NO icon drawn next to it and NO forced
+ * uppercase/format: the box is offered as "add a phone number" but the
+ * trader may just as well want a website, a Facebook page, or a custom
+ * label like "За резервация тел.: ...", so the app must not assume it's a
+ * phone number and slap a phone glyph in front of whatever they typed.
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
@@ -167,11 +178,63 @@ function drawVenueName(ctx, name) {
   ctx.restore();
 }
 
+// Draws the optional free-text contact line, left-aligned, in the empty
+// dark strip below the template's own "Сканирай. Изтегли. Лови." caption
+// (that caption's icon sits at x=73, y≈690-725; the strip below it, y≈724-
+// 768, is empty background across the full width of the template — measured
+// directly on the source image the same way BADGE_*/NAME_* above were).
+// Left-aligned (not centered like the venue name) so it reads as a
+// continuation of the caption line above it, and capped well short of the
+// QR badge (BADGE_X = 1096) so a long line never runs into it.
+const CONTACT_X = 73;
+const CONTACT_BASELINE_Y = 752;
+const CONTACT_MAX_WIDTH = 950;
+const CONTACT_MAX_FONT = 24;
+const CONTACT_MIN_FONT = 13;
+
+function drawContactText(ctx, contactText) {
+  // Free text, as typed — no trim-to-empty-only-check beyond whitespace, no
+  // uppercasing (unlike drawVenueName): this may be a URL or a Facebook
+  // handle, both case-sensitive, not just a name.
+  const text = (contactText || "").trim();
+  if (!text) return;
+
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  let fontSize = CONTACT_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  while (fontSize > CONTACT_MIN_FONT && ctx.measureText(text).width > CONTACT_MAX_WIDTH) {
+    fontSize -= 1;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+  }
+
+  let out = text;
+  if (ctx.measureText(out).width > CONTACT_MAX_WIDTH) {
+    while (out.length > 1 && ctx.measureText(`${out}…`).width > CONTACT_MAX_WIDTH) {
+      out = out.slice(0, -1);
+    }
+    out = `${out}…`;
+  }
+
+  // Same soft shadow treatment as drawVenueName, for the same reason —
+  // legibility over the template's variable particle/line background.
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(out, CONTACT_X, CONTACT_BASELINE_Y);
+  ctx.restore();
+}
+
 // v2.92 — exported: src/lib/standingsImage.js embeds this SAME rendered
 // brochure (unchanged) at the bottom of the competition standings image,
 // per the organizer's request that the standings download use "the actual
 // individual brochure", not an approximation of it.
-export async function renderBrochureCanvas({ link, name }) {
+export async function renderBrochureCanvas({ link, name, contactText }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,
@@ -200,6 +263,10 @@ export async function renderBrochureCanvas({ link, name }) {
   // 1.5. This venue/water body's name, above the QR badge (v2.80).
   drawVenueName(ctx, name);
 
+  // 1.6. Optional free-text contact line, below "Сканирай. Изтегли. Лови."
+  // (v3.21 — see drawContactText above).
+  drawContactText(ctx, contactText);
+
   // 2. Blank out the template's own QR with a fresh white badge in the
   //    exact same spot.
   roundRectPath(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BADGE_R);
@@ -224,8 +291,8 @@ export async function renderBrochureCanvas({ link, name }) {
   return canvas;
 }
 
-export async function downloadInviteBrochure({ name, link, filename }) {
-  const canvas = await renderBrochureCanvas({ link, name });
+export async function downloadInviteBrochure({ name, link, filename, contactText }) {
+  const canvas = await renderBrochureCanvas({ link, name, contactText });
   // PNG, not JPEG — this is a QR code; any lossy compression noise around
   // its modules risks scan failures, which matters far more here than the
   // larger file size (a one-off client-side download, not a network cost).

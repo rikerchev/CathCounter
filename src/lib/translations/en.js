@@ -1152,6 +1152,10 @@ export const en = {
     "tv.inactive": "Inactive",
     "tv.downloadBrochure": "Download brochure",
     "tv.brochureFailed": "Could not generate the brochure",
+    "brochure.contactTitle": "Brochure contact info",
+    "brochure.contactLabel": "Brochure text (optional)",
+    "brochure.contactPlaceholder": "e.g. Contact: 0894 31 88 33",
+    "brochure.contactHint": "Shown at the bottom of the brochure — a phone number, website, Facebook page, etc. Leave blank to add nothing.",
     "tv.created": "Venue created",
     // v2.71 — contact/logo, shown publicly on the "Commercial Venues" menu
     "tv.editVenue": "Edit venue",

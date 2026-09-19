@@ -9,6 +9,7 @@ import { effectiveRoles, highestRole } from "@/lib/roles";
 import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import MerchantBonusEditor from "@/components/MerchantBonusEditor";
+import BrochureContactDialog from "@/components/BrochureContactDialog";
 import { useLanguage } from "@/lib/i18n";
 
 // v2.77 — admin-only "Търговци" screen. Replaces AdminWaterBodies.jsx with a
@@ -29,6 +30,9 @@ export default function AdminTraders() {
   const [downloadingId, setDownloadingId] = useState("");
   const [reassignEmail, setReassignEmail] = useState({});
   const [reassigningId, setReassigningId] = useState("");
+  // v3.21 — the item pending a brochure download, while
+  // BrochureContactDialog is open asking for an optional contact line.
+  const [brochureTarget, setBrochureTarget] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -87,14 +91,18 @@ export default function AdminTraders() {
     }
   }
 
-  async function handleDownload(item) {
+  // v3.21 — now takes the free-text contact line collected by
+  // BrochureContactDialog (may be empty — entirely optional).
+  async function handleDownload(item, contactText) {
     setDownloadingId(item.id);
     try {
       await downloadInviteBrochure({
         name: item.name,
         link: getMerchantBrochureLink(item._type, item.id),
         filename: `catchcount-broshura-${(item.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.pdf`,
+        contactText,
       });
+      setBrochureTarget(null);
     } catch (e) {
       toast({ title: t("tv.brochureFailed"), description: e.message, variant: "destructive" });
     } finally {
@@ -205,7 +213,7 @@ export default function AdminTraders() {
         ) : (
           <>
             <Button
-              onClick={() => handleDownload(item)}
+              onClick={() => setBrochureTarget(item)}
               size="sm"
               variant="outline"
               disabled={downloadingId === item.id}
@@ -272,6 +280,14 @@ export default function AdminTraders() {
           {others.map((item) => <ItemCard key={item._type + item.id} item={item} showActions={false} />)}
         </div>
       )}
+
+      <BrochureContactDialog
+        open={!!brochureTarget}
+        onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
+        defaultValue={brochureTarget?.contact_phone || ""}
+        downloading={!!brochureTarget && downloadingId === brochureTarget.id}
+        onConfirm={(text) => handleDownload(brochureTarget, text)}
+      />
     </div>
   );
 }
