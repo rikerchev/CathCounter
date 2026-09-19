@@ -1175,4 +1175,18 @@ export const mk = {
     "profile.yourPhone": "Вашиот телефонски број",
     "profile.savePhone": "Зачувај телефон",
     "profile.phoneUpdated": "Телефонот е ажуриран",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Трговци во овој банер",
+    "ca.merchantsHint": "Прикачете еден или повеќе одобрени трговци на овој банер — тогаш автоматски ќе го прикажува нивното лого и име наместо рачно внесениот наслов/лого/линк погоре.",
+    "ca.addMerchantPlaceholder": "Додади трговец...",
+    "ca.noApprovedMerchants": "Сè уште нема одобрени трговци.",
+    "ca.merchantsAutoNote": "Насловот, логото и линкот се одредуваат автоматски од прикачените трговци и не можат рачно да се уредуваат додека има додадени трговци.",
+    "ca.rotationInterval": "Интервал на ротација",
+    "ca.rotationIntervalDesc": "Секој посетител го гледа истиот трговец во даден момент — се менува според овој интервал.",
+    "ca.rotationUnitMinutes": "минути",
+    "ca.rotationUnitHours": "часови",
+    "ca.rotationUnitDays": "денови",
+    "ca.moveUp": "Помести нагоре",
+    "ca.moveDown": "Помести надолу",
+    "ca.removeMerchant": "Отстрани",
 };

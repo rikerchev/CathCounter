@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { DEFAULT_LANGUAGES, getLanguageNativeName } from "@/lib/languages";
-import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages, Store, Waves, ArrowUp, ArrowDown, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,6 +68,33 @@ const AD_STATUS_COLORS = {
 
 const DURATION_OPTIONS = [1, 2, 3, 6, 12];
 
+// v3.26 — admin-assigned merchant banner rotation. A banner can show one or
+// more approved merchants (water_bodies/venues) instead of a manually typed
+// title/logo/link — see the `merchants` column comment in
+// entities.generated.ts and src/components/AdBannerItem.jsx's
+// rotation-resolution logic. The interval is always stored in minutes; this
+// is just the flexible minute/hour/day unit picker shown in the UI.
+const ROTATION_UNIT_KEYS = [
+  { value: "minutes", labelKey: "ca.rotationUnitMinutes" },
+  { value: "hours", labelKey: "ca.rotationUnitHours" },
+  { value: "days", labelKey: "ca.rotationUnitDays" },
+];
+
+function rotationMinutesToUi(minutes) {
+  const n = Number(minutes);
+  if (!n || n <= 0) return { value: "30", unit: "minutes" };
+  if (n % 1440 === 0) return { value: String(n / 1440), unit: "days" };
+  if (n % 60 === 0) return { value: String(n / 60), unit: "hours" };
+  return { value: String(n), unit: "minutes" };
+}
+
+function rotationUiToMinutes(value, unit) {
+  const n = Math.max(1, Math.round(Number(value)) || 1);
+  if (unit === "days") return n * 1440;
+  if (unit === "hours") return n * 60;
+  return n;
+}
+
 const BANNER_POSITION_KEYS = [
   { value: "top", labelKey: "ca.bannerPositionTop" },
   { value: "bottom", labelKey: "ca.bannerPositionBottom" },
@@ -99,6 +126,10 @@ const emptyAd = {
   advertiser_email: "",
   starts_at: "",
   duration_months: "",
+  // v3.26 — array of {type, id, name, logo_url, logo_size} merchant
+  // snapshots (not the raw stored string, which is JSON-in-TEXT — see
+  // save()/startEdit()). Empty = this banner behaves exactly as before.
+  merchants: [],
 };
 
 export default function CustomAdsManager() {
@@ -110,8 +141,10 @@ export default function CustomAdsManager() {
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
+  const ROTATION_UNITS = ROTATION_UNIT_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const AD_STATUS_LABELS = {};
   for (const k in AD_STATUS_KEYS) AD_STATUS_LABELS[k] = t(AD_STATUS_KEYS[k]);
+  const MERCHANT_TYPE_LABELS = { water_body: t("mr.typeWaterBody"), venue: t("mr.typeVenue") };
   const [ads, setAds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
@@ -155,12 +188,33 @@ export default function CustomAdsManager() {
   // then does it reset the renewal/expiry notice flags, so unrelated edits
   // (title, logo, ...) don't accidentally restart the notice cycle.
   const [editingOriginalPeriod, setEditingOriginalPeriod] = useState(null);
+  // v3.26 — approved water bodies + venues, fetched once for the "Търговци
+  // в банера" add-dropdown (admin only — merchant assignment is an
+  // admin-only action). rotationValue/rotationUnit are the UI-only
+  // number+unit pair for form.merchant_rotation_minutes (see
+  // rotationMinutesToUi/rotationUiToMinutes above).
+  const [approvedMerchants, setApprovedMerchants] = useState([]);
+  const [rotationValue, setRotationValue] = useState("30");
+  const [rotationUnit, setRotationUnit] = useState("minutes");
 
   useEffect(() => {
     loadAds();
   }, []);
 
   const isAdmin = hasRole(user, "admin");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    Promise.all([base44.entities.WaterBody.list(), base44.entities.Venue.list()])
+      .then(([wbList, venueList]) => {
+        const merged = [
+          ...(wbList || []).filter((w) => w.status === "approved").map((w) => ({ ...w, _type: "water_body" })),
+          ...(venueList || []).filter((v) => v.status === "approved").map((v) => ({ ...v, _type: "venue" })),
+        ];
+        setApprovedMerchants(merged);
+      })
+      .catch(() => setApprovedMerchants([]));
+  }, [isAdmin]);
 
   if (user && !hasRole(user, "advertiser") && !isAdmin) {
     return (
@@ -202,6 +256,15 @@ export default function CustomAdsManager() {
     } catch {
       parsedLangContent = {};
     }
+    let parsedMerchants = [];
+    try {
+      parsedMerchants = ad.merchants ? JSON.parse(ad.merchants) : [];
+    } catch {
+      parsedMerchants = [];
+    }
+    const rotUi = rotationMinutesToUi(ad.merchant_rotation_minutes);
+    setRotationValue(rotUi.value);
+    setRotationUnit(rotUi.unit);
     setForm({
       title: ad.title || "",
       description: ad.description || "",
@@ -222,6 +285,7 @@ export default function CustomAdsManager() {
       advertiser_email: ad.advertiser_email || "",
       starts_at: ad.starts_at || "",
       duration_months: ad.duration_months != null ? String(ad.duration_months) : "",
+      merchants: parsedMerchants,
     });
     setEditingOriginalPeriod({
       starts_at: ad.starts_at || "",
@@ -270,6 +334,46 @@ export default function CustomAdsManager() {
     setLanguageRestricted(false);
     setPrimaryLanguage("");
     setEditingOriginalPeriod(null);
+    setRotationValue("30");
+    setRotationUnit("minutes");
+  }
+
+  // v3.26 — add/remove/reorder merchants attached to this banner. Each
+  // entry is a denormalized SNAPSHOT taken at attach time (name/logo/
+  // logo_size), not a live reference — see the `merchants` column comment
+  // in entities.generated.ts for why.
+  function addMerchant(key) {
+    if (!key) return;
+    const [mtype, mid] = key.split(":");
+    const merchant = approvedMerchants.find((m) => m._type === mtype && m.id === mid);
+    if (!merchant) return;
+    setForm((prev) => ({
+      ...prev,
+      merchants: [
+        ...(prev.merchants || []),
+        {
+          type: mtype,
+          id: merchant.id,
+          name: merchant.name || "",
+          logo_url: merchant.logo_url || "",
+          logo_size: merchant.logo_size || "auto",
+        },
+      ],
+    }));
+  }
+
+  function removeMerchant(index) {
+    setForm((prev) => ({ ...prev, merchants: (prev.merchants || []).filter((_, i) => i !== index) }));
+  }
+
+  function moveMerchant(index, dir) {
+    setForm((prev) => {
+      const arr = [...(prev.merchants || [])];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[index], arr[j]] = [arr[j], arr[index]];
+      return { ...prev, merchants: arr };
+    });
   }
 
   const toggleCountry = (code) => {
@@ -346,7 +450,12 @@ Description: ${form.description}`;
   }
 
   async function save() {
-    if (!form.title || !form.description || !form.link) {
+    const hasMerchants = (form.merchants || []).length > 0;
+    // When one or more merchants are attached, the title/logo/link are
+    // resolved automatically from them at render time (AdBannerItem.jsx) —
+    // see the disabled fields + note in the form below — so the manual
+    // fields are no longer required.
+    if (!hasMerchants && (!form.title || !form.description || !form.link)) {
       toast({ title: t("adv.fillAllFields") });
       return;
     }
@@ -375,6 +484,12 @@ Description: ${form.description}`;
         editingOriginalPeriod.duration_months !== (form.duration_months || "");
       const payload = {
         ...form,
+        // When merchants are attached, fall back to the first one's name so
+        // the admin list (and any code path that still reads ad.title
+        // directly) has something reasonable — the actual display on the
+        // public banner always goes through AdBannerItem.jsx's
+        // merchant-resolution logic instead, which ignores this value.
+        title: hasMerchants ? form.title || form.merchants[0]?.name || "" : form.title,
         countries,
         languages: languagesToSave,
         country_content: JSON.stringify(countryContent),
@@ -383,6 +498,10 @@ Description: ${form.description}`;
         starts_at: form.starts_at || null,
         duration_months: form.duration_months ? Number(form.duration_months) : null,
         expires_at: expiresAt,
+        merchants: JSON.stringify(form.merchants || []),
+        merchant_rotation_minutes: hasMerchants && form.merchants.length > 1
+          ? rotationUiToMinutes(rotationValue, rotationUnit)
+          : null,
       };
       if (periodChanged) {
         payload.renewal_notice_sent = false;
@@ -434,6 +553,8 @@ Description: ${form.description}`;
     }
   }
 
+  const hasMerchants = (form.merchants || []).length > 0;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -473,6 +594,7 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder={t("adv.titlePlaceholder")}
                 className="min-h-[44px]"
+                disabled={hasMerchants}
               />
             </div>
             <div>
@@ -482,6 +604,7 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder={t("adv.descriptionPlaceholder")}
                 className="min-h-[44px]"
+                disabled={hasMerchants}
               />
             </div>
             <div>
@@ -491,9 +614,10 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, link: e.target.value })}
                 placeholder={t("ca.linkPlaceholder")}
                 className="min-h-[44px]"
+                disabled={hasMerchants}
               />
             </div>
-            <div>
+            <div className={hasMerchants ? "opacity-50 pointer-events-none" : ""}>
               <Label>{t("ca.advertiserLogo")}</Label>
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
@@ -515,7 +639,7 @@ Description: ${form.description}`;
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    disabled={uploadingLogo}
+                    disabled={uploadingLogo || hasMerchants}
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
@@ -556,6 +680,124 @@ Description: ${form.description}`;
                 </SelectContent>
               </Select>
             </div>
+
+            {/* v3.26 — attach one or more approved merchants to this
+                banner: the banner then auto-displays their logo + name
+                (rotating between them, if more than one) instead of the
+                manually typed title/logo/link above. See
+                AdBannerItem.jsx's rotation-resolution logic. */}
+            {isAdmin && (
+              <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-cyan-600" />
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("ca.merchantsSection")}</h3>
+                </div>
+                <p className="text-xs text-slate-400">{t("ca.merchantsHint")}</p>
+
+                <Select value="" onValueChange={addMerchant}>
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue placeholder={t("ca.addMerchantPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {approvedMerchants
+                      .filter((m) => !(form.merchants || []).some((fm) => fm.type === m._type && fm.id === m.id))
+                      .map((m) => (
+                        <SelectItem key={`${m._type}:${m.id}`} value={`${m._type}:${m.id}`}>
+                          {MERCHANT_TYPE_LABELS[m._type]} — {m.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {approvedMerchants.length === 0 && (
+                  <p className="text-xs text-slate-400 text-center py-1">{t("ca.noApprovedMerchants")}</p>
+                )}
+
+                {hasMerchants && (
+                  <div className="space-y-2">
+                    {form.merchants.map((m, idx) => (
+                      <div
+                        key={`${m.type}:${m.id}`}
+                        className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-accent/40 p-2"
+                      >
+                        <div className="w-8 h-8 rounded bg-white border border-slate-200 dark:border-border flex items-center justify-center overflow-hidden shrink-0">
+                          {m.logo_url ? (
+                            <img src={m.logo_url} alt={m.name} className="w-full h-full object-contain" />
+                          ) : m.type === "water_body" ? (
+                            <Waves className="w-4 h-4 text-slate-300" />
+                          ) : (
+                            <Store className="w-4 h-4 text-slate-300" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-700 dark:text-foreground truncate">{m.name}</p>
+                          <p className="text-[10px] text-slate-400">{MERCHANT_TYPE_LABELS[m.type]}</p>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => moveMerchant(idx, -1)}
+                            disabled={idx === 0}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent disabled:opacity-30"
+                            title={t("ca.moveUp")}
+                          >
+                            <ArrowUp className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveMerchant(idx, 1)}
+                            disabled={idx === form.merchants.length - 1}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent disabled:opacity-30"
+                            title={t("ca.moveDown")}
+                          >
+                            <ArrowDown className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeMerchant(idx)}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent"
+                            title={t("ca.removeMerchant")}
+                          >
+                            <X className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {hasMerchants && form.merchants.length > 1 && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-border space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-cyan-600" />
+                      <Label className="mb-0">{t("ca.rotationInterval")}</Label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={rotationValue}
+                        onChange={(e) => setRotationValue(e.target.value)}
+                        className="min-h-[44px]"
+                      />
+                      <Select value={rotationUnit} onValueChange={setRotationUnit}>
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ROTATION_UNITS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-slate-400">{t("ca.rotationIntervalDesc")}</p>
+                  </div>
+                )}
+
+                {hasMerchants && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">{t("ca.merchantsAutoNote")}</p>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("adv.color")}</Label>

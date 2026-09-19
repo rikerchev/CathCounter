@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
@@ -12,6 +13,23 @@ import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
+
+// v3.26 — same logo-size options CustomAds.jsx offers for an advertiser's
+// own logo (16×16 / 32×16 / 48×16 / auto). Meaningful here because a
+// venue's logo can now also appear inside an actual ad banner — an admin
+// can attach one or more approved merchants to a custom-ads banner (see
+// CustomAds.jsx's "Търговци в банера" section) and, when that happens, the
+// banner renders THIS venue's own name + logo instead of hand-typed ad
+// content — so the venue owner needs the same size control an advertiser
+// already has, not a fixed one-size-fits-all thumbnail. Has no effect on
+// the small, fixed-size logo thumbnails this page and CommercialVenues.jsx
+// already show in their own lists — those stay a plain 48×48 regardless.
+const LOGO_SIZE_KEYS = [
+  { value: "16x16", label: "16×16" },
+  { value: "32x16", label: "32×16" },
+  { value: "48x16", label: "48×16" },
+  { value: "auto", labelKey: "adv.sizeAuto" },
+];
 
 /**
  * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
@@ -28,11 +46,12 @@ export default function TraderVenues() {
   const { user } = useAuth();
   const { toast } = useToast();
   const isAdmin = hasRole(user, "admin");
+  const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
 
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", working_hours: "" };
+  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto", working_hours: "" };
   const [form, setForm] = useState(emptyForm);
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -72,6 +91,7 @@ export default function TraderVenues() {
       contact_email: v.contact_email || "",
       website: v.website || "",
       logo_url: v.logo_url || "",
+      logo_size: v.logo_size || "auto",
       working_hours: v.working_hours || "",
     });
     setShowForm(true);
@@ -90,6 +110,7 @@ export default function TraderVenues() {
       contact_email: form.contact_email,
       website: form.website,
       logo_url: form.logo_url,
+      logo_size: form.logo_size,
       working_hours: form.working_hours,
     };
     try {
@@ -304,6 +325,19 @@ export default function TraderVenues() {
                   </button>
                 )}
               </div>
+            </div>
+            {/* v3.26 — same logo-size picker CustomAds.jsx offers for an
+                advertiser's own logo; see the LOGO_SIZE_KEYS comment above. */}
+            <div className="space-y-1.5">
+              <Label>{t("adv.logoSize")}</Label>
+              <Select value={form.logo_size} onValueChange={(v) => setForm((f) => ({ ...f, logo_size: v }))}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOGO_SIZES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>{t("common.workingHours")}</Label>

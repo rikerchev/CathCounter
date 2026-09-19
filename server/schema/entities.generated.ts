@@ -282,6 +282,19 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "link", type: "string", required: true },
       { name: "logo_url", type: "string", required: false },
       { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
+      // v3.26 — one or more approved merchants (water_bodies/venues)
+      // attached to this banner by an admin in CustomAds.jsx's "Търговци в
+      // банера" section. JSON array of DENORMALIZED snapshots taken at
+      // attach time — [{type, id, name, logo_url, logo_size}, ...], in
+      // rotation order — same JSON-in-TEXT pattern as
+      // country_content/language_content below, not a live join, so the
+      // ad-rendering hot path (every page load) never needs an extra
+      // fetch. See AdBannerItem.jsx's merchant-resolution logic.
+      { name: "merchants", type: "string", required: false },
+      // Rotation interval in MINUTES, regardless of which unit
+      // (minute/hour/day) the admin picked in the UI — irrelevant/unused
+      // when merchants has 0 or 1 entries.
+      { name: "merchant_rotation_minutes", type: "integer", required: false },
       { name: "bg_class", type: "string", required: false },
       { name: "text_class", type: "string", required: false },
       { name: "is_active", type: "boolean", required: false },
@@ -617,6 +630,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       // v3.06 — free-text working hours (e.g. "09:00 - 18:00"), shown
       // publicly on CommercialVenues.jsx. See TraderVenues.jsx.
       { name: "working_hours", type: "string", required: false },
+      // v3.26 — same logo-size options CustomAd.logo_size offers (see
+      // there): meaningful once this venue's logo can appear inside an
+      // actual ad banner (CustomAds.jsx's "Търговци в банера" — the ad
+      // snapshots this value at the time it's attached, see
+      // custom_ads.merchants below).
+      { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
     ],
     rules: {
       read: { kind: "public" },

@@ -1175,4 +1175,18 @@ export const ro = {
     "profile.yourPhone": "Numărul dvs. de telefon",
     "profile.savePhone": "Salvează telefonul",
     "profile.phoneUpdated": "Telefonul a fost actualizat",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Comercianți în acest banner",
+    "ca.merchantsHint": "Atașați unul sau mai mulți comercianți aprobați la acest banner — acesta va afișa apoi automat sigla și numele lor în locul titlului/siglei/linkului introduse manual mai sus.",
+    "ca.addMerchantPlaceholder": "Adaugă comerciant...",
+    "ca.noApprovedMerchants": "Încă nu există comercianți aprobați.",
+    "ca.merchantsAutoNote": "Titlul, sigla și linkul sunt determinate automat de comercianții atașați și nu pot fi editate manual cât timp există comercianți adăugați.",
+    "ca.rotationInterval": "Interval de rotație",
+    "ca.rotationIntervalDesc": "Fiecare vizitator vede același comerciant la un moment dat — se schimbă conform acestui interval.",
+    "ca.rotationUnitMinutes": "minute",
+    "ca.rotationUnitHours": "ore",
+    "ca.rotationUnitDays": "zile",
+    "ca.moveUp": "Mută în sus",
+    "ca.moveDown": "Mută în jos",
+    "ca.removeMerchant": "Elimină",
 };

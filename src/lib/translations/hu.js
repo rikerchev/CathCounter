@@ -1175,4 +1175,18 @@ export const hu = {
     "profile.yourPhone": "Az Ön telefonszáma",
     "profile.savePhone": "Telefon mentése",
     "profile.phoneUpdated": "A telefon frissítve",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Kereskedők ebben a bannerben",
+    "ca.merchantsHint": "Csatoljon egy vagy több jóváhagyott kereskedőt ehhez a bannerhez — ekkor automatikusan azok logóját és nevét jeleníti meg a fent manuálisan megadott cím/logó/link helyett.",
+    "ca.addMerchantPlaceholder": "Kereskedő hozzáadása...",
+    "ca.noApprovedMerchants": "Még nincs jóváhagyott kereskedő.",
+    "ca.merchantsAutoNote": "A cím, a logó és a link automatikusan a csatolt kereskedő(k) alapján kerül meghatározásra, és nem szerkeszthető manuálisan, amíg kereskedők vannak hozzáadva.",
+    "ca.rotationInterval": "Váltási időköz",
+    "ca.rotationIntervalDesc": "Minden látogató ugyanazt a kereskedőt látja egy adott pillanatban — ez az időköz szerint váltakozik.",
+    "ca.rotationUnitMinutes": "perc",
+    "ca.rotationUnitHours": "óra",
+    "ca.rotationUnitDays": "nap",
+    "ca.moveUp": "Feljebb",
+    "ca.moveDown": "Lejjebb",
+    "ca.removeMerchant": "Eltávolítás",
 };

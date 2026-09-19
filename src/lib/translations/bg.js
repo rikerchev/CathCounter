@@ -1228,4 +1228,18 @@ export const bg = {
     "profile.yourPhone": "Вашият телефон",
     "profile.savePhone": "Запази телефон",
     "profile.phoneUpdated": "Телефонът е обновен",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Търговци в банера",
+    "ca.merchantsHint": "Прикачете един или повече одобрени търговци към този банер — тогава той автоматично показва тяхното лого и име вместо ръчно въведените заглавие/лого/линк по-горе.",
+    "ca.addMerchantPlaceholder": "Добави търговец...",
+    "ca.noApprovedMerchants": "Все още няма одобрени търговци.",
+    "ca.merchantsAutoNote": "Заглавието, логото и линкът се определят автоматично от прикачения(те) търговец(ци) и не могат да се редактират ръчно, докато има добавени търговци.",
+    "ca.rotationInterval": "Интервал на редуване",
+    "ca.rotationIntervalDesc": "Всеки посетител вижда един и същ търговец в определен момент — той се сменя на този интервал.",
+    "ca.rotationUnitMinutes": "минути",
+    "ca.rotationUnitHours": "часове",
+    "ca.rotationUnitDays": "дни",
+    "ca.moveUp": "Премести нагоре",
+    "ca.moveDown": "Премести надолу",
+    "ca.removeMerchant": "Премахни",
 };

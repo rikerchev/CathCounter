@@ -1175,4 +1175,18 @@ export const tr = {
     "profile.yourPhone": "Telefon numaranız",
     "profile.savePhone": "Telefonu kaydet",
     "profile.phoneUpdated": "Telefon güncellendi",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Bu bannerdaki satıcılar",
+    "ca.merchantsHint": "Bu bannere bir veya daha fazla onaylı satıcı ekleyin — böylece yukarıda elle girilen başlık/logo/bağlantı yerine otomatik olarak onların logosunu ve adını gösterir.",
+    "ca.addMerchantPlaceholder": "Satıcı ekle...",
+    "ca.noApprovedMerchants": "Henüz onaylı satıcı yok.",
+    "ca.merchantsAutoNote": "Başlık, logo ve bağlantı, eklenen satıcı(lar) tarafından otomatik olarak belirlenir ve satıcılar eklendiği sürece elle düzenlenemez.",
+    "ca.rotationInterval": "Değişim aralığı",
+    "ca.rotationIntervalDesc": "Her ziyaretçi belirli bir anda aynı satıcıyı görür — bu aralığa göre değişir.",
+    "ca.rotationUnitMinutes": "dakika",
+    "ca.rotationUnitHours": "saat",
+    "ca.rotationUnitDays": "gün",
+    "ca.moveUp": "Yukarı taşı",
+    "ca.moveDown": "Aşağı taşı",
+    "ca.removeMerchant": "Kaldır",
 };

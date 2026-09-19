@@ -282,6 +282,25 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE sector_reservations ADD COLUMN IF NOT EXISTS arrival_time TEXT`);
     },
   },
+  "v3.26-merchant-banner-rotation": {
+    label: "v3.26 — Размер на лого на обекти + завъртане на търговци в банер",
+    run: async () => {
+      // logo_size on venues — same enum custom_ads.logo_size already offers
+      // (TraderVenues.jsx), so a venue's own logo keeps its chosen aspect
+      // when later snapshotted into an ad banner below.
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'))`);
+      // merchants: JSON array of denormalized merchant snapshots
+      // ([{type, id, name, logo_url, logo_size}, ...], in rotation order)
+      // an admin attaches to a banner from CustomAds.jsx's "Търговци в
+      // банера" section — not a live join, so the ad-rendering hot path
+      // (every page load) never needs an extra fetch. See
+      // src/components/AdBannerItem.jsx for the rotation-resolution logic.
+      await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchants TEXT`);
+      // Rotation interval in MINUTES regardless of the UI unit picked
+      // (minute/hour/day); unused when merchants has 0 or 1 entries.
+      await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchant_rotation_minutes INTEGER`);
+    },
+  },
 };
 
 /**
@@ -418,6 +437,16 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'sector_reservations' AND column_name = 'arrival_time'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.26-merchant-banner-rotation") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND (
+            (table_name = 'venues' AND column_name = 'logo_size')
+             OR (table_name = 'custom_ads' AND column_name IN ('merchants', 'merchant_rotation_minutes'))
+          )
+        `;
+        applied = (rows[0]?.n ?? 0) >= 3;
       }
       out[id] = { label: m.label, applied };
     }

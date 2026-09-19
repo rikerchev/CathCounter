@@ -1175,4 +1175,18 @@ export const uk = {
     "profile.yourPhone": "Ваш номер телефону",
     "profile.savePhone": "Зберегти телефон",
     "profile.phoneUpdated": "Телефон оновлено",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Торговці в цьому банері",
+    "ca.merchantsHint": "Прикріпіть одного або кількох схвалених торговців до цього банера — тоді він автоматично показуватиме їхній логотип і назву замість введених вручну вище заголовка/логотипу/посилання.",
+    "ca.addMerchantPlaceholder": "Додати торговця...",
+    "ca.noApprovedMerchants": "Поки що немає схвалених торговців.",
+    "ca.merchantsAutoNote": "Заголовок, логотип і посилання визначаються автоматично прикріпленими торговцями і не можуть редагуватися вручну, поки додано торговців.",
+    "ca.rotationInterval": "Інтервал ротації",
+    "ca.rotationIntervalDesc": "Кожен відвідувач бачить того самого торговця в певний момент — він змінюється відповідно до цього інтервалу.",
+    "ca.rotationUnitMinutes": "хвилини",
+    "ca.rotationUnitHours": "години",
+    "ca.rotationUnitDays": "дні",
+    "ca.moveUp": "Перемістити вгору",
+    "ca.moveDown": "Перемістити вниз",
+    "ca.removeMerchant": "Видалити",
 };

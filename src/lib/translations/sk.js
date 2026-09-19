@@ -1175,4 +1175,18 @@ export const sk = {
     "profile.yourPhone": "Vaše telefónne číslo",
     "profile.savePhone": "Uložiť telefón",
     "profile.phoneUpdated": "Telefón bol aktualizovaný",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Obchodníci v tomto banneri",
+    "ca.merchantsHint": "Priraďte k tomuto banneru jedného alebo viacerých schválených obchodníkov — potom automaticky zobrazí ich logo a názov namiesto ručne zadaného titulku/loga/odkazu vyššie.",
+    "ca.addMerchantPlaceholder": "Pridať obchodníka...",
+    "ca.noApprovedMerchants": "Zatiaľ žiadni schválení obchodníci.",
+    "ca.merchantsAutoNote": "Titulok, logo a odkaz sa určujú automaticky podľa priradených obchodníkov a nemožno ich ručne upravovať, kým sú obchodníci pridaní.",
+    "ca.rotationInterval": "Interval striedania",
+    "ca.rotationIntervalDesc": "Každý návštevník vidí v danom okamihu rovnakého obchodníka — mení sa podľa tohto intervalu.",
+    "ca.rotationUnitMinutes": "minúty",
+    "ca.rotationUnitHours": "hodiny",
+    "ca.rotationUnitDays": "dni",
+    "ca.moveUp": "Presunúť nahor",
+    "ca.moveDown": "Presunúť nadol",
+    "ca.removeMerchant": "Odstrániť",
 };

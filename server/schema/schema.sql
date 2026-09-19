@@ -242,6 +242,18 @@ CREATE TABLE custom_ads (
   link TEXT,
   logo_url TEXT,
   logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto')) DEFAULT 'auto',
+  -- v3.26 — one or more approved merchants (water_bodies/venues) attached to
+  -- this banner by an admin (CustomAds.jsx "Търговци в банера"). JSON array
+  -- of denormalized snapshots taken at attach time —
+  -- [{type, id, name, logo_url, logo_size}, ...], in rotation order — same
+  -- JSON-in-TEXT pattern as country_content/language_content below, so the
+  -- ad-rendering hot path never needs an extra fetch. See the ALTER TABLE
+  -- note near the bottom of this file for existing databases, and
+  -- src/components/AdBannerItem.jsx for the rotation-resolution logic.
+  merchants TEXT,
+  -- Rotation interval in MINUTES regardless of the UI unit picked
+  -- (minute/hour/day); unused when merchants has 0 or 1 entries.
+  merchant_rotation_minutes INTEGER,
   bg_class TEXT DEFAULT 'bg-gradient-to-r from-cyan-600 to-blue-600',
   text_class TEXT DEFAULT 'text-white',
   is_active BOOLEAN DEFAULT TRUE,
@@ -689,3 +701,20 @@ ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS default_sectors_config TEXT;
 -- notify-sector-reservation sends. Safe to re-run. Applied via the same
 -- "Приложи обновление" admin button as the migrations above.
 ALTER TABLE sector_reservations ADD COLUMN IF NOT EXISTS arrival_time TEXT;
+
+-- v3.26: admin-assigned merchant banner rotation. (1) logo_size on venues —
+-- same enum custom_ads.logo_size already offers, so a venue's own logo can
+-- keep its chosen aspect when it's later snapshotted into an ad banner (see
+-- below). (2)+(3) on custom_ads: merchants is a JSON array of denormalized
+-- merchant snapshots ([{type, id, name, logo_url, logo_size}, ...], in
+-- rotation order) an admin attaches to a banner from CustomAds.jsx's
+-- "Търговци в банера" section — not a live join, so the ad-rendering hot
+-- path (every page load) never needs an extra fetch; merchant_rotation_minutes
+-- is the rotation interval in minutes regardless of which UI unit
+-- (minute/hour/day) the admin picked, unused when merchants has 0 or 1
+-- entries. See src/components/AdBannerItem.jsx for the rotation-resolution
+-- logic. Safe to re-run. Applied via the same "Приложи обновление" admin
+-- button as the migrations above.
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'));
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchants TEXT;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchant_rotation_minutes INTEGER;

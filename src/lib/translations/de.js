@@ -1175,4 +1175,18 @@ export const de = {
     "profile.yourPhone": "Ihre Telefonnummer",
     "profile.savePhone": "Telefon speichern",
     "profile.phoneUpdated": "Telefon aktualisiert",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Händler in diesem Banner",
+    "ca.merchantsHint": "Fügen Sie diesem Banner einen oder mehrere genehmigte Händler hinzu — er zeigt dann automatisch deren Logo und Namen anstelle des oben manuell eingegebenen Titels/Logos/Links.",
+    "ca.addMerchantPlaceholder": "Händler hinzufügen...",
+    "ca.noApprovedMerchants": "Noch keine genehmigten Händler.",
+    "ca.merchantsAutoNote": "Titel, Logo und Link werden automatisch durch die angehängten Händler bestimmt und können nicht manuell bearbeitet werden, solange Händler hinzugefügt sind.",
+    "ca.rotationInterval": "Rotationsintervall",
+    "ca.rotationIntervalDesc": "Jeder Besucher sieht zu einem bestimmten Zeitpunkt denselben Händler — der Wechsel erfolgt in diesem Intervall.",
+    "ca.rotationUnitMinutes": "Minuten",
+    "ca.rotationUnitHours": "Stunden",
+    "ca.rotationUnitDays": "Tage",
+    "ca.moveUp": "Nach oben",
+    "ca.moveDown": "Nach unten",
+    "ca.removeMerchant": "Entfernen",
 };

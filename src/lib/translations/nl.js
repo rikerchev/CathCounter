@@ -1175,4 +1175,18 @@ export const nl = {
     "profile.yourPhone": "Uw telefoonnummer",
     "profile.savePhone": "Telefoon opslaan",
     "profile.phoneUpdated": "Telefoon bijgewerkt",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Handelaren in deze banner",
+    "ca.merchantsHint": "Koppel een of meer goedgekeurde handelaren aan deze banner — deze toont dan automatisch hun logo en naam in plaats van de hierboven handmatig ingevoerde titel/logo/link.",
+    "ca.addMerchantPlaceholder": "Handelaar toevoegen...",
+    "ca.noApprovedMerchants": "Nog geen goedgekeurde handelaren.",
+    "ca.merchantsAutoNote": "De titel, het logo en de link worden automatisch bepaald door de gekoppelde handelaren en kunnen niet handmatig worden bewerkt zolang er handelaren zijn toegevoegd.",
+    "ca.rotationInterval": "Wisselinterval",
+    "ca.rotationIntervalDesc": "Elke bezoeker ziet op een bepaald moment dezelfde handelaar — deze wisselt volgens dit interval.",
+    "ca.rotationUnitMinutes": "minuten",
+    "ca.rotationUnitHours": "uur",
+    "ca.rotationUnitDays": "dagen",
+    "ca.moveUp": "Omhoog",
+    "ca.moveDown": "Omlaag",
+    "ca.removeMerchant": "Verwijderen",
 };

@@ -1175,4 +1175,18 @@ export const sr = {
     "profile.yourPhone": "Vaš broj telefona",
     "profile.savePhone": "Sačuvaj telefon",
     "profile.phoneUpdated": "Telefon je ažuriran",
+    // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
+    "ca.merchantsSection": "Trgovci u ovom baneru",
+    "ca.merchantsHint": "Povežite jednog ili više odobrenih trgovaca sa ovim banerom — tada će automatski prikazivati njihov logo i naziv umesto ručno unetog naslova/loga/linka iznad.",
+    "ca.addMerchantPlaceholder": "Dodaj trgovca...",
+    "ca.noApprovedMerchants": "Još nema odobrenih trgovaca.",
+    "ca.merchantsAutoNote": "Naslov, logo i link se automatski određuju na osnovu povezanih trgovaca i ne mogu se ručno menjati dok su trgovci dodati.",
+    "ca.rotationInterval": "Interval rotacije",
+    "ca.rotationIntervalDesc": "Svaki posetilac vidi istog trgovca u datom trenutku — menja se prema ovom intervalu.",
+    "ca.rotationUnitMinutes": "minuta",
+    "ca.rotationUnitHours": "sati",
+    "ca.rotationUnitDays": "dana",
+    "ca.moveUp": "Pomeri gore",
+    "ca.moveDown": "Pomeri dole",
+    "ca.removeMerchant": "Ukloni",
 };
