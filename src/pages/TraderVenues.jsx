@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, Download, Loader2, Power, Pencil, Upload, X } from "lucide-react";
+import { Store, Download, Loader2, Power, Pencil, Upload, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,25 +163,41 @@ export default function TraderVenues() {
           {venues.map((v) => (
             <div key={v.id} className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-4 shadow-sm space-y-3">
               <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <h2 className="font-bold text-slate-800 dark:text-foreground truncate">{v.name}</h2>
-                  {v.address && <p className="text-xs text-slate-400 truncate">{v.address}</p>}
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {v.status === "pending" && (
-                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        {t("awb.pending")}
-                      </span>
-                    )}
-                    {v.status === "rejected" && (
-                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                        {t("awb.statusRejected")}
-                      </span>
-                    )}
-                    {!v.is_active && (
-                      <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 dark:bg-accent dark:text-muted-foreground">
-                        {t("tv.inactive")}
-                      </span>
-                    )}
+                <div className="flex items-start gap-3 min-w-0">
+                  {/* v3.24 — same logo thumbnail CommercialVenues.jsx shows publicly,
+                      so the merchant sees it right on their own card list too,
+                      not only inside the edit dialog while changing it. */}
+                  {v.logo_url ? (
+                    <img
+                      src={v.logo_url}
+                      alt={v.name}
+                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-slate-100 dark:border-border"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-accent flex items-center justify-center flex-shrink-0">
+                      <ImageIcon className="w-5 h-5 text-slate-300" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className="font-bold text-slate-800 dark:text-foreground truncate">{v.name}</h2>
+                    {v.address && <p className="text-xs text-slate-400 truncate">{v.address}</p>}
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {v.status === "pending" && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                          {t("awb.pending")}
+                        </span>
+                      )}
+                      {v.status === "rejected" && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                          {t("awb.statusRejected")}
+                        </span>
+                      )}
+                      {!v.is_active && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-600 dark:bg-accent dark:text-muted-foreground">
+                          {t("tv.inactive")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2 flex-shrink-0">

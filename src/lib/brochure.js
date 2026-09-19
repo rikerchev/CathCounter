@@ -36,18 +36,30 @@ import QRCode from "qrcode";
  * so a trader/admin handing out several brochures can tell them apart
  * without opening each PDF. Uses the CatchCountBrochure custom font
  * (public/fonts/*.ttf) so the added text matches the reference graphic's
- * own "СКАНИРАЙ И ИЗТЕГЛИ" label style instead of a generic system font.
+ * own "СКАНИРАЙ И ОТВОРИ" label style instead of a generic system font.
  *
  * v3.21 — an optional second line of free text (see drawContactText below),
  * drawn in the template's other empty strip — directly under the existing
- * "Сканирай. Изтегли. Лови." caption, bottom-left — for the owner/admin/
+ * "Сканирай. Отвори. Лови." caption, bottom-left — for the owner/admin/
  * merchant to add their own contact info before downloading (prompted by
- * src/components/BrochureContactDialog.jsx on all three download screens).
- * Deliberately free text with NO icon drawn next to it and NO forced
- * uppercase/format: the box is offered as "add a phone number" but the
- * trader may just as well want a website, a Facebook page, or a custom
- * label like "За резервация тел.: ...", so the app must not assume it's a
- * phone number and slap a phone glyph in front of whatever they typed.
+ * src/components/BrochureContactDialog.jsx). Deliberately free text with NO
+ * icon drawn next to it and NO forced uppercase/format: the box is offered
+ * as "add a phone number" but the trader may just as well want a website, a
+ * Facebook page, or a custom label like "За резервация тел.: ...", so the
+ * app must not assume it's a phone number and slap a phone glyph in front
+ * of whatever they typed.
+ *
+ * v3.25 — the reference graphic itself (public/brochure-template.jpg) was
+ * edited in two ways, at the trader's request: every "Изтегли"/"ИЗТЕГЛИ"
+ * ("download") was replaced with "Отвори"/"ОТВОРИ" ("open"), since this is
+ * a web app reached by opening a link/QR, not something installed from
+ * Google Play/the App Store — "download" was actively misleading. And the
+ * "Сканирай. Отвори. Лови." caption was nudged up 24px to leave more room
+ * below it (see CONTACT_BASELINE_Y below, moved up by the same amount so
+ * the optional contact line keeps the gap it always had beneath that
+ * caption). Same "same source file, untouched pixels" approach as always —
+ * this is a one-time edit to the shared template asset, not something drawn
+ * per-download.
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
@@ -179,15 +191,25 @@ function drawVenueName(ctx, name) {
 }
 
 // Draws the optional free-text contact line, left-aligned, in the empty
-// dark strip below the template's own "Сканирай. Изтегли. Лови." caption
-// (that caption's icon sits at x=73, y≈690-725; the strip below it, y≈724-
+// dark strip below the template's own "Сканирай. Отвори. Лови." caption
+// (that caption's icon sits at x=73, y≈666-701; the strip below it, y≈700-
 // 768, is empty background across the full width of the template — measured
 // directly on the source image the same way BADGE_*/NAME_* above were).
 // Left-aligned (not centered like the venue name) so it reads as a
 // continuation of the caption line above it, and capped well short of the
 // QR badge (BADGE_X = 1096) so a long line never runs into it.
+//
+// v3.25 — the template asset itself was edited: "Изтегли"/"ИЗТЕГЛИ" was
+// replaced with "Отвори"/"ОТВОРИ" everywhere in the graphic (the app is a
+// web app, not something installed from Google Play/App Store, so
+// "download" was misleading — the QR just opens it), and the caption line
+// was moved up 24px (icon+text top 682→658, baseline 716→692) to leave more
+// breathing room at the bottom edge. CONTACT_BASELINE_Y moves up by the same
+// 24px so this line keeps the same visual gap below the caption it always
+// had (they read as one continuous two-line block, so they had to move
+// together, not just the caption alone).
 const CONTACT_X = 73;
-const CONTACT_BASELINE_Y = 752;
+const CONTACT_BASELINE_Y = 728;
 const CONTACT_MAX_WIDTH = 950;
 const CONTACT_MAX_FONT = 24;
 const CONTACT_MIN_FONT = 13;

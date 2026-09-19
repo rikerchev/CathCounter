@@ -404,6 +404,14 @@ export default function WaterBodyManagement() {
   // v3.21 — the water body pending a brochure download, while
   // BrochureContactDialog is open asking for an optional contact line.
   const [brochureTarget, setBrochureTarget] = useState(null);
+  // v3.25 — same BrochureContactDialog reuse, this time in front of the
+  // "Списък участници" / "Изтегли жребий (снимка)" image exports (both
+  // embed the water body's real brochure at the bottom — see
+  // standingsImage.js's renderRowsPage — so the same optional contact line
+  // applies). Holds the competition pending each export while its dialog is
+  // open; null when neither is open.
+  const [participantsImageTarget, setParticipantsImageTarget] = useState(null);
+  const [drawResultsImageTarget, setDrawResultsImageTarget] = useState(null);
   // v2.91 — "delete a closed competition" (see deleteClosedCompetition).
   const [deletingCompId, setDeletingCompId] = useState("");
   // v2.80 — participant list + CSV export for a competition, per the
@@ -1222,6 +1230,11 @@ export default function WaterBodyManagement() {
     setReorderParticipants(false);
     setParticipantsOrderDraft(null);
     setResultsDraft({});
+    // v3.25 — these two dialogs stack on top of the participants dialog
+    // (see the buttons/handlers above); clear them too so a stale target
+    // never lingers if the participants dialog itself gets closed first.
+    setParticipantsImageTarget(null);
+    setDrawResultsImageTarget(null);
   }
 
   // v3.09 — one round's weight input for one participant, edited in place
@@ -1301,7 +1314,12 @@ export default function WaterBodyManagement() {
   // handleDownloadStandingsImage above (see standingsImage.js), just fed
   // the raw registrations instead of a ranked list — ordering/numbering by
   // registration order happens inside downloadParticipantsImage itself.
-  async function handleDownloadParticipantsImage(comp) {
+  // v3.25 — now takes the same optional contact-text line the brochure
+  // download offers (collected by BrochureContactDialog, see the button's
+  // onClick below and the dialog render near the end of this component) —
+  // it's passed straight through to the brochure embedded at the bottom of
+  // this image.
+  async function handleDownloadParticipantsImage(comp, contactText) {
     setGeneratingParticipantsImage(true);
     try {
       await downloadParticipantsImage({
@@ -1312,7 +1330,9 @@ export default function WaterBodyManagement() {
         filename: `uchastnici-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
         t,
         lang,
+        contactText,
       });
+      setParticipantsImageTarget(null);
     } catch (e) {
       toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
     } finally {
@@ -1325,7 +1345,9 @@ export default function WaterBodyManagement() {
   // right next to "Изтегли CSV" in the participants dialog footer, only
   // once at least one registration has a drawn box (see the button's own
   // conditional render below), so there's never an empty/pointless image.
-  async function handleDownloadDrawResultsImage(comp) {
+  // v3.25 — same contactText addition as handleDownloadParticipantsImage
+  // above, same reasoning.
+  async function handleDownloadDrawResultsImage(comp, contactText) {
     setGeneratingDrawResultsImage(true);
     try {
       await downloadDrawResultsImage({
@@ -1336,7 +1358,9 @@ export default function WaterBodyManagement() {
         filename: `zhrebiy-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.png`,
         t,
         lang,
+        contactText,
       });
+      setDrawResultsImageTarget(null);
     } catch (e) {
       toast({ title: t("comp.errorGeneratingImage"), description: e.message, variant: "destructive" });
     } finally {
@@ -2310,7 +2334,7 @@ export default function WaterBodyManagement() {
                 registration, independent of any draw/results. */}
             <Button
               variant="outline"
-              onClick={() => handleDownloadParticipantsImage(participantsFor)}
+              onClick={() => setParticipantsImageTarget(participantsFor)}
               disabled={generatingParticipantsImage}
               className="min-h-[44px]"
             >
@@ -2335,7 +2359,7 @@ export default function WaterBodyManagement() {
             {participantsFor && regsFor(participantsFor.id).some((r) => r.assigned_box != null) && (
               <Button
                 variant="outline"
-                onClick={() => handleDownloadDrawResultsImage(participantsFor)}
+                onClick={() => setDrawResultsImageTarget(participantsFor)}
                 disabled={generatingDrawResultsImage}
                 className="min-h-[44px]"
               >
@@ -2565,6 +2589,30 @@ export default function WaterBodyManagement() {
         defaultValue=""
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
         onConfirm={(text, format) => handleDownloadBrochure(brochureTarget, text, format)}
+      />
+
+      {/* v3.25 — same dialog, reused for the two other exports that embed
+          this water body's brochure (see the handlers/buttons above).
+          showFormat=false: both exports are always PNG. */}
+      <BrochureContactDialog
+        open={!!participantsImageTarget}
+        onOpenChange={(open) => { if (!open) setParticipantsImageTarget(null); }}
+        defaultValue=""
+        showFormat={false}
+        title={t("comp.downloadParticipantsImage")}
+        confirmLabel={t("comp.downloadParticipantsImage")}
+        downloading={generatingParticipantsImage}
+        onConfirm={(text) => handleDownloadParticipantsImage(participantsImageTarget, text)}
+      />
+      <BrochureContactDialog
+        open={!!drawResultsImageTarget}
+        onOpenChange={(open) => { if (!open) setDrawResultsImageTarget(null); }}
+        defaultValue=""
+        showFormat={false}
+        title={t("wb.exportDrawResults")}
+        confirmLabel={t("wb.exportDrawResults")}
+        downloading={generatingDrawResultsImage}
+        onConfirm={(text) => handleDownloadDrawResultsImage(drawResultsImageTarget, text)}
       />
     </div>
   );

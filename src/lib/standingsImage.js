@@ -313,7 +313,7 @@ async function drawHeader(ctx, box, icon, text, t) {
 // callers.
 async function renderRowsPage({
   rowCount, drawRow, headerIcon, headerText, emptyMessage,
-  competition, waterBody, filename,
+  competition, waterBody, filename, contactText,
 }) {
   const colCount = rowCount > COLUMN_SPLIT_THRESHOLD ? 2 : 1;
   const rowH = colCount === 2 ? 58 : 66;
@@ -327,6 +327,7 @@ async function renderRowsPage({
       brochureCanvas = await renderBrochureCanvas({
         link: getMerchantBrochureLink("water_body", competition.water_body_id),
         name: waterBody?.name || competition?.water_body_name || "",
+        contactText,
       });
     } catch {
       brochureCanvas = null; // template asset failed to load — the list alone still works
@@ -430,8 +431,12 @@ export async function downloadStandingsImage({ ranked, title, competition, water
  * participants list in WaterBodyManagement.jsx's own dialog — v2.90) and
  * numbers them continuously across main+reserve.
  * title/competition/waterBody/filename/t/lang — same as downloadStandingsImage.
+ * contactText — v3.25, same optional free-text line as the brochure's own
+ * (BrochureContactDialog, reused here — see that component's own comment):
+ * passed straight through to the embedded brochure at the bottom of this
+ * image, same as downloadDrawResultsImage below.
  */
-export async function downloadParticipantsImage({ registrations, title, competition, waterBody, filename, t, lang }) {
+export async function downloadParticipantsImage({ registrations, title, competition, waterBody, filename, t, lang, contactText }) {
   const list = (registrations || [])
     .slice()
     .sort((a, b) => new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at));
@@ -446,6 +451,7 @@ export async function downloadParticipantsImage({ registrations, title, competit
     competition,
     waterBody,
     filename,
+    contactText,
   });
 }
 
@@ -471,8 +477,15 @@ export async function downloadParticipantsImage({ registrations, title, competit
  * straight to their own row by it — scanning a box-sorted seating chart for
  * one name out of 28+ doesn't scale nearly as well as looking up a known
  * number does.
+ *
+ * v3.25 — contactText: same optional free-text line the brochure download
+ * itself offers (BrochureContactDialog), now also collected before this
+ * export — see that component's own comment on why (both this image and
+ * downloadParticipantsImage embed the water body's real brochure at the
+ * bottom, unchanged, so whatever contact line the owner/merchant adds shows
+ * up there exactly the same way).
  */
-export async function downloadDrawResultsImage({ registrations, title, competition, waterBody, filename, t, lang }) {
+export async function downloadDrawResultsImage({ registrations, title, competition, waterBody, filename, t, lang, contactText }) {
   const allOrdered = (registrations || [])
     .slice()
     .sort((a, b) => new Date(a.list_order_at || a.created_at) - new Date(b.list_order_at || b.created_at));
@@ -489,5 +502,6 @@ export async function downloadDrawResultsImage({ registrations, title, competiti
     competition,
     waterBody,
     filename,
+    contactText,
   });
 }

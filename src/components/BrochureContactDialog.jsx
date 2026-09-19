@@ -25,9 +25,25 @@ import { useLanguage } from "@/lib/i18n";
 // dialog now fronts every brochure download in the app, including the
 // venue-independent "generic" brochure in AdminSetup.jsx (which has no
 // `defaultValue` to prefill from). `onConfirm(text, format)` gets both.
+//
+// v3.25 — reused (not just for the brochure itself) by the "Списък
+// участници" and "Изтегли жребий (снимка)" image exports in
+// WaterBodyManagement.jsx: both of those already embed this water body's
+// actual brochure at the bottom of the exported image (see
+// src/lib/standingsImage.js's renderRowsPage), so the same optional contact
+// line applies there too. Those two exports are always PNG (canvas-drawn,
+// not routed through downloadInviteBrochure's format branches), so
+// `showFormat = false` hides the format picker for them — passing `format`
+// to their onConfirm would be meaningless. `title`/`confirmLabel` let those
+// callers relabel the dialog/button for what's actually being exported
+// ("Списък участници" / "Изтегли жребий (снимка)") instead of the brochure
+// wording, without needing new translation keys — both reuse existing ones.
 const FORMATS = ["pdf", "jpg", "png"];
 
-export default function BrochureContactDialog({ open, onOpenChange, defaultValue, downloading, onConfirm }) {
+export default function BrochureContactDialog({
+  open, onOpenChange, defaultValue, downloading, onConfirm,
+  showFormat = true, title, confirmLabel,
+}) {
   const { t } = useLanguage();
   const [text, setText] = useState(defaultValue || "");
   const [format, setFormat] = useState("pdf");
@@ -43,7 +59,7 @@ export default function BrochureContactDialog({ open, onOpenChange, defaultValue
     <Dialog open={open} onOpenChange={(o) => { if (!downloading) onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("brochure.contactTitle")}</DialogTitle>
+          <DialogTitle>{title || t("brochure.contactTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -57,17 +73,19 @@ export default function BrochureContactDialog({ open, onOpenChange, defaultValue
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">{t("brochure.contactHint")}</p>
           </div>
-          <div className="space-y-1.5">
-            <Label>{t("brochure.formatLabel")}</Label>
-            <Select value={format} onValueChange={setFormat}>
-              <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FORMATS.map((f) => (
-                  <SelectItem key={f} value={f}>{t(`brochure.format.${f}`)}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {showFormat && (
+            <div className="space-y-1.5">
+              <Label>{t("brochure.formatLabel")}</Label>
+              <Select value={format} onValueChange={setFormat}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FORMATS.map((f) => (
+                    <SelectItem key={f} value={f}>{t(`brochure.format.${f}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={downloading}>
@@ -75,7 +93,7 @@ export default function BrochureContactDialog({ open, onOpenChange, defaultValue
           </Button>
           <Button onClick={() => onConfirm(text.trim(), format)} disabled={downloading}>
             {downloading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
-            {t("tv.downloadBrochure")}
+            {confirmLabel || t("tv.downloadBrochure")}
           </Button>
         </DialogFooter>
       </DialogContent>
