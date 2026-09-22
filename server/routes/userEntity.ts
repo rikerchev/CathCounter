@@ -1,6 +1,7 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
+import { ROLE_GROUP_KEYS, findRoleGroupId } from "../lib/roleGroups.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -97,6 +98,35 @@ export async function handleUserEntityRoute(
     const body = await req.json().catch(() => ({}));
     const payload: Record<string, unknown> = {};
     for (const k of WRITABLE_COLUMNS) if (k in body) payload[k] = body[k];
+
+    // v3.29 — the first time this request grants "water_owner" or
+    // "advertiser" (i.e. it's newly present in the incoming roles[] and
+    // wasn't already on the row) and the caller isn't ALSO explicitly
+    // setting menu_group_id itself (a deliberate manual pick always wins),
+    // auto-assign the account into that role's shared system group — see
+    // server/lib/roleGroups.ts. Only when the account has no group of its
+    // own yet, so this never reshuffles an existing (auto or manual)
+    // assignment. Every screen that grants these roles (AdminRoleRequests,
+    // AdminTraders, AdminWaterBodies, AdminUsers' per-role toggle) goes
+    // through this exact endpoint, so hooking it here once covers all of
+    // them — current and future.
+    if (Array.isArray(payload.roles) && !("menu_group_id" in body)) {
+      const beforeRows = await sql<{ roles: string[] | null; role: string | null; menu_group_id: string | null }[]>`
+        SELECT roles, role, menu_group_id FROM users WHERE id = ${sub}
+      `;
+      const before = beforeRows[0];
+      if (before && !before.menu_group_id) {
+        const beforeRoles = new Set(before.roles ?? []);
+        if (before.role) beforeRoles.add(before.role);
+        const incomingRoles = payload.roles as string[];
+        const newlyGranted = ROLE_GROUP_KEYS.find((r) => incomingRoles.includes(r) && !beforeRoles.has(r));
+        if (newlyGranted) {
+          const groupId = await findRoleGroupId(newlyGranted);
+          if (groupId) payload.menu_group_id = groupId;
+        }
+      }
+    }
+
     payload.updated_at = new Date();
     const keys = Object.keys(payload);
     const rows = await withSafeColumns((cols) => sql`

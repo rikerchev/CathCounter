@@ -762,3 +762,16 @@ ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE merchant_referrals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
+
+-- v3.29: role_key marks a menu_groups row as the auto-managed system group
+-- for a given role ("water_owner" = "Търговец"/"собственик на водоем" in the
+-- UI, or "advertiser") — see server/lib/roleGroups.ts. NULL (the default)
+-- for every ordinary, admin-created group; at most one row per role value
+-- (enforced by the partial unique index below, so INSERT ... ON CONFLICT
+-- (role_key) in adminMigrations.ts always finds/creates exactly one). The
+-- two rows themselves, and backfilling any already-approved user into
+-- theirs, are created by the "v3.29-role-menu-groups" admin migration, not
+-- here — this file only owns the schema, not seed data (see this file's own
+-- header comment). Safe to re-run.
+ALTER TABLE menu_groups ADD COLUMN IF NOT EXISTS role_key TEXT CHECK (role_key IN ('water_owner', 'advertiser'));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_menu_groups_role_key ON menu_groups(role_key) WHERE role_key IS NOT NULL;

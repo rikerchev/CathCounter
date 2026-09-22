@@ -1,6 +1,7 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
+import { ROLE_GROUP_DEFAULTS } from "../lib/roleGroups.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -316,6 +317,40 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       }
     },
   },
+  "v3.29-role-menu-groups": {
+    label: "v3.29 — Автоматични групи по роля (Рекламодатели / Търговци)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE menu_groups ADD COLUMN IF NOT EXISTS role_key TEXT CHECK (role_key IN ('water_owner', 'advertiser'))`);
+      await sql.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS idx_menu_groups_role_key ON menu_groups(role_key) WHERE role_key IS NOT NULL`);
+      // Seed the two system groups (see server/lib/roleGroups.ts for what
+      // they start out with, and why). ON CONFLICT DO NOTHING: safe to
+      // click again, never overwrites an admin's own edits to either group.
+      for (const [roleKey, def] of Object.entries(ROLE_GROUP_DEFAULTS)) {
+        await sql`
+          INSERT INTO menu_groups (name, description, menu_items, status, role_key)
+          VALUES (${def.name}, ${def.description}, ${def.menuItems}, 'active', ${roleKey})
+          ON CONFLICT (role_key) DO NOTHING
+        `;
+      }
+      // Backfill: anyone who ALREADY holds one of these roles from before
+      // this migration existed, and has no menu group of their own picked
+      // yet, is assigned to the matching role group now too — its starting
+      // menu_items list is the exact same set of screens they already had
+      // unrestricted access to (see roleGroups.ts's BASELINE_PATHS), so this
+      // changes nothing about what they can actually see; it only brings
+      // them under the same admin-editable group as everyone approved from
+      // now on. Safe to re-run — only ever touches rows with menu_group_id
+      // still NULL.
+      await sql`
+        UPDATE users SET menu_group_id = (SELECT id FROM menu_groups WHERE role_key = 'water_owner')
+        WHERE menu_group_id IS NULL AND ('water_owner' = ANY(roles) OR role = 'water_owner')
+      `;
+      await sql`
+        UPDATE users SET menu_group_id = (SELECT id FROM menu_groups WHERE role_key = 'advertiser')
+        WHERE menu_group_id IS NULL AND ('advertiser' = ANY(roles) OR role = 'advertiser')
+      `;
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -482,6 +517,16 @@ export async function handleAdminMigrationsRoute(
           WHERE schemaname = 'public' AND rowsecurity = true
         `;
         applied = (rows[0]?.n ?? 0) >= RLS_TABLES.length;
+      }
+      if (id === "v3.29-role-menu-groups") {
+        try {
+          const rows = await sql<{ n: number }[]>`
+            SELECT COUNT(*)::int AS n FROM menu_groups WHERE role_key IN ('water_owner', 'advertiser')
+          `;
+          applied = (rows[0]?.n ?? 0) >= 2;
+        } catch {
+          applied = false; // role_key column doesn't exist yet
+        }
       }
       out[id] = { label: m.label, applied };
     }
