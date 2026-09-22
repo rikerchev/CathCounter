@@ -718,3 +718,47 @@ ALTER TABLE sector_reservations ADD COLUMN IF NOT EXISTS arrival_time TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'));
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchants TEXT;
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchant_rotation_minutes INTEGER;
+
+-- v3.28: enables Postgres Row-Level Security on every public table, with no
+-- policies attached to any of them. This is purely a defense-in-depth
+-- closure of Supabase's automated "Table is publicly accessible" security
+-- scan (server/db.ts connects with the project's own DATABASE_URL, i.e. the
+-- default Supabase-provisioned "postgres" role, which OWNS every table
+-- here — and a table owner is exempt from RLS by default whether or not RLS
+-- is enabled on it, unless FORCE ROW LEVEL SECURITY is also set, which this
+-- deliberately does NOT do). So this has zero effect on the app's own
+-- queries (all of them go through server/db.ts as that owning role); all it
+-- does is stop Supabase's own PostgREST/GraphQL auto-API (a separate,
+-- unrelated access path this app has never used — no @supabase/supabase-js
+-- client or anon key is ever shipped to the browser, see src/api/
+-- base44Client.js) from being able to read/write these tables for anyone
+-- who might otherwise reach it with just the project's public anon key.
+-- Safe to re-run. Applied via the same "Приложи обновление" admin button as
+-- the migrations above.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE otp_codes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ad_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ad_slot_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_languages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE baits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE base_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE catch_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competitions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE competition_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE custom_ads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menu_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE role_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sector_availabilities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sector_reservations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE session_syncs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE translations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_inventories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE water_bodies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE venues ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;

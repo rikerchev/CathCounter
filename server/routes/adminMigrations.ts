@@ -301,7 +301,35 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS merchant_rotation_minutes INTEGER`);
     },
   },
+  "v3.28-enable-rls": {
+    label: "v3.28 — Row-Level Security на всички таблици (заявка от Supabase)",
+    run: async () => {
+      // See the matching, fuller comment in schema.sql. Plain ENABLE (no
+      // FORCE) — the DATABASE_URL role that server/db.ts always connects as
+      // owns every one of these tables, and a table owner is exempt from
+      // RLS regardless of this setting unless FORCE ROW LEVEL SECURITY is
+      // also applied, which this intentionally never does. So this only
+      // closes off Supabase's own PostgREST/GraphQL auto-API to these
+      // tables; it changes nothing for the app itself.
+      for (const table of RLS_TABLES) {
+        await sql.unsafe(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
+      }
+    },
+  },
 };
+
+// Every public-schema table, kept as one list so the v3.28 migration's
+// run() and its "applied" probe below can never drift out of sync with
+// each other (see schema.sql for where each one was originally created).
+const RLS_TABLES = [
+  "users", "otp_codes", "app_settings", "ad_slots", "ad_slot_requests",
+  "app_languages", "baits", "base_items", "catches", "catch_photos",
+  "competitions", "competition_registrations", "custom_ads", "menu_groups",
+  "notifications", "role_requests", "sector_availabilities",
+  "sector_reservations", "session_syncs", "subscriptions", "translations",
+  "user_inventories", "water_bodies", "referrals", "venues",
+  "merchant_referrals", "contact_messages",
+];
 
 /**
  * GET  /api/admin/migrations         -> { [id]: { label, applied } } (admin only)
@@ -447,6 +475,13 @@ export async function handleAdminMigrationsRoute(
           )
         `;
         applied = (rows[0]?.n ?? 0) >= 3;
+      }
+      if (id === "v3.28-enable-rls") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM pg_tables
+          WHERE schemaname = 'public' AND rowsecurity = true
+        `;
+        applied = (rows[0]?.n ?? 0) >= RLS_TABLES.length;
       }
       out[id] = { label: m.label, applied };
     }
