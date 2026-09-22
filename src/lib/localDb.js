@@ -318,6 +318,28 @@ export async function mergeRemoteBait(items) {
   });
 }
 
+// v3.27 — wipes every local-first store (catches, bait, pending sync
+// operations, pending photos). This IndexedDB database is keyed only by
+// browser (DB_NAME above is a single fixed name, not scoped per account),
+// so on a shared device where more than one CatchCount account logs in over
+// time, whatever the PREVIOUS account synced here would otherwise sit
+// around and get shown to the NEXT account too — merge helpers like
+// mergeRemoteBait/mergeRemoteCatches only ever add/update entries from the
+// server's response, they never remove a local one that belongs to someone
+// else. Called from AuthContext.jsx whenever the signed-in user's id
+// differs from the last one seen on this device, and on logout, so no
+// account's local data survives into another account's session here.
+export async function clearAllLocalData() {
+  const db = await openDB();
+  const storeNames = [CATCHES_STORE, PENDING_SYNC_STORE, BAIT_STORE, PENDING_PHOTOS_STORE];
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames, "readwrite");
+    storeNames.forEach((name) => transaction.objectStore(name).clear());
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
 export async function replaceAllBait(items) {
   const store = await tx(BAIT_STORE, "readwrite");
   return new Promise((resolve, reject) => {

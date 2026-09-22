@@ -189,11 +189,9 @@ export default function TraderVenues() {
                       so the merchant sees it right on their own card list too,
                       not only inside the edit dialog while changing it. */}
                   {v.logo_url ? (
-                    <img
-                      src={v.logo_url}
-                      alt={v.name}
-                      className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-slate-100 dark:border-border"
-                    />
+                    <div className="w-12 h-12 rounded-xl bg-white dark:bg-card border border-slate-100 dark:border-border flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <img src={v.logo_url} alt={v.name} className="w-full h-full object-contain p-1" />
+                    </div>
                   ) : (
                     <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-accent flex items-center justify-center flex-shrink-0">
                       <ImageIcon className="w-5 h-5 text-slate-300" />

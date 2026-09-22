@@ -1,6 +1,34 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
 import { getPendingReferralCode, clearPendingReferralCode, getPendingMerchantCode, clearPendingMerchantCode } from '@/lib/referral';
+import { clearAllLocalData } from '@/lib/localDb';
+
+// v3.27 — the local-first IndexedDB store (src/lib/localDb.js) is keyed by
+// browser, not by account, so on a shared device where more than one
+// CatchCount account logs in over time, the previous account's catches/bait
+// would otherwise still be sitting there for the next account to see (see
+// clearAllLocalData's own comment for the full mechanism). This key
+// remembers which account's data is currently cached on THIS device so a
+// mismatch — a different account logging in here — can be caught before
+// that account's pages ever load the stale local data.
+const LAST_LOCAL_USER_KEY = 'catchcount_last_local_user_id';
+
+// Wipes the local IndexedDB store only if a DIFFERENT account was the last
+// one signed in on this device (never for the same account signing back
+// in — that would defeat the whole point of local-first offline storage).
+// Best-effort: a failure here must never block sign-in.
+async function guardLocalDataForUser(userId) {
+  if (!userId) return;
+  try {
+    const lastUserId = localStorage.getItem(LAST_LOCAL_USER_KEY);
+    if (lastUserId && lastUserId !== userId) {
+      await clearAllLocalData();
+    }
+    localStorage.setItem(LAST_LOCAL_USER_KEY, userId);
+  } catch (e) {
+    console.error('guardLocalDataForUser error:', e);
+  }
+}
 
 // v2.68 — if a ?ref=<code> invite link/QR was captured earlier (see
 // captureReferralFromUrl() in App.jsx), try to redeem it now that we know
@@ -82,6 +110,11 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
     try {
       const currentUser = await base44.auth.me();
+      // Runs (and completes) BEFORE isLoadingAuth flips to false, so no page
+      // — including SyncProvider's own background sync — can read the local
+      // IndexedDB store until it's confirmed to belong to this account (or
+      // has just been wiped because it didn't). See its own comment above.
+      await guardLocalDataForUser(currentUser.id);
       setUser(currentUser);
       setIsAuthenticated(true);
       tryRedeemPendingReferral(setUser);
