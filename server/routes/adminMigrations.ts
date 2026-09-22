@@ -326,10 +326,17 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       // they start out with, and why). ON CONFLICT DO NOTHING: safe to
       // click again, never overwrites an admin's own edits to either group.
       for (const [roleKey, def] of Object.entries(ROLE_GROUP_DEFAULTS)) {
+        // role_key's unique index is PARTIAL (WHERE role_key IS NOT NULL,
+        // since every ordinary admin-created group has role_key = NULL and
+        // those must never conflict with each other). Postgres only infers
+        // a partial index as the ON CONFLICT arbiter when the same WHERE
+        // clause is repeated here — omitting it is what caused "there is no
+        // unique or exclusion constraint matching the ON CONFLICT
+        // specification" on the first click of this button.
         await sql`
           INSERT INTO menu_groups (name, description, menu_items, status, role_key)
           VALUES (${def.name}, ${def.description}, ${def.menuItems}, 'active', ${roleKey})
-          ON CONFLICT (role_key) DO NOTHING
+          ON CONFLICT (role_key) WHERE role_key IS NOT NULL DO NOTHING
         `;
       }
       // Backfill: anyone who ALREADY holds one of these roles from before
