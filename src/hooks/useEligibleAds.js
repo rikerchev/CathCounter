@@ -190,17 +190,42 @@ export function useEligibleAds() {
     // below — never leave either zone blank while waiting.
     setZones(getInitialZones(placement, lang));
 
+    // v3.49 — how many times a device that has NEVER completed a single
+    // successful sync (see the retry logic in the .catch() below) will
+    // retry after a failed attempt, and how far apart. Deliberately short
+    // and few: this only exists to survive a flaky first few seconds of a
+    // brief connection (e.g. reception WiFi at a venue with no mobile
+    // signal at all), not to hammer the server indefinitely for a device
+    // that's genuinely offline.
+    const STARTUP_RETRY_DELAY_MS = 4000;
+    const MAX_STARTUP_RETRIES = 3;
+    let startupRetryCount = 0;
+    let retryTimeoutId = null;
+
     // v3.46 — pulled out of the setTimeout below so it can also be called
     // straight from the "online" handler further down (bypassing the
     // throttle there — see its own comment), not just from the debounced
     // per-navigation timer.
     const syncFromNetwork = () => {
-      setLastAdSyncAt(Date.now());
       Promise.all([
         base44.entities.CustomAd.list("sort_order"),
         base44.entities.AdSlot.list(),
       ])
       .then(([customAds, adSlots]) => {
+        // v3.49 — only mark the sync as done once it actually succeeded.
+        // This used to be set unconditionally before the fetch even ran,
+        // which meant a sync that FAILED (e.g. the venue's reception WiFi
+        // dropped mid-request) still burned the AD_SYNC_INTERVAL_MS
+        // throttle window — silently blocking a retry for up to 10 minutes
+        // even though nothing was ever actually cached. That directly
+        // undermines the reason this warm-up exists in the first place
+        // (see the v3.48 note above): a visitor whose only connectivity is
+        // a brief WiFi window right when the app is opened must not be
+        // able to end up ad-free for the rest of an offline session just
+        // because that one attempt happened to fail.
+        setLastAdSyncAt(Date.now());
+        startupRetryCount = 0;
+
         // v3.48 — cache every currently active, country-eligible ad across
         // ALL placements AND ALL languages (not just this page's, and not
         // just the app's CURRENT language) — this is the "warm the whole
@@ -284,6 +309,20 @@ export function useEligibleAds() {
       })
       .catch(() => {
         setZones(getInitialZones(placement, lang));
+
+        // v3.49 — if this device has NEVER completed a real sync at all
+        // (getLastAdSyncAt() persists to localStorage, so "0" means never,
+        // not just "not recently"), retry a few times a few seconds apart
+        // instead of silently waiting for the next page navigation (which
+        // may never come, if the visitor only opened the app once on that
+        // brief WiFi window before losing signal) or the next explicit
+        // "online" event (which a spotty low-signal connection — as
+        // opposed to a clean WiFi disconnect — may never actually fire).
+        // Stops retrying the moment ANY sync succeeds, from any trigger.
+        if (getLastAdSyncAt() === 0 && startupRetryCount < MAX_STARTUP_RETRIES) {
+          startupRetryCount += 1;
+          retryTimeoutId = setTimeout(syncFromNetwork, STARTUP_RETRY_DELAY_MS);
+        }
       });
     };
 
@@ -323,6 +362,14 @@ export function useEligibleAds() {
     window.addEventListener("online", handleOnline);
     return () => {
       clearTimeout(fetchId);
+      // v3.49 — the never-synced-yet retry chain (see syncFromNetwork's own
+      // .catch() above) must not keep firing after this effect instance is
+      // torn down (navigation, unmount, or a dependency change re-running
+      // it) — the next instance schedules its own attempt regardless via
+      // the 400ms debounce above, so this one's pending retry is redundant
+      // once that happens, and left alone would just mean an extra,
+      // untracked network call from a stale closure.
+      if (retryTimeoutId) clearTimeout(retryTimeoutId);
       window.removeEventListener("online", handleOnline);
     };
   }, [isPremium, location.pathname, userCountry, lang]);
