@@ -813,3 +813,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_menu_groups_role_key ON menu_groups(role_k
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS source_type TEXT CHECK (source_type IN ('adsense', 'custom', 'merchant')) DEFAULT 'custom';
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_unit_id TEXT;
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS rotation_seconds INTEGER;
+
+-- v3.31: adsense_ad_layout_key — Google's "Create ad unit" wizard hands out
+-- two different code shapes depending on the unit type. A standard
+-- "Display ad" unit's code is just `data-ad-format="auto"
+-- data-full-width-responsive="true"` (what AdSenseSlot.jsx has always
+-- rendered). An "In-feed ad" unit (styled to blend into a content feed —
+-- which is arguably a closer match to a banner slot) instead carries
+-- `data-ad-format="fluid"` plus a `data-ad-layout-key="..."` value that is
+-- unique to that specific ad unit and has nothing to do with the
+-- account-wide ADSENSE_PUBLISHER_ID. Without it, an in-feed unit's slot ID
+-- alone renders nothing useful. NULL (default) = standard Display ad,
+-- unchanged behaviour; set it only when the admin created an In-feed unit.
+-- See src/components/AdSenseSlot.jsx and src/lib/adCache.js's resolveZone().
+--
+-- Safe to re-run.
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_layout_key TEXT;

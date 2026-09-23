@@ -213,7 +213,18 @@ export function resolveZone(ads, slots, placement, position) {
   const sourceType = slot?.source_type || "custom";
 
   if (sourceType === "adsense") {
-    return { sourceType, adUnitId: slot?.adsense_ad_unit_id || null, ads: [], slot };
+    // v3.31 — `adsense_ad_layout_key` is only set when the admin created an
+    // "In-feed" AdSense ad unit (Google's code for those includes
+    // data-ad-format="fluid" data-ad-layout-key="..." instead of the plain
+    // data-ad-format="auto" a standard Display ad unit uses) — see
+    // AdSenseSlot.jsx for how the two render differently.
+    return {
+      sourceType,
+      adUnitId: slot?.adsense_ad_unit_id || null,
+      adUnitLayoutKey: slot?.adsense_ad_layout_key || null,
+      ads: [],
+      slot,
+    };
   }
 
   let bucket = bucketAdsByPosition(ads, placement)[position];
@@ -230,7 +241,7 @@ export function resolveZone(ads, slots, placement, position) {
   } else {
     bucket = applyCustomAdRotation(bucket);
   }
-  return { sourceType, adUnitId: null, ads: bucket, slot };
+  return { sourceType, adUnitId: null, adUnitLayoutKey: null, ads: bucket, slot };
 }
 
 export function getCurrentAd(placement, lang) {

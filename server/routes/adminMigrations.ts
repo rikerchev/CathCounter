@@ -366,6 +366,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS rotation_seconds INTEGER`);
     },
   },
+  "v3.31-adsense-infeed-layout-key": {
+    label: "v3.31 — AdSense In-feed реклами (Ad layout key)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_layout_key TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -552,6 +558,13 @@ export async function handleAdminMigrationsRoute(
           )
         `;
         applied = (rows[0]?.n ?? 0) >= 3;
+      }
+      if (id === "v3.31-adsense-infeed-layout-key") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'ad_slots' AND column_name = 'adsense_ad_layout_key'
+        `;
+        applied = (rows[0]?.n ?? 0) >= 1;
       }
       out[id] = { label: m.label, applied };
     }

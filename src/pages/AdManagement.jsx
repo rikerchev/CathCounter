@@ -145,6 +145,7 @@ const emptySlot = {
   banner_size: "normal",
   source_type: "custom",
   adsense_ad_unit_id: "",
+  adsense_ad_layout_key: "",
 };
 
 function formatCountryPrices(basePrice) {
@@ -338,6 +339,7 @@ export default function AdManagement() {
       is_available: slot.is_available,
       source_type: slot.source_type || "custom",
       adsense_ad_unit_id: slot.adsense_ad_unit_id || "",
+      adsense_ad_layout_key: slot.adsense_ad_layout_key || "",
     });
   }
 
@@ -364,6 +366,7 @@ export default function AdManagement() {
         banner_size: slotForm.banner_size,
         source_type: slotForm.source_type || "custom",
         adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
+        adsense_ad_layout_key: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_layout_key || null) : null,
       });
       toast({ title: t("aas.slotCreated") });
       resetSlotForm();
@@ -390,6 +393,7 @@ export default function AdManagement() {
         banner_size: slotForm.banner_size,
         source_type: slotForm.source_type || "custom",
         adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
+        adsense_ad_layout_key: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_layout_key || null) : null,
       });
       toast({ title: t("aas.slotUpdated") });
       resetSlotForm();
@@ -920,6 +924,24 @@ Description: ${adForm.description}`;
                   className="min-h-[44px]"
                 />
                 <p className="text-xs text-slate-400 mt-1">{t("am.adsenseUnitIdHint")}</p>
+              </div>
+            )}
+            {/* v3.31 — only "In-feed" AdSense ad units need this (their code
+                from Google carries data-ad-format="fluid" +
+                data-ad-layout-key="..."); a standard "Display ad" unit's
+                code has neither, so this stays empty and AdSenseSlot.jsx
+                falls back to the original data-ad-format="auto" rendering —
+                see its own v3.31 comment. */}
+            {slotForm.source_type === "adsense" && (
+              <div>
+                <Label>{t("am.adsenseLayoutKey")}</Label>
+                <Input
+                  value={slotForm.adsense_ad_layout_key}
+                  onChange={(e) => setSlotForm({ ...slotForm, adsense_ad_layout_key: e.target.value })}
+                  placeholder={t("am.adsenseLayoutKeyPlaceholder")}
+                  className="min-h-[44px]"
+                />
+                <p className="text-xs text-slate-400 mt-1">{t("am.adsenseLayoutKeyHint")}</p>
               </div>
             )}
 

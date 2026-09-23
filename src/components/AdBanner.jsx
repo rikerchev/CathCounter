@@ -32,7 +32,7 @@ export default function AdBanner() {
     if (!top.adUnitId) return null;
     return (
       <div className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-slate-100 dark:border-border">
-        <AdSenseSlot publisherId={publisherId} adUnitId={top.adUnitId} />
+        <AdSenseSlot publisherId={publisherId} adUnitId={top.adUnitId} layoutKey={top.adUnitLayoutKey} />
       </div>
     );
   }

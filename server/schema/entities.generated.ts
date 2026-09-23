@@ -51,6 +51,11 @@ export const ENTITIES: Record<string, EntityDef> = {
       // — separate from the global ADSENSE_PUBLISHER_ID/ADSENSE_ENABLED app
       // settings, which control Google's account-wide "Auto ads" script.
       { name: "adsense_ad_unit_id", type: "string", required: false },
+      // v3.31 — only set for an AdSense "In-feed ad" unit (Google's code
+      // for those needs both data-ad-format="fluid" AND this value; a
+      // standard "Display ad" unit's code has neither, so this stays null
+      // and AdSenseSlot.jsx falls back to its original rendering).
+      { name: "adsense_ad_layout_key", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

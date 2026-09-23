@@ -1261,4 +1261,11 @@ export const bg = {
     "am.sourceAdsensePreview": "Тук ще се показва реклама от Google AdSense",
     "am.adsenseUnitConfigured": "Ad unit: {id}",
     "am.adsenseUnitMissing": "Все още не е зададен Ad unit ID — вижте бутона „Редактирай“ по-долу.",
+
+    // v3.31 — опционално поле за AdSense "In-feed" рекламни единици (за
+    // разлика от стандартните "Display" единици, те изискват допълнителен
+    // "Ad layout key", отделен от Ad unit ID-то)
+    "am.adsenseLayoutKey": "Ad layout key (по избор)",
+    "am.adsenseLayoutKeyPlaceholder": "напр. -6t+ed+2i-1n-4w",
+    "am.adsenseLayoutKeyHint": "Попълнете само ако сте създали „In-feed“ рекламна единица в Google AdSense (не стандартна „Display“) — в кода, който Google Ви дава за нея, ще видите ред data-ad-layout-key=\"...\"; копирайте точно тази стойност тук. За стандартна Display реклама оставете полето празно.",
 };

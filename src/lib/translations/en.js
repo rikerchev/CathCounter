@@ -1264,4 +1264,11 @@ export const en = {
     "am.sourceAdsensePreview": "A Google AdSense ad will show here",
     "am.adsenseUnitConfigured": "Ad unit: {id}",
     "am.adsenseUnitMissing": "No Ad unit ID set yet — see the Edit button below.",
+
+    // v3.31 — optional field for AdSense "In-feed" ad units (unlike
+    // standard "Display" units, these need an extra "Ad layout key",
+    // separate from the Ad unit ID)
+    "am.adsenseLayoutKey": "Ad layout key (optional)",
+    "am.adsenseLayoutKeyPlaceholder": "e.g. -6t+ed+2i-1n-4w",
+    "am.adsenseLayoutKeyHint": "Only fill this in if you created an \"In-feed\" ad unit in Google AdSense (not a standard \"Display\" one) — the code Google gives you for it includes a line like data-ad-layout-key=\"...\"; copy that exact value here. For a standard Display ad, leave this empty.",
 };

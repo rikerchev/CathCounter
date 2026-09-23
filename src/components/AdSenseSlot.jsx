@@ -11,7 +11,17 @@ import { useEffect, useRef } from "react";
 // also turned on — so this component loads adsbygoogle.js itself if it
 // isn't already on the page (same script either way; Google supports Auto
 // ads and manual units side by side).
-export default function AdSenseSlot({ publisherId, adUnitId }) {
+//
+// v3.31 — supports both ad-unit shapes Google's "Create ad unit" wizard can
+// hand you: a standard "Display ad" (responsive — the code Google gives you
+// is just `data-ad-format="auto" data-full-width-responsive="true"`, which
+// is what this rendered before this version), or an "In-feed ad" (styled to
+// blend into a content feed — Google's code for those additionally carries
+// `data-ad-format="fluid"` and a `data-ad-layout-key="..."` value unique to
+// that specific ad unit). Passing `layoutKey` switches this to the in-feed
+// shape; leaving it unset keeps the original standard-Display-ad rendering
+// exactly as before — see AdManagement.jsx's optional "Ad layout key" field.
+export default function AdSenseSlot({ publisherId, adUnitId, layoutKey }) {
   const pushedRef = useRef(false);
 
   useEffect(() => {
@@ -31,20 +41,31 @@ export default function AdSenseSlot({ publisherId, adUnitId }) {
     } catch (e) {
       console.error("AdSenseSlot push error:", e);
     }
-  }, [publisherId, adUnitId]);
+  }, [publisherId, adUnitId, layoutKey]);
 
   if (!publisherId || !adUnitId) return null;
 
   return (
     <div className="mx-2 my-0.5">
-      <ins
-        className="adsbygoogle"
-        style={{ display: "block" }}
-        data-ad-client={publisherId}
-        data-ad-slot={adUnitId}
-        data-ad-format="auto"
-        data-full-width-responsive="true"
-      />
+      {layoutKey ? (
+        <ins
+          className="adsbygoogle"
+          style={{ display: "block" }}
+          data-ad-format="fluid"
+          data-ad-layout-key={layoutKey}
+          data-ad-client={publisherId}
+          data-ad-slot={adUnitId}
+        />
+      ) : (
+        <ins
+          className="adsbygoogle"
+          style={{ display: "block" }}
+          data-ad-client={publisherId}
+          data-ad-slot={adUnitId}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
+        />
+      )}
     </div>
   );
 }

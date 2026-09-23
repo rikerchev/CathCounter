@@ -35,8 +35,8 @@ const PLACEMENT_MAP = {
 };
 
 const EMPTY_ZONES = {
-  top: { sourceType: "custom", adUnitId: null, ads: [] },
-  bottom: { sourceType: "custom", adUnitId: null, ads: [] },
+  top: { sourceType: "custom", adUnitId: null, adUnitLayoutKey: null, ads: [] },
+  bottom: { sourceType: "custom", adUnitId: null, adUnitLayoutKey: null, ads: [] },
 };
 
 // Standard "rent this banner" placeholder shown in place of a real ad, for

@@ -53,7 +53,7 @@ export default function BottomAdBanner() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {isAdsense ? (
-        <AdSenseSlot publisherId={publisherId} adUnitId={bottom.adUnitId} />
+        <AdSenseSlot publisherId={publisherId} adUnitId={bottom.adUnitId} layoutKey={bottom.adUnitLayoutKey} />
       ) : (
         bottom.ads.map((ad) => (
           <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} merchantOverride={merchantOverrides[ad.id]} />
