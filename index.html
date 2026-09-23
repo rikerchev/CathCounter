@@ -1,6 +1,26 @@
 <!doctype html>
 <html lang="bg" translate="no">
   <head>
+    <!-- v3.51 — the app used to be reachable at catchcount.app4.you (still
+         printed on old brochures/bookmarks) before the canonical domain
+         became catchcount.app. Both domains point at this exact same
+         Vercel deployment, so without this the old one just keeps working
+         silently forever instead of steering visitors to the canonical
+         one. Runs as early as possible — before any other script, even
+         before the charset/meta tags below matter — and preserves the
+         full path/query/hash so a printed QR/brochure link still lands on
+         the right page after the jump. Add any other retired domain to
+         OLD_HOSTS the same way if one ever comes up again. -->
+    <script>
+      (function () {
+        var OLD_HOSTS = ["catchcount.app4.you"];
+        if (OLD_HOSTS.indexOf(window.location.hostname) !== -1) {
+          window.location.replace(
+            "https://catchcount.app" + window.location.pathname + window.location.search + window.location.hash
+          );
+        }
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="google" content="notranslate" />
     <meta name="google-site-verification" content="MZXSdIMvmUs9U4dcnzqnotbBEbvVLe4YGLVtHjs3_Cs" />

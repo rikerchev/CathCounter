@@ -300,6 +300,10 @@ export const base44 = {
   referrals: {
     redeem: (code) => apiFetch("/api/referrals/redeem", { method: "POST", body: { code } }),
     stats: () => apiFetch("/api/referrals/stats"),
+    // v3.51 — admin-only: for every referred user, who referred them (peer
+    // invite or merchant QR/brochure) and when. See
+    // server/routes/referrals.ts's own comment on this route.
+    adminSources: () => apiFetch("/api/referrals/admin-sources"),
   },
 
   // v2.69 — "Търговци" printed-brochure QR codes (water bodies + commercial
@@ -307,6 +311,10 @@ export const base44 = {
   merchantReferrals: {
     redeem: (code) => apiFetch("/api/merchant-referrals/redeem", { method: "POST", body: { code } }),
     stats: (type, id) => apiFetch(`/api/merchant-referrals/stats?type=${type}&id=${id}`),
+    // v3.51 — owner/admin: ordered list of every user who redeemed this
+    // merchant's own QR/brochure code, oldest first. See
+    // server/routes/merchantReferrals.ts's own comment on this route.
+    registrations: (type, id) => apiFetch(`/api/merchant-referrals/registrations?type=${type}&id=${id}`),
     // v3.44 — batch-resolves, for each given ad (1+ attached merchants),
     // which of its merchants are currently ELIGIBLE for the live banner
     // carousel (see AdBannerItem.jsx) — a plain array of "type:id" keys per

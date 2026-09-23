@@ -64,6 +64,15 @@ const ELIGIBILITY_WINDOW_DAYS = 3;
  * GET /api/merchant-referrals/stats?type=venue&id=<id>   (owner or admin)
  *   -> { referral_count }
  *
+ * GET /api/merchant-referrals/registrations?type=venue&id=<id>   (owner or admin)
+ *   -> { registrations: [{ referred_id, full_name, email, created_at }, ...] }
+ *   v3.51 — every user who ever redeemed THIS merchant's QR/brochure code,
+ *   oldest first (so the caller's own row index + 1 is a stable "reg #N",
+ *   matching the sequential number the admin/owner asked to see). Same
+ *   owner-or-admin access rule as /stats above — the underlying referral
+ *   count/list isn't public, only the binary "eligible right now" used by
+ *   the live banner (see active-merchants below).
+ *
  * POST /api/merchant-referrals/active-merchants { ads: [{id, merchants: [{type,id},...]}] }
  *   (public, no auth needed) -> { [adId]: ["type:id", ...] }
  *   v3.44 — for each ad with 1+ attached merchants (see custom_ads.merchants,
@@ -157,6 +166,30 @@ export async function handleMerchantReferralsRoute(
       SELECT COUNT(*)::int AS n FROM merchant_referrals WHERE merchant_type = ${type} AND merchant_id = ${id}
     `;
     return json({ referral_count: rows[0]?.n ?? 0 });
+  }
+
+  if (action === "registrations" && req.method === "GET") {
+    if (!user) return json({ error: "Not authenticated" }, 401);
+    const type = url.searchParams.get("type") || "";
+    const id = url.searchParams.get("id") || "";
+    if (!MERCHANT_TABLES[type] || !id) return json({ error: "Invalid params" }, 400);
+
+    if (!isAdmin(user)) {
+      const table = MERCHANT_TABLES[type];
+      const owned = await sql`SELECT id FROM ${sql(table)} WHERE id = ${id} AND created_by_id = ${user.id}`;
+      if (!owned.length) return json({ error: "Forbidden" }, 403);
+    }
+
+    const rows = await sql<
+      { referred_id: string; full_name: string | null; email: string; created_at: string }[]
+    >`
+      SELECT mr.referred_id, u.full_name, u.email, mr.created_at
+      FROM merchant_referrals mr
+      JOIN users u ON u.id = mr.referred_id
+      WHERE mr.merchant_type = ${type} AND mr.merchant_id = ${id}
+      ORDER BY mr.created_at ASC
+    `;
+    return json({ registrations: rows });
   }
 
   if (action === "active-merchants" && req.method === "POST") {

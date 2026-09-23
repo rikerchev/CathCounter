@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, Download, Loader2, Power, Pencil, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Store, Download, Loader2, Power, Pencil, Upload, X, Image as ImageIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
+import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
 
 // v3.26 — same logo-size options CustomAds.jsx offers for an advertiser's
 // own logo (16×16 / 32×16 / 48×16 / auto). Meaningful here because a
@@ -73,6 +74,8 @@ export default function TraderVenues() {
   // v3.21 — the venue pending a brochure download, while
   // BrochureContactDialog is open asking for an optional contact line.
   const [brochureTarget, setBrochureTarget] = useState(null);
+  // v3.51 — the venue whose QR/brochure registrations list is open.
+  const [registrationsTarget, setRegistrationsTarget] = useState(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -242,6 +245,9 @@ export default function TraderVenues() {
                     {downloadingId === v.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
                     {t("tv.downloadBrochure")}
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setRegistrationsTarget(v)} className="min-h-[40px]">
+                    <Users className="w-4 h-4 mr-1" /> {t("mr.registrations")}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => openEditForm(v)} className="min-h-[40px]">
                     <Pencil className="w-4 h-4" />
                   </Button>
@@ -389,6 +395,14 @@ export default function TraderVenues() {
         defaultValue={brochureTarget?.contact_phone || ""}
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
         onConfirm={(text, format) => handleDownload(brochureTarget, text, format)}
+      />
+
+      <MerchantRegistrationsDialog
+        merchantType="venue"
+        merchantId={registrationsTarget?.id}
+        merchantName={registrationsTarget?.name}
+        open={!!registrationsTarget}
+        onOpenChange={(open) => { if (!open) setRegistrationsTarget(null); }}
       />
     </div>
   );

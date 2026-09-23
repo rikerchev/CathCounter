@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { ShieldCheck, UserPlus, Users, Pencil, Trash2, Plus } from "lucide-react";
+import { ShieldCheck, UserPlus, Users, Pencil, Trash2, Plus, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ const ALL_ROLES = ["admin", "water_owner", "advertiser"];
 
 export default function AdminUsers() {
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -28,10 +28,17 @@ export default function AdminUsers() {
   const [tab, setTab] = useState("users");
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
+  // v3.51 — { [userId]: [{ source: "peer"|"venue"|"water_body", label, created_at }, ...] },
+  // one entry per way that user was ever referred in. See
+  // server/routes/referrals.ts's admin-sources action. Best-effort: a
+  // failure here (e.g. a very old deployment without the v3.51 migration
+  // applied yet) must never block the rest of the Users tab from loading.
+  const [referralSources, setReferralSources] = useState({});
 
   useEffect(() => {
     loadUsers();
     loadGroups();
+    loadReferralSources();
   }, []);
 
   async function loadUsers() {
@@ -43,6 +50,35 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function loadReferralSources() {
+    try {
+      const data = await base44.referrals.adminSources();
+      setReferralSources(data || {});
+    } catch (e) {
+      // Non-fatal — see the state comment above.
+    }
+  }
+
+  // v3.51 — plain-text label for one user's referral source(s), e.g.
+  // "Регистриран чрез покана от Иван Иванов" or, when redeemed both ways
+  // (peer AND merchant — see src/lib/referral.js), joined with "; ".
+  function referredViaLabel(userId) {
+    const entries = referralSources[userId];
+    if (!entries || entries.length === 0) return null;
+    return entries
+      .map((e) => {
+        const key =
+          e.source === "peer" ? "menuGroup.referredViaPeer"
+          : e.source === "venue" ? "menuGroup.referredViaVenue"
+          : "menuGroup.referredViaWaterBody";
+        const dt = new Date(e.created_at).toLocaleDateString(lang === "bg" ? "bg-BG" : "en-GB", {
+          day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+        });
+        return `${t(key).replace("{name}", e.label)} · ${dt}`;
+      })
+      .join("; ");
   }
 
   async function loadGroups() {
@@ -224,6 +260,17 @@ export default function AdminUsers() {
                             when a user genuinely hasn't set one yet. */}
                         {u.phone && (
                           <p className="text-xs text-slate-400 truncate">{u.phone}</p>
+                        )}
+                        {/* v3.51 — who referred this user in (peer invite
+                            or merchant QR/brochure) and when, if anyone —
+                            see loadReferralSources()/referredViaLabel()
+                            above. Blank for a user who registered directly,
+                            with no invite/code involved at all. */}
+                        {referredViaLabel(u.id) && (
+                          <p className="text-xs text-cyan-600 dark:text-cyan-400 flex items-center gap-1 mt-0.5">
+                            <Share2 className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{referredViaLabel(u.id)}</span>
+                          </p>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">

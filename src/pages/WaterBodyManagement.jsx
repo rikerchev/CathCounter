@@ -19,6 +19,7 @@ import {
 } from "@/lib/competitionResults";
 import { downloadStandingsImage, downloadParticipantsImage, downloadDrawResultsImage } from "@/lib/standingsImage";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
+import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -404,6 +405,8 @@ export default function WaterBodyManagement() {
   // v3.21 — the water body pending a brochure download, while
   // BrochureContactDialog is open asking for an optional contact line.
   const [brochureTarget, setBrochureTarget] = useState(null);
+  // v3.51 — the water body whose QR/brochure registrations list is open.
+  const [registrationsTarget, setRegistrationsTarget] = useState(null);
   // v3.25 — same BrochureContactDialog reuse, this time in front of the
   // "Списък участници" / "Изтегли жребий (снимка)" image exports (both
   // embed the water body's real brochure at the bottom — see
@@ -1566,6 +1569,9 @@ export default function WaterBodyManagement() {
                     {downloadingId === wb.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
                     {t("tv.downloadBrochure")}
                   </Button>
+                  <Button onClick={() => setRegistrationsTarget(wb)} size="sm" variant="outline" className="min-h-[40px]">
+                    <Users className="w-4 h-4 mr-1" /> {t("mr.registrations")}
+                  </Button>
                 </div>
                 {/* v2.94 — admin-only "assign an owner" control, e.g. for a
                     water body the admin created/still owns in advance
@@ -1812,6 +1818,14 @@ export default function WaterBodyManagement() {
         open={showEditForm}
         onOpenChange={setShowEditForm}
         onSaved={saveWaterBody}
+      />
+
+      <MerchantRegistrationsDialog
+        merchantType="water_body"
+        merchantId={registrationsTarget?.id}
+        merchantName={registrationsTarget?.name}
+        open={!!registrationsTarget}
+        onOpenChange={(open) => { if (!open) setRegistrationsTarget(null); }}
       />
 
       <Dialog open={showCompForm} onOpenChange={(o) => { setShowCompForm(o); if (!o) setCompEditing(null); }}>

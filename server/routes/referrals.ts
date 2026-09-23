@@ -1,5 +1,6 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
+import { isAdmin } from "../middleware/auth.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -52,6 +53,18 @@ async function grantBonus(userId: string): Promise<string> {
  *
  * GET /api/referrals/stats   (authenticated)
  *   -> { referral_count, premium_until } for the "Покани приятел" card.
+ *
+ * GET /api/referrals/admin-sources   (admin only)
+ *   -> { [referredUserId]: [{ source: "peer"|"venue"|"water_body", label, created_at }, ...] }
+ *   v3.51 — for EVERY user who was ever redeemed in (peer OR merchant), who
+ *   referred them and when — lets Admin → Управление на потребители show
+ *   "Регистриран чрез: <name> · <дата/час>" per user, so the admin can see
+ *   at a glance who's actually driving signups (to plan extra bonuses for
+ *   whoever refers the most), without cross-referencing the raw referrals/
+ *   merchant_referrals tables by hand. A user can in principle appear with
+ *   BOTH a peer AND a merchant entry (see src/lib/referral.js's own
+ *   comment — the two systems are independent, "already used" is checked
+ *   per-table) — returns every entry found, not just one.
  */
 export async function handleReferralsRoute(
   req: Request,
@@ -100,6 +113,48 @@ export async function handleReferralsRoute(
       SELECT COUNT(*)::int AS count FROM referrals WHERE referrer_id = ${user.id}
     `;
     return json({ referral_count: rows[0]?.count ?? 0, premium_until: user.premium_until });
+  }
+
+  if (action === "admin-sources" && req.method === "GET") {
+    if (!user || !isAdmin(user)) return json({ error: "Forbidden" }, 403);
+
+    const peerRows = await sql<
+      { referred_id: string; referrer_name: string | null; referrer_email: string; created_at: string }[]
+    >`
+      SELECT r.referred_id, ru.full_name AS referrer_name, ru.email AS referrer_email, r.created_at
+      FROM referrals r
+      JOIN users ru ON ru.id = r.referrer_id
+    `;
+
+    // LEFT JOINs against both merchant tables at once (rather than an
+    // id-list IN/ANY query) — simplest way to resolve each row's merchant
+    // name regardless of merchant_type without a second round trip.
+    const merchantRows = await sql<
+      { referred_id: string; merchant_type: string; merchant_name: string | null; created_at: string }[]
+    >`
+      SELECT mr.referred_id, mr.merchant_type, mr.created_at,
+             COALESCE(v.name, wb.name) AS merchant_name
+      FROM merchant_referrals mr
+      LEFT JOIN venues v ON mr.merchant_type = 'venue' AND v.id = mr.merchant_id
+      LEFT JOIN water_bodies wb ON mr.merchant_type = 'water_body' AND wb.id = mr.merchant_id
+    `;
+
+    const result: Record<string, Array<{ source: string; label: string; created_at: string }>> = {};
+    for (const r of peerRows) {
+      (result[r.referred_id] ||= []).push({
+        source: "peer",
+        label: r.referrer_name || r.referrer_email,
+        created_at: r.created_at,
+      });
+    }
+    for (const r of merchantRows) {
+      (result[r.referred_id] ||= []).push({
+        source: r.merchant_type,
+        label: r.merchant_name || "?",
+        created_at: r.created_at,
+      });
+    }
+    return json(result);
   }
 
   return json({ error: "Not found" }, 404);
