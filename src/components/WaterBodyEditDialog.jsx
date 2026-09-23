@@ -6,12 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Navigation } from "lucide-react";
+import { Loader2, Navigation, Upload, X, Image as ImageIcon } from "lucide-react";
 import { COUNTRY_GROUPS } from "@/lib/countries";
 import { useLanguage } from "@/lib/i18n";
+import { useToast } from "@/components/ui/use-toast";
+import { base44 } from "@/api/base44Client";
 
 const EMPTY = {
-  name: "", owner_name: "", contact_phone: "", contact_email: "",
+  name: "", owner_name: "", contact_phone: "", contact_email: "", website: "",
   location: "", country: "", latitude: "", longitude: "", usage_conditions: "",
   fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", region: "",
   working_hours: "",
@@ -19,9 +21,16 @@ const EMPTY = {
 
 export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved }) {
   const { t, lang } = useLanguage();
+  const { toast } = useToast();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  // v3.50 — logo upload (was a plain "paste a URL" field), same pipeline
+  // TraderVenues.jsx already uses for a merchant venue's own logo (see its
+  // v3.23 comment): base44.integrations.Core.UploadFile, storing the
+  // returned file_url in `logo_url` exactly as before — just no longer
+  // hand-typed/hosted by the water body owner themselves.
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     if (wb) {
@@ -30,6 +39,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         owner_name: wb.owner_name || "",
         contact_phone: wb.contact_phone || "",
         contact_email: wb.contact_email || "",
+        website: wb.website || "",
         location: wb.location || "",
         country: wb.country || "",
         latitude: wb.latitude != null ? String(wb.latitude) : "",
@@ -86,6 +96,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         owner_name: form.owner_name,
         contact_phone: form.contact_phone,
         contact_email: form.contact_email,
+        website: form.website,
         location: form.location,
         country: form.country || null,
         latitude: form.latitude ? Number(form.latitude) : null,
@@ -128,6 +139,10 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
           <div className="space-y-1.5">
             <Label>{t("wbd.email")}</Label>
             <Input type="email" value={form.contact_email} onChange={(e) => set("contact_email", e.target.value)} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("wbd.website")}</Label>
+            <Input value={form.website} onChange={(e) => set("website", e.target.value)} placeholder="https://" className="min-h-[44px]" />
           </div>
           <div className="space-y-1.5">
             <Label>{t("wbd.location")} *</Label>
@@ -197,7 +212,55 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
           </div>
           <div className="space-y-1.5">
             <Label>{t("wbd.logoUrl")}</Label>
-            <Input value={form.logo_url} onChange={(e) => set("logo_url", e.target.value)} className="min-h-[44px]" />
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
+                {form.logo_url ? (
+                  <img src={form.logo_url} alt={t("ca.logoAlt")} className="w-full h-full object-contain p-1" />
+                ) : (
+                  <ImageIcon className="w-5 h-5 text-slate-300" />
+                )}
+              </div>
+              <label className="flex-1 cursor-pointer">
+                <span className="inline-flex items-center justify-center gap-2 min-h-[44px] w-full rounded-md border border-input bg-transparent text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                  {uploadingLogo ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {t("adv.uploading")}</>
+                  ) : (
+                    <><Upload className="w-4 h-4" /> {form.logo_url ? t("ca.changeLogo") : t("adv.uploadLogo")}</>
+                  )}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingLogo}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setUploadingLogo(true);
+                    try {
+                      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                      set("logo_url", file_url);
+                      toast({ title: t("adv.logoUploaded") });
+                    } catch (err) {
+                      toast({ title: t("adv.uploadError"), description: err.message });
+                    } finally {
+                      setUploadingLogo(false);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+              {form.logo_url && (
+                <button
+                  type="button"
+                  onClick={() => set("logo_url", "")}
+                  className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-accent"
+                  title={t("ca.removeLogo")}
+                >
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label>{t("common.workingHours")}</Label>

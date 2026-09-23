@@ -387,6 +387,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS languages TEXT`);
     },
   },
+  "v3.50-water-body-website": {
+    label: "v3.50 — Водоеми: уебсайт/линк за връзка",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS website TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -600,6 +606,13 @@ export async function handleAdminMigrationsRoute(
           )
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.50-water-body-website") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'water_bodies' AND column_name = 'website'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
       }
       out[id] = { label: m.label, applied };
     }

@@ -899,3 +899,12 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_link TEXT;
 -- Safe to re-run.
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS own_content_duration_seconds INTEGER;
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS languages TEXT;
+
+-- v3.50: water body owner's own website/Facebook link, plus switching the
+-- water body logo field from a hand-typed URL to an actual upload — same
+-- pair of changes TraderVenues.jsx already got for commercial venues (see
+-- venues.website above, and TraderVenues.jsx's v3.23 comment for the logo
+-- upload). water_bodies.logo_url itself already existed and was already
+-- covered by photoGc.ts's REFERENCE_CHECKS as a safety net, so only the new
+-- column is needed here. See WaterBodyEditDialog.jsx. Safe to re-run.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS website TEXT;

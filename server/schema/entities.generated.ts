@@ -605,6 +605,9 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "owner_name", type: "string", required: false },
       { name: "contact_phone", type: "string", required: true },
       { name: "contact_email", type: "string", required: false },
+      // v3.50 — same optional website/Facebook link the Venue entity below
+      // already has; see WaterBodyEditDialog.jsx.
+      { name: "website", type: "string", required: false },
       { name: "location", type: "string", required: true },
       { name: "country", type: "string", required: false },
       { name: "region", type: "string", required: false },
