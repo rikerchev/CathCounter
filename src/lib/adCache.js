@@ -10,6 +10,8 @@ const AD_SLOT_CACHE_KEY = "catchcount_adslot_cache";
 const ELIGIBLE_MERCHANTS_CACHE_KEY = "catchcount_eligible_merchants_cache";
 // v3.46 — see getLastAdSyncAt()/setLastAdSyncAt() below.
 const AD_SYNC_AT_KEY = "catchcount_ad_sync_at";
+// v3.58 — see getLastEligibilitySyncAt()/setLastEligibilitySyncAt() below.
+const ELIGIBILITY_SYNC_AT_KEY = "catchcount_eligibility_sync_at";
 
 // Default ad creatives (fallback when no internet)
 const DEFAULT_ADS = [
@@ -165,6 +167,53 @@ export function setLastAdSyncAt(timestamp) {
     localStorage.setItem(AD_SYNC_AT_KEY, String(timestamp));
   } catch (e) {
     console.error("setLastAdSyncAt error:", e);
+  }
+}
+
+// v3.58 — separate, much shorter throttle for re-checking merchant
+// ELIGIBILITY specifically (server/routes/merchantReferrals.ts's
+// active-merchants — which of an ad's attached merchants currently have a
+// QR-code referral), independent of AD_SYNC_INTERVAL_MS above.
+//
+// Reported bug: two devices logged into the SAME account, both viewing the
+// SAME merchant-carousel banner, showing DIFFERENT things — one device's
+// merchant list was up to date, the other's was stuck on whatever it last
+// knew, for up to the full 10 minutes of AD_SYNC_INTERVAL_MS. Confirmed
+// live: server-side both attached merchants (SMAX, Рибарник Писанец) DID
+// have a live registration; the stale device's local cache of
+// eligibleMerchantKeys (see getCachedEligibleMerchants() below) just
+// hadn't been re-synced yet, since it's bundled into the SAME 10-minute
+// throttle as the full ad/slot creative refresh (see useEligibleAds.js's
+// syncFromNetwork()).
+//
+// The ad CREATIVES (title/logo/description/etc) rarely change and are
+// exactly what AD_SYNC_INTERVAL_MS's 10-minute battery-saving throttle was
+// built for (v3.46). Eligibility is the opposite: the entire point of the
+// merchant-banner feature is to react to a friend scanning a QR code
+// *while someone is actively fishing* — a visitor genuinely expects that
+// to show up within about a minute, on every device, not "whenever this
+// particular device's next 10-minute ad resync happens to land". So this
+// gets its own, independent, much shorter interval — see
+// checkEligibility() in useEligibleAds.js, which polls just this one
+// lightweight endpoint (no full CustomAd.list()/AdSlot.list() round-trip)
+// on this cadence for as long as any page with a merchant banner is open,
+// without touching the existing 10-minute ad/slot creative throttle at
+// all.
+export const ELIGIBILITY_SYNC_INTERVAL_MS = 90 * 1000; // 90 секунди
+
+export function getLastEligibilitySyncAt() {
+  try {
+    return Number(localStorage.getItem(ELIGIBILITY_SYNC_AT_KEY)) || 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+export function setLastEligibilitySyncAt(timestamp) {
+  try {
+    localStorage.setItem(ELIGIBILITY_SYNC_AT_KEY, String(timestamp));
+  } catch (e) {
+    console.error("setLastEligibilitySyncAt error:", e);
   }
 }
 

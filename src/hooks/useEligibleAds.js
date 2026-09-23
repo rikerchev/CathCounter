@@ -10,6 +10,9 @@ import {
   getLastAdSyncAt,
   setLastAdSyncAt,
   AD_SYNC_INTERVAL_MS,
+  getLastEligibilitySyncAt,
+  setLastEligibilitySyncAt,
+  ELIGIBILITY_SYNC_INTERVAL_MS,
   preloadAdImages,
   matchesLanguage,
   resolveZone,
@@ -326,6 +329,55 @@ export function useEligibleAds() {
       });
     };
 
+    // v3.58 — merchant ELIGIBILITY specifically, on its own much shorter
+    // cadence (ELIGIBILITY_SYNC_INTERVAL_MS — see adCache.js for why this
+    // is separate from the 10-minute AD_SYNC_INTERVAL_MS above). Reads
+    // whatever ads are already cached (no CustomAd.list()/AdSlot.list()
+    // round-trip — that stays on the slower throttle) and re-checks just
+    // which of their attached merchants currently have a live QR
+    // registration, exactly the one lightweight endpoint call. A no-op
+    // (and no network call at all) whenever nothing cached currently has
+    // any attached merchant.
+    const checkEligibility = () => {
+      const merchantAds = getCachedAds().filter((ad) => {
+        if (!ad.merchants) return false;
+        try {
+          const list = JSON.parse(ad.merchants);
+          return Array.isArray(list) && list.length >= 1;
+        } catch {
+          return false;
+        }
+      });
+      if (merchantAds.length === 0) return;
+      const payload = merchantAds.map((ad) => {
+        let list = [];
+        try {
+          list = JSON.parse(ad.merchants);
+        } catch {
+          list = [];
+        }
+        return { id: ad.id, merchants: list.map((m) => ({ type: m.type, id: m.id })) };
+      });
+      setLastEligibilitySyncAt(Date.now());
+      base44.merchantReferrals
+        .activeMerchants(payload)
+        .then((resolved) => {
+          setEligibleMerchantKeys(resolved || {});
+          cacheEligibleMerchants(resolved || {});
+        })
+        .catch(() => {});
+    };
+    // Catch up immediately if this device's own eligibility cache is
+    // already older than the throttle window (e.g. the very first mount,
+    // or returning after the tab was closed for a while) — otherwise the
+    // first check would wait a full ELIGIBILITY_SYNC_INTERVAL_MS. Repeat
+    // navigations within that window are naturally no-ops via the same
+    // stored timestamp, so this never spams the endpoint.
+    if (Date.now() - getLastEligibilitySyncAt() >= ELIGIBILITY_SYNC_INTERVAL_MS) {
+      checkEligibility();
+    }
+    const eligibilityIntervalId = setInterval(checkEligibility, ELIGIBILITY_SYNC_INTERVAL_MS);
+
     // v3.46 — this effect re-runs on EVERY page navigation
     // (location.pathname is a dependency), which used to mean a fresh
     // network round-trip (CustomAd.list + AdSlot.list, and — for any
@@ -336,7 +388,9 @@ export function useEligibleAds() {
     // battery/data cost — for zero visible benefit. Now a real sync only
     // actually happens at most once per AD_SYNC_INTERVAL_MS; every other
     // navigation in between just keeps showing what's already cached,
-    // which is exactly what would have rendered anyway.
+    // which is exactly what would have rendered anyway. (v3.58 — merchant
+    // eligibility itself no longer waits on this slower throttle at all —
+    // see checkEligibility() above.)
     const fetchId = setTimeout(() => {
       if (Date.now() - getLastAdSyncAt() >= AD_SYNC_INTERVAL_MS) syncFromNetwork();
     }, 400);
@@ -361,6 +415,7 @@ export function useEligibleAds() {
     };
     window.addEventListener("online", handleOnline);
     return () => {
+      clearInterval(eligibilityIntervalId);
       clearTimeout(fetchId);
       // v3.49 — the never-synced-yet retry chain (see syncFromNetwork's own
       // .catch() above) must not keep firing after this effect instance is
