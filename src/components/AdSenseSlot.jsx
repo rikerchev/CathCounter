@@ -21,6 +21,17 @@ import { useEffect, useRef } from "react";
 // that specific ad unit). Passing `layoutKey` switches this to the in-feed
 // shape; leaving it unset keeps the original standard-Display-ad rendering
 // exactly as before — see AdManagement.jsx's optional "Ad layout key" field.
+//
+// v3.32 — the wrapper below now caps its width (`max-w-xl`) instead of
+// stretching edge-to-edge. `data-ad-format="auto" data-full-width-
+// responsive="true"` doesn't pick a fixed height — Google's script measures
+// the CONTAINER's width and scales the reserved height with it, so on a
+// banner that spans the full page width (1000px+ on a wide screen) it was
+// reserving a huge block, easily 250-300px tall, before any ad even loaded.
+// A capped width is what keeps that height compact — Google explicitly
+// supports and recommends this (unlike forcing a fixed HEIGHT via CSS,
+// which their own docs warn can visibly deform the ad, this only narrows
+// the space Google's own sizing algorithm works within).
 export default function AdSenseSlot({ publisherId, adUnitId, layoutKey }) {
   const pushedRef = useRef(false);
 
@@ -46,7 +57,7 @@ export default function AdSenseSlot({ publisherId, adUnitId, layoutKey }) {
   if (!publisherId || !adUnitId) return null;
 
   return (
-    <div className="mx-2 my-0.5">
+    <div className="mx-auto my-0.5 max-w-xl px-2">
       {layoutKey ? (
         <ins
           className="adsbygoogle"

@@ -363,8 +363,19 @@ export default function Layout() {
           inset-top)` padding lives on the header itself, inside this
           sticky wrapper, so its own background fills the notch/status-bar
           area on devices that have one, instead of leaving a transparent
-          gap or letting content start underneath it. */}
-      <div className="sticky top-0 z-30">
+          gap or letting content start underneath it.
+
+          v3.32 — `lg:ml-60` added: on desktop the mobile header above is
+          `lg:hidden`, so this wrapper used to contain only AdBanner, which
+          has no offset of its own and was rendering edge-to-edge across the
+          FULL window width — including the 240px column where the fixed
+          sidebar (<aside>, just above, in normal flow with no z-index) also
+          sits. Because this wrapper carries z-30, any banner tall enough
+          (the AdSense "auto" unit especially — see AdSenseSlot.jsx) painted
+          straight over the sidebar's logo and first nav links instead of
+          appearing only in the content area to its right, exactly like
+          <main> below (which already has this same `lg:ml-60`). */}
+      <div className="sticky top-0 z-30 lg:ml-60">
         <header
           className="lg:hidden bg-white/80 backdrop-blur-md border-b border-slate-100 dark:bg-card/80 dark:border-border flex items-center justify-between px-4 pb-2"
           style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
