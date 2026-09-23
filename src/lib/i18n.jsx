@@ -28,14 +28,25 @@ export const translations = {
 
 const LanguageContext = createContext();
 
-// v3.34 — whether this visit already had an explicit language choice saved
-// (localStorage "appLang"). Read once, outside the component, so both the
-// initial-state guess below AND the geo-detection effect can tell "the
-// person picked a language before" apart from "we're about to guess one
-// for them" without racing each other over the same localStorage read.
-function hasStoredLangPreference() {
+// v3.35 — FIX for a bug in the v3.34 rollout: `appLang` gets written to
+// localStorage on every render that changes `lang` (see the persistence
+// effect below), including the very first one — so EVERY visitor who had
+// ever loaded the app before v3.34 already had some `appLang` value sitting
+// in their browser (usually "en", the old hardcoded default) that was never
+// an actual choice they made. v3.34 treated "appLang is present" as "don't
+// run geo-detection", which meant the new country-based default could only
+// ever fire for a genuinely brand-new browser profile — which is why
+// testing it by switching a VPN's exit country on an already-used browser
+// kept showing English: the stored-but-never-chosen "en" blocked it every
+// time. A separate flag now marks a REAL, deliberate pick (only ever set
+// from LanguageSelector's onChange, see setLangExplicit below) — only that
+// flag skips geo-detection; a merely-remembered `appLang` value no longer
+// does.
+const EXPLICIT_KEY = "appLangExplicit";
+
+function hasExplicitLangChoice() {
   try {
-    return !!localStorage.getItem("appLang");
+    return localStorage.getItem(EXPLICIT_KEY) === "1";
   } catch {
     return false;
   }
@@ -82,12 +93,15 @@ export function LanguageProvider({ children }) {
     }
   }, [lang]);
 
-  // v3.34 — only for a visitor with no explicit saved preference: resolve
-  // (or fetch, if not already cached) their country and switch to its
-  // language once known. Never runs at all if "appLang" was already stored
-  // — an explicit past choice is never second-guessed by a geo lookup.
+  // v3.34 (gate fixed in v3.36 — see EXPLICIT_KEY above) — only for a
+  // visitor who never deliberately picked a language: resolve (or fetch, if
+  // not already cached) their country and switch to its language once
+  // known. Runs on every mount otherwise, not just "first ever visit" — a
+  // returning visitor whose VPN/location changed since last time should
+  // still get the right language, and detectCountry()'s own 24h cache
+  // keeps that essentially free.
   useEffect(() => {
-    if (hasStoredLangPreference()) return;
+    if (hasExplicitLangChoice()) return;
     let cancelled = false;
     detectCountry().then((code) => {
       if (cancelled) return;
@@ -144,8 +158,22 @@ export function LanguageProvider({ children }) {
     return translations[lang]?.[key] || translations.en[key] || key;
   };
 
+  // v3.36 — the ONE place that marks a language choice as deliberate. Only
+  // LanguageSelector's onChange calls this (never the geo-detection effect
+  // above, which calls the plain setLang instead) — that's what lets this
+  // flag actually mean "a person picked this," so future visits stop
+  // re-guessing from geo once someone has.
+  const setLangExplicit = (code) => {
+    try {
+      localStorage.setItem(EXPLICIT_KEY, "1");
+    } catch {
+      // ignore
+    }
+    setLang(code);
+  };
+
   return (
-    <LanguageContext.Provider value={{ lang, setLang, t, appLanguages, dbOverrides, translations, reloadTranslations }}>
+    <LanguageContext.Provider value={{ lang, setLang, setLangExplicit, t, appLanguages, dbOverrides, translations, reloadTranslations }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -156,12 +184,12 @@ export function useLanguage() {
 }
 
 export function LanguageSelector({ className }) {
-  const { lang, setLang, appLanguages } = useLanguage();
+  const { lang, setLangExplicit, appLanguages } = useLanguage();
   const langs = appLanguages && appLanguages.length > 0 ? appLanguages : DEFAULT_LANG_SELECTOR;
   return (
     <select
       value={lang}
-      onChange={(e) => setLang(e.target.value)}
+      onChange={(e) => setLangExplicit(e.target.value)}
       className={`rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-600 cursor-pointer min-h-[44px] ${className || ""}`}
     >
       {langs.map((l) => (
