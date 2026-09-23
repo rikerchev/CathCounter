@@ -344,6 +344,20 @@ export default function Competitions() {
     ? Object.keys(regionsByCountry[filterCountry]).sort()
     : [];
 
+  // v3.42 — "показвай само предстоящите [състезания] в списъка отдолу;
+  // преминалите да се показват само при избиране на конкретната дата от
+  // календара". The calendar (CompetitionCalendar, fed the full
+  // filteredByLocation list below, unfiltered by date) already reveals a
+  // past competition's own card the moment its date is picked, so the only
+  // change needed here is to stop the card LIST from listing already-past
+  // competitions by default. "Today" still counts as upcoming (the event
+  // hasn't happened yet at the start of its own day), and a competition
+  // with no date at all is kept — hiding it silently would just make a
+  // data problem invisible.
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const upcomingComps = filteredByLocation.filter((c) => !c.date || new Date(c.date) >= startOfToday);
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center gap-2">
@@ -394,15 +408,19 @@ export default function Competitions() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* v3.42 — the calendar still gets the FULL (not upcoming-only)
+              filteredByLocation list, so picking a past date on it still
+              surfaces that day's competition in its own preview below the
+              calendar — only the card list underneath is upcoming-only. */}
           <CompetitionCalendar competitions={filteredByLocation} />
-          {filteredByLocation.length === 0 ? (
+          {upcomingComps.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Trophy className="w-12 h-12 text-slate-200 mb-3" />
               <p className="text-slate-400 text-sm">{t("comp.noActiveCompetitions")}</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredByLocation.map((c) => {
+              {upcomingComps.map((c) => {
                 const counts = countsFor(c.id);
                 const mainFull = counts.main >= c.max_participants;
                 const reserveFull = counts.reserve >= c.max_reserves;
