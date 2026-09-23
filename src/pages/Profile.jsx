@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging, Zap } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
@@ -14,6 +14,7 @@ import { useAppLockPrompt } from "@/hooks/useAppLockPrompt";
 import AppLockPrompt from "@/components/AppLockPrompt";
 import { useBatteryPrompt } from "@/hooks/useBatteryPrompt";
 import BatteryOptimizationPrompt from "@/components/BatteryOptimizationPrompt";
+import { useKeepScreenAwakePref } from "@/hooks/useKeepScreenAwakePref";
 
 const loadLocations = () => {
   try {
@@ -37,6 +38,11 @@ export default function Profile() {
   // battery optimization" dialog (see useBatteryPrompt.js /
   // BatteryOptimizationPrompt.jsx). Android only.
   const batteryPrompt = useBatteryPrompt();
+  // v3.47 — see useKeepScreenAwakePref.js / batteryPrefs.js. Independent of
+  // both appLock and batteryPrompt above: this one is an in-app setting
+  // with an immediate, direct effect (gates the wake lock in
+  // useRodTimerMonitor.js), not a dialog pointing at an OS setting.
+  const [keepScreenAwake, setKeepScreenAwake] = useKeepScreenAwakePref();
   const [upgrading, setUpgrading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false);
@@ -434,6 +440,29 @@ export default function Profile() {
         onOpenChange={(v) => (v ? appLock.setOpen(true) : appLock.dismiss())}
         platform={appLock.platform}
       />
+
+      {/* v3.47 — in-app energy-saving preference, independent of the OS-level
+          "battery optimization" card below: this one directly controls
+          whether CatchCount itself keeps the screen lit (Wake Lock) while
+          a rod timer runs on "Активна сесия". Off by default — see
+          batteryPrefs.js for why that's safe (reminders still fire with
+          the screen off). Available on every platform, not gated behind
+          `eligible` like appLock/batteryPrompt above, since it's a plain
+          in-app toggle, not something that only makes sense once installed
+          as a standalone app. */}
+      <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-cyan-600" />
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("profile.energySavingTitle")}</h2>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="pr-3">
+            <p className="text-sm font-medium text-slate-700">{t("profile.keepScreenAwake")}</p>
+            <p className="text-xs text-slate-400">{t("profile.keepScreenAwakeDesc")}</p>
+          </div>
+          <Switch checked={keepScreenAwake} onCheckedChange={setKeepScreenAwake} />
+        </div>
+      </div>
 
       {/* v3.41 — separate from the App Lock card above: this one is about
           exempting CatchCount from Android's battery optimization, not

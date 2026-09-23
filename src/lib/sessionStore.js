@@ -98,8 +98,20 @@ export async function closeCloudSession() {
 }
 
 // --- Continuous cross-device sync ---
-// Polls the cloud session every 10s for changes from other devices.
-// When a change is detected (different device, newer updated_date), merges it locally.
+// Polls the cloud session every CROSS_DEVICE_POLL_MS for changes from other
+// devices. When a change is detected (different device, newer
+// updated_date), merges it locally.
+//
+// v3.47 — was 10s (a plain constant inlined below the interval call). This
+// poll runs for as long as ActiveSession.jsx is mounted — in practice, for
+// most of a multi-hour fishing session, since that's the page an angler
+// actually watches. Its ENTIRE purpose is detecting the same account
+// active on a second device at the same time, which the vast majority of
+// sessions never involve at all — yet every session paid its battery/data
+// cost every 10 seconds regardless. 30s still detects a cross-device
+// handoff promptly enough for a human to notice and act on, at a third of
+// the network wake-ups.
+const CROSS_DEVICE_POLL_MS = 30000;
 function mergeCloudState(cloudSession) {
   try {
     const data = JSON.parse(cloudSession.session_data);
@@ -146,7 +158,7 @@ export function startCrossDeviceSync() {
     // missed, it just isn't fetched while unwatched.
     if (typeof document !== "undefined" && document.hidden) return;
     pollCrossDeviceOnce();
-  }, 10000);
+  }, CROSS_DEVICE_POLL_MS);
 
   if (typeof document !== "undefined") {
     crossDeviceVisibilityHandler = () => {

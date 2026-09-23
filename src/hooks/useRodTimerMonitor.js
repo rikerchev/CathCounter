@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import * as sessionStore from "@/lib/sessionStore";
 import { playBeeps, stopBeeps, scheduleBeeps, cancelScheduledBeeps } from "@/lib/beep";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { useKeepScreenAwakePref } from "@/hooks/useKeepScreenAwakePref";
 
 const ACTIVE_SESSION_PATH = "/active-session";
 
@@ -73,6 +74,19 @@ function showReminderNotification(title, options) {
  *    at all (e.g. no Web Audio support) — otherwise it would double the
  *    sound.
  *
+ * v3.47 — the wake lock above is now ALSO gated on the user's own
+ *  "Дръж екрана буден по време на сесия" preference (Профил → Икономия на
+ *  енергия — see useKeepScreenAwakePref.js), OFF by default. Screen-on time
+ *  is by far the single biggest battery draw over a multi-hour session —
+ *  far more than GPS or network — and, per the v2.45 note just above, the
+ *  reminder itself never actually needed the screen lit: it already fires
+ *  correctly (beep, vibration, notification) with the screen off. So the
+ *  wake lock defaulting off costs nothing functionally; it only stops
+ *  automatically keeping the screen lit for anglers who never look at it
+ *  anyway. Turning the preference on restores exactly the old, always-lit
+ *  behaviour for anyone who prefers watching the live countdown without
+ *  unlocking their phone.
+ *
  * v2.48 — reminder notification now reaches a paired Wear OS watch:
  *  the system notification used to be created with the plain
  *  `new Notification(...)` constructor. That constructor is NOT supported
@@ -91,7 +105,8 @@ export function useRodTimerMonitor() {
   const [anyRunning, setAnyRunning] = useState(false);
   const location = useLocation();
   const onActiveSessionPage = location.pathname === ACTIVE_SESSION_PATH;
-  useWakeLock(anyRunning && onActiveSessionPage);
+  const [keepScreenAwake] = useKeepScreenAwakePref();
+  useWakeLock(anyRunning && onActiveSessionPage && keepScreenAwake);
 
   // rodId -> { oscillators, expiryMs } for reminders already handed off to
   // the audio clock. Kept in a ref (not state) since it's pure bookkeeping

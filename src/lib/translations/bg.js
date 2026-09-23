@@ -237,6 +237,9 @@ export const bg = {
     "profile.catchRemindersDesc": "Напомняне за запис след улов",
     "profile.sessionSummary": "Резюме на сесията",
     "profile.sessionSummaryDesc": "Резюме след всяка сесия",
+    "profile.energySavingTitle": "Икономия на енергия",
+    "profile.keepScreenAwake": "Дръж екрана буден по време на сесия",
+    "profile.keepScreenAwakeDesc": "Изключено по подразбиране, за да пести батерия — напомнянията продължават да звучат (сигнал, вибрация, известие) дори с изгасен екран. Включете, ако предпочитате екранът да остава винаги буден, докато таймер работи.",
     "profile.language": "Език",
 
     "rod.model": "Въдица",

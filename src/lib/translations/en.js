@@ -280,6 +280,9 @@ export const en = {
     "profile.catchRemindersDesc": "Remind you to log a catch after landing",
     "profile.sessionSummary": "Session summary",
     "profile.sessionSummaryDesc": "Get a summary after each fishing session",
+    "profile.energySavingTitle": "Energy saving",
+    "profile.keepScreenAwake": "Keep screen awake during a session",
+    "profile.keepScreenAwakeDesc": "Off by default to save battery — reminders still sound (beep, vibration, notification) even with the screen off. Turn this on if you'd rather the screen always stays awake while a timer is running.",
     "profile.language": "Language",
 
     "rod.model": "Rod",
