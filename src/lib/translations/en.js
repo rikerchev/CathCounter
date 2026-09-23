@@ -477,6 +477,9 @@ export const en = {
     "wb.deleteCompetition": "Delete",
     "wb.confirmDeleteCompetition": "Are you sure you want to delete this competition? All of its registered participants will be deleted along with it. This cannot be undone.",
     "wb.competitionDeleted": "Competition deleted",
+    "wb.confirmDeleteWaterBody": "Are you sure you want to delete this water body? This action cannot be undone.",
+    "wb.waterBodyDeleted": "The water body has been deleted",
+    "wb.cannotDeleteHasData": "This water body has competitions or sector reservations linked to it — delete those first before you can delete the water body.",
     "wb.cloneCompetition": "Clone",
     "wb.notEnoughBoxes": "Not enough boxes for all participants",
     "wb.noBoxesConfigured": "Set up sectors and boxes for the competition first.",
@@ -1180,6 +1183,8 @@ export const en = {
     "tv.logo": "Logo (optional)",
     "tv.updated": "Venue updated",
 
+    "tv.confirmDeleteVenue": "Are you sure you want to delete this commercial venue? This action cannot be undone.",
+    "tv.venueDeleted": "The commercial venue has been deleted",
     // v2.77 — merged request form (water body OR venue) and the merged
     // "Traders" admin screen
     "mr.title": "Trader registration",

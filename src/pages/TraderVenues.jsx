@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Store, Download, Loader2, Power, Pencil, Upload, X, Image as ImageIcon, Users } from "lucide-react";
+import { Store, Download, Loader2, Power, Pencil, Trash2, Upload, X, Image as ImageIcon, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,6 +71,13 @@ export default function TraderVenues() {
   // merchant no longer has to type/host themselves.
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [downloadingId, setDownloadingId] = useState("");
+  // v3.54 — "Изтрий" (permanent delete), separate from the existing
+  // toggleActive (Power icon) below, which only ever flips is_active —
+  // a merchant that's simply closed/paused stayed toggleActive-able, but
+  // there was previously no way to actually remove one that was created by
+  // mistake, is a duplicate, or the owner genuinely wants gone. See
+  // deleteVenue() below.
+  const [deletingVenueId, setDeletingVenueId] = useState("");
   // v3.21 — the venue pending a brochure download, while
   // BrochureContactDialog is open asking for an optional contact line.
   const [brochureTarget, setBrochureTarget] = useState(null);
@@ -174,6 +181,35 @@ export default function TraderVenues() {
       await load();
     } catch (e) {
       toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  // v3.54 — permanent delete, gated by the same window.confirm() pattern
+  // WaterBodyManagement.jsx's deleteClosedCompetition() already uses for
+  // its own irreversible action. The server side (DELETE
+  // /api/entities/Venue/:id, see server/routes/entities.ts + the "owner"
+  // delete rule on the Venue entity in entities.generated.ts) already
+  // allowed this — owner or admin — it just had no button in this UI
+  // before now. Deleting a venue does NOT cascade to anything: past
+  // competitions/sector reservations don't reference venues at all (only
+  // water bodies), and merchant_referrals rows earned through this venue's
+  // QR/brochure code simply stay in the database, orphaned but harmless —
+  // just no longer reachable through a "Регистрации" button once the venue
+  // itself is gone. If this venue is currently attached to a banner ad
+  // (CustomAds.jsx's "Търговци в банера"), that ad keeps showing its
+  // last-known snapshot (name/logo at attach time) — removing it from the
+  // ad is a separate, manual step in CustomAds.jsx.
+  async function deleteVenue(v) {
+    if (!window.confirm(t("tv.confirmDeleteVenue"))) return;
+    setDeletingVenueId(v.id);
+    try {
+      await base44.entities.Venue.delete(v.id);
+      toast({ title: t("tv.venueDeleted") });
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingVenueId("");
     }
   }
 
@@ -283,6 +319,15 @@ export default function TraderVenues() {
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => toggleActive(v)} className="min-h-[40px]">
                     <Power className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => deleteVenue(v)}
+                    disabled={deletingVenueId === v.id}
+                    className="min-h-[40px] text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:text-red-400 dark:border-red-900/40"
+                  >
+                    {deletingVenueId === v.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </Button>
                 </div>
               </div>

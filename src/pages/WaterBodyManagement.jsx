@@ -412,6 +412,10 @@ export default function WaterBodyManagement() {
   // named merchantRegCounts here (not `registrations`) because that name
   // is already taken by the competition-registrations list above.
   const [merchantRegCounts, setMerchantRegCounts] = useState({});
+  // v3.54 — permanent delete (see deleteWaterBody below), separate from
+  // toggling status/approval — there was previously no way to actually
+  // remove a water body at all from this page.
+  const [deletingWbId, setDeletingWbId] = useState("");
   // v3.25 — same BrochureContactDialog reuse, this time in front of the
   // "Списък участници" / "Изтегли жребий (снимка)" image exports (both
   // embed the water body's real brochure at the bottom — see
@@ -1110,6 +1114,43 @@ export default function WaterBodyManagement() {
     }
   }
 
+  // v3.54 — permanent delete for a water body itself (server side already
+  // allowed this — owner or admin, see the "owner" delete rule on the
+  // WaterBody entity in entities.generated.ts — it just had no button in
+  // this UI before now, only the ability to leave it approved/pending).
+  //
+  // Unlike deleteVenue in TraderVenues.jsx, this one is guarded: a water
+  // body still has competitions/sector_availabilities pointing at it by a
+  // plain `water_body_id` column (not a real foreign key — see
+  // schema.sql), so deleting it wouldn't fail loudly, it would just make
+  // those rows silently vanish from THIS page's own competitions/sectorAvail
+  // state (both are filtered down to water bodies still present in `mine` —
+  // see load() above) while leaving them as orphaned rows in the database
+  // — confusing, and needlessly destructive for something recoverable by
+  // just closing/removing those first. So this blocks with a clear message
+  // instead of guessing at a cascade. An unused water body (created by
+  // mistake, a duplicate, or one nobody ever ran anything on) has neither
+  // and deletes immediately.
+  async function deleteWaterBody(wb) {
+    const hasComps = competitions.some((c) => c.water_body_id === wb.id);
+    const hasSectors = sectAvailFor(wb.id).length > 0;
+    if (hasComps || hasSectors) {
+      toast({ title: t("wb.cannotDeleteHasData"), variant: "destructive" });
+      return;
+    }
+    if (!window.confirm(t("wb.confirmDeleteWaterBody"))) return;
+    setDeletingWbId(wb.id);
+    try {
+      await base44.entities.WaterBody.delete(wb.id);
+      toast({ title: t("wb.waterBodyDeleted") });
+      await load();
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingWbId("");
+    }
+  }
+
   // v2.80 — one CSV cell must never break the file just because a name or
   // phone happens to contain a comma/quote/newline: wrap in quotes and
   // double up any embedded quote, the standard CSV escaping rule.
@@ -1600,6 +1641,15 @@ export default function WaterBodyManagement() {
                     {Number.isFinite(merchantRegCounts[wb.id]) && (
                       <span className="ml-1 text-slate-400">({merchantRegCounts[wb.id]})</span>
                     )}
+                  </Button>
+                  <Button
+                    onClick={() => deleteWaterBody(wb)}
+                    size="sm"
+                    variant="outline"
+                    disabled={deletingWbId === wb.id}
+                    className="min-h-[40px] text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:text-red-400 dark:border-red-900/40"
+                  >
+                    {deletingWbId === wb.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                   </Button>
                 </div>
                 {/* v2.94 — admin-only "assign an owner" control, e.g. for a
