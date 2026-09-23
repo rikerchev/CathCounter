@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { getCachedCountry, detectCountry } from "./geo";
+import { getCachedCountry, detectCountryForLanguage } from "./geo";
 import { getLanguageForCountry } from "./countryLanguage";
 import { ro } from "./translations/ro";
 import { hu } from "./translations/hu";
@@ -93,17 +93,22 @@ export function LanguageProvider({ children }) {
     }
   }, [lang]);
 
-  // v3.34 (gate fixed in v3.36 — see EXPLICIT_KEY above) — only for a
+  // v3.34 (gate fixed in v3.36 — see EXPLICIT_KEY above; lookup swapped to
+  // detectCountryForLanguage() in v3.37 — see geo.js for why) — only for a
   // visitor who never deliberately picked a language: resolve (or fetch, if
   // not already cached) their country and switch to its language once
-  // known. Runs on every mount otherwise, not just "first ever visit" — a
-  // returning visitor whose VPN/location changed since last time should
-  // still get the right language, and detectCountry()'s own 24h cache
-  // keeps that essentially free.
+  // known. Runs on every mount, not just "first ever visit" — a returning
+  // visitor whose VPN/location changed since last time should still get the
+  // right language. Deliberately uses detectCountryForLanguage() and NOT
+  // the ad-targeting detectCountry() from geo.js: that one caches a
+  // detected country for a full 24h, which is fine for ads but meant a VPN
+  // switch (or genuine travel) wasn't picked up for language for up to a
+  // day — detectCountryForLanguage() has its own, much shorter 5-minute
+  // cache instead, independent of the ad-targeting one.
   useEffect(() => {
     if (hasExplicitLangChoice()) return;
     let cancelled = false;
-    detectCountry().then((code) => {
+    detectCountryForLanguage().then((code) => {
       if (cancelled) return;
       const mapped = getLanguageForCountry(code);
       if (!mapped) return;
