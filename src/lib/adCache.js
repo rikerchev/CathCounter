@@ -6,6 +6,10 @@ const AD_DATA_KEY = "catchcount_ad_data";
 // here" placeholder banner before the network responds — see
 // getCachedSlots()/cacheSlots() below and useEligibleAds.js).
 const AD_SLOT_CACHE_KEY = "catchcount_adslot_cache";
+// v3.46 — see getCachedEligibleMerchants()/cacheEligibleMerchants() below.
+const ELIGIBLE_MERCHANTS_CACHE_KEY = "catchcount_eligible_merchants_cache";
+// v3.46 — see getLastAdSyncAt()/setLastAdSyncAt() below.
+const AD_SYNC_AT_KEY = "catchcount_ad_sync_at";
 
 // Default ad creatives (fallback when no internet)
 const DEFAULT_ADS = [
@@ -96,6 +100,109 @@ export function cacheSlots(slots) {
   } catch (e) {
     console.error("cacheSlots error:", e);
   }
+}
+
+// v3.46 — mirrors getCachedAds()/cacheAds() above, but for the SERVER-
+// resolved "type:id" eligibility keys per ad (see
+// server/routes/merchantReferrals.ts and useEligibleAds.js). Before this,
+// eligibleMerchantKeys started every session as `{}` and only ever got
+// filled in AFTER a successful network round-trip — so a merchant carousel
+// item that had been showing perfectly well while online would vanish
+// (AdBannerItem.jsx falls back to manual_items only, or shows nothing)
+// the moment the device went offline, even though nothing about that
+// merchant's actual eligibility had changed. Caching this the same way
+// real ads already are lets it keep showing its LAST-KNOWN eligibility
+// while offline instead of being dropped.
+export function getCachedEligibleMerchants() {
+  try {
+    const cached = localStorage.getItem(ELIGIBLE_MERCHANTS_CACHE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.keys && typeof parsed.keys === "object") return parsed.keys;
+    }
+  } catch (e) {
+    console.error("getCachedEligibleMerchants error:", e);
+  }
+  return {};
+}
+
+export function cacheEligibleMerchants(keys) {
+  try {
+    localStorage.setItem(
+      ELIGIBLE_MERCHANTS_CACHE_KEY,
+      JSON.stringify({ keys: keys || {}, cached_at: Date.now() })
+    );
+  } catch (e) {
+    console.error("cacheEligibleMerchants error:", e);
+  }
+}
+
+// v3.46 — throttle for how often useEligibleAds.js actually hits the
+// network for a fresh ad/slot/merchant-eligibility sync. Before this, that
+// hook's effect re-ran its full network round-trip (CustomAd.list +
+// AdSlot.list, and — for any merchant banner — a THIRD call to
+// merchantReferrals.activeMerchants) on every single page navigation,
+// since `location.pathname` is one of its dependencies. The visitor was
+// always already seeing the best cached/known ad instantly regardless (see
+// getInitialZones()), so that constant re-fetching bought nothing visible
+// — only battery/data cost from waking the radio on every page change,
+// which is exactly what was reported. Persisted to localStorage (not just
+// a module-level variable) so the throttle survives a full app
+// reload/reopen too, not just client-side navigation within one running
+// session.
+export const AD_SYNC_INTERVAL_MS = 10 * 60 * 1000; // 10 минути
+
+export function getLastAdSyncAt() {
+  try {
+    return Number(localStorage.getItem(AD_SYNC_AT_KEY)) || 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+export function setLastAdSyncAt(timestamp) {
+  try {
+    localStorage.setItem(AD_SYNC_AT_KEY, String(timestamp));
+  } catch (e) {
+    console.error("setLastAdSyncAt error:", e);
+  }
+}
+
+// v3.46 — fire-and-forget warm of the browser's (service-worker-backed —
+// see public/sw.js's cache-first static-asset handler) cache for every ad
+// logo referenced by a freshly-synced ad list, INCLUDING each ad's
+// attached merchants and manual carousel items (see AdBannerItem.jsx's
+// buildCarouselItems()), not just each ad's own top-level logo_url/
+// image_url. Without this, a carousel item nobody had actually scrolled to
+// yet while online had no locally-cached image bytes at all — so going
+// offline right after a sync still meant a blank/broken logo the first
+// time that particular item's turn came up in rotation. `new Image().src =
+// url` is enough to trigger a real browser fetch (intercepted and cached
+// by the service worker exactly like any other GET) without ever
+// inserting anything into the DOM.
+export function preloadAdImages(ads) {
+  if (typeof window === "undefined" || typeof Image === "undefined") return;
+  const urls = new Set();
+  const addUrl = (u) => {
+    if (u && typeof u === "string") urls.add(u);
+  };
+  for (const ad of ads || []) {
+    addUrl(ad.logo_url);
+    addUrl(ad.image_url);
+    for (const key of ["merchants", "manual_items"]) {
+      if (!ad[key]) continue;
+      try {
+        const list = JSON.parse(ad[key]);
+        if (Array.isArray(list)) list.forEach((item) => addUrl(item?.logo_url));
+      } catch {
+        // malformed JSON — nothing to preload from it
+      }
+    }
+  }
+  urls.forEach((url) => {
+    const img = new Image();
+    img.src = url;
+  });
 }
 
 // An ad with no `languages` set (or "all") is shown regardless of the app's

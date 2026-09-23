@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { Link } from "react-router-dom";
 import { MERCHANT_TURN_SECONDS } from "@/lib/adCache";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 const LOGO_SIZE_CLASSES = {
   "16x16": "w-16 h-16",
@@ -172,6 +173,17 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
  */
 export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) {
   const { t, lang } = useLanguage();
+  // v3.46 — the carousel keeps loading/rotating through cached ads
+  // regardless of connectivity (see adCache.js's preloadAdImages() and
+  // useEligibleAds.js's offline-safe caching), but a link is only ever
+  // meaningful with a network: an attached merchant's link is an external
+  // site, and even the ad's own internal fallbacks ("/advertise",
+  // "/profile") lead to pages that need the network themselves. Rather
+  // than let a tap dead-end offline, every ad link below is only rendered
+  // as an actual clickable <Link> while isOnline is true; otherwise it
+  // renders as the same plain, non-clickable content already used for an
+  // item with no link at all.
+  const isOnline = useOnlineStatus();
 
   const items = useMemo(
     () => (ad ? buildCarouselItems(ad, eligibleMerchantKeys) : []),
@@ -266,6 +278,10 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
   // plain, non-clickable content instead — showing the merchant's
   // logo/name/description exactly as normal, just without a <Link> wrapper
   // — rather than sending the visitor somewhere misleading.
+  //
+  // v3.46 — the same non-clickable rendering is now also used whenever
+  // isOnline is false (see the hook call above), independent of whether
+  // displayLink itself is set.
   const content = (
     <>
       {displayLogoUrl && (
@@ -292,7 +308,7 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
       data-ad-keywords="fishing tackle bait rods"
       className={`relative ${ad.bg_class || "bg-gradient-to-r from-cyan-600 to-blue-600"} rounded-md ${size.wrap} mx-2 my-0.5`}
     >
-      {displayLink ? (
+      {displayLink && isOnline ? (
         <Link to={displayLink} className="flex items-center gap-3 w-full">
           {content}
         </Link>

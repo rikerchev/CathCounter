@@ -5,6 +5,12 @@ import {
   cacheAds,
   getCachedSlots,
   cacheSlots,
+  getCachedEligibleMerchants,
+  cacheEligibleMerchants,
+  getLastAdSyncAt,
+  setLastAdSyncAt,
+  AD_SYNC_INTERVAL_MS,
+  preloadAdImages,
   matchesLanguage,
   resolveZone,
   trackImpression,
@@ -144,7 +150,12 @@ export function useEligibleAds() {
   // fails), AdBannerItem.jsx treats the ad's merchants as not-yet-resolved
   // and shows only its manual_items (if any) until this arrives, so nothing
   // shows a merchant that later turns out to be ineligible.
-  const [eligibleMerchantKeys, setEligibleMerchantKeys] = useState({});
+  // v3.46 — seeded from cache (see adCache.js's getCachedEligibleMerchants())
+  // instead of `{}`, so a merchant carousel item that was showing correctly
+  // before the app was last closed/went offline keeps showing on this very
+  // first render too, rather than blanking out until the network round-trip
+  // below resolves again (which offline, never happens at all).
+  const [eligibleMerchantKeys, setEligibleMerchantKeys] = useState(() => getCachedEligibleMerchants());
 
   useEffect(() => {
     if (isPremium) {
@@ -164,14 +175,12 @@ export function useEligibleAds() {
     // below — never leave either zone blank while waiting.
     setZones(getInitialZones(placement, lang));
 
-    // Small stagger before the network upgrade — this hook runs on EVERY
-    // page via the ad banner components, landing in the same instant as
-    // that page's own primary data fetch and NotificationsBell's fetch.
-    // Since a real ad or cached one is already showing (setZones above), a
-    // brief delay here is invisible to the user but meaningfully lowers the
-    // request burst that was overwhelming the DB's connection limit
-    // (`max: 3` per serverless instance, see server/db.ts).
-    const fetchId = setTimeout(() => {
+    // v3.46 — pulled out of the setTimeout below so it can also be called
+    // straight from the "online" handler further down (bypassing the
+    // throttle there — see its own comment), not just from the debounced
+    // per-navigation timer.
+    const syncFromNetwork = () => {
+      setLastAdSyncAt(Date.now());
       Promise.all([
         base44.entities.CustomAd.list("sort_order"),
         base44.entities.AdSlot.list(),
@@ -187,6 +196,11 @@ export function useEligibleAds() {
         );
         cacheAds(allActive);
         cacheSlots(adSlots);
+        // v3.46 — warm the (service-worker-backed) image cache for every
+        // logo this sync just learned about, so it's already available
+        // locally the moment the device goes offline, not just for
+        // whichever ad/merchant happened to already be on screen.
+        preloadAdImages(allActive);
 
         const newZones = buildZones(allActive, adSlots, placement, lang);
         for (const position of ["top", "bottom"]) {
@@ -228,13 +242,32 @@ export function useEligibleAds() {
           });
           base44.merchantReferrals
             .activeMerchants(payload)
-            .then((resolved) => setEligibleMerchantKeys(resolved || {}))
+            .then((resolved) => {
+              setEligibleMerchantKeys(resolved || {});
+              // v3.46 — see getCachedEligibleMerchants() in adCache.js.
+              cacheEligibleMerchants(resolved || {});
+            })
             .catch(() => {});
         }
       })
       .catch(() => {
         setZones(getInitialZones(placement, lang));
       });
+    };
+
+    // v3.46 — this effect re-runs on EVERY page navigation
+    // (location.pathname is a dependency), which used to mean a fresh
+    // network round-trip (CustomAd.list + AdSlot.list, and — for any
+    // merchant banner — a third call to merchantReferrals.activeMerchants)
+    // on every single page the visitor opened, even though the visitor was
+    // always already seeing the best cached/known ad instantly regardless
+    // (setZones above). On a phone that's a lot of radio wake-ups —
+    // battery/data cost — for zero visible benefit. Now a real sync only
+    // actually happens at most once per AD_SYNC_INTERVAL_MS; every other
+    // navigation in between just keeps showing what's already cached,
+    // which is exactly what would have rendered anyway.
+    const fetchId = setTimeout(() => {
+      if (Date.now() - getLastAdSyncAt() >= AD_SYNC_INTERVAL_MS) syncFromNetwork();
     }, 400);
 
     if (!country) {
@@ -248,6 +281,12 @@ export function useEligibleAds() {
       if (pending.length > 0) {
         clearPendingImpressions();
       }
+      // v3.46 — coming back online is exactly the moment connectivity (and
+      // therefore what SHOULD be showing, and which links can now actually
+      // be activated — see AdBannerItem.jsx's useOnlineStatus() use) just
+      // changed, so it's worth a real sync here regardless of the throttle
+      // above — a single event-driven call, not one per navigation.
+      syncFromNetwork();
     };
     window.addEventListener("online", handleOnline);
     return () => {
