@@ -1197,6 +1197,8 @@ export const hu = {
     "ca.moveUp": "Feljebb",
     "ca.moveDown": "Lejjebb",
     "ca.removeMerchant": "Eltávolítás",
+    "ca.refreshMerchant": "Kereskedői adatok frissítése",
+    "ca.merchantRefreshed": "A kereskedő adatai frissítve",
     "ca.manualItemsSection": "Kézzel megadott hirdetések a bannerben",
     "ca.addManualItem": "Hirdetés hozzáadása",
     "ca.manualItemsHint": "Ezek a hirdetések mindig a fenti jóváhagyott kereskedőkkel együtt váltakoznak a bannerben — és ezek jelennek meg egyedül, ha egyiküknek sincs éppen QR-kódos regisztrációja.",

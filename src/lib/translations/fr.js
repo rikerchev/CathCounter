@@ -1197,6 +1197,8 @@ export const fr = {
     "ca.moveUp": "Monter",
     "ca.moveDown": "Descendre",
     "ca.removeMerchant": "Retirer",
+    "ca.refreshMerchant": "Actualiser les données du marchand",
+    "ca.merchantRefreshed": "Données du marchand actualisées",
     "ca.manualItemsSection": "Publicités saisies manuellement dans la bannière",
     "ca.addManualItem": "Ajouter une publicité",
     "ca.manualItemsHint": "Ces publicités tournent toujours dans la bannière avec les commerçants approuvés ci-dessus — et sont les seules affichées lorsqu'aucun d'eux n'a actuellement d'inscription via son code QR.",

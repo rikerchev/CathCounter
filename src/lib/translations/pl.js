@@ -1197,6 +1197,8 @@ export const pl = {
     "ca.moveUp": "Przesuń w górę",
     "ca.moveDown": "Przesuń w dół",
     "ca.removeMerchant": "Usuń",
+    "ca.refreshMerchant": "Odśwież dane kupca",
+    "ca.merchantRefreshed": "Dane kupca zostały odświeżone",
     "ca.manualItemsSection": "Ręcznie wprowadzone reklamy w banerze",
     "ca.addManualItem": "Dodaj reklamę",
     "ca.manualItemsHint": "Te reklamy zawsze rotują w banerze razem z zatwierdzonymi powyżej kupcami — i są jedyną rzeczą wyświetlaną, gdy żaden z nich nie ma obecnie rejestracji przez swój kod QR.",

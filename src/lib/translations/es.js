@@ -1197,6 +1197,8 @@ export const es = {
     "ca.moveUp": "Subir",
     "ca.moveDown": "Bajar",
     "ca.removeMerchant": "Quitar",
+    "ca.refreshMerchant": "Actualizar datos del comerciante",
+    "ca.merchantRefreshed": "Datos del comerciante actualizados",
     "ca.manualItemsSection": "Anuncios introducidos manualmente en el banner",
     "ca.addManualItem": "Añadir anuncio",
     "ca.manualItemsHint": "Estos anuncios siempre rotan en el banner junto con los comerciantes aprobados arriba — y son lo único que se muestra cuando ninguno de ellos tiene actualmente un registro a través de su código QR.",

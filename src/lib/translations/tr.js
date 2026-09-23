@@ -1197,6 +1197,8 @@ export const tr = {
     "ca.moveUp": "Yukarı taşı",
     "ca.moveDown": "Aşağı taşı",
     "ca.removeMerchant": "Kaldır",
+    "ca.refreshMerchant": "Satıcı verilerini yenile",
+    "ca.merchantRefreshed": "Satıcı verileri yenilendi",
     "ca.manualItemsSection": "Bannerdaki elle girilen reklamlar",
     "ca.addManualItem": "Reklam ekle",
     "ca.manualItemsHint": "Bu reklamlar bannerda her zaman yukarıdaki onaylı satıcılarla birlikte dönüşümlü olarak gösterilir — ve hiçbirinin şu anda QR kodu üzerinden kaydı olmadığında gösterilen tek şeydir.",

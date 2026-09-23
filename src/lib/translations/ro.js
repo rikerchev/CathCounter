@@ -1197,6 +1197,8 @@ export const ro = {
     "ca.moveUp": "Mută în sus",
     "ca.moveDown": "Mută în jos",
     "ca.removeMerchant": "Elimină",
+    "ca.refreshMerchant": "Actualizează datele comerciantului",
+    "ca.merchantRefreshed": "Datele comerciantului au fost actualizate",
     "ca.manualItemsSection": "Reclame introduse manual în banner",
     "ca.addManualItem": "Adaugă reclamă",
     "ca.manualItemsHint": "Aceste reclame se rotesc mereu în banner împreună cu comercianții aprobați mai sus — și sunt singurele afișate atunci când niciunul dintre ei nu are momentan o înregistrare prin codul QR.",

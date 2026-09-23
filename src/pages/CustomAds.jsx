@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { DEFAULT_LANGUAGES, getLanguageNativeName } from "@/lib/languages";
-import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages, Store, Waves, ArrowUp, ArrowDown, Clock } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages, Store, Waves, ArrowUp, ArrowDown, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,6 +110,17 @@ function rotationSecondsToUi(seconds) {
 
 function newManualItemId() {
   return `mi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// v3.45 — same normalization CommercialVenues.jsx already applies when it
+// renders a venue's plain `website` field as an outbound link: that field
+// is filled in without a required protocol (placeholder is just
+// "https://"), unlike `ad_link`/a custom ad's own `link`, which have always
+// been treated as complete, ready-to-navigate values. Only applied to the
+// `website` fallback below — never to `ad_link` itself.
+function normalizeMerchantUrl(url) {
+  if (!url) return "";
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 }
 
 const BANNER_POSITION_KEYS = [
@@ -405,6 +416,28 @@ export default function CustomAdsManager() {
   // logo_size, and as of v3.44 also description/link), not a live
   // reference — see the `merchants` column comment in
   // entities.generated.ts for why.
+  // v3.45 — link falls back to the venue's general `website` (v2.71,
+  // normalized above) whenever the venue has no dedicated `ad_link` (v3.44)
+  // of its own — a venue owner who only ever filled in "Website" under
+  // Търговски обекти still gets their real site carried over here, instead
+  // of the banner falling back to something unrelated (the FIX for that:
+  // see AdBannerItem.jsx's buildCarouselItems(), which no longer falls
+  // back to the ad's OWN link when a merchant snapshot has none of its
+  // own). `water_body`-type merchants have no `website` field at all (only
+  // venues do — see the v3.44 doc's own scope note), so this fallback is a
+  // no-op for those; their snapshot's `link` stays "" if `ad_link` is unset.
+  function snapshotMerchant(mtype, merchant) {
+    return {
+      type: mtype,
+      id: merchant.id,
+      name: merchant.name || "",
+      logo_url: merchant.logo_url || "",
+      logo_size: merchant.logo_size || "auto",
+      description: merchant.ad_description || "",
+      link: merchant.ad_link || normalizeMerchantUrl(merchant.website) || "",
+    };
+  }
+
   function addMerchant(key) {
     if (!key) return;
     const [mtype, mid] = key.split(":");
@@ -412,23 +445,33 @@ export default function CustomAdsManager() {
     if (!merchant) return;
     setForm((prev) => ({
       ...prev,
-      merchants: [
-        ...(prev.merchants || []),
-        {
-          type: mtype,
-          id: merchant.id,
-          name: merchant.name || "",
-          logo_url: merchant.logo_url || "",
-          logo_size: merchant.logo_size || "auto",
-          description: merchant.ad_description || "",
-          link: merchant.ad_link || "",
-        },
-      ],
+      merchants: [...(prev.merchants || []), snapshotMerchant(mtype, merchant)],
     }));
   }
 
   function removeMerchant(index) {
     setForm((prev) => ({ ...prev, merchants: (prev.merchants || []).filter((_, i) => i !== index) }));
+  }
+
+  // v3.45 — a merchant's attached snapshot is frozen at attach time (see
+  // snapshotMerchant() above and the `merchants` column comment in
+  // entities.generated.ts) — it does NOT automatically pick up a link/
+  // description/logo the merchant adds or edits afterwards. This re-pulls
+  // that one merchant's CURRENT data from approvedMerchants and overwrites
+  // just this entry's snapshot in place (position unchanged), so an admin
+  // never has to remove-and-re-add a merchant just because it was attached
+  // before the merchant filled in its site.
+  function refreshMerchant(index) {
+    setForm((prev) => {
+      const entry = (prev.merchants || [])[index];
+      if (!entry) return prev;
+      const merchant = approvedMerchants.find((m) => m._type === entry.type && m.id === entry.id);
+      if (!merchant) return prev;
+      const arr = [...prev.merchants];
+      arr[index] = snapshotMerchant(entry.type, merchant);
+      return { ...prev, merchants: arr };
+    });
+    toast({ title: t("ca.merchantRefreshed") });
   }
 
   function moveMerchant(index, dir) {
@@ -869,6 +912,14 @@ export default function CustomAdsManager() {
                           <p className="text-[10px] text-slate-400">{MERCHANT_TYPE_LABELS[m.type]}</p>
                         </div>
                         <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => refreshMerchant(idx)}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent"
+                            title={t("ca.refreshMerchant")}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                          </button>
                           <button
                             type="button"
                             onClick={() => moveMerchant(idx, -1)}

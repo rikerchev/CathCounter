@@ -1197,6 +1197,8 @@ export const sk = {
     "ca.moveUp": "Presunúť nahor",
     "ca.moveDown": "Presunúť nadol",
     "ca.removeMerchant": "Odstrániť",
+    "ca.refreshMerchant": "Obnoviť údaje obchodníka",
+    "ca.merchantRefreshed": "Údaje obchodníka boli obnovené",
     "ca.manualItemsSection": "Ručne zadané reklamy v banneri",
     "ca.addManualItem": "Pridať reklamu",
     "ca.manualItemsHint": "Tieto reklamy sa vždy striedajú v banneri spolu so schválenými obchodníkmi vyššie — a sú jediné, čo sa zobrazí, ak žiaden z nich momentálne nemá registráciu cez svoj QR kód.",

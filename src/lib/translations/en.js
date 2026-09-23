@@ -1254,6 +1254,8 @@ export const en = {
     "ca.moveUp": "Move up",
     "ca.moveDown": "Move down",
     "ca.removeMerchant": "Remove",
+    "ca.refreshMerchant": "Refresh merchant data",
+    "ca.merchantRefreshed": "Merchant data refreshed",
     "ca.manualItemsSection": "Manually entered ads in the banner",
     "ca.addManualItem": "Add ad",
     "ca.manualItemsHint": "These ads always rotate in the banner together with the approved merchants above — and are the only thing shown when none of them currently has a QR-code registration.",

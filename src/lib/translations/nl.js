@@ -1197,6 +1197,8 @@ export const nl = {
     "ca.moveUp": "Omhoog",
     "ca.moveDown": "Omlaag",
     "ca.removeMerchant": "Verwijderen",
+    "ca.refreshMerchant": "Handelaarsgegevens vernieuwen",
+    "ca.merchantRefreshed": "Handelaarsgegevens vernieuwd",
     "ca.manualItemsSection": "Handmatig ingevoerde advertenties in de banner",
     "ca.addManualItem": "Advertentie toevoegen",
     "ca.manualItemsHint": "Deze advertenties roteren altijd in de banner samen met de hierboven goedgekeurde handelaars — en zijn het enige dat wordt getoond wanneer geen van hen momenteel een registratie via hun QR-code heeft.",

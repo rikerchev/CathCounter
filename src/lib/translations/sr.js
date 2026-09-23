@@ -1197,6 +1197,8 @@ export const sr = {
     "ca.moveUp": "Pomeri gore",
     "ca.moveDown": "Pomeri dole",
     "ca.removeMerchant": "Ukloni",
+    "ca.refreshMerchant": "Osveži podatke trgovca",
+    "ca.merchantRefreshed": "Podaci trgovca su osveženi",
     "ca.manualItemsSection": "Ručno unete reklame u baneru",
     "ca.addManualItem": "Dodaj reklamu",
     "ca.manualItemsHint": "Ove reklame se uvek smenjuju u baneru zajedno sa odobrenim trgovcima iznad — i jedino su prikazane kada nijedan od njih trenutno nema registraciju putem svog QR koda.",

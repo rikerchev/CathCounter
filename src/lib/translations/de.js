@@ -1197,6 +1197,8 @@ export const de = {
     "ca.moveUp": "Nach oben",
     "ca.moveDown": "Nach unten",
     "ca.removeMerchant": "Entfernen",
+    "ca.refreshMerchant": "Händlerdaten aktualisieren",
+    "ca.merchantRefreshed": "Händlerdaten aktualisiert",
     "ca.manualItemsSection": "Manuell eingegebene Anzeigen im Banner",
     "ca.addManualItem": "Anzeige hinzufügen",
     "ca.manualItemsHint": "Diese Anzeigen rotieren im Banner immer zusammen mit den oben genehmigten Händlern — und werden allein angezeigt, wenn gerade keiner von ihnen eine Registrierung über seinen QR-Code hat.",
