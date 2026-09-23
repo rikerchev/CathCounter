@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,9 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
     () => sessionStore.getRodTimerState(rodNumber).beepDuration ?? 0.5
   );
   const [locating, setLocating] = useState(false);
+  // v3.38 — see the "Извади" button fix below (controlsRef / the
+  // useLayoutEffect right after handleCancel).
+  const controlsRef = useRef(null);
 
   // Re-render to update the timer display from the store's timestamp.
   // Tick every 1s while running (or reminder triggered), otherwise every 10s to save battery.
@@ -80,6 +83,33 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
   const handleDismissBeep = () => {
     stopBeeps();
   };
+
+  // v3.38 — fix for: the "Извади" button rendered gray (the Button
+  // component's own default off-white/near-gray style — see button.jsx's
+  // `variant: "default"` → `bg-primary` — instead of the rod's own color)
+  // right after pressing "Старт", every single cast, until literally any
+  // other tap on the card forced the browser to repaint it. The color class
+  // itself was always correct in the DOM (`${bar}`, same value the banner
+  // and the "Старт" button already use correctly) — this was a mobile
+  // WebKit/Safari quirk where a background-color that changes via a class
+  // swap on the exact frame an element (re)appears sometimes isn't
+  // actually painted until a later frame is forced by an interaction. A
+  // quick hide/reflow/show right when the controls switch from "Старт" to
+  // "Извади" forces that repaint immediately, in code, instead of waiting
+  // on the user to tap something unrelated.
+  useLayoutEffect(() => {
+    if (!isRunning) return;
+    const el = controlsRef.current;
+    if (!el) return;
+    const prevDisplay = el.style.display;
+    el.style.display = "none";
+    // eslint-disable-next-line no-unused-expressions -- reading a layout
+    // property here is the point: it forces the browser to flush the
+    // "none" display before we restore it, which is what makes the
+    // subsequent repaint happen instead of getting stuck.
+    void el.offsetHeight;
+    el.style.display = prevDisplay;
+  }, [isRunning]);
 
   const formatTime = (s) => {
     const h = Math.floor(s / 3600);
@@ -257,16 +287,17 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
         )}
 
         {/* Controls */}
-        <div className="flex gap-2">
+        <div className="flex gap-2" ref={controlsRef}>
           {!isRunning ? (
             <Button
+              key="start"
               onClick={handleStart}
               className={`flex-1 ${bar} text-white hover:opacity-90 h-11`}
             >
               <Play className="w-4 h-4 mr-1" /> {t("rod.startTimer")}
             </Button>
           ) : (
-            <>
+            <React.Fragment key="running">
               {/* v3.20 — was a fixed bg-rose-600 regardless of which color
                   the rod card itself was set to; the user's own explicit
                   ask was for this button (and the already-matching Старт
@@ -287,7 +318,7 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
               >
                 <Ban className="w-4 h-4 mr-1" /> {t("common.cancel")}
               </Button>
-            </>
+            </React.Fragment>
           )}
         </div>
 
