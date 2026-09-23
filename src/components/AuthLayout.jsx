@@ -1,6 +1,13 @@
 import React from "react";
+import { useLanguage } from "@/lib/i18n";
 
+// v3.34 — the "Общи условия" link below used to be hardcoded in Bulgarian;
+// now reuses the existing "nav.terms" key (already translated — the
+// logged-in sidebar/mobile menu links to the same page with it, see
+// Layout.jsx) so it matches whatever language Login.jsx (and any other page
+// built on this layout) is currently showing.
 export default function AuthLayout({ icon: Icon, appName, title, subtitle, footer, children }) {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
@@ -26,7 +33,7 @@ export default function AuthLayout({ icon: Icon, appName, title, subtitle, foote
             the same page (Layout.jsx footer). */}
         <p className="text-center text-xs text-muted-foreground mt-3">
           <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:underline">
-            Общи условия
+            {t("nav.terms")}
           </a>
         </p>
       </div>

@@ -1268,4 +1268,24 @@ export const bg = {
     "am.adsenseLayoutKey": "Ad layout key (по избор)",
     "am.adsenseLayoutKeyPlaceholder": "напр. -6t+ed+2i-1n-4w",
     "am.adsenseLayoutKeyHint": "Попълнете само ако сте създали „In-feed“ рекламна единица в Google AdSense (не стандартна „Display“) — в кода, който Google Ви дава за нея, ще видите ред data-ad-layout-key=\"...\"; копирайте точно тази стойност тук. За стандартна Display реклама оставете полето празно.",
+
+    // v3.34 — Login.jsx used to hardcode all of its text in Bulgarian
+    // directly, bypassing the translation system entirely (see that file's
+    // own comment) — that's the reason the login screen never changed
+    // language even after i18n.jsx started defaulting a first-time visitor
+    // to the language of their detected country. These keys are what makes
+    // that default actually visible on the one page every unauthenticated
+    // visitor sees first.
+    "login.welcomeBack": "Добре дошли отново",
+    "login.subtitle": "Влезте във вашия профил",
+    "login.continueWithGoogle": "Продължи с Google",
+    "login.or": "ИЛИ",
+    "login.email": "Имейл",
+    "login.password": "Парола",
+    "login.forgotPassword": "Забравена парола?",
+    "login.submit": "Вход",
+    "login.submitting": "Влизане...",
+    "login.noAccount": "Нямате профил?",
+    "login.createAccount": "Създайте такъв",
+    "login.invalidCredentials": "Невалиден имейл или парола",
 };

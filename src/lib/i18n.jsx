@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { getCachedCountry, detectCountry } from "./geo";
+import { getLanguageForCountry } from "./countryLanguage";
 import { ro } from "./translations/ro";
 import { hu } from "./translations/hu";
 import { fr } from "./translations/fr";
@@ -26,16 +28,51 @@ export const translations = {
 
 const LanguageContext = createContext();
 
+// v3.34 — whether this visit already had an explicit language choice saved
+// (localStorage "appLang"). Read once, outside the component, so both the
+// initial-state guess below AND the geo-detection effect can tell "the
+// person picked a language before" apart from "we're about to guess one
+// for them" without racing each other over the same localStorage read.
+function hasStoredLangPreference() {
+  try {
+    return !!localStorage.getItem("appLang");
+  } catch {
+    return false;
+  }
+}
+
 export function LanguageProvider({ children }) {
+  // v3.34 — a first-time visitor (no saved "appLang" yet) now defaults to
+  // the language of the COUNTRY they appear to be logging in from — most
+  // visibly on the login screen, the first thing anyone unauthenticated
+  // sees — instead of always starting in English. See countryLanguage.js
+  // for the country→language map and geo.js for the underlying (already
+  // existing, ad-targeting) IP lookup this reuses.
+  //
+  // Country detection is a network call, so it can't produce the very
+  // first, synchronous render. For that first paint, we use whatever
+  // country is already cached (getCachedCountry() — same 24h cache
+  // useEligibleAds.js's country-targeted ads already populate, so a
+  // returning visitor within that window gets the right language with no
+  // flicker at all) and fall back to "en" only when nothing is cached yet;
+  // the effect below then corrects it once the real (or freshly fetched)
+  // country is known.
   const [lang, setLang] = useState(() => {
     try {
-      return localStorage.getItem("appLang") || "en";
+      const stored = localStorage.getItem("appLang");
+      if (stored) return stored;
     } catch {
-      return "en";
+      // fall through to the geo-based guess below
     }
+    return getLanguageForCountry(getCachedCountry()) || "en";
   });
   const [dbOverrides, setDbOverrides] = useState({});
   const [appLanguages, setAppLanguages] = useState([]);
+  // The very first guess this mount made (see useState above) — used below
+  // to tell "still on our own initial guess" apart from "the person already
+  // changed the language themselves while the country lookup was in
+  // flight", so a slow network response can never stomp on a manual choice.
+  const initialGuessRef = useRef(lang);
 
   useEffect(() => {
     try {
@@ -44,6 +81,32 @@ export function LanguageProvider({ children }) {
       // ignore
     }
   }, [lang]);
+
+  // v3.34 — only for a visitor with no explicit saved preference: resolve
+  // (or fetch, if not already cached) their country and switch to its
+  // language once known. Never runs at all if "appLang" was already stored
+  // — an explicit past choice is never second-guessed by a geo lookup.
+  useEffect(() => {
+    if (hasStoredLangPreference()) return;
+    let cancelled = false;
+    detectCountry().then((code) => {
+      if (cancelled) return;
+      const mapped = getLanguageForCountry(code);
+      if (!mapped) return;
+      setLang((prev) => {
+        // Someone already picked a language by hand (via LanguageSelector)
+        // since this component mounted — respect that over our own guess.
+        if (prev !== initialGuessRef.current) return prev;
+        return mapped;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally
+    // runs once per mount; re-running on every `lang` change would re-fetch
+    // the (cached) country pointlessly and fight with manual selection.
+  }, []);
 
   const reloadTranslations = async () => {
     try {

@@ -1271,4 +1271,18 @@ export const en = {
     "am.adsenseLayoutKey": "Ad layout key (optional)",
     "am.adsenseLayoutKeyPlaceholder": "e.g. -6t+ed+2i-1n-4w",
     "am.adsenseLayoutKeyHint": "Only fill this in if you created an \"In-feed\" ad unit in Google AdSense (not a standard \"Display\" one) — the code Google gives you for it includes a line like data-ad-layout-key=\"...\"; copy that exact value here. For a standard Display ad, leave this empty.",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Welcome back",
+    "login.subtitle": "Sign in to your account",
+    "login.continueWithGoogle": "Continue with Google",
+    "login.or": "OR",
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.forgotPassword": "Forgot password?",
+    "login.submit": "Log in",
+    "login.submitting": "Logging in...",
+    "login.noAccount": "Don't have an account?",
+    "login.createAccount": "Create one",
+    "login.invalidCredentials": "Invalid email or password",
 };
