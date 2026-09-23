@@ -107,10 +107,15 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
         logoUrl: m.logo_url || "",
         logoSize: m.logo_size || "auto",
         // v3.45 — the merchant's OWN link (venues.ad_link, v3.44) always
-        // wins now; clicking never falls back to the generic "browse
-        // merchants" menu page any more (only to this ad's own link, then
-        // the generic /advertise, if the merchant set no link of its own).
-        link: m.link || ad.link || "/advertise",
+        // wins. If the merchant never set one, this must NOT fall back to
+        // `ad.link` — that's a DIFFERENT business's own destination (the
+        // banner's own advertiser), and landing a click on this merchant's
+        // turn there was a real bug (reported after the first v3.45
+        // deploy): a visitor who tapped the merchant's own logo/name ended
+        // up on someone else's site. Falls back to the generic "advertise
+        // with us" page instead — never to the old rejected "browse
+        // merchants" menu, and never to an unrelated merchant's link.
+        link: m.link || "/advertise",
         durationSeconds: MERCHANT_TURN_SECONDS,
       });
     }
