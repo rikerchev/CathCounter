@@ -358,6 +358,14 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       `;
     },
   },
+  "v3.30-ad-source-and-rotation": {
+    label: "v3.30 — Източник на банер (AdSense/собствени/партньори) + ротация",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS source_type TEXT CHECK (source_type IN ('adsense', 'custom', 'merchant')) DEFAULT 'custom'`);
+      await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_unit_id TEXT`);
+      await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS rotation_seconds INTEGER`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -534,6 +542,16 @@ export async function handleAdminMigrationsRoute(
         } catch {
           applied = false; // role_key column doesn't exist yet
         }
+      }
+      if (id === "v3.30-ad-source-and-rotation") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND (
+            (table_name = 'ad_slots' AND column_name IN ('source_type', 'adsense_ad_unit_id'))
+             OR (table_name = 'custom_ads' AND column_name = 'rotation_seconds')
+          )
+        `;
+        applied = (rows[0]?.n ?? 0) >= 3;
       }
       out[id] = { label: m.label, applied };
     }

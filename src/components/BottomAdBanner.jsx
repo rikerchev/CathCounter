@@ -1,6 +1,7 @@
 import { useRef, useLayoutEffect } from "react";
 import { useEligibleAds } from "@/hooks/useEligibleAds";
 import AdBannerItem from "@/components/AdBannerItem";
+import AdSenseSlot from "@/components/AdSenseSlot";
 
 /**
  * BottomAdBanner — the BOTTOM-of-page banner stack, new in v2.46. Pinned
@@ -21,13 +22,15 @@ import AdBannerItem from "@/components/AdBannerItem";
  * the browser's OWN address/toolbar can't be controlled from here at all.
  */
 export default function BottomAdBanner() {
-  const { bottom, userCountry } = useEligibleAds();
+  const { bottom, userCountry, publisherId, merchantOverrides } = useEligibleAds();
   const ref = useRef(null);
+  const isAdsense = bottom.sourceType === "adsense";
+  const hasContent = isAdsense ? !!bottom.adUnitId : bottom.ads.length > 0;
 
   useLayoutEffect(() => {
     const setVar = (h) => document.documentElement.style.setProperty("--bottom-ads-h", `${h}px`);
     const el = ref.current;
-    if (!el || bottom.length === 0) {
+    if (!el || !hasContent) {
       setVar(0);
       return;
     }
@@ -39,9 +42,9 @@ export default function BottomAdBanner() {
       ro.disconnect();
       setVar(0);
     };
-  }, [bottom.length]);
+  }, [hasContent]);
 
-  if (bottom.length === 0) return null;
+  if (!hasContent) return null;
 
   return (
     <div
@@ -49,9 +52,13 @@ export default function BottomAdBanner() {
       className="fixed inset-x-0 bottom-0 z-20 bg-white/90 dark:bg-card/90 backdrop-blur-md border-t border-slate-100 dark:border-border"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {bottom.map((ad) => (
-        <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} />
-      ))}
+      {isAdsense ? (
+        <AdSenseSlot publisherId={publisherId} adUnitId={bottom.adUnitId} />
+      ) : (
+        bottom.ads.map((ad) => (
+          <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} merchantOverride={merchantOverrides[ad.id]} />
+        ))
+      )}
     </div>
   );
 }

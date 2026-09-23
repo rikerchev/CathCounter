@@ -95,6 +95,34 @@ function rotationUiToMinutes(value, unit) {
   return n;
 }
 
+// v3.30 — a second, INDEPENDENT rotation concept from the one above: this
+// one rotates DIFFERENT custom_ads rows sharing one exact placement+
+// position slot, instead of merchant snapshots within a single row. An ad
+// opts in by turning this on; two or more opted-in ads on the same slot
+// then take turns instead of stacking, each shown for its own configured
+// number of seconds (stored in rotation_seconds) in a repeating cycle. See
+// src/lib/adCache.js's applyCustomAdRotation().
+const ROTATION_DISPLAY_UNIT_KEYS = [
+  { value: "seconds", labelKey: "ca.rotationUnitSeconds" },
+  { value: "minutes", labelKey: "ca.rotationUnitMinutes" },
+  { value: "hours", labelKey: "ca.rotationUnitHours" },
+];
+
+function rotationSecondsToUi(seconds) {
+  const n = Number(seconds);
+  if (!n || n <= 0) return { value: "10", unit: "seconds" };
+  if (n % 3600 === 0) return { value: String(n / 3600), unit: "hours" };
+  if (n % 60 === 0) return { value: String(n / 60), unit: "minutes" };
+  return { value: String(n), unit: "seconds" };
+}
+
+function rotationUiToSeconds(value, unit) {
+  const n = Math.max(1, Math.round(Number(value)) || 1);
+  if (unit === "hours") return n * 3600;
+  if (unit === "minutes") return n * 60;
+  return n;
+}
+
 const BANNER_POSITION_KEYS = [
   { value: "top", labelKey: "ca.bannerPositionTop" },
   { value: "bottom", labelKey: "ca.bannerPositionBottom" },
@@ -142,6 +170,7 @@ export default function CustomAdsManager() {
   const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const ROTATION_UNITS = ROTATION_UNIT_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
+  const ROTATION_DISPLAY_UNITS = ROTATION_DISPLAY_UNIT_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const AD_STATUS_LABELS = {};
   for (const k in AD_STATUS_KEYS) AD_STATUS_LABELS[k] = t(AD_STATUS_KEYS[k]);
   const MERCHANT_TYPE_LABELS = { water_body: t("mr.typeWaterBody"), venue: t("mr.typeVenue") };
@@ -196,6 +225,13 @@ export default function CustomAdsManager() {
   const [approvedMerchants, setApprovedMerchants] = useState([]);
   const [rotationValue, setRotationValue] = useState("30");
   const [rotationUnit, setRotationUnit] = useState("minutes");
+  // v3.30 — UI-only state for form.rotation_seconds (see
+  // rotationSecondsToUi/rotationUiToSeconds above) — whether THIS ad takes
+  // turns with other ads sharing its exact placement+position, and for how
+  // long each turn lasts.
+  const [rotationDisplayEnabled, setRotationDisplayEnabled] = useState(false);
+  const [rotationDisplayValue, setRotationDisplayValue] = useState("10");
+  const [rotationDisplayUnit, setRotationDisplayUnit] = useState("seconds");
 
   useEffect(() => {
     loadAds();
@@ -265,6 +301,10 @@ export default function CustomAdsManager() {
     const rotUi = rotationMinutesToUi(ad.merchant_rotation_minutes);
     setRotationValue(rotUi.value);
     setRotationUnit(rotUi.unit);
+    const rotDisplayUi = rotationSecondsToUi(ad.rotation_seconds);
+    setRotationDisplayEnabled(Number(ad.rotation_seconds) > 0);
+    setRotationDisplayValue(rotDisplayUi.value);
+    setRotationDisplayUnit(rotDisplayUi.unit);
     setForm({
       title: ad.title || "",
       description: ad.description || "",
@@ -336,6 +376,9 @@ export default function CustomAdsManager() {
     setEditingOriginalPeriod(null);
     setRotationValue("30");
     setRotationUnit("minutes");
+    setRotationDisplayEnabled(false);
+    setRotationDisplayValue("10");
+    setRotationDisplayUnit("seconds");
   }
 
   // v3.26 — add/remove/reorder merchants attached to this banner. Each
@@ -501,6 +544,13 @@ Description: ${form.description}`;
         merchants: JSON.stringify(form.merchants || []),
         merchant_rotation_minutes: hasMerchants && form.merchants.length > 1
           ? rotationUiToMinutes(rotationValue, rotationUnit)
+          : null,
+        // v3.30 — this ad opts into taking turns with other ads sharing its
+        // exact placement+position (see applyCustomAdRotation() in
+        // adCache.js) for this many seconds per turn. null = keeps stacking
+        // as before (default, unchanged behavior).
+        rotation_seconds: rotationDisplayEnabled
+          ? rotationUiToSeconds(rotationDisplayValue, rotationDisplayUnit)
           : null,
       };
       if (periodChanged) {
@@ -850,6 +900,45 @@ Description: ${form.description}`;
                 </Select>
               </div>
             </div>
+
+            {/* v3.30 — this ad can take turns with any OTHER ads that share
+                its exact placement + position, instead of always stacking
+                below them. Independent of the merchant rotation above (that
+                one rotates merchant snapshots WITHIN a single ad row); this
+                rotates entire, separate custom_ads rows. See
+                applyCustomAdRotation() in src/lib/adCache.js. */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-cyan-600" />
+                <Label className="mb-0">{t("ca.rotationDisplay")}</Label>
+                <Switch
+                  checked={rotationDisplayEnabled}
+                  onCheckedChange={setRotationDisplayEnabled}
+                  className="ml-auto"
+                />
+              </div>
+              <p className="text-xs text-slate-400">{t("ca.rotationDisplayDesc")}</p>
+              {rotationDisplayEnabled && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={rotationDisplayValue}
+                    onChange={(e) => setRotationDisplayValue(e.target.value)}
+                    className="min-h-[44px]"
+                  />
+                  <Select value={rotationDisplayUnit} onValueChange={setRotationDisplayUnit}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROTATION_DISPLAY_UNITS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-2">
               <Label>{t("ca.active")}</Label>
               <Switch checked={form.is_active} onCheckedChange={(v) => setForm({ ...form, is_active: v })} />

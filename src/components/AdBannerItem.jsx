@@ -24,18 +24,37 @@ const MERCHANT_LINK_BY_TYPE = {
   venue: "/commercial-venues",
 };
 
+// v3.30 — finds a snapshot in `list` matching a {type,id} pair the server
+// resolved (see merchantReferrals.ts's active-merchants endpoint) — the
+// server never sends back the full snapshot (logo/name), only which one
+// won, so the actual display data still comes from this ad's own
+// (unauthenticated-safe) `merchants` snapshot list.
+function findMerchantByRef(list, ref) {
+  if (!ref) return null;
+  return list.find((m) => m.type === ref.type && String(m.id) === String(ref.id)) || null;
+}
+
 /**
  * v3.26 — resolves which attached merchant (if any) this banner should show
  * right now. `ad.merchants` is a JSON array of denormalized snapshots
  * ([{type, id, name, logo_url, logo_size}, ...]) an admin attached in
  * CustomAds.jsx's "Търговци в банера" section — not a live join, so this
- * never needs a fetch. A single merchant always shows; two or more rotate
- * on `ad.merchant_rotation_minutes` using the current wall-clock time, so
- * every viewer sees the same one at the same instant (re-resolved on
- * mount/navigation only — no live ticking timer). Returns null when the ad
- * has no merchants, meaning "render the ad's own fields as before".
+ * never needs a fetch. A single merchant always shows.
+ *
+ * v3.30 — two or more used to rotate in strict equal shares
+ * (`merchant_rotation_minutes`-bucketed round robin); now weighted by each
+ * merchant's QR-code referral count instead, computed server-side (see
+ * server/routes/merchantReferrals.ts — referral counts are NOT public, so
+ * only the final winner ever reaches the client) and passed in as
+ * `override` from useEligibleAds.js's `merchantOverrides`. Until that
+ * resolves (or if it fails), this falls back to the original plain
+ * equal-share round robin below, so a banner is never blank while waiting.
+ * Every viewer sees the same one at the same instant either way
+ * (re-resolved on mount/navigation only — no live ticking timer). Returns
+ * null when the ad has no merchants, meaning "render the ad's own fields
+ * as before".
  */
-function resolveActiveMerchant(ad) {
+function resolveActiveMerchant(ad, override) {
   if (!ad?.merchants) return null;
   let list;
   try {
@@ -45,6 +64,8 @@ function resolveActiveMerchant(ad) {
   }
   if (!Array.isArray(list) || list.length === 0) return null;
   if (list.length === 1) return list[0];
+  const fromOverride = findMerchantByRef(list, override);
+  if (fromOverride) return fromOverride;
   const minutes = Number(ad.merchant_rotation_minutes) > 0 ? Number(ad.merchant_rotation_minutes) : 30;
   const idx = Math.floor(Date.now() / (minutes * 60000)) % list.length;
   return list[idx];
@@ -57,7 +78,7 @@ function resolveActiveMerchant(ad) {
  * and hand one `ad` at a time to this component. Pulled out of AdBanner.jsx
  * in v2.46 when banners stopped being one-per-page.
  */
-export default function AdBannerItem({ ad, userCountry }) {
+export default function AdBannerItem({ ad, userCountry, merchantOverride }) {
   const { t, lang } = useLanguage();
   if (!ad) return null;
 
@@ -68,7 +89,7 @@ export default function AdBannerItem({ ad, userCountry }) {
   // than one) instead of the ad's own manually-entered fields below —
   // country/language text overrides don't apply here (admin's choice: just
   // the merchant's logo + name, automatically).
-  const activeMerchant = resolveActiveMerchant(ad);
+  const activeMerchant = resolveActiveMerchant(ad, merchantOverride);
 
   // Resolve translation keys for default/fallback ads
   const resolveText = (text) => (ad.is_translation_key && text ? t(text) : text);

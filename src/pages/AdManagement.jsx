@@ -22,7 +22,7 @@ import {
 import { ALL_COUNTRIES, COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { calculateCountryPrice, getCountryMultiplier } from "@/lib/pricing";
 import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
-import { bucketAdsByPosition } from "@/lib/adCache";
+import { bucketAdsByPosition, resolveZone } from "@/lib/adCache";
 import PaymentInfoCard from "@/components/PaymentInfoCard";
 
 // v2.65 — AdManagement.jsx replaces the two previously-separate screens
@@ -62,6 +62,16 @@ const BANNER_SIZE_KEYS = [
   { value: "compact", labelKey: "ca.bannerSizeCompact" },
   { value: "normal", labelKey: "ca.bannerSizeNormal" },
   { value: "large", labelKey: "ca.bannerSizeLarge" },
+];
+
+// v3.30 — which kind of content fills this exact banner slot: the app's
+// own ads (default, unchanged behavior), the Търговци partner-rotation
+// pool (see merchantReferrals.ts), or a manual Google AdSense ad unit
+// (see AdSenseSlot.jsx). See ad_slots.source_type in schema.sql.
+const SOURCE_TYPE_KEYS = [
+  { value: "custom", labelKey: "am.sourceCustom" },
+  { value: "merchant", labelKey: "am.sourceMerchant" },
+  { value: "adsense", labelKey: "am.sourceAdsense" },
 ];
 
 const BG_OPTION_KEYS = [
@@ -133,6 +143,8 @@ const emptySlot = {
   price_per_month: "",
   banner_position: "top",
   banner_size: "normal",
+  source_type: "custom",
+  adsense_ad_unit_id: "",
 };
 
 function formatCountryPrices(basePrice) {
@@ -224,6 +236,7 @@ export default function AdManagement() {
   const PLACEMENTS = PLACEMENT_KEYS.map((p) => ({ value: p.value, label: t(p.key) }));
   const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
+  const SOURCE_TYPES = SOURCE_TYPE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const BG_OPTIONS = BG_OPTION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const AD_STATUS_LABELS = {};
@@ -323,6 +336,8 @@ export default function AdManagement() {
       banner_position: slot.banner_position || "top",
       banner_size: slot.banner_size || "normal",
       is_available: slot.is_available,
+      source_type: slot.source_type || "custom",
+      adsense_ad_unit_id: slot.adsense_ad_unit_id || "",
     });
   }
 
@@ -347,6 +362,8 @@ export default function AdManagement() {
         status: "available",
         banner_position: slotForm.banner_position,
         banner_size: slotForm.banner_size,
+        source_type: slotForm.source_type || "custom",
+        adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
       });
       toast({ title: t("aas.slotCreated") });
       resetSlotForm();
@@ -371,6 +388,8 @@ export default function AdManagement() {
         price_per_month: Number(slotForm.price_per_month),
         banner_position: slotForm.banner_position,
         banner_size: slotForm.banner_size,
+        source_type: slotForm.source_type || "custom",
+        adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
       });
       toast({ title: t("aas.slotUpdated") });
       resetSlotForm();
@@ -647,6 +666,16 @@ Description: ${adForm.description}`;
   const previewSlotTop = bucketed.top.length === 0 ? pickPreviewSlot(slots, placement, "top") : null;
   const previewSlotBottom = bucketed.bottom.length === 0 ? pickPreviewSlot(slots, placement, "bottom") : null;
 
+  // v3.30 — the ACTUAL resolved content for each zone right now (AdSense/
+  // merchant-filtered/rotation-picked), shared with the live site via
+  // resolveZone() in adCache.js so this illustration can never drift out
+  // of sync with what real visitors see (the promise in this file's own
+  // header comment). `bucketed` above stays the raw, unfiltered stack —
+  // still needed for the manageable list below, which must show every ad
+  // regardless of whether rotation/merchant filtering currently hides it.
+  const zoneTop = useMemo(() => resolveZone(activeAds, slots, placement, "top"), [activeAds, slots, placement]);
+  const zoneBottom = useMemo(() => resolveZone(activeAds, slots, placement, "bottom"), [activeAds, slots, placement]);
+
   // The combined manageable list for this page: everything created
   // specifically for it, plus whichever "all pages" ad/slot is actually
   // filling a gap right now — tagged as a fallback so it's never a silent
@@ -677,9 +706,28 @@ Description: ${adForm.description}`;
   });
 
   function renderZone(position) {
-    const realAds = bucketed[position];
-    if (realAds.length > 0) {
-      return realAds.map((ad) => (
+    const zone = position === "top" ? zoneTop : zoneBottom;
+    if (zone.sourceType === "adsense") {
+      return (
+        <div className="rounded-lg border border-dashed border-cyan-300 dark:border-cyan-800 py-4 text-center px-3">
+          <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400">{t("am.sourceAdsensePreview")}</p>
+          <p className="text-[10px] text-slate-400 mt-0.5">
+            {zone.adUnitId
+              ? t("am.adsenseUnitConfigured").replace("{id}", zone.adUnitId)
+              : t("am.adsenseUnitMissing")}
+          </p>
+          <button
+            type="button"
+            onClick={() => zone.slot && startEditSlot(zone.slot)}
+            className="text-[11px] font-medium text-cyan-700 dark:text-cyan-400 hover:underline mt-1"
+          >
+            {t("ca.edit")}
+          </button>
+        </div>
+      );
+    }
+    if (zone.ads.length > 0) {
+      return zone.ads.map((ad) => (
         <PreviewBanner key={ad.id} ad={ad} isPlaceholder={false} onEdit={() => startEditAd(ad)} t={t} />
       ));
     }
@@ -845,6 +893,36 @@ Description: ${adForm.description}`;
                 </Select>
               </div>
             </div>
+
+            {/* v3.30 — what actually fills this exact banner: the app's own
+                ads (default), the Търговци partner-rotation pool weighted
+                by QR-referral count, or a manual Google AdSense ad unit —
+                see SOURCE_TYPE_KEYS and ad_slots.source_type. */}
+            <div>
+              <Label>{t("am.sourceType")}</Label>
+              <Select value={slotForm.source_type || "custom"} onValueChange={(v) => setSlotForm({ ...slotForm, source_type: v })}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SOURCE_TYPES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-400 mt-1">{t("am.sourceTypeDesc")}</p>
+            </div>
+            {slotForm.source_type === "adsense" && (
+              <div>
+                <Label>{t("am.adsenseUnitId")}</Label>
+                <Input
+                  value={slotForm.adsense_ad_unit_id}
+                  onChange={(e) => setSlotForm({ ...slotForm, adsense_ad_unit_id: e.target.value })}
+                  placeholder={t("am.adsenseUnitIdPlaceholder")}
+                  className="min-h-[44px]"
+                />
+                <p className="text-xs text-slate-400 mt-1">{t("am.adsenseUnitIdHint")}</p>
+              </div>
+            )}
+
             {slotForm.price_per_month > 0 && (
               <div className="rounded-lg bg-cyan-50 dark:bg-accent p-3 space-y-1">
                 <p className="text-xs font-semibold text-cyan-700 dark:text-cyan-400">{t("aas.autoPrices")}:</p>
@@ -1345,8 +1423,15 @@ Description: ${adForm.description}`;
   );
 }
 
+const SOURCE_TYPE_BADGE_KEYS = {
+  adsense: "am.sourceAdsense",
+  merchant: "am.sourceMerchant",
+  custom: "am.sourceCustom",
+};
+
 function SlotRow({ slot, fallback, t, PLACEMENTS, BANNER_POSITIONS, BANNER_SIZES, onEdit, onToggle, onDelete }) {
   const countryList = formatCountryPrices(slot.price_per_month);
+  const sourceType = slot.source_type || "custom";
   return (
     <div className="rounded-xl bg-white border border-slate-100 dark:bg-card dark:border-border p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
@@ -1355,6 +1440,11 @@ function SlotRow({ slot, fallback, t, PLACEMENTS, BANNER_POSITIONS, BANNER_SIZES
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-accent text-slate-500 dark:text-muted-foreground font-medium">
               {t("am.slotLabel")}
             </span>
+            {sourceType !== "custom" && (
+              <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-700 font-medium">
+                {t(SOURCE_TYPE_BADGE_KEYS[sourceType])}
+              </span>
+            )}
             {fallback && (
               <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
                 {t("am.fallbackTag")}

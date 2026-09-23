@@ -1246,4 +1246,22 @@ export const en = {
     "ca.moveUp": "Move up",
     "ca.moveDown": "Move down",
     "ca.removeMerchant": "Remove",
+
+    // v3.30 — per-banner ad source selection (Google AdSense / own ads /
+    // partner-merchant ads), weighted merchant rotation by QR-code
+    // referral count, and rotation among several own ads on one banner
+    "ca.rotationUnitSeconds": "seconds",
+    "ca.rotationDisplay": "Rotate with other ads on this banner",
+    "ca.rotationDisplayDesc": "If other ads with rotation enabled share this exact spot (page + position), they'll take turns for the time set below instead of stacking on top of each other.",
+    "am.sourceType": "Source",
+    "am.sourceTypeDesc": "What actually fills this banner: your own ads (default), partner-merchant ads (rotated by their QR-code referral counts), or a Google AdSense ad of yours.",
+    "am.sourceCustom": "Own ads",
+    "am.sourceMerchant": "Partner ads (Merchants)",
+    "am.sourceAdsense": "Google AdSense",
+    "am.adsenseUnitId": "AdSense Ad unit ID",
+    "am.adsenseUnitIdPlaceholder": "e.g. 1234567890",
+    "am.adsenseUnitIdHint": "Create an Ad unit for this exact spot in your Google AdSense account and paste its ID (Ad slot ID) here. The publisher ID (ca-pub-...) is set once, globally, in Settings → Google AdSense.",
+    "am.sourceAdsensePreview": "A Google AdSense ad will show here",
+    "am.adsenseUnitConfigured": "Ad unit: {id}",
+    "am.adsenseUnitMissing": "No Ad unit ID set yet — see the Edit button below.",
 };

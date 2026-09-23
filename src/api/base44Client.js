@@ -307,6 +307,11 @@ export const base44 = {
   merchantReferrals: {
     redeem: (code) => apiFetch("/api/merchant-referrals/redeem", { method: "POST", body: { code } }),
     stats: (type, id) => apiFetch(`/api/merchant-referrals/stats?type=${type}&id=${id}`),
+    // v3.30 — batch-resolves which attached merchant should show right now
+    // for each given ad (2+ merchants only), weighted by referral count —
+    // see server/routes/merchantReferrals.ts's own comment on this route
+    // for why the counts themselves never come back to the client.
+    activeMerchants: (ads) => apiFetch("/api/merchant-referrals/active-merchants", { method: "POST", body: { ads } }),
   },
 
   // v2.97 — "Връзка с нас" (Contact Us). See server/routes/contact.ts.

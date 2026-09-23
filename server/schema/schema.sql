@@ -775,3 +775,41 @@ ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 -- header comment). Safe to re-run.
 ALTER TABLE menu_groups ADD COLUMN IF NOT EXISTS role_key TEXT CHECK (role_key IN ('water_owner', 'advertiser'));
 CREATE UNIQUE INDEX IF NOT EXISTS idx_menu_groups_role_key ON menu_groups(role_key) WHERE role_key IS NOT NULL;
+
+-- v3.30: per-banner-slot ad SOURCE selection (Google AdSense / own ads /
+-- partner-merchant ads — Admin → Рекламни слотове → per-zone "Източник"),
+-- weighted merchant rotation by QR-code referral count, and rotation among
+-- several own ads sharing one banner slot.
+--
+-- ad_slots.source_type: 'adsense' | 'custom' | 'merchant', default 'custom'
+-- so every existing banner slot keeps today's exact behaviour (stack every
+-- eligible custom_ads row) until an admin explicitly picks something else
+-- for that exact placement+position in AdManagement.jsx. 'adsense' makes
+-- that slot render a manual AdSense ad unit (adsense_ad_unit_id below)
+-- instead of any custom_ads content; 'merchant' restricts that slot to only
+-- custom_ads rows that have merchants attached (see v3.26), hiding plain
+-- ads and the "advertise here" placeholder there.
+--
+-- ad_slots.adsense_ad_unit_id: the AdSense "Ad unit" ID (from the admin's
+-- own AdSense account) to render in this slot when source_type='adsense' —
+-- separate from the existing global ADSENSE_PUBLISHER_ID/ADSENSE_ENABLED
+-- app_settings (server/lib/settings.ts), which still gate Google's
+-- account-wide "Auto ads" script (src/components/AdSenseLoader.jsx); this
+-- is what lets ONE specific slot show a manual AdSense unit instead of
+-- relying on Auto ads' own free-form placement.
+--
+-- custom_ads.rotation_seconds: opt-in per-ad display duration, in seconds.
+-- NULL/0 (default) = unchanged behaviour (this ad always shows, stacked
+-- with any other ads sharing its placement+position). When 2+ active ads
+-- sharing the exact same placement+position all have this set, they rotate
+-- instead of stacking — each shown for its own configured number of
+-- seconds in a repeating cycle (order = sort_order), switching
+-- deterministically by wall-clock time so every visitor sees the same one
+-- at a given moment, same "changes on next page load" rule as the existing
+-- merchants-within-one-ad rotation (v3.26). See src/lib/adCache.js's
+-- applyCustomAdRotation().
+--
+-- Safe to re-run.
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS source_type TEXT CHECK (source_type IN ('adsense', 'custom', 'merchant')) DEFAULT 'custom';
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_unit_id TEXT;
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS rotation_seconds INTEGER;

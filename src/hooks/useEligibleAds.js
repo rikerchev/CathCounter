@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import {
-  getCurrentAds,
+  getCachedAds,
   cacheAds,
   getCachedSlots,
   cacheSlots,
   matchesLanguage,
-  bucketAdsByPosition,
+  resolveZone,
   trackImpression,
   getPendingImpressions,
   clearPendingImpressions,
@@ -15,6 +15,7 @@ import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
 import { base44 } from "@/api/base44Client";
 import { detectCountry, getCachedCountry } from "@/lib/geo";
+import { useAdSenseInfo } from "@/hooks/useAdSenseInfo";
 
 const PLACEMENT_MAP = {
   "/": "home",
@@ -33,11 +34,19 @@ const PLACEMENT_MAP = {
   "/profile": "profile",
 };
 
+const EMPTY_ZONES = {
+  top: { sourceType: "custom", adUnitId: null, ads: [] },
+  bottom: { sourceType: "custom", adUnitId: null, ads: [] },
+};
+
 // Standard "rent this banner" placeholder shown in place of a real ad, for
-// an admin-defined AdSlot (see AdminAdSlots.jsx) that has no advertiser
-// yet. Reuses the same is_translation_key strings as adCache.js's own
-// DEFAULT_ADS "advertise here" fallback, so the wording is consistent
-// whether it comes from an actual slot or the generic offline fallback.
+// an admin-defined AdSlot (see AdManagement.jsx) that has no advertiser yet
+// — never shown for a slot whose source_type is "adsense" (see buildZones()
+// below), since that zone either has its ad unit configured or doesn't;
+// there's no "unrented" state for it. Reuses the same is_translation_key
+// strings as adCache.js's own DEFAULT_ADS "advertise here" fallback, so the
+// wording is consistent whether it comes from an actual slot or the
+// generic offline fallback.
 function makeSlotPlaceholderAd(slot) {
   return {
     id: `slot-placeholder-${slot.id}`,
@@ -55,46 +64,32 @@ function makeSlotPlaceholderAd(slot) {
   };
 }
 
-// Picks the best still-available AdSlot for this placement + banner
-// position, preferring an exact-placement slot over a generic "all pages"
-// one — same precedence rule as bucketAdsByPosition() uses for real ads.
-// "Available" mirrors Advertise.jsx's own filter for what it still lets
-// advertisers request: the admin hasn't explicitly hidden it.
-function pickAvailableSlot(slots, placement, position) {
-  const eligible = (slots || []).filter(
-    (s) => s.is_available !== false && (s.banner_position || "top") === position
-  );
-  return (
-    eligible.find((s) => s.placement === placement) ||
-    eligible.find((s) => s.placement === "all" || !s.placement) ||
-    null
-  );
-}
-
-// Fills whichever bucket (top/bottom) has no real ad with a slot
-// placeholder, given a list of slots — shared by the synchronous
+// v3.30 — builds { top, bottom } zone objects (see adCache.js's
+// resolveZone() for the shape) from whatever ads/slots are currently known
+// (cache or fresh network). Backfills whichever custom/merchant zone ends
+// up with no real ad with the standard "advertise here" placeholder for a
+// matching, still-available slot — a slot never displaces a real ad, it
+// only fills a gap that would otherwise be empty. Shared by the synchronous
 // (cache-only) initial render and the async (network-fresh) update below,
-// so both apply the exact same rule. See adCache.js's cacheSlots() comment
-// for why this needs to run on the synchronous path too, not just after
-// the network responds.
-function backfillWithSlots(bucketed, slots, placement) {
-  let result = bucketed;
+// so both apply the exact same rule.
+function buildZones(ads, slots, placement) {
+  const zones = {};
   for (const position of ["top", "bottom"]) {
-    if (result[position].length === 0) {
-      const slot = pickAvailableSlot(slots, placement, position);
-      if (slot) result = { ...result, [position]: [makeSlotPlaceholderAd(slot)] };
-    }
+    const zone = resolveZone(ads, slots, placement, position);
+    const needsPlaceholder = zone.sourceType !== "adsense" && zone.ads.length === 0 && zone.slot;
+    zones[position] = needsPlaceholder ? { ...zone, ads: [makeSlotPlaceholderAd(zone.slot)] } : zone;
   }
-  return result;
+  return zones;
 }
 
 // Best-known state for this placement without touching the network: real
 // ads from cache (or the built-in defaults, see adCache.js) plus, for
-// whichever bucket is still empty, a slot placeholder from the last cached
+// whichever zone is still empty, a slot placeholder from the last cached
 // AdSlot list. This is what the hook renders on mount, before its effect
 // below ever fires — see cacheSlots() in adCache.js for why.
-function getInitialAds(placement, lang) {
-  return backfillWithSlots(getCurrentAds(placement, lang), getCachedSlots(), placement);
+function getInitialZones(placement, lang) {
+  const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
+  return buildZones(ads, getCachedSlots(), placement);
 }
 
 /**
@@ -105,13 +100,23 @@ function getInitialAds(placement, lang) {
  * v2.46 so both banner groups read from one fetch instead of duplicating
  * the whole network/cache/country/language dance.
  *
- * v2.49 — an admin-created AdSlot (see AdminAdSlots.jsx) that has no
- * advertiser filling it yet is no longer invisible: whichever bucket
- * (top/bottom) has no real ad for this page falls back to a standard
- * "advertise here" placeholder built from a matching, still-available
- * slot, so an unrented placement always shows something inviting an
- * advertiser to rent it. A slot never displaces a real ad that's already
- * showing there — it only fills a bucket that would otherwise be empty.
+ * v3.30 — `top`/`bottom` are no longer plain ad arrays: each is now
+ * `{ sourceType, adUnitId, ads }` (see adCache.js's resolveZone()) so a
+ * consumer can tell whether this zone is a manual Google AdSense unit, a
+ * partner-merchant banner, or the normal stack of own ads — see
+ * AdBanner.jsx / BottomAdBanner.jsx for how each is rendered. Also exposes
+ * `publisherId` (the account-wide AdSense client id, needed to actually
+ * render an AdSense zone) and `merchantOverrides` (server-resolved,
+ * referral-count-weighted active merchant per ad id — see
+ * AdBannerItem.jsx).
+ *
+ * v2.49 — an admin-created AdSlot that has no advertiser filling it yet is
+ * no longer invisible: whichever zone (top/bottom) has no real ad for this
+ * page falls back to a standard "advertise here" placeholder built from a
+ * matching, still-available slot, so an unrented placement always shows
+ * something inviting an advertiser to rent it. A slot never displaces a
+ * real ad that's already showing there — it only fills a zone that would
+ * otherwise be empty.
  *
  * v2.53 — that placeholder used to only ever appear AFTER the network
  * fetch resolved (it was never cached), so on any page where the cached
@@ -128,13 +133,22 @@ export function useEligibleAds() {
   const { isPremium } = usePremium();
   const location = useLocation();
   const placement = PLACEMENT_MAP[location.pathname] || "all";
+  const { publisherId } = useAdSenseInfo();
 
-  const [ads, setAds] = useState(() => (isPremium ? { top: [], bottom: [] } : getInitialAds(placement, lang)));
+  const [zones, setZones] = useState(() => (isPremium ? EMPTY_ZONES : getInitialZones(placement, lang)));
   const [userCountry, setUserCountry] = useState(getCachedCountry());
+  // v3.30 — server-resolved active merchant per ad id, for any ad with 2+
+  // attached merchants, weighted by referral count (see
+  // server/routes/merchantReferrals.ts's active-merchants endpoint).
+  // Populated only after the network round-trip below; until then (or if
+  // it fails), AdBannerItem.jsx falls back to the plain equal-share
+  // round-robin it always used, so nothing is ever blank while this
+  // resolves.
+  const [merchantOverrides, setMerchantOverrides] = useState({});
 
   useEffect(() => {
     if (isPremium) {
-      setAds({ top: [], bottom: [] });
+      setZones(EMPTY_ZONES);
       return;
     }
 
@@ -147,17 +161,16 @@ export function useEligibleAds() {
 
     // Show the best ads we already know about immediately (cache/defaults,
     // slot placeholder included), then upgrade once the network responds
-    // below — never leave either banner group blank while waiting.
-    setAds(getInitialAds(placement, lang));
+    // below — never leave either zone blank while waiting.
+    setZones(getInitialZones(placement, lang));
 
     // Small stagger before the network upgrade — this hook runs on EVERY
     // page via the ad banner components, landing in the same instant as
     // that page's own primary data fetch and NotificationsBell's fetch.
-    // Since a real ad or cached one is already showing (setAds above), a
+    // Since a real ad or cached one is already showing (setZones above), a
     // brief delay here is invisible to the user but meaningfully lowers the
     // request burst that was overwhelming the DB's connection limit
-    // (`max: 1` per serverless instance, see server/db.ts) enough to make
-    // some of these calls — AdSlot included — hit the client's 12s timeout.
+    // (`max: 3` per serverless instance, see server/db.ts).
     const fetchId = setTimeout(() => {
       Promise.all([
         base44.entities.CustomAd.list("sort_order"),
@@ -173,28 +186,53 @@ export function useEligibleAds() {
           (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a) && matchesLanguage(a, lang)
         );
         cacheAds(allActive);
-        // v2.53 — cache the slot list too (see adCache.js), so the next
-        // page load can render the same placeholder synchronously instead
-        // of only after this network round-trip finishes.
         cacheSlots(adSlots);
 
-        let bucketed = bucketAdsByPosition(allActive, placement);
-        for (const ad of [...bucketed.top, ...bucketed.bottom]) trackImpression(ad.id);
+        const newZones = buildZones(allActive, adSlots, placement);
+        for (const position of ["top", "bottom"]) {
+          for (const ad of newZones[position].ads) trackImpression(ad.id);
+        }
 
-        // Backfill whichever bucket has no real ad with the standard
-        // "advertise here" placeholder for a matching, still-available
-        // AdSlot (v2.49) — a slot never displaces a real ad, it only fills
-        // a gap that would otherwise be empty.
-        bucketed = backfillWithSlots(bucketed, adSlots, placement);
+        const anyContent =
+          newZones.top.ads.length > 0 || newZones.bottom.ads.length > 0 ||
+          newZones.top.sourceType === "adsense" || newZones.bottom.sourceType === "adsense";
+        setZones(anyContent ? newZones : getInitialZones(placement, lang));
 
-        if (bucketed.top.length > 0 || bucketed.bottom.length > 0) {
-          setAds(bucketed);
-        } else {
-          setAds(getInitialAds(placement, lang));
+        // v3.30 — resolve the weighted-by-referral-count active merchant,
+        // server-side, for any ad (in either zone) with 2+ merchants
+        // attached. See merchantReferrals.ts for why the underlying counts
+        // never come back here — only each ad's one resolved winner does.
+        const merchantAds = [...newZones.top.ads, ...newZones.bottom.ads].filter((ad) => {
+          if (!ad.merchants) return false;
+          try {
+            const list = JSON.parse(ad.merchants);
+            return Array.isArray(list) && list.length >= 2;
+          } catch {
+            return false;
+          }
+        });
+        if (merchantAds.length > 0) {
+          const payload = merchantAds.map((ad) => {
+            let list = [];
+            try {
+              list = JSON.parse(ad.merchants);
+            } catch {
+              list = [];
+            }
+            return {
+              id: ad.id,
+              merchants: list.map((m) => ({ type: m.type, id: m.id })),
+              rotationMinutes: ad.merchant_rotation_minutes,
+            };
+          });
+          base44.merchantReferrals
+            .activeMerchants(payload)
+            .then((resolved) => setMerchantOverrides(resolved || {}))
+            .catch(() => {});
         }
       })
       .catch(() => {
-        setAds(getInitialAds(placement, lang));
+        setZones(getInitialZones(placement, lang));
       });
     }, 400);
 
@@ -217,6 +255,6 @@ export function useEligibleAds() {
     };
   }, [isPremium, location.pathname, userCountry, lang]);
 
-  if (isPremium) return { top: [], bottom: [], userCountry };
-  return { ...ads, userCountry };
+  if (isPremium) return { ...EMPTY_ZONES, userCountry, publisherId, merchantOverrides: {} };
+  return { ...zones, userCountry, publisherId, merchantOverrides };
 }

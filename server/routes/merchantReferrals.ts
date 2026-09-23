@@ -39,6 +39,15 @@ function addDaysToDateString(dateStr: string | null, days: number): string {
   return next.toISOString().slice(0, 10);
 }
 
+// v3.30 — weight floor/ceiling for the proportional merchant-banner
+// rotation below: every attached merchant gets at least MIN_SHARE of the
+// rotation cycle even with 0 referrals (so nobody an admin explicitly
+// attached ever goes fully invisible), plus one extra share per QR-code
+// registration, capped at MAX_SHARE so one very successful merchant can't
+// swallow the whole rotation and make the others effectively invisible.
+const MIN_SHARE = 1;
+const MAX_SHARE = 20;
+
 /**
  * POST /api/merchant-referrals/redeem { code }   (authenticated)
  *   code = "water_body:<id>" | "venue:<id>" — the printed brochure's QR
@@ -52,6 +61,19 @@ function addDaysToDateString(dateStr: string | null, days: number): string {
  *
  * GET /api/merchant-referrals/stats?type=venue&id=<id>   (owner or admin)
  *   -> { referral_count }
+ *
+ * POST /api/merchant-referrals/active-merchants { ads: [{id, merchants: [{type,id},...], rotationMinutes}] }
+ *   (public, no auth needed) -> { [adId]: {type, id} | undefined }
+ *   v3.30 — for each ad with 2+ attached merchants (see custom_ads.merchants,
+ *   v3.26), resolves which one should be showing RIGHT NOW, weighted by each
+ *   merchant's current QR-code referral count (see MIN_SHARE/MAX_SHARE
+ *   above) instead of a plain equal-share round robin. Deliberately never
+ *   returns the underlying counts themselves, or even a relative ranking —
+ *   only the one resolved winner per ad — because a merchant's referral
+ *   count is NOT public (same rule the /stats endpoint above already
+ *   enforces owner-or-admin-only for). Ads with 0 or 1 merchants are
+ *   skipped entirely (the client already resolves those without any server
+ *   help — see AdBannerItem.jsx).
  */
 export async function handleMerchantReferralsRoute(
   req: Request,
@@ -130,6 +152,48 @@ export async function handleMerchantReferralsRoute(
       SELECT COUNT(*)::int AS n FROM merchant_referrals WHERE merchant_type = ${type} AND merchant_id = ${id}
     `;
     return json({ referral_count: rows[0]?.n ?? 0 });
+  }
+
+  if (action === "active-merchants" && req.method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    const adsIn: Array<{ id?: string; merchants?: Array<{ type?: string; id?: string }>; rotationMinutes?: number }> =
+      Array.isArray(body?.ads) ? body.ads : [];
+
+    // Every distinct (type,id) merchant referenced across all requested
+    // ads, so each one's count is only ever looked up once even if it's
+    // attached to several banners at once.
+    const merchantKeys = new Set<string>();
+    for (const ad of adsIn) {
+      for (const m of Array.isArray(ad?.merchants) ? ad.merchants : []) {
+        if (m?.type && m?.id) merchantKeys.add(`${m.type}:${m.id}`);
+      }
+    }
+    const counts: Record<string, number> = {};
+    for (const key of merchantKeys) {
+      const i = key.indexOf(":");
+      const type = key.slice(0, i);
+      const id = key.slice(i + 1);
+      const rows = await sql<{ n: number }[]>`
+        SELECT COUNT(*)::int AS n FROM merchant_referrals WHERE merchant_type = ${type} AND merchant_id = ${id}
+      `;
+      counts[key] = rows[0]?.n ?? 0;
+    }
+
+    const result: Record<string, { type: string; id: string }> = {};
+    for (const ad of adsIn) {
+      const list = (Array.isArray(ad?.merchants) ? ad.merchants : []).filter((m) => m?.type && m?.id);
+      if (!ad?.id || list.length < 2) continue;
+      const minutes = Number(ad.rotationMinutes) > 0 ? Number(ad.rotationMinutes) : 30;
+      const weighted: { type: string; id: string }[] = [];
+      for (const m of list as Array<{ type: string; id: string }>) {
+        const weight = Math.min(MAX_SHARE, MIN_SHARE + (counts[`${m.type}:${m.id}`] || 0));
+        for (let i = 0; i < weight; i++) weighted.push(m);
+      }
+      if (weighted.length === 0) continue;
+      const idx = Math.floor(Date.now() / (minutes * 60000)) % weighted.length;
+      result[ad.id] = weighted[idx];
+    }
+    return json(result);
   }
 
   return json({ error: "Not found" }, 404);

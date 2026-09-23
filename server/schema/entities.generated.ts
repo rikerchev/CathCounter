@@ -41,6 +41,16 @@ export const ENTITIES: Record<string, EntityDef> = {
       // placeholder banner shown while this slot has no advertiser yet.
       { name: "banner_position", type: "enum", required: false, enumValues: ["top", "bottom"] },
       { name: "banner_size", type: "enum", required: false, enumValues: ["compact", "normal", "large"] },
+      // v3.30 — which content fills this exact placement+position banner:
+      // Google AdSense (a manual ad unit, adsense_ad_unit_id below),
+      // "custom" (any eligible custom_ads row, today's default behaviour),
+      // or "merchant" (only custom_ads rows that have merchants attached —
+      // see CustomAds.jsx's "Търговци в банера"). Set from AdManagement.jsx.
+      { name: "source_type", type: "enum", required: false, enumValues: ["adsense", "custom", "merchant"] },
+      // The AdSense "Ad unit" ID to render here when source_type='adsense'
+      // — separate from the global ADSENSE_PUBLISHER_ID/ADSENSE_ENABLED app
+      // settings, which control Google's account-wide "Auto ads" script.
+      { name: "adsense_ad_unit_id", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -295,6 +305,15 @@ export const ENTITIES: Record<string, EntityDef> = {
       // (minute/hour/day) the admin picked in the UI — irrelevant/unused
       // when merchants has 0 or 1 entries.
       { name: "merchant_rotation_minutes", type: "integer", required: false },
+      // v3.30 — opt-in display duration for THIS ad, in seconds, when 2+
+      // active ads share the exact same placement+position: instead of
+      // stacking, they take turns, each shown for its own
+      // rotation_seconds in a repeating cycle. NULL/0 (default) = this ad
+      // keeps stacking as before, unaffected. Distinct from the
+      // merchants-within-one-ad rotation above (merchant_rotation_minutes)
+      // — this one rotates between DIFFERENT custom_ads rows. See
+      // src/lib/adCache.js's applyCustomAdRotation().
+      { name: "rotation_seconds", type: "integer", required: false },
       { name: "bg_class", type: "string", required: false },
       { name: "text_class", type: "string", required: false },
       { name: "is_active", type: "boolean", required: false },

@@ -145,6 +145,94 @@ export function getCurrentAds(placement, lang) {
   return { top, bottom };
 }
 
+// v3.30 — precedence-aware AdSlot lookup, shared by every place that needs
+// "the AdSlot admin-configured for this exact placement+position": an
+// exact-placement slot always wins over a generic "all pages" one, among
+// slots the admin hasn't hidden (is_available !== false). Previously
+// duplicated near-identically in useEligibleAds.js (pickAvailableSlot) and
+// AdManagement.jsx (pickPreviewSlot) — pulled out here so the "advertise
+// here" placeholder rule and the new per-slot source-type rule (below) can
+// never drift apart between the live site and its admin preview.
+export function findSlotForPosition(slots, placement, position) {
+  const eligible = (slots || []).filter(
+    (s) => s.is_available !== false && (s.banner_position || "top") === position
+  );
+  return (
+    eligible.find((s) => s.placement === placement) ||
+    eligible.find((s) => s.placement === "all" || !s.placement) ||
+    null
+  );
+}
+
+// v3.30 — weighted rotation among 2+ CUSTOM ADS sharing one exact
+// placement+position bucket. Distinct from the existing per-ad MERCHANT
+// rotation (AdBannerItem.jsx's resolveActiveMerchant), which rotates
+// snapshots WITHIN a single ad row — this one rotates between DIFFERENT
+// custom_ads rows. An ad opts in by having `rotation_seconds` set (> 0) in
+// "Собствени реклами"; ads without it keep stacking exactly as before,
+// completely unaffected (so this is a no-op for every ad that existed
+// before v3.30). When 2+ ads in the same bucket opt in, they take turns
+// instead of stacking, each shown for its own configured number of seconds
+// in a repeating cycle (order = sort_order), switching deterministically by
+// wall-clock time so every visitor sees the same one at a given moment —
+// same "changes on next page load/navigation" rule as the merchant
+// rotation, no live ticking timer.
+export function applyCustomAdRotation(ads) {
+  const rotating = (ads || []).filter((a) => Number(a.rotation_seconds) > 0);
+  if (rotating.length < 2) return ads; // nothing to rotate among — leave as-is
+  const sorted = rotating.slice().sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  const total = sorted.reduce((sum, a) => sum + Number(a.rotation_seconds), 0);
+  let pos = Math.floor(Date.now() / 1000) % total;
+  let active = sorted[0];
+  for (const ad of sorted) {
+    if (pos < Number(ad.rotation_seconds)) {
+      active = ad;
+      break;
+    }
+    pos -= Number(ad.rotation_seconds);
+  }
+  const rotatingIds = new Set(rotating.map((a) => a.id));
+  // Keep every non-rotating ad exactly where it was (still stacked), and
+  // replace the whole rotating group with just the one currently active —
+  // preserves the original relative order via the source array's own order.
+  return (ads || []).filter((a) => !rotatingIds.has(a.id) || a.id === active.id);
+}
+
+// v3.30 — resolves what actually fills one banner zone (top/bottom) for a
+// placement: the admin's chosen SOURCE for that exact slot (Google
+// AdSense / own ads / partner-merchant ads — see AdManagement.jsx's
+// "Източник" control on the AdSlot form), defaulting to "custom" (today's
+// unrestricted stacking behaviour) whenever no AdSlot row exists yet for
+// this exact placement+position, or its source_type was never set — so
+// every banner nobody has touched since this feature shipped keeps working
+// exactly as it always did. Shared by useEligibleAds.js (the live site) and
+// AdManagement.jsx (its own preview), so both can never show different
+// things for the same slot.
+export function resolveZone(ads, slots, placement, position) {
+  const slot = findSlotForPosition(slots, placement, position);
+  const sourceType = slot?.source_type || "custom";
+
+  if (sourceType === "adsense") {
+    return { sourceType, adUnitId: slot?.adsense_ad_unit_id || null, ads: [], slot };
+  }
+
+  let bucket = bucketAdsByPosition(ads, placement)[position];
+  if (sourceType === "merchant") {
+    bucket = bucket.filter((a) => {
+      if (!a.merchants) return false;
+      try {
+        const list = JSON.parse(a.merchants);
+        return Array.isArray(list) && list.length > 0;
+      } catch {
+        return false;
+      }
+    });
+  } else {
+    bucket = applyCustomAdRotation(bucket);
+  }
+  return { sourceType, adUnitId: null, ads: bucket, slot };
+}
+
 export function getCurrentAd(placement, lang) {
   const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
 
