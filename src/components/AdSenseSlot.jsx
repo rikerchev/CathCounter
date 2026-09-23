@@ -23,15 +23,19 @@ import { useEffect, useRef } from "react";
 // exactly as before — see AdManagement.jsx's optional "Ad layout key" field.
 //
 // v3.32 — the wrapper below now caps its width (`max-w-xl`) instead of
-// stretching edge-to-edge. `data-ad-format="auto" data-full-width-
-// responsive="true"` doesn't pick a fixed height — Google's script measures
-// the CONTAINER's width and scales the reserved height with it, so on a
-// banner that spans the full page width (1000px+ on a wide screen) it was
-// reserving a huge block, easily 250-300px tall, before any ad even loaded.
-// A capped width is what keeps that height compact — Google explicitly
-// supports and recommends this (unlike forcing a fixed HEIGHT via CSS,
-// which their own docs warn can visibly deform the ad, this only narrows
-// the space Google's own sizing algorithm works within).
+// stretching edge-to-edge, AND `data-full-width-responsive` is now "false"
+// (was "true"). That flag isn't cosmetic — its documented job is to let the
+// ad break OUT of a narrower parent and stretch to the full browser width
+// on its own, via a negative-margin CSS trick Google's own script applies.
+// With it left "true", capping the wrapper's width alone did nothing: the
+// ad kept expanding to full page width regardless, and the wider the ad,
+// the taller Google's "auto" algorithm makes it — easily 250-300px, before
+// any ad even loaded. "false" makes it respect the actual container width
+// instead, which is what lets `max-w-xl` finally take effect and keep the
+// reserved height compact. (Unlike forcing a fixed HEIGHT via CSS, which
+// Google's own docs warn can visibly deform the ad, this only narrows the
+// WIDTH their sizing algorithm works within — a supported, documented way
+// to get a shorter "auto" ad.)
 export default function AdSenseSlot({ publisherId, adUnitId, layoutKey }) {
   const pushedRef = useRef(false);
 
@@ -74,7 +78,7 @@ export default function AdSenseSlot({ publisherId, adUnitId, layoutKey }) {
           data-ad-client={publisherId}
           data-ad-slot={adUnitId}
           data-ad-format="auto"
-          data-full-width-responsive="true"
+          data-full-width-responsive="false"
         />
       )}
     </div>
