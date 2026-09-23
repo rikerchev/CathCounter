@@ -1203,4 +1203,32 @@ export const de = {
     "login.noAccount": "Noch kein Konto?",
     "login.createAccount": "Jetzt erstellen",
     "login.invalidCredentials": "Ungültige E-Mail oder Passwort",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "App sperren",
+    "applock.intro": "Damit Timer und Erinnerungen zuverlässig funktionieren, auch wenn dein Telefon gesperrt ist, muss die App auf dem Bildschirm geöffnet bleiben, bis du sie selbst schließt. Soll ich dir zeigen, wie das geht?",
+    "applock.yes": "Ja, zeig mir wie",
+    "applock.no": "Jetzt nicht",
+    "applock.androidHeading": "Unter Android:",
+    "applock.androidSteps": "1. Öffne die zuletzt verwendeten Apps (quadratische Taste oder nach oben wischen und halten)\n2. Suche CatchCount und tippe oben auf das Symbol\n3. Wähle \"Anheften\" (manchmal \"App sperren\" genannt)\n4. Zum Beenden: Zurück und Übersicht gleichzeitig gedrückt halten",
+    "applock.androidNote": "Die genauen Menübezeichnungen können je nach Telefonmarke (Samsung, Xiaomi usw.) leicht abweichen, die Schritte sind aber ähnlich.",
+    "applock.iosHeading": "Auf dem iPhone:",
+    "applock.iosSteps": "1. Öffne Einstellungen → Bedienungshilfen → Geführter Zugriff und aktiviere ihn\n2. Öffne CatchCount\n3. Drücke dreimal die Seitentaste\n4. Tippe oben rechts auf \"Start\"\n5. Zum Beenden: dreimal die Seitentaste drücken und den Code eingeben",
+    "applock.gotIt": "Verstanden",
+    "applock.laterHint": "Wenn du das jetzt überspringst, kannst du diese Anleitung später im Profil wieder öffnen.",
+    "applock.profileTitle": "App sperren",
+    "applock.profileDesc": "Zeigt die Schritte, um CatchCount während des Angelns auf dem Bildschirm anzuheften.",
+    "applock.profileButton": "Anleitung anzeigen",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Akkusparmodus",
+    "battery.profileDesc": "Deaktiviere die Akku-Einschränkungen für CatchCount, damit Benachrichtigungen rechtzeitig ankommen, auch wenn dein Telefon gesperrt ist.",
+    "battery.profileButton": "Einstellungen prüfen",
+    "battery.title": "Akkusparmodus für CatchCount deaktivieren",
+    "battery.intro": "Wenn dein Telefon Akku spart, indem es CatchCount im Hintergrund einschränkt, können Vibration und Benachrichtigung beim Ablauf eines Timers verspätet oder gar nicht ankommen. Wir empfehlen, die Akku-Einschränkungen nur für diese App zu deaktivieren — nicht für das ganze Telefon.",
+    "battery.openSettings": "Akku-Einstellungen öffnen",
+    "battery.manualHeading": "Falls dich der Button nicht direkt dorthin bringt:",
+    "battery.manualSteps": "1. Telefoneinstellungen → Apps\n2. Suche CatchCount\n3. Akku → wähle \"Uneingeschränkt\" (manchmal \"Hintergrundaktivität zulassen\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus und andere haben oft eine eigene Akku-Manager-App mit derselben Einstellung — schau auch dort nach, falls das Problem weiterhin besteht.",
+    "battery.gotIt": "Verstanden",
 };

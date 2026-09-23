@@ -1203,4 +1203,32 @@ export const fr = {
     "login.noAccount": "Vous n'avez pas de compte ?",
     "login.createAccount": "Créez-en un",
     "login.invalidCredentials": "E-mail ou mot de passe invalide",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Verrouillage de l'application",
+    "applock.intro": "Pour que les minuteurs et les rappels fonctionnent de manière fiable même quand ton téléphone est verrouillé, l'application doit rester ouverte à l'écran jusqu'à ce que tu la fermes toi-même. Tu veux que je te montre comment faire ?",
+    "applock.yes": "Oui, montre-moi",
+    "applock.no": "Pas maintenant",
+    "applock.androidHeading": "Sur Android :",
+    "applock.androidSteps": "1. Ouvre les applications récentes (bouton carré, ou glisse vers le haut et maintiens)\n2. Trouve CatchCount et appuie sur son icône en haut\n3. Choisis \"Épingler\" (parfois appelé \"Verrouiller l'application\")\n4. Pour quitter : maintiens Retour et Aperçu en même temps",
+    "applock.androidNote": "Les noms exacts des menus peuvent varier légèrement selon la marque du téléphone (Samsung, Xiaomi, etc.), mais les étapes sont similaires.",
+    "applock.iosHeading": "Sur iPhone :",
+    "applock.iosSteps": "1. Ouvre Réglages → Accessibilité → Accès guidé et active-le\n2. Ouvre CatchCount\n3. Clique trois fois sur le bouton latéral\n4. Appuie sur \"Démarrer\" en haut à droite\n5. Pour quitter : clique trois fois sur le bouton latéral et entre ton code",
+    "applock.gotIt": "Compris",
+    "applock.laterHint": "Si tu passes cette étape maintenant, tu pourras rouvrir ces instructions plus tard depuis Profil.",
+    "applock.profileTitle": "Verrouillage de l'application",
+    "applock.profileDesc": "Affiche les étapes pour épingler CatchCount à l'écran pendant que tu pêches.",
+    "applock.profileButton": "Afficher les instructions",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Économie de batterie",
+    "battery.profileDesc": "Désactive les restrictions de batterie pour CatchCount afin que les notifications arrivent à temps, même quand ton téléphone est verrouillé.",
+    "battery.profileButton": "Vérifier les réglages",
+    "battery.title": "Désactive l'économie de batterie pour CatchCount",
+    "battery.intro": "Si ton téléphone économise la batterie en limitant CatchCount en arrière-plan, la vibration et la notification à la fin d'un minuteur peuvent arriver en retard ou pas du tout. Nous recommandons de désactiver les restrictions de batterie pour cette application uniquement — pas pour tout le téléphone.",
+    "battery.openSettings": "Ouvrir les réglages de batterie",
+    "battery.manualHeading": "Si le bouton ne t'y amène pas directement :",
+    "battery.manualSteps": "1. Réglages du téléphone → Applications\n2. Trouve CatchCount\n3. Batterie → choisis \"Sans restriction\" (parfois \"Autoriser l'activité en arrière-plan\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus et d'autres peuvent aussi avoir une appli de gestion de batterie séparée avec le même réglage — vérifie là aussi si le problème persiste.",
+    "battery.gotIt": "Compris",
 };

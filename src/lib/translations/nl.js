@@ -1203,4 +1203,32 @@ export const nl = {
     "login.noAccount": "Nog geen account?",
     "login.createAccount": "Maak er een aan",
     "login.invalidCredentials": "Ongeldige e-mail of wachtwoord",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "App vergrendelen",
+    "applock.intro": "Om timers en herinneringen betrouwbaar te laten werken, ook als je telefoon vergrendeld is, moet de app open blijven op je scherm totdat je hem zelf sluit. Zal ik je laten zien hoe?",
+    "applock.yes": "Ja, laat zien",
+    "applock.no": "Niet nu",
+    "applock.androidHeading": "Op Android:",
+    "applock.androidSteps": "1. Open recente apps (vierkante knop, of veeg omhoog en houd vast)\n2. Zoek CatchCount en tik bovenaan op het icoon\n3. Kies \"Vastzetten\" (soms \"App vergrendelen\" genoemd)\n4. Om te stoppen: houd Terug en Overzicht tegelijk ingedrukt",
+    "applock.androidNote": "De exacte menunamen kunnen iets verschillen per telefoonmerk (Samsung, Xiaomi enz.), maar de stappen zijn vergelijkbaar.",
+    "applock.iosHeading": "Op iPhone:",
+    "applock.iosSteps": "1. Open Instellingen → Toegankelijkheid → Begeleide toegang en zet dit aan\n2. Open CatchCount\n3. Klik drie keer op de zijknop\n4. Tik rechtsboven op \"Start\"\n5. Om te stoppen: klik drie keer op de zijknop en voer je code in",
+    "applock.gotIt": "Begrepen",
+    "applock.laterHint": "Als je dit nu overslaat, kun je deze instructies later opnieuw openen via Profiel.",
+    "applock.profileTitle": "App vergrendelen",
+    "applock.profileDesc": "Toon de stappen om CatchCount op het scherm vast te zetten terwijl je vist.",
+    "applock.profileButton": "Toon instructies",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Batterijbesparing",
+    "battery.profileDesc": "Zet batterijbeperkingen voor CatchCount uit, zodat meldingen op tijd aankomen, ook als je telefoon vergrendeld is.",
+    "battery.profileButton": "Instellingen controleren",
+    "battery.title": "Batterijbesparing voor CatchCount uitzetten",
+    "battery.intro": "Als je telefoon batterij bespaart door CatchCount op de achtergrond te beperken, kunnen de trilling en melding bij het aflopen van een timer te laat of helemaal niet aankomen. We raden aan om batterijbeperkingen alleen voor deze app uit te zetten — niet voor je hele telefoon.",
+    "battery.openSettings": "Batterij-instellingen openen",
+    "battery.manualHeading": "Als de knop je niet direct daarheen brengt:",
+    "battery.manualSteps": "1. Telefooninstellingen → Apps\n2. Zoek CatchCount\n3. Batterij → kies \"Onbeperkt\" (soms \"Achtergrondactiviteit toestaan\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus en anderen hebben soms ook een aparte batterijbeheer-app met dezelfde instelling — kijk daar ook als het probleem aanhoudt.",
+    "battery.gotIt": "Begrepen",
 };

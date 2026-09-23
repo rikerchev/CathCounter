@@ -1203,4 +1203,32 @@ export const es = {
     "login.noAccount": "¿No tienes una cuenta?",
     "login.createAccount": "Crea una",
     "login.invalidCredentials": "Correo electrónico o contraseña no válidos",
+
+    // v3.39/3.40 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Bloqueo de la app",
+    "applock.intro": "Para que los temporizadores y recordatorios funcionen de forma fiable incluso con el teléfono bloqueado, la app debe permanecer abierta en la pantalla hasta que tú mismo la cierres. ¿Quieres que te muestre cómo?",
+    "applock.yes": "Sí, muéstrame",
+    "applock.no": "Ahora no",
+    "applock.androidHeading": "En Android:",
+    "applock.androidSteps": "1. Abre las apps recientes (botón cuadrado, o desliza hacia arriba y mantén pulsado)\n2. Busca CatchCount y toca su icono en la parte superior\n3. Elige \"Fijar\" (a veces llamado \"Bloquear app\")\n4. Para salir: mantén pulsados a la vez Atrás y Resumen",
+    "applock.androidNote": "Los nombres exactos de los menús pueden variar ligeramente según la marca del teléfono (Samsung, Xiaomi, etc.), pero los pasos son similares.",
+    "applock.iosHeading": "En iPhone:",
+    "applock.iosSteps": "1. Abre Ajustes → Accesibilidad → Acceso guiado y actívalo\n2. Abre CatchCount\n3. Pulsa tres veces el botón lateral\n4. Toca \"Comenzar\" arriba a la derecha\n5. Para salir: pulsa tres veces el botón lateral e introduce tu código",
+    "applock.gotIt": "Entendido",
+    "applock.laterHint": "Si lo omites ahora, puedes volver a abrir estas instrucciones más tarde desde Perfil.",
+    "applock.profileTitle": "Bloqueo de la app",
+    "applock.profileDesc": "Muestra los pasos para fijar CatchCount en la pantalla mientras pescas.",
+    "applock.profileButton": "Mostrar instrucciones",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Ahorro de batería",
+    "battery.profileDesc": "Desactiva las restricciones de batería para CatchCount para que las notificaciones lleguen a tiempo, incluso con el teléfono bloqueado.",
+    "battery.profileButton": "Revisar ajustes",
+    "battery.title": "Desactiva el ahorro de batería para CatchCount",
+    "battery.intro": "Si tu teléfono ahorra batería restringiendo CatchCount en segundo plano, la vibración y la notificación al terminar un temporizador pueden llegar tarde o no llegar. Recomendamos desactivar las restricciones de batería solo para esta app — no para todo el teléfono.",
+    "battery.openSettings": "Abrir ajustes de batería",
+    "battery.manualHeading": "Si el botón no te lleva directamente allí:",
+    "battery.manualSteps": "1. Ajustes del teléfono → Aplicaciones\n2. Busca CatchCount\n3. Batería → elige \"Sin restricciones\" (a veces \"Permitir actividad en segundo plano\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus y otros pueden tener también una app de gestión de batería aparte con el mismo ajuste — revísala también si el problema continúa.",
+    "battery.gotIt": "Entendido",
 };

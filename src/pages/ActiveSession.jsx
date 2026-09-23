@@ -14,6 +14,8 @@ import { uploadAllPendingPhotos } from "@/lib/pendingPhotos";
 import { pushOnly, getOnlineStatus } from "@/lib/syncEngine";
 import * as sessionStore from "@/lib/sessionStore";
 import GroundbaitMixer from "@/components/GroundbaitMixer";
+import AppLockPrompt from "@/components/AppLockPrompt";
+import { useAppLockPrompt } from "@/hooks/useAppLockPrompt";
 
 const formatDuration = (s) => {
   if (!s && s !== 0) return "—";
@@ -49,6 +51,23 @@ export default function ActiveSession() {
   const [mixedGroundbaits, setMixedGroundbaits] = useState(sessionStore.getMixedGroundbaits());
   const autoLocationRef = useRef(false);
   const sessionLocation = rods.map((r) => r.config?.location).filter(Boolean)[0] || null;
+  const appLock = useAppLockPrompt();
+
+  // v3.39 — offer the "lock the app" instructions once, the moment the trip
+  // actually starts (first cast, same signal Wake Lock already keys off of
+  // — see rod-timer-screen-lock-2.45.md). Only for an installed, mobile
+  // (Android/iOS) visitor who hasn't dismissed it before — see
+  // useAppLockPrompt.js. Never re-triggers on its own afterwards; dismiss()
+  // (called for ANY way of closing the dialog) marks it seen for good, and
+  // Profile.jsx is the explicit way to bring it back.
+  useEffect(() => {
+    if (sessionActive && appLock.eligible && !appLock.dismissed) {
+      appLock.setOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the
+    // sessionActive transition should trigger this, not every re-render of
+    // the (stable-identity) appLock object.
+  }, [sessionActive]);
 
   // Cross-device session resume: check for active cloud session on mount
   useEffect(() => {
@@ -417,6 +436,14 @@ export default function ActiveSession() {
           setMixedGroundbaits(sessionStore.getMixedGroundbaits());
         }}
       />
+
+      {appLock.eligible && (
+        <AppLockPrompt
+          open={appLock.open}
+          onOpenChange={(v) => (v ? appLock.setOpen(true) : appLock.dismiss())}
+          platform={appLock.platform}
+        />
+      )}
     </div>
   );
 }

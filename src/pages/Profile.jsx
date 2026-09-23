@@ -4,12 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
 import { useAuth } from "@/lib/AuthContext";
 import { ROLE_LABELS } from "@/lib/roles";
+import { useAppLockPrompt } from "@/hooks/useAppLockPrompt";
+import AppLockPrompt from "@/components/AppLockPrompt";
+import { useBatteryPrompt } from "@/hooks/useBatteryPrompt";
+import BatteryOptimizationPrompt from "@/components/BatteryOptimizationPrompt";
 
 const loadLocations = () => {
   try {
@@ -24,6 +28,15 @@ export default function Profile() {
   const { toast } = useToast();
   const { isPremium, activatePremium, deactivatePremium } = usePremium();
   const { logout } = useAuth();
+  // v3.39 — re-opens ActiveSession.jsx's "lock the app while fishing"
+  // instructions on demand, for anyone who skipped/closed it there (see
+  // useAppLockPrompt.js — that dialog only ever auto-shows once, on the
+  // first cast of a session).
+  const appLock = useAppLockPrompt();
+  // v3.41 — same pattern as appLock above, but for the separate "turn off
+  // battery optimization" dialog (see useBatteryPrompt.js /
+  // BatteryOptimizationPrompt.jsx). Android only.
+  const batteryPrompt = useBatteryPrompt();
   const [upgrading, setUpgrading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false);
@@ -398,6 +411,50 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* v3.39 — only relevant once installed on a phone (Android/iOS both
+          have an OS-level "pin this app" feature; desktop browsers don't) —
+          see useAppLockPrompt.js's `eligible` check, the same one
+          ActiveSession.jsx uses for the auto-popup on first cast. */}
+      {appLock.eligible && (
+        <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-cyan-600" />
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("applock.profileTitle")}</h2>
+          </div>
+          <p className="text-xs text-slate-400">{t("applock.profileDesc")}</p>
+          <Button variant="outline" onClick={appLock.showAgain} className="w-full min-h-[44px]">
+            <Lock className="w-4 h-4 mr-2" /> {t("applock.profileButton")}
+          </Button>
+        </div>
+      )}
+
+      <AppLockPrompt
+        open={appLock.open}
+        onOpenChange={(v) => (v ? appLock.setOpen(true) : appLock.dismiss())}
+        platform={appLock.platform}
+      />
+
+      {/* v3.41 — separate from the App Lock card above: this one is about
+          exempting CatchCount from Android's battery optimization, not
+          App Pinning. Android only — see useBatteryPrompt.js's `eligible`. */}
+      {batteryPrompt.eligible && (
+        <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+          <div className="flex items-center gap-2">
+            <BatteryCharging className="w-4 h-4 text-cyan-600" />
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("battery.profileTitle")}</h2>
+          </div>
+          <p className="text-xs text-slate-400">{t("battery.profileDesc")}</p>
+          <Button variant="outline" onClick={batteryPrompt.showAgain} className="w-full min-h-[44px]">
+            <BatteryCharging className="w-4 h-4 mr-2" /> {t("battery.profileButton")}
+          </Button>
+        </div>
+      )}
+
+      <BatteryOptimizationPrompt
+        open={batteryPrompt.open}
+        onOpenChange={(v) => (v ? batteryPrompt.setOpen(true) : batteryPrompt.dismiss())}
+      />
     </div>
   );
 }

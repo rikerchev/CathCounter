@@ -1203,4 +1203,32 @@ export const tr = {
     "login.noAccount": "Hesabınız yok mu?",
     "login.createAccount": "Hesap oluşturun",
     "login.invalidCredentials": "Geçersiz e-posta veya şifre",
+
+    // v3.39/3.40 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Uygulama kilidi",
+    "applock.intro": "Zamanlayıcıların ve hatırlatıcıların telefon kilitliyken bile güvenilir çalışması için, uygulamanın sen kendin kapatana kadar ekranda açık kalması gerekir. Nasıl yapılacağını göstereyim mi?",
+    "applock.yes": "Evet, göster",
+    "applock.no": "Şimdi değil",
+    "applock.androidHeading": "Android'de:",
+    "applock.androidSteps": "1. Son kullanılan uygulamaları aç (kare düğme veya yukarı kaydırıp basılı tut)\n2. CatchCount'u bul ve üstteki simgesine dokun\n3. \"Sabitle\" seçeneğini seç (bazen \"Uygulamayı kilitle\" denir)\n4. Çıkmak için: Geri ve Genel Bakış'a aynı anda basılı tut",
+    "applock.androidNote": "Menü adları telefon markasına göre (Samsung, Xiaomi vb.) biraz farklılık gösterebilir, ancak adımlar benzerdir.",
+    "applock.iosHeading": "iPhone'da:",
+    "applock.iosSteps": "1. Ayarlar → Erişilebilirlik → Yönlendirilmiş Erişim'i aç ve etkinleştir\n2. CatchCount'u aç\n3. Yan düğmeye üç kez bas\n4. Sağ üstteki \"Başlat\"a dokun\n5. Çıkmak için: yan düğmeye üç kez bas ve şifreni gir",
+    "applock.gotIt": "Anladım",
+    "applock.laterHint": "Şimdi atlarsan, bu talimatları daha sonra Profil'den tekrar açabilirsin.",
+    "applock.profileTitle": "Uygulama kilidi",
+    "applock.profileDesc": "Balık tutarken CatchCount'u ekrana sabitleme adımlarını göster.",
+    "applock.profileButton": "Talimatları göster",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Pil tasarrufu",
+    "battery.profileDesc": "Telefon kilitliyken bile bildirimlerin zamanında gelmesi için CatchCount üzerindeki pil kısıtlamalarını kapat.",
+    "battery.profileButton": "Ayarları kontrol et",
+    "battery.title": "CatchCount için pil tasarrufunu kapat",
+    "battery.intro": "Telefonun arka planda CatchCount'u kısıtlayarak pil tasarrufu yapıyorsa, bir zamanlayıcı sona erdiğinde titreşim ve bildirim gecikebilir veya hiç gelmeyebilir. Pil kısıtlamalarını tüm telefon için değil, yalnızca bu uygulama için kapatmanı öneririz.",
+    "battery.openSettings": "Pil ayarlarını aç",
+    "battery.manualHeading": "Düğme seni doğrudan oraya götürmezse:",
+    "battery.manualSteps": "1. Telefon Ayarları → Uygulamalar\n2. CatchCount'u bul\n3. Pil → \"Kısıtlanmamış\" seçeneğini seç (bazen \"Arka plan etkinliğine izin ver\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus ve diğerlerinde aynı ayara sahip ayrı bir pil yöneticisi uygulaması da olabilir — sorun devam ederse orayı da kontrol et.",
+    "battery.gotIt": "Anladım",
 };

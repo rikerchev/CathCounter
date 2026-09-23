@@ -1203,4 +1203,32 @@ export const sr = {
     "login.noAccount": "Nemate nalog?",
     "login.createAccount": "Napravite ga",
     "login.invalidCredentials": "Nevažeći email ili lozinka",
+
+    // v3.39/3.40 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Zaključavanje aplikacije",
+    "applock.intro": "Da bi tajmeri i podsetnici pouzdano radili čak i kad je telefon zaključan, aplikacija mora da ostane otvorena na ekranu dok je sam ne zatvoriš. Da ti pokažem kako?",
+    "applock.yes": "Da, pokaži mi",
+    "applock.no": "Ne sada",
+    "applock.androidHeading": "Na Androidu:",
+    "applock.androidSteps": "1. Otvori nedavne aplikacije (kvadratno dugme ili prevuci nagore i zadrži)\n2. Pronađi CatchCount i dodirni njegovu ikonicu na vrhu\n3. Izaberi \"Zakači\" (ponekad se zove \"Zaključaj aplikaciju\")\n4. Za izlazak: zadrži istovremeno Nazad i Pregled",
+    "applock.androidNote": "Tačni nazivi menija mogu se malo razlikovati u zavisnosti od marke telefona (Samsung, Xiaomi itd.), ali su koraci slični.",
+    "applock.iosHeading": "Na iPhone-u:",
+    "applock.iosSteps": "1. Otvori Podešavanja → Pristupačnost → Vođeni pristup i uključi ga\n2. Otvori CatchCount\n3. Pritisni tri puta bočno dugme\n4. Dodirni \"Start\" gore desno\n5. Za izlazak: pritisni tri puta bočno dugme i unesi lozinku",
+    "applock.gotIt": "Razumem",
+    "applock.laterHint": "Ako sada preskočiš, ova uputstva možeš ponovo otvoriti kasnije u Profilu.",
+    "applock.profileTitle": "Zaključavanje aplikacije",
+    "applock.profileDesc": "Prikaži korake za zakačivanje CatchCount na ekranu dok pecaš.",
+    "applock.profileButton": "Prikaži uputstva",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Ušteda baterije",
+    "battery.profileDesc": "Isključi ograničenja baterije za CatchCount kako bi obaveštenja stizala na vreme, čak i kada je telefon zaključan.",
+    "battery.profileButton": "Proveri podešavanja",
+    "battery.title": "Isključi uštedu baterije za CatchCount",
+    "battery.intro": "Ako telefon štedi bateriju ograničavajući CatchCount u pozadini, vibracija i obaveštenje po isteku tajmera mogu stići sa zakašnjenjem ili uopšte ne stignu. Preporučujemo da isključiš ograničenja baterije samo za ovu aplikaciju — ne za ceo telefon.",
+    "battery.openSettings": "Otvori podešavanja baterije",
+    "battery.manualHeading": "Ako te dugme ne odvede direktno tamo:",
+    "battery.manualSteps": "1. Podešavanja telefona → Aplikacije\n2. Pronađi CatchCount\n3. Baterija → izaberi \"Bez ograničenja\" (ponekad \"Dozvoli rad u pozadini\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus i drugi ponekad imaju i posebnu aplikaciju za upravljanje baterijom sa istim podešavanjem — proveri i nju ako problem ne nestane.",
+    "battery.gotIt": "Razumem",
 };

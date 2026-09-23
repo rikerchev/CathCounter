@@ -1203,4 +1203,32 @@ export const sk = {
     "login.noAccount": "Nemáte účet?",
     "login.createAccount": "Vytvoriť účet",
     "login.invalidCredentials": "Neplatný e-mail alebo heslo",
+
+    // v3.39/3.40 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Uzamknutie aplikácie",
+    "applock.intro": "Aby časovače a pripomienky spoľahlivo fungovali aj pri uzamknutom telefóne, musí aplikácia zostať otvorená na obrazovke, kým ju sám nezatvoríš. Mám ti ukázať ako na to?",
+    "applock.yes": "Áno, ukáž mi",
+    "applock.no": "Teraz nie",
+    "applock.androidHeading": "Na Androide:",
+    "applock.androidSteps": "1. Otvor nedávne aplikácie (štvorcové tlačidlo alebo potiahni nahor a podrž)\n2. Nájdi CatchCount a klepni na jeho ikonu hore\n3. Vyber \"Pripnúť\" (niekedy nazývané \"Uzamknúť aplikáciu\")\n4. Pre ukončenie: podrž súčasne Späť a Prehľad",
+    "applock.androidNote": "Presné názvy ponúk sa môžu mierne líšiť podľa značky telefónu (Samsung, Xiaomi atď.), ale kroky sú podobné.",
+    "applock.iosHeading": "Na iPhone:",
+    "applock.iosSteps": "1. Otvor Nastavenia → Zjednodušenie ovládania → Riadený prístup a zapni ho\n2. Otvor CatchCount\n3. Trikrát stlač bočné tlačidlo\n4. Klepni na \"Štart\" vpravo hore\n5. Pre ukončenie: trikrát stlač bočné tlačidlo a zadaj kód",
+    "applock.gotIt": "Rozumiem",
+    "applock.laterHint": "Ak to teraz preskočíš, tieto pokyny môžeš znova otvoriť neskôr v Profile.",
+    "applock.profileTitle": "Uzamknutie aplikácie",
+    "applock.profileDesc": "Zobrazí kroky na pripnutie CatchCount na obrazovku počas rybárčenia.",
+    "applock.profileButton": "Zobraziť pokyny",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Šetrič batérie",
+    "battery.profileDesc": "Vypni obmedzenia batérie pre CatchCount, aby upozornenia prichádzali včas, aj keď je telefón uzamknutý.",
+    "battery.profileButton": "Skontrolovať nastavenia",
+    "battery.title": "Vypni šetrič batérie pre CatchCount",
+    "battery.intro": "Ak telefón šetrí batériu obmedzovaním CatchCount na pozadí, vibrácia a upozornenie po uplynutí časovača môžu prísť neskoro alebo vôbec. Odporúčame vypnúť obmedzenia batérie len pre túto aplikáciu — nie pre celý telefón.",
+    "battery.openSettings": "Otvoriť nastavenia batérie",
+    "battery.manualHeading": "Ak ťa tlačidlo neprenesie priamo tam:",
+    "battery.manualSteps": "1. Nastavenia telefónu → Aplikácie\n2. Nájdi CatchCount\n3. Batéria → vyber \"Bez obmedzení\" (niekedy \"Povoliť aktivitu na pozadí\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus a ďalší môžu mať aj samostatnú aplikáciu na správu batérie s rovnakým nastavením — ak problém pretrváva, skontroluj aj ju.",
+    "battery.gotIt": "Rozumiem",
 };

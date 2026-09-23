@@ -1285,4 +1285,32 @@ export const en = {
     "login.noAccount": "Don't have an account?",
     "login.createAccount": "Create one",
     "login.invalidCredentials": "Invalid email or password",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Lock the app",
+    "applock.intro": "To keep timers and reminders working reliably even while your phone is locked, the app needs to stay open on your screen until you close it yourself. Want me to show you how?",
+    "applock.yes": "Yes, show me",
+    "applock.no": "Not now",
+    "applock.androidHeading": "On Android:",
+    "applock.androidSteps": "1. Open recent apps (square button, or swipe up and hold)\n2. Find CatchCount and tap its icon at the top\n3. Choose \"Pin\" (sometimes called \"Lock this app\")\n4. To exit: hold Back and Overview together",
+    "applock.androidNote": "Exact menu names can vary slightly by phone brand (Samsung, Xiaomi, etc.), but the steps are similar.",
+    "applock.iosHeading": "On iPhone:",
+    "applock.iosSteps": "1. Open Settings → Accessibility → Guided Access and turn it on\n2. Open CatchCount\n3. Triple-click the side button\n4. Tap \"Start\" in the top right\n5. To exit: triple-click the side button and enter your passcode",
+    "applock.gotIt": "Got it",
+    "applock.laterHint": "If you skip this now, you can open these instructions again later from Profile.",
+    "applock.profileTitle": "Lock the app",
+    "applock.profileDesc": "Show the steps to pin CatchCount to the screen while you fish.",
+    "applock.profileButton": "Show instructions",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Battery saver",
+    "battery.profileDesc": "Turn off battery restrictions for CatchCount so notifications arrive on time, even while your phone is locked.",
+    "battery.profileButton": "Check settings",
+    "battery.title": "Turn off battery saver for CatchCount",
+    "battery.intro": "If your phone saves battery by restricting CatchCount in the background, the vibration and notification when a timer runs out may arrive late or not at all. We recommend turning off battery restrictions for this app only — not your whole phone.",
+    "battery.openSettings": "Open battery settings",
+    "battery.manualHeading": "If the button doesn't take you there directly:",
+    "battery.manualSteps": "1. Phone Settings → Apps\n2. Find CatchCount\n3. Battery → choose \"Unrestricted\" (sometimes called \"Allow background activity\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus and others may also have a separate battery manager app with the same setting — check there too if the issue continues.",
+    "battery.gotIt": "Got it",
 };

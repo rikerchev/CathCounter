@@ -1203,4 +1203,32 @@ export const ro = {
     "login.noAccount": "Nu aveți un cont?",
     "login.createAccount": "Creați unul",
     "login.invalidCredentials": "Email sau parolă incorectă",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Blocarea aplicației",
+    "applock.intro": "Ca să funcționeze cronometrele și memento-urile în mod fiabil, chiar și cât timp telefonul este blocat, aplicația trebuie să rămână deschisă pe ecran până când o închizi tu însuți. Vrei să-ți arăt cum?",
+    "applock.yes": "Da, arată-mi",
+    "applock.no": "Nu acum",
+    "applock.androidHeading": "Pe Android:",
+    "applock.androidSteps": "1. Deschide aplicațiile recente (buton pătrat sau glisează în sus și ține apăsat)\n2. Găsește CatchCount și atinge pictograma din partea de sus\n3. Alege \"Fixare\" (uneori numit \"Blochează aplicația\")\n4. Pentru a ieși: ține apăsat simultan Înapoi și Recente",
+    "applock.androidNote": "Numele exacte din meniuri pot varia ușor în funcție de marca telefonului (Samsung, Xiaomi etc.), dar pașii sunt similari.",
+    "applock.iosHeading": "Pe iPhone:",
+    "applock.iosSteps": "1. Deschide Setări → Accesibilitate → Acces ghidat și activează-l\n2. Deschide CatchCount\n3. Apasă de trei ori butonul lateral\n4. Atinge \"Start\" în colțul din dreapta sus\n5. Pentru a ieși: apasă de trei ori butonul lateral și introdu codul",
+    "applock.gotIt": "Am înțeles",
+    "applock.laterHint": "Dacă omiți acum, poți deschide din nou aceste instrucțiuni mai târziu din Profil.",
+    "applock.profileTitle": "Blocarea aplicației",
+    "applock.profileDesc": "Arată pașii pentru a fixa CatchCount pe ecran cât timp pescuiești.",
+    "applock.profileButton": "Arată instrucțiunile",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Economisirea bateriei",
+    "battery.profileDesc": "Dezactivează restricțiile de baterie pentru CatchCount, ca să primești notificările la timp, chiar și cât timp telefonul este blocat.",
+    "battery.profileButton": "Verifică setările",
+    "battery.title": "Dezactivează economisirea bateriei pentru CatchCount",
+    "battery.intro": "Dacă telefonul economisește baterie restricționând CatchCount în fundal, vibrația și notificarea la expirarea unui cronometru pot ajunge întârziate sau deloc. Recomandăm dezactivarea restricțiilor de baterie doar pentru această aplicație — nu pentru tot telefonul.",
+    "battery.openSettings": "Deschide setările bateriei",
+    "battery.manualHeading": "Dacă butonul nu te duce direct acolo:",
+    "battery.manualSteps": "1. Setările telefonului → Aplicații\n2. Găsește CatchCount\n3. Baterie → alege \"Nerestricționat\" (uneori numit \"Permite activitate în fundal\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus și altele pot avea și o aplicație separată de gestionare a bateriei cu aceeași setare — verifică și acolo dacă problema persistă.",
+    "battery.gotIt": "Am înțeles",
 };

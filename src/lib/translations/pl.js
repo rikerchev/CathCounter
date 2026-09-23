@@ -1203,4 +1203,32 @@ export const pl = {
     "login.noAccount": "Nie masz konta?",
     "login.createAccount": "Utwórz je",
     "login.invalidCredentials": "Nieprawidłowy e-mail lub hasło",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Blokada aplikacji",
+    "applock.intro": "Aby minutniki i przypomnienia działały niezawodnie, nawet gdy telefon jest zablokowany, aplikacja musi pozostać otwarta na ekranie, dopóki sam jej nie zamkniesz. Pokazać, jak to zrobić?",
+    "applock.yes": "Tak, pokaż mi",
+    "applock.no": "Nie teraz",
+    "applock.androidHeading": "Na Androidzie:",
+    "applock.androidSteps": "1. Otwórz ostatnie aplikacje (kwadratowy przycisk lub przesuń w górę i przytrzymaj)\n2. Znajdź CatchCount i dotknij jego ikony u góry\n3. Wybierz \"Przypnij\" (czasem nazywane \"Zablokuj aplikację\")\n4. Aby wyjść: przytrzymaj jednocześnie Wstecz i Przegląd",
+    "applock.androidNote": "Dokładne nazwy menu mogą się nieco różnić w zależności od marki telefonu (Samsung, Xiaomi itp.), ale kroki są podobne.",
+    "applock.iosHeading": "Na iPhonie:",
+    "applock.iosSteps": "1. Otwórz Ustawienia → Dostępność → Dostęp kierowany i włącz go\n2. Otwórz CatchCount\n3. Naciśnij trzykrotnie przycisk boczny\n4. Dotknij \"Start\" w prawym górnym rogu\n5. Aby wyjść: naciśnij trzykrotnie przycisk boczny i wpisz kod",
+    "applock.gotIt": "Rozumiem",
+    "applock.laterHint": "Jeśli teraz pominiesz, te instrukcje możesz otworzyć później w Profilu.",
+    "applock.profileTitle": "Blokada aplikacji",
+    "applock.profileDesc": "Pokaż kroki, aby przypiąć CatchCount do ekranu podczas wędkowania.",
+    "applock.profileButton": "Pokaż instrukcje",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Oszczędzanie baterii",
+    "battery.profileDesc": "Wyłącz ograniczenia baterii dla CatchCount, aby powiadomienia docierały na czas, nawet gdy telefon jest zablokowany.",
+    "battery.profileButton": "Sprawdź ustawienia",
+    "battery.title": "Wyłącz oszczędzanie baterii dla CatchCount",
+    "battery.intro": "Jeśli telefon oszczędza baterię, ograniczając CatchCount w tle, wibracja i powiadomienie po zakończeniu minutnika mogą dotrzeć z opóźnieniem albo wcale. Zalecamy wyłączenie ograniczeń baterii tylko dla tej aplikacji — nie dla całego telefonu.",
+    "battery.openSettings": "Otwórz ustawienia baterii",
+    "battery.manualHeading": "Jeśli przycisk nie przeniesie cię tam bezpośrednio:",
+    "battery.manualSteps": "1. Ustawienia telefonu → Aplikacje\n2. Znajdź CatchCount\n3. Bateria → wybierz \"Brak ograniczeń\" (czasem \"Zezwól na aktywność w tle\")",
+    "battery.brandNote": "Samsung, Xiaomi/MIUI, Huawei, OnePlus i inni mogą mieć osobną aplikację do zarządzania baterią z tym samym ustawieniem — sprawdź też tam, jeśli problem się utrzymuje.",
+    "battery.gotIt": "Rozumiem",
 };

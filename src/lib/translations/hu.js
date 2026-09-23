@@ -1203,4 +1203,32 @@ export const hu = {
     "login.noAccount": "Nincs fiókja?",
     "login.createAccount": "Hozzon létre egyet",
     "login.invalidCredentials": "Érvénytelen e-mail vagy jelszó",
+
+    // v3.39 — see bg.js's copy of these keys for why they exist.
+    "applock.title": "Alkalmazás zárolása",
+    "applock.intro": "Hogy az időzítők és emlékeztetők megbízhatóan működjenek, még ha a telefonod zárolva is van, az alkalmazásnak nyitva kell maradnia a képernyőn, amíg te magad be nem zárod. Megmutassam, hogyan?",
+    "applock.yes": "Igen, mutasd",
+    "applock.no": "Most nem",
+    "applock.androidHeading": "Androidon:",
+    "applock.androidSteps": "1. Nyisd meg a legutóbbi alkalmazásokat (négyzet gomb, vagy húzd felfelé és tartsd)\n2. Keresd meg a CatchCount-ot, és érintsd meg az ikonját felül\n3. Válaszd a \"Rögzítés\" lehetőséget (néha \"Alkalmazás zárolása\")\n4. Kilépéshez: tartsd lenyomva egyszerre a Vissza és az Áttekintés gombot",
+    "applock.androidNote": "A pontos menünevek telefonmárkánként (Samsung, Xiaomi stb.) kissé eltérhetnek, de a lépések hasonlóak.",
+    "applock.iosHeading": "iPhone-on:",
+    "applock.iosSteps": "1. Nyisd meg: Beállítások → Kezelhetőség → Vezetett hozzáférés, és kapcsold be\n2. Nyisd meg a CatchCount-ot\n3. Kattints háromszor az oldalgombra\n4. Érintsd meg a \"Start\" gombot jobb felül\n5. Kilépéshez: kattints háromszor az oldalgombra, és add meg a jelkódot",
+    "applock.gotIt": "Értem",
+    "applock.laterHint": "Ha most kihagyod, ezeket az utasításokat később a Profilban is megnyithatod.",
+    "applock.profileTitle": "Alkalmazás zárolása",
+    "applock.profileDesc": "Mutasd meg a lépéseket a CatchCount képernyőhöz rögzítéséhez horgászás közben.",
+    "applock.profileButton": "Utasítások megjelenítése",
+
+    // v3.41 — see bg.js's copy of these keys for why they exist.
+    "battery.profileTitle": "Akkumulátorkímélő",
+    "battery.profileDesc": "Kapcsold ki az akkumulátor-korlátozásokat a CatchCount számára, hogy az értesítések időben megérkezzenek, még akkor is, ha a telefonod zárolva van.",
+    "battery.profileButton": "Beállítások ellenőrzése",
+    "battery.title": "Kapcsold ki az akkumulátorkímélőt a CatchCount számára",
+    "battery.intro": "Ha a telefonod energiát takarít meg a CatchCount háttérbeli korlátozásával, a rezgés és az értesítés az időzítő lejártakor késve érkezhet, vagy egyáltalán nem érkezik meg. Javasoljuk, hogy csak ennél az alkalmazásnál kapcsold ki az akkumulátor-korlátozásokat — ne az egész telefonon.",
+    "battery.openSettings": "Akkumulátor-beállítások megnyitása",
+    "battery.manualHeading": "Ha a gomb nem visz egyenesen oda:",
+    "battery.manualSteps": "1. Telefon beállításai → Alkalmazások\n2. Keresd meg a CatchCount-ot\n3. Akkumulátor → válaszd a \"Korlátlan\" lehetőséget (néha \"Háttéraktivitás engedélyezése\")",
+    "battery.brandNote": "A Samsung, Xiaomi/MIUI, Huawei, OnePlus és mások telefonjain lehet külön akkumulátorkezelő alkalmazás is ugyanezzel a beállítással — ha a probléma továbbra is fennáll, ott is nézd meg.",
+    "battery.gotIt": "Értem",
 };
