@@ -106,8 +106,8 @@ function getInitialZones(placement, lang) {
  * partner-merchant banner, or the normal stack of own ads — see
  * AdBanner.jsx / BottomAdBanner.jsx for how each is rendered. Also exposes
  * `publisherId` (the account-wide AdSense client id, needed to actually
- * render an AdSense zone) and `merchantOverrides` (server-resolved,
- * referral-count-weighted active merchant per ad id — see
+ * render an AdSense zone) and `eligibleMerchantKeys` (server-resolved,
+ * per-ad list of currently-eligible attached merchants — see
  * AdBannerItem.jsx).
  *
  * v2.49 — an admin-created AdSlot that has no advertiser filling it yet is
@@ -137,14 +137,14 @@ export function useEligibleAds() {
 
   const [zones, setZones] = useState(() => (isPremium ? EMPTY_ZONES : getInitialZones(placement, lang)));
   const [userCountry, setUserCountry] = useState(getCachedCountry());
-  // v3.30 — server-resolved active merchant per ad id, for any ad with 2+
-  // attached merchants, weighted by referral count (see
-  // server/routes/merchantReferrals.ts's active-merchants endpoint).
-  // Populated only after the network round-trip below; until then (or if
-  // it fails), AdBannerItem.jsx falls back to the plain equal-share
-  // round-robin it always used, so nothing is ever blank while this
-  // resolves.
-  const [merchantOverrides, setMerchantOverrides] = useState({});
+  // v3.44 — server-resolved list of currently-ELIGIBLE attached merchants
+  // per ad id (each entry "type:id"), for any ad with 1+ attached merchants
+  // — see server/routes/merchantReferrals.ts's active-merchants endpoint.
+  // Populated only after the network round-trip below; until then (or if it
+  // fails), AdBannerItem.jsx treats the ad's merchants as not-yet-resolved
+  // and shows only its manual_items (if any) until this arrives, so nothing
+  // shows a merchant that later turns out to be ineligible.
+  const [eligibleMerchantKeys, setEligibleMerchantKeys] = useState({});
 
   useEffect(() => {
     if (isPremium) {
@@ -198,15 +198,17 @@ export function useEligibleAds() {
           newZones.top.sourceType === "adsense" || newZones.bottom.sourceType === "adsense";
         setZones(anyContent ? newZones : getInitialZones(placement, lang));
 
-        // v3.30 — resolve the weighted-by-referral-count active merchant,
-        // server-side, for any ad (in either zone) with 2+ merchants
-        // attached. See merchantReferrals.ts for why the underlying counts
-        // never come back here — only each ad's one resolved winner does.
+        // v3.44 — resolve, server-side, which of each ad's attached
+        // merchants are currently ELIGIBLE (had a QR-code referral within
+        // the rolling window — see merchantReferrals.ts). Every ad with 1+
+        // attached merchants is included now, not just 2+, since even a
+        // single attached merchant needs to know whether it's eligible at
+        // all (if not, the banner falls back to manual_items only).
         const merchantAds = [...newZones.top.ads, ...newZones.bottom.ads].filter((ad) => {
           if (!ad.merchants) return false;
           try {
             const list = JSON.parse(ad.merchants);
-            return Array.isArray(list) && list.length >= 2;
+            return Array.isArray(list) && list.length >= 1;
           } catch {
             return false;
           }
@@ -222,12 +224,11 @@ export function useEligibleAds() {
             return {
               id: ad.id,
               merchants: list.map((m) => ({ type: m.type, id: m.id })),
-              rotationMinutes: ad.merchant_rotation_minutes,
             };
           });
           base44.merchantReferrals
             .activeMerchants(payload)
-            .then((resolved) => setMerchantOverrides(resolved || {}))
+            .then((resolved) => setEligibleMerchantKeys(resolved || {}))
             .catch(() => {});
         }
       })
@@ -255,6 +256,6 @@ export function useEligibleAds() {
     };
   }, [isPremium, location.pathname, userCountry, lang]);
 
-  if (isPremium) return { ...EMPTY_ZONES, userCountry, publisherId, merchantOverrides: {} };
-  return { ...zones, userCountry, publisherId, merchantOverrides };
+  if (isPremium) return { ...EMPTY_ZONES, userCountry, publisherId, eligibleMerchantKeys: {} };
+  return { ...zones, userCountry, publisherId, eligibleMerchantKeys };
 }

@@ -300,16 +300,30 @@ export const ENTITIES: Record<string, EntityDef> = {
       // v3.26 — one or more approved merchants (water_bodies/venues)
       // attached to this banner by an admin in CustomAds.jsx's "Търговци в
       // банера" section. JSON array of DENORMALIZED snapshots taken at
-      // attach time — [{type, id, name, logo_url, logo_size}, ...], in
+      // attach time — [{type, id, name, logo_url, logo_size, description,
+      // link}, ...] (description/link added v3.44, sourced from the
+      // merchant's own venues.ad_description/ad_link at attach time), in
       // rotation order — same JSON-in-TEXT pattern as
       // country_content/language_content below, not a live join, so the
       // ad-rendering hot path (every page load) never needs an extra
-      // fetch. See AdBannerItem.jsx's merchant-resolution logic.
+      // fetch. See AdBannerItem.jsx's carousel-building logic.
       { name: "merchants", type: "string", required: false },
       // Rotation interval in MINUTES, regardless of which unit
       // (minute/hour/day) the admin picked in the UI — irrelevant/unused
-      // when merchants has 0 or 1 entries.
+      // when merchants has 0 or 1 entries. RETIRED as of v3.44 (see
+      // manual_items below) — left in place, unused, for backward
+      // compatibility; no longer written or read by the client.
       { name: "merchant_rotation_minutes", type: "integer", required: false },
+      // v3.44 — a second kind of item that shares the SAME banner's live
+      // rotation alongside `merchants` above, entered directly by the admin
+      // instead of derived from an approved merchant. JSON array of
+      // [{id, title, description, link, logo_url, logo_size,
+      // duration_seconds}, ...] — the admin UI (CustomAds.jsx's "Ръчно
+      // въведени реклами в банера" section) edits duration as a friendly
+      // value+unit pair but always converts it to a plain duration_seconds
+      // before saving, same as rotation_seconds below. See
+      // AdBannerItem.jsx's carousel-building logic.
+      { name: "manual_items", type: "string", required: false },
       // v3.30 — opt-in display duration for THIS ad, in seconds, when 2+
       // active ads share the exact same placement+position: instead of
       // stacking, they take turns, each shown for its own
@@ -660,6 +674,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // snapshots this value at the time it's attached, see
       // custom_ads.merchants below).
       { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
+      // v3.44 — optional ad-style content, matching what a manually-created
+      // custom ad already has (title/description/link — `name` above
+      // already serves as the title). Lets this venue, once attached to a
+      // merchant banner (CustomAds.jsx), show its own description and an
+      // outbound link instead of just logo + name. See AdBannerItem.jsx.
+      { name: "ad_description", type: "string", required: false },
+      { name: "ad_link", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },

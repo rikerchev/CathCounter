@@ -164,6 +164,28 @@ export function findSlotForPosition(slots, placement, position) {
   );
 }
 
+// v3.44 — shared by CustomAds.jsx (admin UI, for both the custom-ads
+// rotation_seconds field above and the new manual_items per-item duration
+// below) and AdBannerItem.jsx (the live merchant-banner carousel, for its
+// manual items' own configured duration). Pulled out here — rather than
+// staying a page-local helper in CustomAds.jsx as it originally was —
+// specifically so a component (not just a page) can import it too.
+export function rotationUiToSeconds(value, unit) {
+  const n = Math.max(1, Math.round(Number(value)) || 1);
+  if (unit === "hours") return n * 3600;
+  if (unit === "minutes") return n * 60;
+  return n;
+}
+
+// v3.44 — every ELIGIBLE merchant (see server/routes/merchantReferrals.ts's
+// active-merchants handler) gets this same flat number of seconds per turn
+// in the live merchant-banner carousel (AdBannerItem.jsx), regardless of how
+// many QR-code referrals it has — deliberately NOT proportional to that
+// count, which would otherwise let anyone watching the banner back-calculate
+// a merchant's (private) referral count from how long its turn lasted. Must
+// match the "10 seconds" the referral flow is described as granting.
+export const MERCHANT_TURN_SECONDS = 10;
+
 // v3.30 — weighted rotation among 2+ CUSTOM ADS sharing one exact
 // placement+position bucket. Distinct from the existing per-ad MERCHANT
 // rotation (AdBannerItem.jsx's resolveActiveMerchant), which rotates
@@ -229,14 +251,23 @@ export function resolveZone(ads, slots, placement, position) {
 
   let bucket = bucketAdsByPosition(ads, placement)[position];
   if (sourceType === "merchant") {
+    // v3.44 — a merchant-source banner is eligible for this zone as long as
+    // it carries EITHER at least one attached merchant (a.merchants, v3.26)
+    // OR at least one manually-entered carousel item (a.manual_items,
+    // v3.44) — previously this required a.merchants alone, which meant a
+    // banner with only manual items (no merchant attached yet) was silently
+    // dropped instead of showing its manual ad(s).
     bucket = bucket.filter((a) => {
-      if (!a.merchants) return false;
-      try {
-        const list = JSON.parse(a.merchants);
-        return Array.isArray(list) && list.length > 0;
-      } catch {
-        return false;
-      }
+      const hasList = (raw) => {
+        if (!raw) return false;
+        try {
+          const list = JSON.parse(raw);
+          return Array.isArray(list) && list.length > 0;
+        } catch {
+          return false;
+        }
+      };
+      return hasList(a.merchants) || hasList(a.manual_items);
     });
   } else {
     bucket = applyCustomAdRotation(bucket);

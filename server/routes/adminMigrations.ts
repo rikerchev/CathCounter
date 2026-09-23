@@ -372,6 +372,14 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_layout_key TEXT`);
     },
   },
+  "v3.44-merchant-banner-live-rotation": {
+    label: "v3.44 — Живо въртене на банер с търговци + ръчни реклами",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS manual_items TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_description TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_link TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -565,6 +573,16 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'ad_slots' AND column_name = 'adsense_ad_layout_key'
         `;
         applied = (rows[0]?.n ?? 0) >= 1;
+      }
+      if (id === "v3.44-merchant-banner-live-rotation") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND (
+            (table_name = 'custom_ads' AND column_name = 'manual_items')
+             OR (table_name = 'venues' AND column_name IN ('ad_description', 'ad_link'))
+          )
+        `;
+        applied = (rows[0]?.n ?? 0) >= 3;
       }
       out[id] = { label: m.label, applied };
     }

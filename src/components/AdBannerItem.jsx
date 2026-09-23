@@ -1,5 +1,7 @@
+import { useState, useEffect, useMemo } from "react";
 import { useLanguage } from "@/lib/i18n";
 import { Link } from "react-router-dom";
+import { MERCHANT_TURN_SECONDS } from "@/lib/adCache";
 
 const LOGO_SIZE_CLASSES = {
   "16x16": "w-16 h-16",
@@ -16,59 +18,88 @@ const SIZE_CLASSES = {
   large: { wrap: "px-3 py-2", title: "text-base", desc: "text-xs", logo: "w-16 h-16" },
 };
 
-// Where a resolved merchant's own listing lives — clicking the banner while
-// it's showing a merchant goes to that merchant TYPE's public browse page,
-// not a per-merchant deep link (admin's choice, v3.26).
+// Where a resolved merchant's own listing lives, when it hasn't set its own
+// `link` (see the new ad_link field on venues, v3.44) — clicking the banner
+// while it's showing a merchant with no own link falls back to that
+// merchant TYPE's public browse page (admin's original v3.26 choice).
 const MERCHANT_LINK_BY_TYPE = {
   water_body: "/water-bodies",
   venue: "/commercial-venues",
 };
 
-// v3.30 — finds a snapshot in `list` matching a {type,id} pair the server
-// resolved (see merchantReferrals.ts's active-merchants endpoint) — the
-// server never sends back the full snapshot (logo/name), only which one
-// won, so the actual display data still comes from this ad's own
-// (unauthenticated-safe) `merchants` snapshot list.
-function findMerchantByRef(list, ref) {
-  if (!ref) return null;
-  return list.find((m) => m.type === ref.type && String(m.id) === String(ref.id)) || null;
-}
+// Fallback for a manually-entered carousel item with no configured
+// duration (shouldn't normally happen — CustomAds.jsx always writes one —
+// but keeps this component safe against older/malformed rows).
+const DEFAULT_MANUAL_DURATION_SECONDS = 10;
 
-/**
- * v3.26 — resolves which attached merchant (if any) this banner should show
- * right now. `ad.merchants` is a JSON array of denormalized snapshots
- * ([{type, id, name, logo_url, logo_size}, ...]) an admin attached in
- * CustomAds.jsx's "Търговци в банера" section — not a live join, so this
- * never needs a fetch. A single merchant always shows.
- *
- * v3.30 — two or more used to rotate in strict equal shares
- * (`merchant_rotation_minutes`-bucketed round robin); now weighted by each
- * merchant's QR-code referral count instead, computed server-side (see
- * server/routes/merchantReferrals.ts — referral counts are NOT public, so
- * only the final winner ever reaches the client) and passed in as
- * `override` from useEligibleAds.js's `merchantOverrides`. Until that
- * resolves (or if it fails), this falls back to the original plain
- * equal-share round robin below, so a banner is never blank while waiting.
- * Every viewer sees the same one at the same instant either way
- * (re-resolved on mount/navigation only — no live ticking timer). Returns
- * null when the ad has no merchants, meaning "render the ad's own fields
- * as before".
- */
-function resolveActiveMerchant(ad, override) {
-  if (!ad?.merchants) return null;
-  let list;
+// v3.44 — builds the combined, in-order list of items this banner's live
+// carousel rotates through: every currently-ELIGIBLE attached merchant
+// (see server/routes/merchantReferrals.ts — `eligibleMerchantKeys` is that
+// resolved list, one "type:id" string per eligible merchant, or undefined
+// while it hasn't resolved yet), each getting the same flat
+// MERCHANT_TURN_SECONDS turn length (see adCache.js for why it's flat, not
+// proportional to referral count — that would leak the private count),
+// followed by every manually-entered item (each keeping its own configured
+// duration, set in CustomAds.jsx). Returns [] when there's nothing to
+// rotate, meaning "render the ad's own plain fields instead" — the
+// pre-v3.44 behaviour for an ordinary ad, unchanged.
+//
+// While `eligibleMerchantKeys` is still undefined (the network resolution
+// in useEligibleAds.js hasn't come back yet), attached merchants are left
+// out entirely rather than guessed at — so a merchant is never shown and
+// then yanked away a moment later once it turns out to be ineligible. A
+// banner with manual items keeps showing those the whole time regardless,
+// since manual items don't depend on that resolution at all.
+function buildCarouselItems(ad, eligibleMerchantKeys) {
+  const items = [];
+
+  let merchantList = [];
   try {
-    list = JSON.parse(ad.merchants);
+    const parsed = ad?.merchants ? JSON.parse(ad.merchants) : [];
+    if (Array.isArray(parsed)) merchantList = parsed;
   } catch {
-    return null;
+    merchantList = [];
   }
-  if (!Array.isArray(list) || list.length === 0) return null;
-  if (list.length === 1) return list[0];
-  const fromOverride = findMerchantByRef(list, override);
-  if (fromOverride) return fromOverride;
-  const minutes = Number(ad.merchant_rotation_minutes) > 0 ? Number(ad.merchant_rotation_minutes) : 30;
-  const idx = Math.floor(Date.now() / (minutes * 60000)) % list.length;
-  return list[idx];
+  if (merchantList.length > 0 && Array.isArray(eligibleMerchantKeys)) {
+    const eligibleSet = new Set(eligibleMerchantKeys);
+    for (const m of merchantList) {
+      if (!m?.type || !m?.id) continue;
+      if (!eligibleSet.has(`${m.type}:${m.id}`)) continue;
+      items.push({
+        key: `merchant:${m.type}:${m.id}`,
+        title: m.name || "",
+        description: m.description || "",
+        logoUrl: m.logo_url || "",
+        logoSize: m.logo_size || "auto",
+        link: m.link || MERCHANT_LINK_BY_TYPE[m.type] || ad.link || "/advertise",
+        durationSeconds: MERCHANT_TURN_SECONDS,
+      });
+    }
+  }
+
+  let manualList = [];
+  try {
+    const parsed = ad?.manual_items ? JSON.parse(ad.manual_items) : [];
+    if (Array.isArray(parsed)) manualList = parsed;
+  } catch {
+    manualList = [];
+  }
+  manualList.forEach((item, i) => {
+    if (!item) return;
+    const seconds =
+      Number(item.duration_seconds) > 0 ? Number(item.duration_seconds) : DEFAULT_MANUAL_DURATION_SECONDS;
+    items.push({
+      key: `manual:${item.id || i}`,
+      title: item.title || "",
+      description: item.description || "",
+      logoUrl: item.logo_url || "",
+      logoSize: item.logo_size || "auto",
+      link: item.link || ad.link || "/advertise",
+      durationSeconds: seconds,
+    });
+  });
+
+  return items;
 }
 
 /**
@@ -77,59 +108,99 @@ function resolveActiveMerchant(ad, override) {
  * BottomAdBanner.jsx (bottom stack), which each just decide layout/stacking
  * and hand one `ad` at a time to this component. Pulled out of AdBanner.jsx
  * in v2.46 when banners stopped being one-per-page.
+ *
+ * v3.44 — a merchant-source banner (ad.merchants and/or ad.manual_items
+ * non-empty — see buildCarouselItems() above) is now a genuine LIVE,
+ * client-side carousel: with 2+ combined items it ticks through them with a
+ * real timer (setTimeout, rescheduled after every switch for the NEW active
+ * item's own duration), visibly switching in the visitor's browser without
+ * a page reload or navigation. That's a deliberate departure from every
+ * other rotation in this app (the old single-merchant-winner resolution
+ * this replaces, and the separate, unrelated custom-ads `rotation_seconds`
+ * feature in adCache.js), which only ever changed deterministically on the
+ * next page load/navigation. With exactly 1 combined item it just renders
+ * statically (no timer needed — nothing to switch to). With 0 (no eligible
+ * merchant yet and no manual items) it falls back to the ad's own plain
+ * fields — including the country/language text overrides — exactly as any
+ * ordinary "Собствена реклама" always has.
  */
-export default function AdBannerItem({ ad, userCountry, merchantOverride }) {
+export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) {
   const { t, lang } = useLanguage();
+
+  const items = useMemo(
+    () => (ad ? buildCarouselItems(ad, eligibleMerchantKeys) : []),
+    [ad?.id, ad?.merchants, ad?.manual_items, ad?.link, eligibleMerchantKeys]
+  );
+
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // A different ad, or its item count changing (e.g. eligibility just
+  // resolved), starts the carousel back at the first item rather than
+  // risking a stale index pointing past the end of a shorter new list.
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [ad?.id, items.length]);
+
+  useEffect(() => {
+    if (items.length < 2) return undefined;
+    const current = items[activeIndex] || items[0];
+    const ms = Math.max(1, Number(current.durationSeconds) || DEFAULT_MANUAL_DURATION_SECONDS) * 1000;
+    const timer = setTimeout(() => {
+      setActiveIndex((i) => (i + 1) % items.length);
+    }, ms);
+    return () => clearTimeout(timer);
+  }, [items, activeIndex]);
+
   if (!ad) return null;
 
   const size = SIZE_CLASSES[ad.banner_size] || SIZE_CLASSES.normal;
 
-  // v3.26 — if this banner has one or more merchants attached, it shows
-  // that merchant's own logo + name (rotating between them if there's more
-  // than one) instead of the ad's own manually-entered fields below —
-  // country/language text overrides don't apply here (admin's choice: just
-  // the merchant's logo + name, automatically).
-  const activeMerchant = resolveActiveMerchant(ad, merchantOverride);
+  let displayTitle;
+  let displayDescription;
+  let displayLogoUrl;
+  let displayLogoSize;
+  let displayLink;
 
-  // Resolve translation keys for default/fallback ads
-  const resolveText = (text) => (ad.is_translation_key && text ? t(text) : text);
-  let displayTitle = resolveText(ad.title);
-  let displayDescription = resolveText(ad.description);
-  if (ad.country_content && userCountry) {
-    try {
-      const cc = JSON.parse(ad.country_content);
-      const entry = cc[userCountry];
-      if (entry) {
-        if (entry.title) displayTitle = entry.title;
-        if (entry.description) displayDescription = entry.description;
+  if (items.length > 0) {
+    const activeItem = items[activeIndex] || items[0];
+    displayTitle = activeItem.title;
+    displayDescription = activeItem.description;
+    displayLogoUrl = activeItem.logoUrl;
+    displayLogoSize = activeItem.logoSize;
+    displayLink = activeItem.link;
+  } else {
+    // Resolve translation keys for default/fallback ads
+    const resolveText = (text) => (ad.is_translation_key && text ? t(text) : text);
+    displayTitle = resolveText(ad.title);
+    displayDescription = resolveText(ad.description);
+    if (ad.country_content && userCountry) {
+      try {
+        const cc = JSON.parse(ad.country_content);
+        const entry = cc[userCountry];
+        if (entry) {
+          if (entry.title) displayTitle = entry.title;
+          if (entry.description) displayDescription = entry.description;
+        }
+      } catch {
+        // ignore malformed JSON
       }
-    } catch {
-      // ignore malformed JSON
     }
-  }
-  // Resolve per-language overrides (takes priority over country)
-  if (ad.language_content) {
-    try {
-      const lc = JSON.parse(ad.language_content);
-      const entry = lc[lang];
-      if (entry) {
-        if (entry.title) displayTitle = entry.title;
-        if (entry.description) displayDescription = entry.description;
+    // Resolve per-language overrides (takes priority over country)
+    if (ad.language_content) {
+      try {
+        const lc = JSON.parse(ad.language_content);
+        const entry = lc[lang];
+        if (entry) {
+          if (entry.title) displayTitle = entry.title;
+          if (entry.description) displayDescription = entry.description;
+        }
+      } catch {
+        // ignore malformed JSON
       }
-    } catch {
-      // ignore malformed JSON
     }
-  }
-
-  let displayLogoUrl = ad.logo_url;
-  let displayLogoSize = ad.logo_size;
-  let displayLink = ad.link || "/advertise";
-  if (activeMerchant) {
-    displayTitle = activeMerchant.name || displayTitle;
-    displayDescription = "";
-    displayLogoUrl = activeMerchant.logo_url || "";
-    displayLogoSize = activeMerchant.logo_size || "auto";
-    displayLink = MERCHANT_LINK_BY_TYPE[activeMerchant.type] || displayLink;
+    displayLogoUrl = ad.logo_url;
+    displayLogoSize = ad.logo_size;
+    displayLink = ad.link || "/advertise";
   }
 
   return (

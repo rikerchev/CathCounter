@@ -1179,6 +1179,11 @@ export const en = {
     "mr.description": "Choose what you'd like to register. Once approved by an admin, you'll be able to edit its details from the \"Approved Traders\" menu.",
     "mr.typeWaterBody": "Water body",
     "mr.typeVenue": "Commercial venue",
+    "mr.adDescription": "Ad banner description",
+    "mr.adDescriptionPlaceholder": "Short description to show in the ad banner",
+    "mr.adDescriptionHint": "Only shown if an admin attaches this listing to a partner ad banner.",
+    "mr.adLink": "Ad banner link",
+    "mr.adLinkHint": "Where the banner goes when tapped — defaults to the commercial venues list.",
     "at.title": "Traders",
     "at.userNotFound": "No registered user found with that email",
     "at.ownerChanged": "Owner changed",
@@ -1240,7 +1245,7 @@ export const en = {
     "ca.merchantsHint": "Attach one or more approved merchants to this banner — it will then automatically show their logo and name instead of the title/logo/link entered manually above.",
     "ca.addMerchantPlaceholder": "Add a merchant...",
     "ca.noApprovedMerchants": "No approved merchants yet.",
-    "ca.merchantsAutoNote": "The title, logo and link are determined automatically by the attached merchant(s) and can't be edited manually while merchants are added.",
+    "ca.merchantsAutoNote": "The title, logo, description and link are set automatically by whichever merchant(s) got at least one QR-code registration in the last 3 days — each one shown for {seconds} seconds before switching, until its turn comes again. With no registrations, only the manually-entered ads below take their place.",
     "ca.rotationInterval": "Rotation interval",
     "ca.rotationIntervalDesc": "Every visitor sees the same merchant at any given moment — it switches on this interval.",
     "ca.rotationUnitMinutes": "minutes",
@@ -1249,6 +1254,11 @@ export const en = {
     "ca.moveUp": "Move up",
     "ca.moveDown": "Move down",
     "ca.removeMerchant": "Remove",
+    "ca.manualItemsSection": "Manually entered ads in the banner",
+    "ca.addManualItem": "Add ad",
+    "ca.manualItemsHint": "These ads always rotate in the banner together with the approved merchants above — and are the only thing shown when none of them currently has a QR-code registration.",
+    "ca.manualItemLabel": "Ad",
+    "ca.manualItemDurationHint": "How long this ad stays on screen before switching to the next one in the banner.",
 
     // v3.30 — per-banner ad source selection (Google AdSense / own ads /
     // partner-merchant ads), weighted merchant rotation by QR-code

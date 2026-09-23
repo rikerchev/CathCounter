@@ -20,6 +20,7 @@ import { hasRole } from "@/lib/roles";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
 import PaymentInfoCard from "@/components/PaymentInfoCard";
+import { rotationUiToSeconds, MERCHANT_TURN_SECONDS } from "@/lib/adCache";
 
 const PLACEMENT_KEYS = {
   all: "nav.allPages",
@@ -68,32 +69,18 @@ const AD_STATUS_COLORS = {
 
 const DURATION_OPTIONS = [1, 2, 3, 6, 12];
 
-// v3.26 — admin-assigned merchant banner rotation. A banner can show one or
-// more approved merchants (water_bodies/venues) instead of a manually typed
-// title/logo/link — see the `merchants` column comment in
-// entities.generated.ts and src/components/AdBannerItem.jsx's
-// rotation-resolution logic. The interval is always stored in minutes; this
-// is just the flexible minute/hour/day unit picker shown in the UI.
-const ROTATION_UNIT_KEYS = [
-  { value: "minutes", labelKey: "ca.rotationUnitMinutes" },
-  { value: "hours", labelKey: "ca.rotationUnitHours" },
-  { value: "days", labelKey: "ca.rotationUnitDays" },
-];
-
-function rotationMinutesToUi(minutes) {
-  const n = Number(minutes);
-  if (!n || n <= 0) return { value: "30", unit: "minutes" };
-  if (n % 1440 === 0) return { value: String(n / 1440), unit: "days" };
-  if (n % 60 === 0) return { value: String(n / 60), unit: "hours" };
-  return { value: String(n), unit: "minutes" };
-}
-
-function rotationUiToMinutes(value, unit) {
-  const n = Math.max(1, Math.round(Number(value)) || 1);
-  if (unit === "days") return n * 1440;
-  if (unit === "hours") return n * 60;
-  return n;
-}
+// v3.26 — admin-assigned merchant banner. A banner can show one or more
+// approved merchants (water_bodies/venues) instead of (or alongside, as of
+// v3.44 — see manual_items below) a manually typed title/logo/link — see
+// the `merchants` column comment in entities.generated.ts and
+// src/components/AdBannerItem.jsx's carousel-building logic.
+//
+// v3.44 — the old admin-set rotation interval (merchant_rotation_minutes,
+// rotationMinutesToUi/rotationUiToMinutes, ROTATION_UNIT_KEYS) is RETIRED:
+// eligible merchants now always get the same flat MERCHANT_TURN_SECONDS
+// turn (see adCache.js), and rotate live via a real client-side timer
+// instead of a fixed admin-chosen interval — see the "Ръчно въведени
+// реклами в банера" section below and AdBannerItem.jsx.
 
 // v3.30 — a second, INDEPENDENT rotation concept from the one above: this
 // one rotates DIFFERENT custom_ads rows sharing one exact placement+
@@ -101,7 +88,8 @@ function rotationUiToMinutes(value, unit) {
 // opts in by turning this on; two or more opted-in ads on the same slot
 // then take turns instead of stacking, each shown for its own configured
 // number of seconds (stored in rotation_seconds) in a repeating cycle. See
-// src/lib/adCache.js's applyCustomAdRotation().
+// src/lib/adCache.js's applyCustomAdRotation(). Unrelated to, and untouched
+// by, the v3.44 merchant-banner live carousel above.
 const ROTATION_DISPLAY_UNIT_KEYS = [
   { value: "seconds", labelKey: "ca.rotationUnitSeconds" },
   { value: "minutes", labelKey: "ca.rotationUnitMinutes" },
@@ -116,11 +104,12 @@ function rotationSecondsToUi(seconds) {
   return { value: String(n), unit: "seconds" };
 }
 
-function rotationUiToSeconds(value, unit) {
-  const n = Math.max(1, Math.round(Number(value)) || 1);
-  if (unit === "hours") return n * 3600;
-  if (unit === "minutes") return n * 60;
-  return n;
+// rotationUiToSeconds() itself now lives in @/lib/adCache — imported above
+// — so AdBannerItem.jsx can also share it for the manual-items duration
+// (previously it was a page-local helper here only).
+
+function newManualItemId() {
+  return `mi_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 const BANNER_POSITION_KEYS = [
@@ -157,7 +146,17 @@ const emptyAd = {
   // v3.26 — array of {type, id, name, logo_url, logo_size} merchant
   // snapshots (not the raw stored string, which is JSON-in-TEXT — see
   // save()/startEdit()). Empty = this banner behaves exactly as before.
+  // v3.44 — snapshots also carry `description`/`link`, taken from the
+  // merchant's own venues.ad_description/ad_link at attach time.
   merchants: [],
+  // v3.44 — array of manually-entered carousel items ({id, title,
+  // description, link, logo_url, logo_size, duration_value, duration_unit}
+  // in FORM/UI shape — see startEdit()/save() for the conversion to/from
+  // the saved {..., duration_seconds} shape). A companion to `merchants`
+  // within the same banner: always shown alongside whichever merchants are
+  // currently eligible, and the only thing shown when none are. See
+  // AdBannerItem.jsx's live carousel.
+  manual_items: [],
 };
 
 export default function CustomAdsManager() {
@@ -169,7 +168,6 @@ export default function CustomAdsManager() {
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const BANNER_POSITIONS = BANNER_POSITION_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const BANNER_SIZES = BANNER_SIZE_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
-  const ROTATION_UNITS = ROTATION_UNIT_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const ROTATION_DISPLAY_UNITS = ROTATION_DISPLAY_UNIT_KEYS.map((o) => ({ ...o, label: t(o.labelKey) }));
   const AD_STATUS_LABELS = {};
   for (const k in AD_STATUS_KEYS) AD_STATUS_LABELS[k] = t(AD_STATUS_KEYS[k]);
@@ -219,12 +217,13 @@ export default function CustomAdsManager() {
   const [editingOriginalPeriod, setEditingOriginalPeriod] = useState(null);
   // v3.26 — approved water bodies + venues, fetched once for the "Търговци
   // в банера" add-dropdown (admin only — merchant assignment is an
-  // admin-only action). rotationValue/rotationUnit are the UI-only
-  // number+unit pair for form.merchant_rotation_minutes (see
-  // rotationMinutesToUi/rotationUiToMinutes above).
+  // admin-only action).
   const [approvedMerchants, setApprovedMerchants] = useState([]);
-  const [rotationValue, setRotationValue] = useState("30");
-  const [rotationUnit, setRotationUnit] = useState("minutes");
+  // v3.44 — which manual_items row (by index) currently has a logo upload
+  // in flight, if any — each row needs its own busy indicator, unlike the
+  // single `uploadingLogo` flag below (which only ever covers the ad's own
+  // one logo field).
+  const [uploadingManualLogoIndex, setUploadingManualLogoIndex] = useState(null);
   // v3.30 — UI-only state for form.rotation_seconds (see
   // rotationSecondsToUi/rotationUiToSeconds above) — whether THIS ad takes
   // turns with other ads sharing its exact placement+position, and for how
@@ -298,9 +297,30 @@ export default function CustomAdsManager() {
     } catch {
       parsedMerchants = [];
     }
-    const rotUi = rotationMinutesToUi(ad.merchant_rotation_minutes);
-    setRotationValue(rotUi.value);
-    setRotationUnit(rotUi.unit);
+    // v3.44 — manual_items are stored with a plain `duration_seconds`; the
+    // form/UI works in the same friendly value+unit pair the ad-level
+    // rotation_seconds field already uses (rotationSecondsToUi below).
+    let parsedManualItems = [];
+    try {
+      const rawManual = ad.manual_items ? JSON.parse(ad.manual_items) : [];
+      if (Array.isArray(rawManual)) {
+        parsedManualItems = rawManual.map((item) => {
+          const dUi = rotationSecondsToUi(item?.duration_seconds);
+          return {
+            id: item?.id || newManualItemId(),
+            title: item?.title || "",
+            description: item?.description || "",
+            link: item?.link || "",
+            logo_url: item?.logo_url || "",
+            logo_size: item?.logo_size || "auto",
+            duration_value: dUi.value,
+            duration_unit: dUi.unit,
+          };
+        });
+      }
+    } catch {
+      parsedManualItems = [];
+    }
     const rotDisplayUi = rotationSecondsToUi(ad.rotation_seconds);
     setRotationDisplayEnabled(Number(ad.rotation_seconds) > 0);
     setRotationDisplayValue(rotDisplayUi.value);
@@ -326,6 +346,7 @@ export default function CustomAdsManager() {
       starts_at: ad.starts_at || "",
       duration_months: ad.duration_months != null ? String(ad.duration_months) : "",
       merchants: parsedMerchants,
+      manual_items: parsedManualItems,
     });
     setEditingOriginalPeriod({
       starts_at: ad.starts_at || "",
@@ -374,8 +395,7 @@ export default function CustomAdsManager() {
     setLanguageRestricted(false);
     setPrimaryLanguage("");
     setEditingOriginalPeriod(null);
-    setRotationValue("30");
-    setRotationUnit("minutes");
+    setUploadingManualLogoIndex(null);
     setRotationDisplayEnabled(false);
     setRotationDisplayValue("10");
     setRotationDisplayUnit("seconds");
@@ -383,8 +403,9 @@ export default function CustomAdsManager() {
 
   // v3.26 — add/remove/reorder merchants attached to this banner. Each
   // entry is a denormalized SNAPSHOT taken at attach time (name/logo/
-  // logo_size), not a live reference — see the `merchants` column comment
-  // in entities.generated.ts for why.
+  // logo_size, and as of v3.44 also description/link), not a live
+  // reference — see the `merchants` column comment in
+  // entities.generated.ts for why.
   function addMerchant(key) {
     if (!key) return;
     const [mtype, mid] = key.split(":");
@@ -400,6 +421,8 @@ export default function CustomAdsManager() {
           name: merchant.name || "",
           logo_url: merchant.logo_url || "",
           logo_size: merchant.logo_size || "auto",
+          description: merchant.ad_description || "",
+          link: merchant.ad_link || "",
         },
       ],
     }));
@@ -416,6 +439,53 @@ export default function CustomAdsManager() {
       if (j < 0 || j >= arr.length) return prev;
       [arr[index], arr[j]] = [arr[j], arr[index]];
       return { ...prev, merchants: arr };
+    });
+  }
+
+  // v3.44 — add/remove/reorder/edit manually-entered carousel items, the
+  // companion to attached merchants within the same banner (see
+  // manual_items comment on emptyAd above). Unlike merchants, these carry
+  // their own full content (title/description/link/logo) typed directly by
+  // the admin, plus their own per-item duration.
+  function addManualItem() {
+    setForm((prev) => ({
+      ...prev,
+      manual_items: [
+        ...(prev.manual_items || []),
+        {
+          id: newManualItemId(),
+          title: "",
+          description: "",
+          link: "",
+          logo_url: "",
+          logo_size: "auto",
+          duration_value: "10",
+          duration_unit: "seconds",
+        },
+      ],
+    }));
+  }
+
+  function removeManualItem(index) {
+    setForm((prev) => ({ ...prev, manual_items: (prev.manual_items || []).filter((_, i) => i !== index) }));
+  }
+
+  function updateManualItem(index, patch) {
+    setForm((prev) => {
+      const arr = [...(prev.manual_items || [])];
+      if (!arr[index]) return prev;
+      arr[index] = { ...arr[index], ...patch };
+      return { ...prev, manual_items: arr };
+    });
+  }
+
+  function moveManualItem(index, dir) {
+    setForm((prev) => {
+      const arr = [...(prev.manual_items || [])];
+      const j = index + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[index], arr[j]] = [arr[j], arr[index]];
+      return { ...prev, manual_items: arr };
     });
   }
 
@@ -542,9 +612,25 @@ Description: ${form.description}`;
         duration_months: form.duration_months ? Number(form.duration_months) : null,
         expires_at: expiresAt,
         merchants: JSON.stringify(form.merchants || []),
-        merchant_rotation_minutes: hasMerchants && form.merchants.length > 1
-          ? rotationUiToMinutes(rotationValue, rotationUnit)
-          : null,
+        // v3.44 — merchant_rotation_minutes is intentionally no longer sent
+        // at all (RETIRED — see entities.generated.ts): eligible merchants
+        // all get the same flat MERCHANT_TURN_SECONDS turn now, live, on
+        // the client — see AdBannerItem.jsx — so there's no admin-set
+        // interval to save any more. Blank rows (no title typed) are
+        // dropped rather than saved, same as leaving a draft unfinished.
+        manual_items: JSON.stringify(
+          (form.manual_items || [])
+            .filter((item) => (item.title || "").trim())
+            .map((item) => ({
+              id: item.id,
+              title: item.title.trim(),
+              description: item.description || "",
+              link: item.link || "",
+              logo_url: item.logo_url || "",
+              logo_size: item.logo_size || "auto",
+              duration_seconds: rotationUiToSeconds(item.duration_value, item.duration_unit),
+            }))
+        ),
         // v3.30 — this ad opts into taking turns with other ads sharing its
         // exact placement+position (see applyCustomAdRotation() in
         // adCache.js) for this many seconds per turn. null = keeps stacking
@@ -815,35 +901,175 @@ Description: ${form.description}`;
                   </div>
                 )}
 
-                {hasMerchants && form.merchants.length > 1 && (
-                  <div className="pt-2 border-t border-slate-100 dark:border-border space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-cyan-600" />
-                      <Label className="mb-0">{t("ca.rotationInterval")}</Label>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={rotationValue}
-                        onChange={(e) => setRotationValue(e.target.value)}
-                        className="min-h-[44px]"
-                      />
-                      <Select value={rotationUnit} onValueChange={setRotationUnit}>
-                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {ROTATION_UNITS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-slate-400">{t("ca.rotationIntervalDesc")}</p>
-                  </div>
+                {hasMerchants && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    {t("ca.merchantsAutoNote").replace("{seconds}", String(MERCHANT_TURN_SECONDS))}
+                  </p>
                 )}
 
+                {/* v3.44 — manual items: a companion "second ad" on the
+                    same banner, typed directly instead of pulled from a
+                    merchant — always shown alongside whichever merchants
+                    above are currently eligible, and the only thing shown
+                    when none of them are (see AdBannerItem.jsx). */}
                 {hasMerchants && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400">{t("ca.merchantsAutoNote")}</p>
+                  <div className="pt-3 border-t border-slate-100 dark:border-border space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-slate-700 dark:text-foreground">
+                        {t("ca.manualItemsSection")}
+                      </h4>
+                      <Button type="button" size="sm" variant="outline" onClick={addManualItem}>
+                        <Plus className="w-3.5 h-3.5 mr-1" /> {t("ca.addManualItem")}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-slate-400">{t("ca.manualItemsHint")}</p>
+
+                    {(form.manual_items || []).map((item, idx) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-slate-200 dark:border-border p-3 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">
+                            {t("ca.manualItemLabel")} {idx + 1}
+                          </p>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => moveManualItem(idx, -1)}
+                              disabled={idx === 0}
+                              className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent disabled:opacity-30"
+                              title={t("ca.moveUp")}
+                            >
+                              <ArrowUp className="w-3.5 h-3.5 text-slate-500" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveManualItem(idx, 1)}
+                              disabled={idx === (form.manual_items || []).length - 1}
+                              className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent disabled:opacity-30"
+                              title={t("ca.moveDown")}
+                            >
+                              <ArrowDown className="w-3.5 h-3.5 text-slate-500" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeManualItem(idx)}
+                              className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent"
+                              title={t("ca.removeMerchant")}
+                            >
+                              <X className="w-3.5 h-3.5 text-slate-500" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <Input
+                          value={item.title}
+                          onChange={(e) => updateManualItem(idx, { title: e.target.value })}
+                          placeholder={t("ca.adTitle")}
+                          className="min-h-[44px]"
+                        />
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateManualItem(idx, { description: e.target.value })}
+                          placeholder={t("ca.adDescription")}
+                          className="min-h-[44px]"
+                        />
+                        <Input
+                          value={item.link}
+                          onChange={(e) => updateManualItem(idx, { link: e.target.value })}
+                          placeholder={t("ca.linkPlaceholder")}
+                          className="min-h-[44px]"
+                        />
+
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
+                            {item.logo_url ? (
+                              <img src={item.logo_url} alt={t("ca.logoAlt")} className="w-full h-full object-contain p-1" />
+                            ) : (
+                              <Upload className="w-4 h-4 text-slate-300" />
+                            )}
+                          </div>
+                          <label className="flex-1 cursor-pointer">
+                            <span className="inline-flex items-center justify-center gap-2 min-h-[40px] w-full rounded-md border border-input bg-transparent text-xs font-medium hover:bg-accent hover:text-accent-foreground transition-colors">
+                              {uploadingManualLogoIndex === idx ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("adv.uploading")}</>
+                              ) : (
+                                <><Upload className="w-3.5 h-3.5" /> {item.logo_url ? t("ca.changeLogo") : t("adv.uploadLogo")}</>
+                              )}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              disabled={uploadingManualLogoIndex !== null}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setUploadingManualLogoIndex(idx);
+                                try {
+                                  const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                                  updateManualItem(idx, { logo_url: file_url });
+                                  toast({ title: t("adv.logoUploaded") });
+                                } catch (err) {
+                                  toast({ title: t("adv.uploadError"), description: err.message });
+                                } finally {
+                                  setUploadingManualLogoIndex(null);
+                                  e.target.value = "";
+                                }
+                              }}
+                            />
+                          </label>
+                          {item.logo_url && (
+                            <button
+                              type="button"
+                              onClick={() => updateManualItem(idx, { logo_url: "" })}
+                              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-accent"
+                              title={t("ca.removeLogo")}
+                            >
+                              <X className="w-4 h-4 text-slate-500" />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <Select
+                            value={item.logo_size}
+                            onValueChange={(v) => updateManualItem(idx, { logo_size: v })}
+                          >
+                            <SelectTrigger className="min-h-[40px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {LOGO_SIZES.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.duration_value}
+                              onChange={(e) => updateManualItem(idx, { duration_value: e.target.value })}
+                              className="min-h-[40px]"
+                            />
+                            <Select
+                              value={item.duration_unit}
+                              onValueChange={(v) => updateManualItem(idx, { duration_unit: v })}
+                            >
+                              <SelectTrigger className="min-h-[40px]"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {ROTATION_DISPLAY_UNITS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-400">{t("ca.manualItemDurationHint")}</p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}

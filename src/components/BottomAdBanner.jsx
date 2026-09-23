@@ -22,7 +22,7 @@ import AdSenseSlot from "@/components/AdSenseSlot";
  * the browser's OWN address/toolbar can't be controlled from here at all.
  */
 export default function BottomAdBanner() {
-  const { bottom, userCountry, publisherId, merchantOverrides } = useEligibleAds();
+  const { bottom, userCountry, publisherId, eligibleMerchantKeys } = useEligibleAds();
   const ref = useRef(null);
   const isAdsense = bottom.sourceType === "adsense";
   const hasContent = isAdsense ? !!bottom.adUnitId : bottom.ads.length > 0;
@@ -56,7 +56,7 @@ export default function BottomAdBanner() {
         <AdSenseSlot publisherId={publisherId} adUnitId={bottom.adUnitId} layoutKey={bottom.adUnitLayoutKey} />
       ) : (
         bottom.ads.map((ad) => (
-          <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} merchantOverride={merchantOverrides[ad.id]} />
+          <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} eligibleMerchantKeys={eligibleMerchantKeys[ad.id]} />
         ))
       )}
     </div>

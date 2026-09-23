@@ -3,6 +3,7 @@ import { Store, Download, Loader2, Power, Pencil, Upload, X, Image as ImageIcon 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
@@ -51,7 +52,14 @@ export default function TraderVenues() {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const emptyForm = { name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto", working_hours: "" };
+  // v3.44 — ad_description/ad_link: only ever shown if/when an admin
+  // attaches this venue to a "Реклами на партньори" banner (see
+  // CustomAds.jsx's "Търговци в банера" section) — this venue's own `name`
+  // already serves as that banner's title.
+  const emptyForm = {
+    name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto",
+    working_hours: "", ad_description: "", ad_link: "",
+  };
   const [form, setForm] = useState(emptyForm);
   const [editingVenue, setEditingVenue] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -93,6 +101,8 @@ export default function TraderVenues() {
       logo_url: v.logo_url || "",
       logo_size: v.logo_size || "auto",
       working_hours: v.working_hours || "",
+      ad_description: v.ad_description || "",
+      ad_link: v.ad_link || "",
     });
     setShowForm(true);
   }
@@ -112,6 +122,8 @@ export default function TraderVenues() {
       logo_url: form.logo_url,
       logo_size: form.logo_size,
       working_hours: form.working_hours,
+      ad_description: form.ad_description,
+      ad_link: form.ad_link,
     };
     try {
       await base44.entities.Venue.update(editingVenue.id, payload);
@@ -271,6 +283,20 @@ export default function TraderVenues() {
             <div className="space-y-1.5">
               <Label>{t("tv.website")}</Label>
               <Input value={form.website} onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))} placeholder="https://" className="min-h-[44px]" />
+            </div>
+            {/* v3.44 — used only when an admin later attaches this venue
+                to a partner-merchant ad banner (CustomAds.jsx) — the
+                banner's title comes from `name` above; these two fill in
+                the rest of what a manually-entered ad would otherwise need. */}
+            <div className="space-y-1.5">
+              <Label>{t("mr.adDescription")}</Label>
+              <Textarea value={form.ad_description} onChange={(e) => setForm((f) => ({ ...f, ad_description: e.target.value }))} rows={2} placeholder={t("mr.adDescriptionPlaceholder")} />
+              <p className="text-xs text-slate-400">{t("mr.adDescriptionHint")}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("mr.adLink")}</Label>
+              <Input value={form.ad_link} onChange={(e) => setForm((f) => ({ ...f, ad_link: e.target.value }))} placeholder={t("ca.linkPlaceholder")} className="min-h-[44px]" />
+              <p className="text-xs text-slate-400">{t("mr.adLinkHint")}</p>
             </div>
             <div className="space-y-1.5">
               <Label>{t("tv.logo")}</Label>

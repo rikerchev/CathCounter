@@ -307,10 +307,12 @@ export const base44 = {
   merchantReferrals: {
     redeem: (code) => apiFetch("/api/merchant-referrals/redeem", { method: "POST", body: { code } }),
     stats: (type, id) => apiFetch(`/api/merchant-referrals/stats?type=${type}&id=${id}`),
-    // v3.30 — batch-resolves which attached merchant should show right now
-    // for each given ad (2+ merchants only), weighted by referral count —
-    // see server/routes/merchantReferrals.ts's own comment on this route
-    // for why the counts themselves never come back to the client.
+    // v3.44 — batch-resolves, for each given ad (1+ attached merchants),
+    // which of its merchants are currently ELIGIBLE for the live banner
+    // carousel (see AdBannerItem.jsx) — a plain array of "type:id" keys per
+    // ad id, never the underlying referral counts. See
+    // server/routes/merchantReferrals.ts's own comment on this route for
+    // the privacy rationale (replaces v3.30's weighted single-winner pick).
     activeMerchants: (ads) => apiFetch("/api/merchant-referrals/active-merchants", { method: "POST", body: { ads } }),
   },
 

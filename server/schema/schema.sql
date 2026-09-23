@@ -829,3 +829,47 @@ ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS rotation_seconds INTEGER;
 --
 -- Safe to re-run.
 ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_layout_key TEXT;
+
+-- v3.44: merchant-banner live rotation — replaces v3.30's "weighted by
+-- referral count, one winner picked every merchant_rotation_minutes"
+-- mechanism for a 'merchant' source_type banner with: every attached
+-- merchant that has had at least one QR-code referral in the last 3 days
+-- gets an equal, flat MERCHANT_TURN_SECONDS-long turn (see
+-- src/lib/adCache.js's MERCHANT_TURN_SECONDS = 10) in a REAL, live-ticking
+-- client-side carousel (src/components/AdBannerItem.jsx) — no more winner
+-- picked server-side by wall-clock bucket, and merchant_rotation_minutes is
+-- retired (left in place, unused, for backward compatibility — see
+-- server/routes/merchantReferrals.ts). A merchant with 0 referrals in the
+-- rolling 3-day window is skipped entirely, not just shown less often (the
+-- old MIN_SHARE guaranteed-minimum floor is gone). Deliberately a flat,
+-- fixed duration for every eligible merchant (not proportional to referral
+-- count) — a duration that scaled with count would let anyone watching the
+-- banner back-calculate a merchant's exact referral count from how many
+-- seconds it stays up, and that count has always been private (owner/admin
+-- only, see the /stats endpoint) — see merchantReferrals.ts's own comment.
+--
+-- custom_ads.manual_items: a SECOND kind of item that can share the same
+-- banner's live rotation alongside the merchant items above, entered
+-- directly by the admin (not derived from an approved merchant) —
+-- CustomAds.jsx's "Ръчно въведени реклами в банера" section. JSON array of
+-- [{title, description, link, logo_url, logo_size, duration_value,
+-- duration_unit}, ...], same JSON-in-TEXT pattern as `merchants` above; each
+-- item's own admin-chosen duration (seconds/minutes/hours) is honored as-is
+-- in the carousel, instead of the fixed 10s merchant items get. NULL/empty
+-- = unchanged behaviour (no manual items on this banner).
+--
+-- venues.ad_description / venues.ad_link: optional ad-style content a
+-- Commercial venue can supply at registration (MerchantRequest.jsx) or
+-- later (TraderVenues.jsx) — the same kind of fields a manually-created
+-- custom ad already has (title/description/link), so a venue attached to a
+-- merchant banner (CustomAds.jsx) can show its own description and an
+-- outbound link, not just its logo + name as before. Both optional; a venue
+-- attached to a banner without these still falls back to logo + name only
+-- and the standard /commercial-venues listing link, exactly as before this
+-- migration. Only venues get these — water bodies keep their existing
+-- logo-only banner content, unchanged, per the scope of this request.
+--
+-- Safe to re-run.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS manual_items TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_description TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_link TEXT;

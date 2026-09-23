@@ -26,7 +26,7 @@ import AdSenseSlot from "@/components/AdSenseSlot";
  * the own-ads/merchant-ads stack.
  */
 export default function AdBanner() {
-  const { top, userCountry, publisherId, merchantOverrides } = useEligibleAds();
+  const { top, userCountry, publisherId, eligibleMerchantKeys } = useEligibleAds();
 
   if (top.sourceType === "adsense") {
     if (!top.adUnitId) return null;
@@ -42,7 +42,7 @@ export default function AdBanner() {
   return (
     <div className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-slate-100 dark:border-border">
       {top.ads.map((ad) => (
-        <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} merchantOverride={merchantOverrides[ad.id]} />
+        <AdBannerItem key={ad.id} ad={ad} userCountry={userCountry} eligibleMerchantKeys={eligibleMerchantKeys[ad.id]} />
       ))}
     </div>
   );

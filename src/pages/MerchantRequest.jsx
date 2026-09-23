@@ -58,8 +58,13 @@ export default function MerchantRequest() {
     capacity: "",
     fee_per_person: "",
   });
+  // v3.44 — ad_description/ad_link: shown only if/when an admin later
+  // attaches this venue to a "Реклами на партньори" banner (see
+  // CustomAds.jsx's "Търговци в банера" section) — the venue's own `name`
+  // above already serves as that banner's title, so only these two are new.
   const [venueForm, setVenueForm] = useState({
     name: "", address: "", contact_phone: "", contact_email: user?.email || "", website: "", logo_url: "", logo_size: "auto",
+    ad_description: "", ad_link: "",
   });
 
   const setWb = (key) => (e) => setWbForm((f) => ({ ...f, [key]: e.target.value }));
@@ -241,6 +246,16 @@ export default function MerchantRequest() {
           <div className="space-y-1.5">
             <Label>{t("tv.website")}</Label>
             <Input value={venueForm.website} onChange={setVenue("website")} placeholder="https://" className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("mr.adDescription")}</Label>
+            <Textarea value={venueForm.ad_description} onChange={setVenue("ad_description")} rows={2} placeholder={t("mr.adDescriptionPlaceholder")} />
+            <p className="text-xs text-slate-400">{t("mr.adDescriptionHint")}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("mr.adLink")}</Label>
+            <Input value={venueForm.ad_link} onChange={setVenue("ad_link")} placeholder={t("ca.linkPlaceholder")} className="min-h-[44px]" />
+            <p className="text-xs text-slate-400">{t("mr.adLinkHint")}</p>
           </div>
           <div className="space-y-1.5">
             <Label>{t("tv.logo")}</Label>
