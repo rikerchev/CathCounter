@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="google" content="notranslate" />
     <meta name="google-site-verification" content="MZXSdIMvmUs9U4dcnzqnotbBEbvVLe4YGLVtHjs3_Cs" />
+    <!-- v3.31 — static AdSense site-ownership verification (the "Meta tag"
+         method in AdSense → Sites → "Verify site ownership"). Unlike the
+         script-based method (see src/components/AdSenseLoader.jsx /
+         AdSenseSlot.jsx, which inject the ad script client-side via React,
+         only once, and only when AdSense is enabled/configured and the
+         visitor isn't premium), this tag is always present in the raw HTML
+         Google's crawler fetches — no JavaScript execution, settings, or
+         premium status involved — so it's the more reliable of the two
+         verification methods. The publisher ID is not secret (it is always
+         visible in any AdSense-serving page's own HTML), so hardcoding it
+         here is the same as what every AdSense site does. -->
+    <meta name="google-adsense-account" content="ca-pub-3727403550064718" />
     <link rel="icon" type="image/png" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
