@@ -1189,4 +1189,18 @@ export const fr = {
     "ca.moveUp": "Monter",
     "ca.moveDown": "Descendre",
     "ca.removeMerchant": "Retirer",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Content de vous revoir",
+    "login.subtitle": "Connectez-vous à votre compte",
+    "login.continueWithGoogle": "Continuer avec Google",
+    "login.or": "OU",
+    "login.email": "E-mail",
+    "login.password": "Mot de passe",
+    "login.forgotPassword": "Mot de passe oublié ?",
+    "login.submit": "Connexion",
+    "login.submitting": "Connexion en cours...",
+    "login.noAccount": "Vous n'avez pas de compte ?",
+    "login.createAccount": "Créez-en un",
+    "login.invalidCredentials": "E-mail ou mot de passe invalide",
 };

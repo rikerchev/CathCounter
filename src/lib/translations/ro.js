@@ -1189,4 +1189,18 @@ export const ro = {
     "ca.moveUp": "Mută în sus",
     "ca.moveDown": "Mută în jos",
     "ca.removeMerchant": "Elimină",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Bine ați revenit",
+    "login.subtitle": "Conectați-vă la contul dvs.",
+    "login.continueWithGoogle": "Continuați cu Google",
+    "login.or": "SAU",
+    "login.email": "Email",
+    "login.password": "Parolă",
+    "login.forgotPassword": "Ați uitat parola?",
+    "login.submit": "Conectare",
+    "login.submitting": "Se conectează...",
+    "login.noAccount": "Nu aveți un cont?",
+    "login.createAccount": "Creați unul",
+    "login.invalidCredentials": "Email sau parolă incorectă",
 };

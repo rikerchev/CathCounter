@@ -1189,4 +1189,18 @@ export const mk = {
     "ca.moveUp": "Помести нагоре",
     "ca.moveDown": "Помести надолу",
     "ca.removeMerchant": "Отстрани",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Добредојдовте повторно",
+    "login.subtitle": "Најавете се на вашата сметка",
+    "login.continueWithGoogle": "Продолжи со Google",
+    "login.or": "ИЛИ",
+    "login.email": "Е-пошта",
+    "login.password": "Лозинка",
+    "login.forgotPassword": "Заборавена лозинка?",
+    "login.submit": "Најава",
+    "login.submitting": "Најавување...",
+    "login.noAccount": "Немате сметка?",
+    "login.createAccount": "Создајте ја",
+    "login.invalidCredentials": "Неважечка е-пошта или лозинка",
 };

@@ -1189,4 +1189,18 @@ export const sk = {
     "ca.moveUp": "Presunúť nahor",
     "ca.moveDown": "Presunúť nadol",
     "ca.removeMerchant": "Odstrániť",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Vitajte späť",
+    "login.subtitle": "Prihláste sa do svojho účtu",
+    "login.continueWithGoogle": "Pokračovať s Google",
+    "login.or": "ALEBO",
+    "login.email": "E-mail",
+    "login.password": "Heslo",
+    "login.forgotPassword": "Zabudnuté heslo?",
+    "login.submit": "Prihlásiť sa",
+    "login.submitting": "Prihlasovanie...",
+    "login.noAccount": "Nemáte účet?",
+    "login.createAccount": "Vytvoriť účet",
+    "login.invalidCredentials": "Neplatný e-mail alebo heslo",
 };

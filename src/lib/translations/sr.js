@@ -1189,4 +1189,18 @@ export const sr = {
     "ca.moveUp": "Pomeri gore",
     "ca.moveDown": "Pomeri dole",
     "ca.removeMerchant": "Ukloni",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Dobro došli nazad",
+    "login.subtitle": "Prijavite se na svoj nalog",
+    "login.continueWithGoogle": "Nastavi sa Google",
+    "login.or": "ILI",
+    "login.email": "Email",
+    "login.password": "Lozinka",
+    "login.forgotPassword": "Zaboravili ste lozinku?",
+    "login.submit": "Prijava",
+    "login.submitting": "Prijavljivanje...",
+    "login.noAccount": "Nemate nalog?",
+    "login.createAccount": "Napravite ga",
+    "login.invalidCredentials": "Nevažeći email ili lozinka",
 };

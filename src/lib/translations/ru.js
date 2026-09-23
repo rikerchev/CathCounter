@@ -1189,4 +1189,18 @@ export const ru = {
     "ca.moveUp": "Переместить вверх",
     "ca.moveDown": "Переместить вниз",
     "ca.removeMerchant": "Удалить",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "С возвращением",
+    "login.subtitle": "Войдите в свой аккаунт",
+    "login.continueWithGoogle": "Продолжить с Google",
+    "login.or": "ИЛИ",
+    "login.email": "Эл. почта",
+    "login.password": "Пароль",
+    "login.forgotPassword": "Забыли пароль?",
+    "login.submit": "Войти",
+    "login.submitting": "Вход...",
+    "login.noAccount": "Нет аккаунта?",
+    "login.createAccount": "Создать",
+    "login.invalidCredentials": "Неверный email или пароль",
 };

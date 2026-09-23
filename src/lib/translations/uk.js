@@ -1189,4 +1189,18 @@ export const uk = {
     "ca.moveUp": "Перемістити вгору",
     "ca.moveDown": "Перемістити вниз",
     "ca.removeMerchant": "Видалити",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "З поверненням",
+    "login.subtitle": "Увійдіть у свій обліковий запис",
+    "login.continueWithGoogle": "Продовжити з Google",
+    "login.or": "АБО",
+    "login.email": "Ел. пошта",
+    "login.password": "Пароль",
+    "login.forgotPassword": "Забули пароль?",
+    "login.submit": "Увійти",
+    "login.submitting": "Вхід...",
+    "login.noAccount": "Немає облікового запису?",
+    "login.createAccount": "Створити",
+    "login.invalidCredentials": "Невірна ел. пошта або пароль",
 };

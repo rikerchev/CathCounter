@@ -1189,4 +1189,18 @@ export const cs = {
     "ca.moveUp": "Posunout nahoru",
     "ca.moveDown": "Posunout dolů",
     "ca.removeMerchant": "Odebrat",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Vítejte zpět",
+    "login.subtitle": "Přihlaste se ke svému účtu",
+    "login.continueWithGoogle": "Pokračovat s Google",
+    "login.or": "NEBO",
+    "login.email": "E-mail",
+    "login.password": "Heslo",
+    "login.forgotPassword": "Zapomenuté heslo?",
+    "login.submit": "Přihlásit se",
+    "login.submitting": "Přihlašování...",
+    "login.noAccount": "Nemáte účet?",
+    "login.createAccount": "Vytvořit účet",
+    "login.invalidCredentials": "Neplatný e-mail nebo heslo",
 };

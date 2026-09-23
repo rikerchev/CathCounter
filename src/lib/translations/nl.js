@@ -1189,4 +1189,18 @@ export const nl = {
     "ca.moveUp": "Omhoog",
     "ca.moveDown": "Omlaag",
     "ca.removeMerchant": "Verwijderen",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Welkom terug",
+    "login.subtitle": "Log in op uw account",
+    "login.continueWithGoogle": "Doorgaan met Google",
+    "login.or": "OF",
+    "login.email": "E-mail",
+    "login.password": "Wachtwoord",
+    "login.forgotPassword": "Wachtwoord vergeten?",
+    "login.submit": "Inloggen",
+    "login.submitting": "Bezig met inloggen...",
+    "login.noAccount": "Nog geen account?",
+    "login.createAccount": "Maak er een aan",
+    "login.invalidCredentials": "Ongeldige e-mail of wachtwoord",
 };

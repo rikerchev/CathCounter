@@ -1189,4 +1189,18 @@ export const hu = {
     "ca.moveUp": "Feljebb",
     "ca.moveDown": "Lejjebb",
     "ca.removeMerchant": "Eltávolítás",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Üdvözöljük ismét",
+    "login.subtitle": "Jelentkezzen be fiókjába",
+    "login.continueWithGoogle": "Folytatás Google-lal",
+    "login.or": "VAGY",
+    "login.email": "E-mail",
+    "login.password": "Jelszó",
+    "login.forgotPassword": "Elfelejtette jelszavát?",
+    "login.submit": "Bejelentkezés",
+    "login.submitting": "Bejelentkezés...",
+    "login.noAccount": "Nincs fiókja?",
+    "login.createAccount": "Hozzon létre egyet",
+    "login.invalidCredentials": "Érvénytelen e-mail vagy jelszó",
 };

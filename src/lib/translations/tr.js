@@ -1189,4 +1189,18 @@ export const tr = {
     "ca.moveUp": "Yukarı taşı",
     "ca.moveDown": "Aşağı taşı",
     "ca.removeMerchant": "Kaldır",
+
+    // v3.34 — see bg.js's copy of these keys for why they exist.
+    "login.welcomeBack": "Tekrar hoş geldiniz",
+    "login.subtitle": "Hesabınıza giriş yapın",
+    "login.continueWithGoogle": "Google ile devam et",
+    "login.or": "VEYA",
+    "login.email": "E-posta",
+    "login.password": "Şifre",
+    "login.forgotPassword": "Şifrenizi mi unuttunuz?",
+    "login.submit": "Giriş yap",
+    "login.submitting": "Giriş yapılıyor...",
+    "login.noAccount": "Hesabınız yok mu?",
+    "login.createAccount": "Hesap oluşturun",
+    "login.invalidCredentials": "Geçersiz e-posta veya şifre",
 };
