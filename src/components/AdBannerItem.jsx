@@ -106,16 +106,20 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
         description: m.description || "",
         logoUrl: m.logo_url || "",
         logoSize: m.logo_size || "auto",
-        // v3.45 — the merchant's OWN link (venues.ad_link, v3.44) always
-        // wins. If the merchant never set one, this must NOT fall back to
-        // `ad.link` — that's a DIFFERENT business's own destination (the
-        // banner's own advertiser), and landing a click on this merchant's
-        // turn there was a real bug (reported after the first v3.45
-        // deploy): a visitor who tapped the merchant's own logo/name ended
-        // up on someone else's site. Falls back to the generic "advertise
-        // with us" page instead — never to the old rejected "browse
-        // merchants" menu, and never to an unrelated merchant's link.
-        link: m.link || "/advertise",
+        // v3.45 — the merchant's OWN link (venues.ad_link, falling back to
+        // venues.website — see CustomAds.jsx's snapshotMerchant()) always
+        // wins. If truly neither is set, this must NOT fall back to
+        // anything else: not `ad.link` (a DIFFERENT business's own
+        // destination — the first bug reported after the initial v3.45
+        // deploy), and not "/advertise" either (the SECOND bug reported: a
+        // merchant earning free rotation through QR referrals must never
+        // have its own turn solicit the visitor to go buy a paid ad slot —
+        // that flatly contradicts the whole point of the bonus-time rules
+        // this rotation exists to honor). `null` here means "this turn
+        // isn't a link at all" — see the component below, which renders a
+        // merchant with no link as plain, non-clickable content instead of
+        // guessing at a destination.
+        link: m.link || null,
         durationSeconds: MERCHANT_TURN_SECONDS,
       });
     }
@@ -256,29 +260,45 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
     displayLink = ad.link || "/advertise";
   }
 
+  // v3.45 — a merchant carousel item with neither its own ad_link nor a
+  // website on file (see buildCarouselItems() above) sets displayLink to
+  // null rather than guessing at a destination. That turn is rendered as
+  // plain, non-clickable content instead — showing the merchant's
+  // logo/name/description exactly as normal, just without a <Link> wrapper
+  // — rather than sending the visitor somewhere misleading.
+  const content = (
+    <>
+      {displayLogoUrl && (
+        <div className={`${LOGO_SIZE_CLASSES[displayLogoSize] || size.logo} rounded-lg shrink-0 flex items-center justify-center`}>
+          <img src={displayLogoUrl} alt={displayTitle} className="w-full h-full object-contain" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0 text-center">
+        <p className={`${size.title} font-bold ${ad.text_class || "text-white"} truncate`}>
+          {displayTitle}
+        </p>
+        {displayDescription && (
+          <p className={`${size.desc} ${ad.text_class || "text-white"} opacity-90 truncate`}>
+            {displayDescription}
+          </p>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div
       data-ad-region="fishing"
       data-ad-keywords="fishing tackle bait rods"
       className={`relative ${ad.bg_class || "bg-gradient-to-r from-cyan-600 to-blue-600"} rounded-md ${size.wrap} mx-2 my-0.5`}
     >
-      <Link to={displayLink} className="flex items-center gap-3 w-full">
-        {displayLogoUrl && (
-          <div className={`${LOGO_SIZE_CLASSES[displayLogoSize] || size.logo} rounded-lg shrink-0 flex items-center justify-center`}>
-            <img src={displayLogoUrl} alt={displayTitle} className="w-full h-full object-contain" />
-          </div>
-        )}
-        <div className="flex-1 min-w-0 text-center">
-          <p className={`${size.title} font-bold ${ad.text_class || "text-white"} truncate`}>
-            {displayTitle}
-          </p>
-          {displayDescription && (
-            <p className={`${size.desc} ${ad.text_class || "text-white"} opacity-90 truncate`}>
-              {displayDescription}
-            </p>
-          )}
-        </div>
-      </Link>
+      {displayLink ? (
+        <Link to={displayLink} className="flex items-center gap-3 w-full">
+          {content}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-3 w-full">{content}</div>
+      )}
     </div>
   );
 }
