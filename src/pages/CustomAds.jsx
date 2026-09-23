@@ -20,7 +20,7 @@ import { hasRole } from "@/lib/roles";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
 import PaymentInfoCard from "@/components/PaymentInfoCard";
-import { rotationUiToSeconds, MERCHANT_TURN_SECONDS, findSlotForPosition } from "@/lib/adCache";
+import { rotationUiToSeconds, MERCHANT_TURN_SECONDS, findSlotForPosition, setLastAdSyncAt } from "@/lib/adCache";
 
 const PLACEMENT_KEYS = {
   all: "nav.allPages",
@@ -708,6 +708,24 @@ export default function CustomAdsManager() {
           }
         }
 
+        // v3.56 — this ad's content just changed, but the visitor-facing
+        // banner (useEligibleAds.js) reads from a local ad cache that only
+        // actually re-syncs with the server at most once every
+        // AD_SYNC_INTERVAL_MS (10 minutes — see adCache.js), to avoid
+        // waking a phone's radio on every page navigation for nothing.
+        // That's the right trade-off for an ordinary visitor, but it also
+        // meant an admin testing a change right after saving it — on the
+        // very same browser/device this admin panel is open in — could
+        // keep seeing the OLD ad for up to 10 more minutes and reasonably
+        // conclude the save "had no effect" (reported after the v3.56
+        // hideOwnContent toggle: the value was correctly saved server-side
+        // the whole time, only this device's own cached copy was stale).
+        // Resetting the throttle here makes the NEXT sync on THIS device
+        // (e.g. opening /active-session right after saving) happen
+        // immediately instead of waiting out the window — it does not
+        // affect any other visitor's device, so the battery/data saving
+        // this throttle exists for is untouched everywhere else.
+        setLastAdSyncAt(0);
         resetForm();
         await loadAds();
         } catch (e) {
@@ -719,6 +737,7 @@ export default function CustomAdsManager() {
     try {
       await base44.entities.CustomAd.delete(id);
       toast({ title: t("ca.adDeleted") });
+       setLastAdSyncAt(0);
        if (editing === id) resetForm();
        await loadAds();
       } catch (e) {
@@ -730,6 +749,7 @@ export default function CustomAdsManager() {
     try {
       await base44.entities.CustomAd.update(ad.id, { status: "active" });
       toast({ title: t("ca.changesApproved") });
+       setLastAdSyncAt(0);
        await loadAds();
       } catch (e) {
        toast({ title: t("awb.error"), description: e.message });
@@ -740,6 +760,7 @@ export default function CustomAdsManager() {
       const activating = !ad.is_active;
       try {
        await base44.entities.CustomAd.update(ad.id, { is_active: activating });
+       setLastAdSyncAt(0);
        await loadAds();
       } catch (e) {
        toast({ title: t("awb.error"), description: e.message });
