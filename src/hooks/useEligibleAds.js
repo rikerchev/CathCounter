@@ -133,6 +133,21 @@ function getInitialZones(placement, lang) {
  * were (see cacheSlots()/getCachedSlots() in adCache.js), so the very next
  * visit to that page renders the same placeholder immediately, with
  * nothing shifting afterwards.
+ *
+ * v3.48 — the caching/preloading pass inside this hook's effect (see
+ * syncFromNetwork() below) is now explicitly a "warm the whole cache while
+ * online" step: it caches every active, country-eligible ad across every
+ * placement AND every language, and preloads every one of their logos
+ * (including attached merchants' and manual items' — see
+ * adCache.js's preloadAdImages()), not just today's current page/language.
+ * Since this hook already mounts globally, on every route, via
+ * AdBanner.jsx/BottomAdBanner.jsx living in Layout.jsx (not per-page), this
+ * first sync effectively happens once at app startup (whenever the device
+ * is online then) and again at most every AD_SYNC_INTERVAL_MS afterwards —
+ * exactly the "cache everything up front while online, so offline still
+ * has it everywhere" behaviour that was asked for. What actually RENDERS
+ * right now is still narrowed to the visitor's current language, same as
+ * before — only the caching/preloading scope was broadened.
  */
 export function useEligibleAds() {
   const { lang } = useLanguage();
@@ -186,22 +201,39 @@ export function useEligibleAds() {
         base44.entities.AdSlot.list(),
       ])
       .then(([customAds, adSlots]) => {
-        // Cache every currently active, country- AND language-eligible ad
-        // across ALL placements (not just this page's) so the next mount —
-        // on any page — can render real ads straight from cache instead of
-        // falling back to the generic defaults while it waits on the
-        // network again.
-        const allActive = (customAds || []).filter(
-          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a) && matchesLanguage(a, lang)
+        // v3.48 — cache every currently active, country-eligible ad across
+        // ALL placements AND ALL languages (not just this page's, and not
+        // just the app's CURRENT language) — this is the "warm the whole
+        // cache while online, up front" pass the user explicitly asked
+        // for, so that going offline afterwards has every page's assigned
+        // ads (and every attached merchant's/manual item's logo — see
+        // preloadAdImages() below) already available, not just whichever
+        // ones happened to match today's language. Country is still
+        // applied here (it reflects the visitor's actual location, which
+        // doesn't change offline), but language is a menu setting the
+        // visitor can switch at any time, including while offline — so
+        // filtering by it at CACHE time would silently drop every
+        // other-language ad from what's available offline. The narrower,
+        // CURRENT-language set for what actually renders right now is
+        // computed separately just below; only the caching/preloading
+        // pass is broadened.
+        const allActiveAllLanguages = (customAds || []).filter(
+          (a) => a.is_active && a.status !== "pending_review" && matchesCountry(a)
         );
-        cacheAds(allActive);
+        cacheAds(allActiveAllLanguages);
         cacheSlots(adSlots);
         // v3.46 — warm the (service-worker-backed) image cache for every
         // logo this sync just learned about, so it's already available
         // locally the moment the device goes offline, not just for
         // whichever ad/merchant happened to already be on screen.
-        preloadAdImages(allActive);
+        // v3.48 — now fed the ALL-languages list above (not just the
+        // current-language one), so a language switch made entirely
+        // offline still finds its ads' logos already cached, not blank.
+        preloadAdImages(allActiveAllLanguages);
 
+        // The zones actually rendered right now still need to be narrowed
+        // to the visitor's CURRENT language — see the comment above.
+        const allActive = allActiveAllLanguages.filter((a) => matchesLanguage(a, lang));
         const newZones = buildZones(allActive, adSlots, placement, lang);
         for (const position of ["top", "bottom"]) {
           for (const ad of newZones[position].ads) trackImpression(ad.id);
