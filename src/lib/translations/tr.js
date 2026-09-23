@@ -1222,6 +1222,8 @@ export const tr = {
     "ca.manualItemDurationHint": "Bu reklamın, bannerdaki bir sonrakine geçmeden önce ekranda ne kadar süre kalacağı.",
     "ca.ownContentDuration": "Kendi içeriğin süresi",
     "ca.ownContentDurationHint": "Bu reklamın kendi içeriğinin (başlık, açıklama, logo), bannerdaki bir sonraki öğeye geçmeden önce ekranda ne kadar süre kalacağı.",
+    "ca.hideOwnContent": "Kendi içeriğini gizle",
+    "ca.hideOwnContentHint": "Açıksa, bu reklamın kendi içeriği (başlık, açıklama, logo) bannerda hiçbir zaman görünmez — yalnızca aktif kaydı olduğu sürece onaylı satıcılar ve aşağıda manuel olarak girilen reklamlar gösterilir. Şu anda gösterilecek başka bir şey yoksa banner basitçe görünmez.",
     "ca.noLanguagesSelected": "En az bir dil seçin",
     "ca.languagesSection": "Diller",
     "ca.languagesFilterDesc": "Bu reklam yalnızca seçilen dillerin menüsünde gösterilecektir.",

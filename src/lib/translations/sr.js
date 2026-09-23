@@ -1222,6 +1222,8 @@ export const sr = {
     "ca.manualItemDurationHint": "Koliko dugo ova reklama ostaje na ekranu pre nego što se prebaci na sledeću u baneru.",
     "ca.ownContentDuration": "Trajanje sopstvenog sadržaja",
     "ca.ownContentDurationHint": "Koliko dugo sopstveni sadržaj ove reklame (naslov, opis, logo) ostaje na ekranu pre nego što se prebaci na sledeći element u baneru.",
+    "ca.hideOwnContent": "Sakrij sopstveni sadržaj",
+    "ca.hideOwnContentHint": "Kada je uključeno, sopstveni sadržaj ove reklame (naslov, opis, logo) nikada se ne prikazuje u baneru — prikazivaće samo odobrene trgovce dok imaju aktivnu registraciju, i ručno unete reklame ispod. Ako trenutno nema ničeg drugog za prikaz, baner se jednostavno ne prikazuje.",
     "ca.noLanguagesSelected": "Izaberite bar jedan jezik",
     "ca.languagesSection": "Jezici",
     "ca.languagesFilterDesc": "Ova reklama će se prikazivati samo u meniju izabranih jezika.",

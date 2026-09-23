@@ -1222,6 +1222,8 @@ export const pl = {
     "ca.manualItemDurationHint": "Jak długo ta reklama pozostaje na ekranie, zanim przełączy się na następną w banerze.",
     "ca.ownContentDuration": "Czas trwania własnej treści",
     "ca.ownContentDurationHint": "Jak długo własna treść tej reklamy (tytuł, opis, logo) pozostaje na ekranie, zanim przełączy się na kolejny element w banerze.",
+    "ca.hideOwnContent": "Ukryj własną treść",
+    "ca.hideOwnContentHint": "Gdy włączone, własna treść tej reklamy (tytuł, opis, logo) nigdy nie pojawia się w banerze — będzie pokazywać tylko zatwierdzonych kupców, dopóki mają aktywną rejestrację, oraz ręcznie wprowadzone reklamy poniżej. Jeśli w danej chwili nie ma nic innego do pokazania, baner po prostu się nie pojawia.",
     "ca.noLanguagesSelected": "Wybierz co najmniej jeden język",
     "ca.languagesSection": "Języki",
     "ca.languagesFilterDesc": "Ta reklama będzie wyświetlana tylko w menu wybranych języków.",

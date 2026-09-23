@@ -1222,6 +1222,8 @@ export const es = {
     "ca.manualItemDurationHint": "Cuánto tiempo permanece este anuncio en pantalla antes de pasar al siguiente en el banner.",
     "ca.ownContentDuration": "Duración del contenido propio",
     "ca.ownContentDurationHint": "Cuánto tiempo permanece el contenido propio de este anuncio (título, descripción, logo) en pantalla antes de pasar al siguiente elemento del banner.",
+    "ca.hideOwnContent": "Ocultar contenido propio",
+    "ca.hideOwnContentHint": "Si está activado, el contenido propio de este anuncio (título, descripción, logo) nunca aparece en el banner — solo mostrará los comerciantes aprobados mientras tengan un registro activo, y los anuncios introducidos manualmente más abajo. Si en ese momento no hay nada más que mostrar, el banner simplemente no aparece.",
     "ca.noLanguagesSelected": "Seleccione al menos un idioma",
     "ca.languagesSection": "Idiomas",
     "ca.languagesFilterDesc": "Este anuncio solo se mostrará en el menú de los idiomas seleccionados.",

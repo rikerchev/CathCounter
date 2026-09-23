@@ -57,6 +57,18 @@ const DEFAULT_MANUAL_DURATION_SECONDS = 10;
 // then yanked away a moment later once it turns out to be ineligible. A
 // banner with manual items (or its own content) keeps showing those the
 // whole time regardless, since neither depends on that resolution.
+//
+// v3.56 — returns { items, hasCarouselConfig } instead of a bare array.
+// `hasCarouselConfig` (merchants and/or manual items actually attached to
+// this ad, regardless of current eligibility) lets the caller tell apart
+// two different reasons `items` can come back empty: an ORDINARY ad that
+// was never given any carousel config at all (should render its own plain
+// fields exactly as before this feature existed), versus an ad that DOES
+// have merchants/manual items configured but none are currently eligible
+// AND its own content is explicitly hidden (own_content_duration_seconds
+// === 0 — see the "hideOwnContent" toggle in CustomAds.jsx) — that one
+// must show nothing at all, not fall back to the branding it was
+// deliberately told to hide.
 function buildCarouselItems(ad, eligibleMerchantKeys) {
   let merchantList = [];
   try {
@@ -74,13 +86,20 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
     manualList = [];
   }
 
-  if (merchantList.length === 0 && manualList.length === 0) return [];
+  const hasCarouselConfig = merchantList.length > 0 || manualList.length > 0;
+  if (!hasCarouselConfig) return { items: [], hasCarouselConfig: false };
 
   const items = [];
 
   // v3.45 — the ad's own base content, always included (never overridden)
-  // once there's something else to rotate with.
-  if (ad?.title) {
+  // once there's something else to rotate with — UNLESS v3.56's
+  // own_content_duration_seconds === 0 says to hide it entirely. That's
+  // deliberately checked against exactly 0, not falsy/`<= 0` in general:
+  // null/undefined (an ad that never touched this setting) must still
+  // fall through to DEFAULT_MANUAL_DURATION_SECONDS just below, unchanged
+  // from pre-v3.56 behavior.
+  const hideOwnContent = Number(ad?.own_content_duration_seconds) === 0;
+  if (ad?.title && !hideOwnContent) {
     const ownSeconds =
       Number(ad.own_content_duration_seconds) > 0
         ? Number(ad.own_content_duration_seconds)
@@ -141,7 +160,7 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
     });
   });
 
-  return items;
+  return { items, hasCarouselConfig };
 }
 
 /**
@@ -185,8 +204,8 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
   // item with no link at all.
   const isOnline = useOnlineStatus();
 
-  const items = useMemo(
-    () => (ad ? buildCarouselItems(ad, eligibleMerchantKeys) : []),
+  const { items, hasCarouselConfig } = useMemo(
+    () => (ad ? buildCarouselItems(ad, eligibleMerchantKeys) : { items: [], hasCarouselConfig: false }),
     [
       ad?.id,
       ad?.title,
@@ -230,6 +249,17 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
   let displayLogoSize;
   let displayLink;
 
+  // v3.56 — an ad with carousel config that explicitly hides its own
+  // content (own_content_duration_seconds === 0 — see buildCarouselItems()
+  // above) must NOT fall back to its own plain title/description/logo just
+  // because nothing is currently eligible to show instead. Everything
+  // stays undefined here, and the v3.52 guard a few lines down (nothing to
+  // show → render null) correctly hides this ad entirely for as long as
+  // that's true, exactly like a merchant-only ad with no eligible merchant
+  // right now.
+  const hideOwnContent = Number(ad.own_content_duration_seconds) === 0;
+  const skipFallback = items.length === 0 && hasCarouselConfig && hideOwnContent;
+
   if (items.length > 0) {
     const activeItem = items[activeIndex] || items[0];
     displayTitle = activeItem.title;
@@ -237,7 +267,7 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
     displayLogoUrl = activeItem.logoUrl;
     displayLogoSize = activeItem.logoSize;
     displayLink = activeItem.link;
-  } else {
+  } else if (!skipFallback) {
     // Resolve translation keys for default/fallback ads
     const resolveText = (text) => (ad.is_translation_key && text ? t(text) : text);
     displayTitle = resolveText(ad.title);

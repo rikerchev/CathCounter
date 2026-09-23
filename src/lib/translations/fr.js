@@ -1222,6 +1222,8 @@ export const fr = {
     "ca.manualItemDurationHint": "Durée d'affichage de cette publicité avant de passer à la suivante dans la bannière.",
     "ca.ownContentDuration": "Durée du contenu propre",
     "ca.ownContentDurationHint": "Durée d'affichage du contenu propre de cette publicité (titre, description, logo) avant de passer à l'élément suivant de la bannière.",
+    "ca.hideOwnContent": "Masquer le contenu propre",
+    "ca.hideOwnContentHint": "Si activé, le contenu propre de cette publicité (titre, description, logo) n'apparaît jamais dans la bannière — elle n'affichera que les commerçants approuvés tant qu'ils ont une inscription active, ainsi que les publicités saisies manuellement ci-dessous. S'il n'y a rien d'autre à afficher pour le moment, la bannière n'apparaît tout simplement pas.",
     "ca.noLanguagesSelected": "Sélectionnez au moins une langue",
     "ca.languagesSection": "Langues",
     "ca.languagesFilterDesc": "Cette publicité ne s'affichera que dans le menu des langues sélectionnées.",

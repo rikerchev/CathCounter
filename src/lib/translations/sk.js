@@ -1222,6 +1222,8 @@ export const sk = {
     "ca.manualItemDurationHint": "Ako dlho táto reklama zostane na obrazovke, kým sa prepne na ďalšiu v banneri.",
     "ca.ownContentDuration": "Trvanie vlastného obsahu",
     "ca.ownContentDurationHint": "Ako dlho vlastný obsah tejto reklamy (názov, popis, logo) zostane na obrazovke, kým sa prepne na ďalší prvok v banneri.",
+    "ca.hideOwnContent": "Skryť vlastný obsah",
+    "ca.hideOwnContentHint": "Ak je zapnuté, vlastný obsah tejto reklamy (názov, popis, logo) sa v banneri nikdy nezobrazí — zobrazia sa iba schválení obchodníci, kým majú aktívnu registráciu, a nižšie ručne zadané reklamy. Ak momentálne nie je čo iné zobraziť, banner sa jednoducho nezobrazí.",
     "ca.noLanguagesSelected": "Vyberte aspoň jeden jazyk",
     "ca.languagesSection": "Jazyky",
     "ca.languagesFilterDesc": "Táto reklama sa zobrazí iba v ponuke vybraných jazykov.",

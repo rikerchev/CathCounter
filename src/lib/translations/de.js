@@ -1222,6 +1222,8 @@ export const de = {
     "ca.manualItemDurationHint": "Wie lange diese Anzeige auf dem Bildschirm bleibt, bevor zur nächsten im Banner gewechselt wird.",
     "ca.ownContentDuration": "Dauer des eigenen Inhalts",
     "ca.ownContentDurationHint": "Wie lange der eigene Inhalt dieser Anzeige (Titel, Beschreibung, Logo) auf dem Bildschirm bleibt, bevor zum nächsten Element im Banner gewechselt wird.",
+    "ca.hideOwnContent": "Eigenen Inhalt ausblenden",
+    "ca.hideOwnContentHint": "Wenn aktiviert, wird der eigene Inhalt dieser Anzeige (Titel, Beschreibung, Logo) niemals im Banner angezeigt — es werden nur genehmigte Händler angezeigt, solange sie eine aktive Registrierung haben, sowie die unten manuell eingegebenen Anzeigen. Gibt es gerade nichts anderes zu zeigen, erscheint der Banner einfach nicht.",
     "ca.noLanguagesSelected": "Wählen Sie mindestens eine Sprache aus",
     "ca.languagesSection": "Sprachen",
     "ca.languagesFilterDesc": "Diese Anzeige wird nur im Menü der ausgewählten Sprachen angezeigt.",

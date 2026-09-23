@@ -1222,6 +1222,8 @@ export const ro = {
     "ca.manualItemDurationHint": "Cât timp rămâne această reclamă pe ecran înainte de a trece la următoarea din banner.",
     "ca.ownContentDuration": "Durata conținutului propriu",
     "ca.ownContentDurationHint": "Cât timp rămâne conținutul propriu al reclamei (titlu, descriere, logo) pe ecran înainte de a trece la următorul element din banner.",
+    "ca.hideOwnContent": "Ascunde conținutul propriu",
+    "ca.hideOwnContentHint": "Când este activat, conținutul propriu al acestei reclame (titlu, descriere, logo) nu apare niciodată în banner — vor fi afișați doar comercianții aprobați atât timp cât au o înregistrare activă, și reclamele introduse manual mai jos. Dacă în acel moment nu mai este nimic altceva de afișat, bannerul pur și simplu nu apare.",
     "ca.noLanguagesSelected": "Selectați cel puțin o limbă",
     "ca.languagesSection": "Limbi",
     "ca.languagesFilterDesc": "Această reclamă va apărea doar în meniul limbilor selectate.",

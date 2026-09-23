@@ -221,6 +221,9 @@ export default function CustomAdsManager() {
   // в банера" add-dropdown (admin only — merchant assignment is an
   // admin-only action).
   const [approvedMerchants, setApprovedMerchants] = useState([]);
+  // v3.56 — which attached-merchant row (by index) is currently being
+  // re-fetched from the server via refreshMerchant() below.
+  const [refreshingMerchantIndex, setRefreshingMerchantIndex] = useState(null);
   // v3.44 — which manual_items row (by index) currently has a logo upload
   // in flight, if any — each row needs its own busy indicator, unlike the
   // single `uploadingLogo` flag below (which only ever covers the ad's own
@@ -243,6 +246,15 @@ export default function CustomAdsManager() {
   // custom_ads sharing one placement+position.
   const [ownContentDurationValue, setOwnContentDurationValue] = useState("10");
   const [ownContentDurationUnit, setOwnContentDurationUnit] = useState("seconds");
+  // v3.56 — "never show this ad's own content, only currently-eligible
+  // merchants/manual items" — own_content_duration_seconds = 0 exactly (not
+  // just "small"). rotationUiToSeconds() (adCache.js) clamps to a minimum
+  // of 1 by design (a manual item or cross-row rotation_seconds of 0 would
+  // never show or divide-by-zero the rotation math), so 0 can only ever
+  // reach the saved payload through this separate checkbox, never through
+  // the number input below. See buildCarouselItems()/AdBannerItem.jsx for
+  // how 0 is then treated as "skip entirely", not "use the default".
+  const [hideOwnContent, setHideOwnContent] = useState(false);
 
   useEffect(() => {
     loadAds();
@@ -340,6 +352,7 @@ export default function CustomAdsManager() {
     const ownDurationUi = rotationSecondsToUi(ad.own_content_duration_seconds);
     setOwnContentDurationValue(ownDurationUi.value);
     setOwnContentDurationUnit(ownDurationUi.unit);
+    setHideOwnContent(Number(ad.own_content_duration_seconds) === 0);
     setForm({
       title: ad.title || "",
       description: ad.description || "",
@@ -401,6 +414,7 @@ export default function CustomAdsManager() {
     setRotationDisplayUnit("seconds");
     setOwnContentDurationValue("10");
     setOwnContentDurationUnit("seconds");
+    setHideOwnContent(false);
   }
 
   // v3.45 — plain add/remove toggle for the simple language filter (no
@@ -456,22 +470,50 @@ export default function CustomAdsManager() {
   // v3.45 — a merchant's attached snapshot is frozen at attach time (see
   // snapshotMerchant() above and the `merchants` column comment in
   // entities.generated.ts) — it does NOT automatically pick up a link/
-  // description/logo the merchant adds or edits afterwards. This re-pulls
-  // that one merchant's CURRENT data from approvedMerchants and overwrites
-  // just this entry's snapshot in place (position unchanged), so an admin
-  // never has to remove-and-re-add a merchant just because it was attached
-  // before the merchant filled in its site.
-  function refreshMerchant(index) {
-    setForm((prev) => {
-      const entry = (prev.merchants || [])[index];
-      if (!entry) return prev;
-      const merchant = approvedMerchants.find((m) => m._type === entry.type && m.id === entry.id);
-      if (!merchant) return prev;
-      const arr = [...prev.merchants];
-      arr[index] = snapshotMerchant(entry.type, merchant);
-      return { ...prev, merchants: arr };
-    });
-    toast({ title: t("ca.merchantRefreshed") });
+  // description/logo the merchant adds or edits afterwards.
+  //
+  // v3.56 fix — this used to look the merchant up in `approvedMerchants`,
+  // which is fetched ONCE when the page/component mounts (see the
+  // useEffect above). If the merchant's own record was edited (e.g. its
+  // logo_size) AFTER this page was already open — a perfectly normal
+  // scenario, since an admin often keeps this tab open in the background —
+  // "Опресни" was silently reapplying that same stale in-memory copy: it
+  // looked like nothing happened because, from this component's point of
+  // view, nothing HAD changed. Now it fetches that one merchant's row
+  // directly from the server (the same GET /api/entities/:name/:id every
+  // entity read goes through) at the moment of the click, so it always
+  // reflects whatever is actually saved right now.
+  const ENTITY_BY_MERCHANT_TYPE = { water_body: "WaterBody", venue: "Venue" };
+  async function refreshMerchant(index) {
+    const entry = (form.merchants || [])[index];
+    if (!entry) return;
+    const entityName = ENTITY_BY_MERCHANT_TYPE[entry.type];
+    if (!entityName) return;
+    setRefreshingMerchantIndex(index);
+    try {
+      const merchant = await base44.entities[entityName].get(entry.id);
+      if (!merchant) {
+        toast({ title: t("common.couldNotLoad"), variant: "destructive" });
+        return;
+      }
+      setForm((prev) => {
+        const arr = [...(prev.merchants || [])];
+        if (!arr[index]) return prev;
+        arr[index] = snapshotMerchant(entry.type, merchant);
+        return { ...prev, merchants: arr };
+      });
+      // Keep the mount-time cache in sync too, so the "add merchant"
+      // dropdown and any other refresh in this session also see the
+      // fresh data instead of racing back to the old snapshot.
+      setApprovedMerchants((prev) =>
+        prev.map((m) => (m._type === entry.type && m.id === entry.id ? { ...merchant, _type: entry.type } : m))
+      );
+      toast({ title: t("ca.merchantRefreshed") });
+    } catch (e) {
+      toast({ title: t("common.couldNotLoad"), description: e.message, variant: "destructive" });
+    } finally {
+      setRefreshingMerchantIndex(null);
+    }
   }
 
   function moveMerchant(index, dir) {
@@ -619,8 +661,16 @@ export default function CustomAdsManager() {
         // only saved — once there's actually something else to rotate
         // with; otherwise the own content just renders statically and this
         // stays null.
+        // v3.56 — hideOwnContent forces exactly 0, bypassing
+        // rotationUiToSeconds() (which clamps to a minimum of 1 and could
+        // never produce 0 on its own). AdBannerItem.jsx treats 0 as
+        // "never show the ad's own content — cycle only through eligible
+        // merchants/manual items", distinct from null/unset (own content
+        // shown normally) and from a positive value (shown for that long).
         own_content_duration_seconds: hasCarousel
-          ? rotationUiToSeconds(ownContentDurationValue, ownContentDurationUnit)
+          ? hideOwnContent
+            ? 0
+            : rotationUiToSeconds(ownContentDurationValue, ownContentDurationUnit)
           : null,
       };
       if (periodChanged) {
@@ -836,27 +886,49 @@ export default function CustomAdsManager() {
                 merchants' flat 10s turn and of each manual item's own
                 duration below. */}
             {hasCarousel && (
-              <div>
-                <Label>{t("ca.ownContentDuration")}</Label>
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-                  <Input
-                    type="number"
-                    min="1"
-                    value={ownContentDurationValue}
-                    onChange={(e) => setOwnContentDurationValue(e.target.value)}
-                    className="min-h-[44px]"
+              <div className="space-y-2">
+                {/* v3.56 — lets this ad's own branding be hidden from the
+                    carousel entirely, leaving only currently-eligible
+                    merchants/manual items to cycle through. Saved as
+                    own_content_duration_seconds = 0 (see save payload
+                    above and buildCarouselItems() in AdBannerItem.jsx),
+                    which is otherwise unreachable through the number
+                    input below (rotationUiToSeconds() always clamps to
+                    a minimum of 1). */}
+                <div className="flex items-center gap-2">
+                  <EyeOff className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                  <Label className="mb-0">{t("ca.hideOwnContent")}</Label>
+                  <Switch
+                    checked={hideOwnContent}
+                    onCheckedChange={setHideOwnContent}
+                    className="ml-auto"
                   />
-                  <Select value={ownContentDurationUnit} onValueChange={setOwnContentDurationUnit}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ROTATION_DISPLAY_UNITS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
-                <p className="text-xs text-slate-400">{t("ca.ownContentDurationHint")}</p>
+                <p className="text-xs text-slate-400">{t("ca.hideOwnContentHint")}</p>
+                {!hideOwnContent && (
+                  <div>
+                    <Label>{t("ca.ownContentDuration")}</Label>
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                      <Input
+                        type="number"
+                        min="1"
+                        value={ownContentDurationValue}
+                        onChange={(e) => setOwnContentDurationValue(e.target.value)}
+                        className="min-h-[44px]"
+                      />
+                      <Select value={ownContentDurationUnit} onValueChange={setOwnContentDurationUnit}>
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ROTATION_DISPLAY_UNITS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-slate-400">{t("ca.ownContentDurationHint")}</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -915,10 +987,15 @@ export default function CustomAdsManager() {
                           <button
                             type="button"
                             onClick={() => refreshMerchant(idx)}
-                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent"
+                            disabled={refreshingMerchantIndex === idx}
+                            className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent disabled:opacity-50"
                             title={t("ca.refreshMerchant")}
                           >
-                            <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                            {refreshingMerchantIndex === idx ? (
+                              <Loader2 className="w-3.5 h-3.5 text-slate-500 animate-spin" />
+                            ) : (
+                              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                            )}
                           </button>
                           <button
                             type="button"

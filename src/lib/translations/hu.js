@@ -1222,6 +1222,8 @@ export const hu = {
     "ca.manualItemDurationHint": "Meddig marad ez a hirdetés a képernyőn, mielőtt a következőre vált a bannerben.",
     "ca.ownContentDuration": "Saját tartalom időtartama",
     "ca.ownContentDurationHint": "Meddig marad a hirdetés saját tartalma (cím, leírás, logó) a képernyőn, mielőtt a banner következő elemére vált.",
+    "ca.hideOwnContent": "Saját tartalom elrejtése",
+    "ca.hideOwnContentHint": "Ha be van kapcsolva, a hirdetés saját tartalma (cím, leírás, logó) soha nem jelenik meg a bannerben — csak a jóváhagyott kereskedőket mutatja, amíg aktív regisztrációjuk van, valamint az alább manuálisan megadott hirdetéseket. Ha éppen nincs más megjeleníthető tartalom, a banner egyszerűen nem jelenik meg.",
     "ca.noLanguagesSelected": "Válasszon legalább egy nyelvet",
     "ca.languagesSection": "Nyelvek",
     "ca.languagesFilterDesc": "Ez a hirdetés csak a kiválasztott nyelvek menüjében jelenik meg.",

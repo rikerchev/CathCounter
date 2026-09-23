@@ -1222,6 +1222,8 @@ export const nl = {
     "ca.manualItemDurationHint": "Hoe lang deze advertentie op het scherm blijft voordat wordt overgeschakeld naar de volgende in de banner.",
     "ca.ownContentDuration": "Duur van eigen inhoud",
     "ca.ownContentDurationHint": "Hoe lang de eigen inhoud van deze advertentie (titel, beschrijving, logo) op het scherm blijft voordat wordt overgeschakeld naar het volgende item in de banner.",
+    "ca.hideOwnContent": "Eigen inhoud verbergen",
+    "ca.hideOwnContentHint": "Indien ingeschakeld, verschijnt de eigen inhoud van deze advertentie (titel, beschrijving, logo) nooit in de banner — er worden alleen goedgekeurde handelaars getoond zolang ze een actieve registratie hebben, en de hieronder handmatig ingevoerde advertenties. Als er op dat moment niets anders te tonen is, verschijnt de banner gewoon niet.",
     "ca.noLanguagesSelected": "Selecteer minstens één taal",
     "ca.languagesSection": "Talen",
     "ca.languagesFilterDesc": "Deze advertentie wordt alleen getoond in het menu van de geselecteerde talen.",

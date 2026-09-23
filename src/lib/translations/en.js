@@ -1279,6 +1279,8 @@ export const en = {
     "ca.manualItemDurationHint": "How long this ad stays on screen before switching to the next one in the banner.",
     "ca.ownContentDuration": "Own content duration",
     "ca.ownContentDurationHint": "How long this ad's own content (title, description, logo) stays on screen before switching to the next item in the banner.",
+    "ca.hideOwnContent": "Hide own content",
+    "ca.hideOwnContentHint": "When on, this ad's own content (title, description, logo) never appears in the banner — it will only show approved merchants while they have an active registration, and the manually entered ads below. If there's currently nothing else to show, the banner simply doesn't appear.",
     "ca.noLanguagesSelected": "Select at least one language",
     "ca.languagesSection": "Languages",
     "ca.languagesFilterDesc": "This ad will only show in the menu for the selected languages.",
