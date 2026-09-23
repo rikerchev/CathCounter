@@ -272,6 +272,27 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
     displayLink = ad.link || "/advertise";
   }
 
+  // v3.52 — an ad with genuinely nothing to show right now must be SKIPPED
+  // entirely (render null), never shown as an empty, blank-colored bar
+  // sitting in the stack. This is what actually happens to a merchant-only
+  // ad (no title of its own, no manual_items) the moment every attached
+  // merchant is currently ineligible (buildCarouselItems() above already
+  // correctly excludes each ineligible merchant from `items` one at a
+  // time — that part was never the problem): with zero items left AND no
+  // own title to fall back on, this component used to fall through to the
+  // plain-fields branch above with an empty title/description/logo too,
+  // and still render its full wrapper <div> — an empty bar taking up a
+  // slot in the banner. AdBanner.jsx/BottomAdBanner.jsx stack EVERY ad in
+  // a zone by mapping over the whole list (`top.ads.map(...)` /
+  // `bottom.ads.map(...)`), so that one ad sitting empty never actually
+  // stopped any OTHER ad in the same stack from rendering normally — but
+  // it looked exactly like a stuck/frozen banner slot to a visitor. Now it
+  // simply isn't rendered at all, the same as if it were never in the
+  // stack to begin with; the other ads (and, once this one's merchant
+  // earns a fresh QR referral, its own content the very next time
+  // eligibility re-resolves) are completely unaffected either way.
+  if (!displayTitle && !displayDescription && !displayLogoUrl) return null;
+
   // v3.45 — a merchant carousel item with neither its own ad_link nor a
   // website on file (see buildCarouselItems() above) sets displayLink to
   // null rather than guessing at a destination. That turn is rendered as
