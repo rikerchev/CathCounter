@@ -27,7 +27,7 @@ function formatDateTime(d, lang) {
  * it's opened — this is a small, occasionally-viewed admin/owner list, not
  * something that needs caching or offline support like the ad banners do.
  */
-export default function MerchantRegistrationsDialog({ merchantType, merchantId, merchantName, open, onOpenChange }) {
+export default function MerchantRegistrationsDialog({ merchantType, merchantId, merchantName, open, onOpenChange, onLoaded }) {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,19 @@ export default function MerchantRegistrationsDialog({ merchantType, merchantId, 
     setLoading(true);
     base44.merchantReferrals
       .registrations(merchantType, merchantId)
-      .then((data) => setRegistrations(data?.registrations || []))
+      .then((data) => {
+        const list = data?.registrations || [];
+        setRegistrations(list);
+        // v3.53 — the "Регистрации (N)" count badge on the button that
+        // opened this dialog (see TraderVenues.jsx/WaterBodyManagement.jsx)
+        // is seeded once from a batch /counts call on page load, but that
+        // can go stale the moment a new registration lands while the admin
+        // already has the page open. Reporting the actually-fetched count
+        // back up here — for free, from a request already being made to
+        // fill this exact dialog — keeps the badge correct without a
+        // second network call.
+        if (typeof onLoaded === "function") onLoaded(list.length);
+      })
       .catch((e) => {
         toast({ title: t("mr.registrationsError"), description: e.message, variant: "destructive" });
         setRegistrations([]);

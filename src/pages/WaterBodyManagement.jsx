@@ -407,6 +407,11 @@ export default function WaterBodyManagement() {
   const [brochureTarget, setBrochureTarget] = useState(null);
   // v3.51 — the water body whose QR/brochure registrations list is open.
   const [registrationsTarget, setRegistrationsTarget] = useState(null);
+  // v3.53 — { [waterBodyId]: count } for the "Регистрации (N)" badge on
+  // each card's button. See the same feature/naming in TraderVenues.jsx —
+  // named merchantRegCounts here (not `registrations`) because that name
+  // is already taken by the competition-registrations list above.
+  const [merchantRegCounts, setMerchantRegCounts] = useState({});
   // v3.25 — same BrochureContactDialog reuse, this time in front of the
   // "Списък участници" / "Изтегли жребий (снимка)" image exports (both
   // embed the water body's real brochure at the bottom — see
@@ -483,6 +488,26 @@ export default function WaterBodyManagement() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // v3.53 — one batch call for every visible water body's registration
+  // count, instead of one /stats round trip per row. See the identical
+  // pattern (and the server/API comment it points to) in TraderVenues.jsx.
+  // Best-effort: a failure here must never block the water bodies list
+  // itself from rendering — the buttons just show without a count.
+  useEffect(() => {
+    if (waterBodies.length === 0) return;
+    base44.merchantReferrals
+      .counts(waterBodies.map((w) => ({ type: "water_body", id: w.id })))
+      .then((data) => {
+        const byId = {};
+        for (const [key, count] of Object.entries(data || {})) {
+          const i = key.indexOf(":");
+          byId[key.slice(i + 1)] = count;
+        }
+        setMerchantRegCounts(byId);
+      })
+      .catch(() => {});
+  }, [waterBodies]);
 
   function openCompForm(wb) {
     setCompFor(wb);
@@ -1570,7 +1595,11 @@ export default function WaterBodyManagement() {
                     {t("tv.downloadBrochure")}
                   </Button>
                   <Button onClick={() => setRegistrationsTarget(wb)} size="sm" variant="outline" className="min-h-[40px]">
-                    <Users className="w-4 h-4 mr-1" /> {t("mr.registrations")}
+                    <Users className="w-4 h-4 mr-1" />
+                    {t("mr.registrations")}
+                    {Number.isFinite(merchantRegCounts[wb.id]) && (
+                      <span className="ml-1 text-slate-400">({merchantRegCounts[wb.id]})</span>
+                    )}
                   </Button>
                 </div>
                 {/* v2.94 — admin-only "assign an owner" control, e.g. for a
@@ -1826,6 +1855,11 @@ export default function WaterBodyManagement() {
         merchantName={registrationsTarget?.name}
         open={!!registrationsTarget}
         onOpenChange={(open) => { if (!open) setRegistrationsTarget(null); }}
+        onLoaded={(count) => {
+          if (registrationsTarget) {
+            setMerchantRegCounts((prev) => ({ ...prev, [registrationsTarget.id]: count }));
+          }
+        }}
       />
 
       <Dialog open={showCompForm} onOpenChange={(o) => { setShowCompForm(o); if (!o) setCompEditing(null); }}>

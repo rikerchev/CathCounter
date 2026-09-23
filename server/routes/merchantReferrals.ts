@@ -73,6 +73,17 @@ const ELIGIBILITY_WINDOW_DAYS = 3;
  *   count/list isn't public, only the binary "eligible right now" used by
  *   the live banner (see active-merchants below).
  *
+ * POST /api/merchant-referrals/counts { items: [{type,id}, ...] }   (authenticated)
+ *   -> { "type:id": count, ... }
+ *   v3.53 — one round trip for the "Регистрации (N)" count badge on the
+ *   button in TraderVenues.jsx/WaterBodyManagement.jsx's list (rather than
+ *   one /stats call per row — this is exactly the same per-key loop
+ *   active-merchants below already uses, just authenticated and
+ *   owner-scoped instead of public). Same owner-or-admin rule as /stats —
+ *   an item the caller doesn't own (and isn't admin for) is silently
+ *   left out of the result rather than erroring the whole batch, so one
+ *   stray/foreign id never breaks every other row's count.
+ *
  * POST /api/merchant-referrals/active-merchants { ads: [{id, merchants: [{type,id},...]}] }
  *   (public, no auth needed) -> { [adId]: ["type:id", ...] }
  *   v3.44 — for each ad with 1+ attached merchants (see custom_ads.merchants,
@@ -190,6 +201,38 @@ export async function handleMerchantReferralsRoute(
       ORDER BY mr.created_at ASC
     `;
     return json({ registrations: rows });
+  }
+
+  if (action === "counts" && req.method === "POST") {
+    if (!user) return json({ error: "Not authenticated" }, 401);
+
+    const body = await req.json().catch(() => ({}));
+    const itemsIn: Array<{ type?: string; id?: string }> = Array.isArray(body?.items) ? body.items : [];
+
+    const keys = new Set<string>();
+    for (const it of itemsIn) {
+      if (it?.type && it?.id && MERCHANT_TABLES[it.type]) keys.add(`${it.type}:${it.id}`);
+    }
+
+    const admin = isAdmin(user);
+    const result: Record<string, number> = {};
+    for (const key of keys) {
+      const i = key.indexOf(":");
+      const type = key.slice(0, i);
+      const id = key.slice(i + 1);
+      const table = MERCHANT_TABLES[type];
+
+      if (!admin) {
+        const owned = await sql`SELECT id FROM ${sql(table)} WHERE id = ${id} AND created_by_id = ${user.id}`;
+        if (!owned.length) continue; // not this caller's — left out, not an error (see doc comment above)
+      }
+
+      const rows = await sql<{ n: number }[]>`
+        SELECT COUNT(*)::int AS n FROM merchant_referrals WHERE merchant_type = ${type} AND merchant_id = ${id}
+      `;
+      result[key] = rows[0]?.n ?? 0;
+    }
+    return json(result);
   }
 
   if (action === "active-merchants" && req.method === "POST") {

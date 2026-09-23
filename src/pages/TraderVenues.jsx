@@ -76,6 +76,12 @@ export default function TraderVenues() {
   const [brochureTarget, setBrochureTarget] = useState(null);
   // v3.51 — the venue whose QR/brochure registrations list is open.
   const [registrationsTarget, setRegistrationsTarget] = useState(null);
+  // v3.53 — { [venueId]: count } for the "Регистрации (N)" badge on each
+  // card's button (see the batch fetch effect below and
+  // MerchantRegistrationsDialog's onLoaded prop). Missing an entry just
+  // means "not resolved yet" — the button then shows the plain label with
+  // no count, same as before this feature existed.
+  const [registrationCounts, setRegistrationCounts] = useState({});
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -92,6 +98,26 @@ export default function TraderVenues() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // v3.53 — one batch call for every visible venue's registration count,
+  // instead of one /stats round trip per row (see base44.merchantReferrals
+  // .counts and server/routes/merchantReferrals.ts's own comment on that
+  // route). Best-effort: a failure here must never block the venues list
+  // itself from rendering — the buttons just show without a count.
+  useEffect(() => {
+    if (venues.length === 0) return;
+    base44.merchantReferrals
+      .counts(venues.map((v) => ({ type: "venue", id: v.id })))
+      .then((data) => {
+        const byId = {};
+        for (const [key, count] of Object.entries(data || {})) {
+          const i = key.indexOf(":");
+          byId[key.slice(i + 1)] = count;
+        }
+        setRegistrationCounts(byId);
+      })
+      .catch(() => {});
+  }, [venues]);
 
   function openEditForm(v) {
     setEditingVenue(v);
@@ -246,7 +272,11 @@ export default function TraderVenues() {
                     {t("tv.downloadBrochure")}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setRegistrationsTarget(v)} className="min-h-[40px]">
-                    <Users className="w-4 h-4 mr-1" /> {t("mr.registrations")}
+                    <Users className="w-4 h-4 mr-1" />
+                    {t("mr.registrations")}
+                    {Number.isFinite(registrationCounts[v.id]) && (
+                      <span className="ml-1 text-slate-400">({registrationCounts[v.id]})</span>
+                    )}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => openEditForm(v)} className="min-h-[40px]">
                     <Pencil className="w-4 h-4" />
@@ -403,6 +433,11 @@ export default function TraderVenues() {
         merchantName={registrationsTarget?.name}
         open={!!registrationsTarget}
         onOpenChange={(open) => { if (!open) setRegistrationsTarget(null); }}
+        onLoaded={(count) => {
+          if (registrationsTarget) {
+            setRegistrationCounts((prev) => ({ ...prev, [registrationsTarget.id]: count }));
+          }
+        }}
       />
     </div>
   );

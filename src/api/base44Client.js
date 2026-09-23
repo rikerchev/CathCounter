@@ -315,6 +315,12 @@ export const base44 = {
     // merchant's own QR/brochure code, oldest first. See
     // server/routes/merchantReferrals.ts's own comment on this route.
     registrations: (type, id) => apiFetch(`/api/merchant-referrals/registrations?type=${type}&id=${id}`),
+    // v3.53 — one round trip for the "Регистрации (N)" count badge shown on
+    // the button itself in TraderVenues.jsx/WaterBodyManagement.jsx's list.
+    // `items` is [{type, id}, ...]; response is { "type:id": count, ... },
+    // missing an entry for anything the caller isn't allowed to see (see
+    // server/routes/merchantReferrals.ts's own comment on this route).
+    counts: (items) => apiFetch("/api/merchant-referrals/counts", { method: "POST", body: { items } }),
     // v3.44 — batch-resolves, for each given ad (1+ attached merchants),
     // which of its merchants are currently ELIGIBLE for the live banner
     // carousel (see AdBannerItem.jsx) — a plain array of "type:id" keys per
