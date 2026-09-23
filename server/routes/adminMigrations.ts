@@ -393,6 +393,14 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS website TEXT`);
     },
   },
+  "v3.55-water-body-logo-size": {
+    label: "v3.55 — Водоеми: размер на логото",
+    run: async () => {
+      await sql.unsafe(
+        `ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'))`
+      );
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -611,6 +619,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'water_bodies' AND column_name = 'website'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.55-water-body-logo-size") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'water_bodies' AND column_name = 'logo_size'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

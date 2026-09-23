@@ -640,6 +640,15 @@ export const ENTITIES: Record<string, EntityDef> = {
       // (Competitions.jsx, SectorReservations.jsx, WaterBodies.jsx). See
       // WaterBodyEditDialog.jsx.
       { name: "working_hours", type: "string", required: false },
+      // v3.55 — same logo-size options the Venue entity's own logo_size
+      // already offers (see its comment above): a water body's logo can
+      // also end up snapshotted into an ad banner (CustomAds.jsx's
+      // snapshotMerchant() reads `merchant.logo_size` generically off
+      // whatever merchant object is passed — venue or water body, no
+      // per-type branching there), and without this column it always fell
+      // back to "auto", which for a large source image forces the WHOLE
+      // banner row to grow tall to fit it. See WaterBodyEditDialog.jsx.
+      { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
       // v3.06 — the last-used {name, boxes} sector/box layout for this water
       // body (same JSON model as SectorAvailability.sectors_config — see
       // src/lib/sectorLabels.js/competitionSectors.js), so opening a NEW

@@ -6,22 +6,41 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Navigation, Upload, X, Image as ImageIcon } from "lucide-react";
 import { COUNTRY_GROUPS } from "@/lib/countries";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
 
+// v3.55 — same logo-size options TraderVenues.jsx already offers for a
+// commercial venue's own logo (see its own LOGO_SIZE_KEYS comment for the
+// full reasoning): meaningful here for exactly the same reason — a water
+// body's logo can also end up snapshotted into an ad banner
+// (CustomAds.jsx's "Търговци в банера"), and without a size to constrain
+// it, a large source image forced the whole banner row to grow tall to fit
+// it (AdBannerItem.jsx's "auto" size class is otherwise unconstrained up to
+// max-h-24/max-w-full). Has no effect on the small, fixed-size logo
+// thumbnails this dialog/WaterBodyManagement.jsx already show in their own
+// lists — those stay a plain fixed size regardless.
+const LOGO_SIZE_KEYS = [
+  { value: "16x16", label: "16×16" },
+  { value: "32x16", label: "32×16" },
+  { value: "48x16", label: "48×16" },
+  { value: "auto", labelKey: "adv.sizeAuto" },
+];
+
 const EMPTY = {
   name: "", owner_name: "", contact_phone: "", contact_email: "", website: "",
   location: "", country: "", latitude: "", longitude: "", usage_conditions: "",
-  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", region: "",
+  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", logo_size: "auto", region: "",
   working_hours: "",
 };
 
 export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved }) {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
+  const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -51,6 +70,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: wb.capacity || "",
         fee_per_person: wb.fee_per_person != null ? String(wb.fee_per_person) : "",
         logo_url: wb.logo_url || "",
+        logo_size: wb.logo_size || "auto",
         working_hours: wb.working_hours || "",
       });
     }
@@ -108,6 +128,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         capacity: form.capacity,
         fee_per_person: form.fee_per_person ? Number(form.fee_per_person) : 0,
         logo_url: form.logo_url || null,
+        logo_size: form.logo_size || "auto",
         working_hours: form.working_hours || null,
       });
     } finally {
@@ -261,6 +282,19 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
                 </button>
               )}
             </div>
+          </div>
+          {/* v3.55 — same logo-size picker TraderVenues.jsx offers for a
+              commercial venue's own logo; see the LOGO_SIZE_KEYS comment above. */}
+          <div className="space-y-1.5">
+            <Label>{t("adv.logoSize")}</Label>
+            <Select value={form.logo_size} onValueChange={(v) => set("logo_size", v)}>
+              <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {LOGO_SIZES.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <Label>{t("common.workingHours")}</Label>

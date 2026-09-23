@@ -908,3 +908,14 @@ ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS languages TEXT;
 -- covered by photoGc.ts's REFERENCE_CHECKS as a safety net, so only the new
 -- column is needed here. See WaterBodyEditDialog.jsx. Safe to re-run.
 ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS website TEXT;
+
+-- v3.55: same logo_size enum venues.logo_size already got in v3.26 (see
+-- that migration's own comment above) — water_bodies never had it, so a
+-- water body's logo, once snapshotted into an ad banner (CustomAds.jsx's
+-- snapshotMerchant(), keyed generically off whatever merchant object is
+-- passed — no code change needed there for this to take effect), always
+-- fell back to "auto" (AdBannerItem.jsx's LOGO_SIZE_CLASSES: unconstrained
+-- up to max-h-24/max-w-full), which for a large source image forced the
+-- WHOLE banner row to grow tall to fit it. See WaterBodyEditDialog.jsx for
+-- the new size picker. Safe to re-run.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'));
