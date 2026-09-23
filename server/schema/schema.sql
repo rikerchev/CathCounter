@@ -873,3 +873,29 @@ ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS adsense_ad_layout_key TEXT;
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS manual_items TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_description TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_link TEXT;
+
+-- v3.45: own-content-in-carousel + plain language filters
+--
+-- custom_ads.own_content_duration_seconds: an attached merchant (v3.26) or
+-- manual item (v3.44) no longer REPLACES this ad's own base content
+-- (title/description/link/logo) — instead, whenever this ad has 1+
+-- merchants and/or manual items, its own content becomes just one more item
+-- in the SAME live carousel (src/components/AdBannerItem.jsx's
+-- buildCarouselItems()), shown for this many seconds each time its turn
+-- comes up. Deliberately a brand-new, separate field — NOT a reuse of
+-- rotation_seconds above, which stays exactly what it always was (the
+-- unrelated cross-ROW rotation between different custom_ads sharing one
+-- placement+position, applyCustomAdRotation()). NULL/0 = falls back to the
+-- app's default own-content turn length (10s, see AdBannerItem.jsx).
+--
+-- ad_slots.languages: "all" (default) or a comma-separated list of language
+-- codes — same shape/semantics as the existing custom_ads.languages column
+-- — deciding which menu languages this slot is even eligible to appear in.
+-- Checked in AdManagement.jsx's slot form BEFORE placement, and enforced by
+-- src/lib/adCache.js's findSlotForPosition()/resolveZone() (threaded lang
+-- through from src/hooks/useEligibleAds.js). NULL/'all' = unchanged
+-- behaviour (eligible for every language, as before this column existed).
+--
+-- Safe to re-run.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS own_content_duration_seconds INTEGER;
+ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS languages TEXT;

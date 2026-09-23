@@ -1202,6 +1202,12 @@ export const tr = {
     "ca.manualItemsHint": "Bu reklamlar bannerda her zaman yukarıdaki onaylı satıcılarla birlikte dönüşümlü olarak gösterilir — ve hiçbirinin şu anda QR kodu üzerinden kaydı olmadığında gösterilen tek şeydir.",
     "ca.manualItemLabel": "Reklam",
     "ca.manualItemDurationHint": "Bu reklamın, bannerdaki bir sonrakine geçmeden önce ekranda ne kadar süre kalacağı.",
+    "ca.ownContentDuration": "Kendi içeriğin süresi",
+    "ca.ownContentDurationHint": "Bu reklamın kendi içeriğinin (başlık, açıklama, logo), bannerdaki bir sonraki öğeye geçmeden önce ekranda ne kadar süre kalacağı.",
+    "ca.noLanguagesSelected": "En az bir dil seçin",
+    "ca.languagesSection": "Diller",
+    "ca.languagesFilterDesc": "Bu reklam yalnızca seçilen dillerin menüsünde gösterilecektir.",
+    "ca.adSenseAutoSwitched": "“{slot}” bannerı artık Google AdSense kullanmıyor — kendi reklamlarına geçirildi",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Tekrar hoş geldiniz",

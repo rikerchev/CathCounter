@@ -1202,6 +1202,12 @@ export const fr = {
     "ca.manualItemsHint": "Ces publicités tournent toujours dans la bannière avec les commerçants approuvés ci-dessus — et sont les seules affichées lorsqu'aucun d'eux n'a actuellement d'inscription via son code QR.",
     "ca.manualItemLabel": "Publicité",
     "ca.manualItemDurationHint": "Durée d'affichage de cette publicité avant de passer à la suivante dans la bannière.",
+    "ca.ownContentDuration": "Durée du contenu propre",
+    "ca.ownContentDurationHint": "Durée d'affichage du contenu propre de cette publicité (titre, description, logo) avant de passer à l'élément suivant de la bannière.",
+    "ca.noLanguagesSelected": "Sélectionnez au moins une langue",
+    "ca.languagesSection": "Langues",
+    "ca.languagesFilterDesc": "Cette publicité ne s'affichera que dans le menu des langues sélectionnées.",
+    "ca.adSenseAutoSwitched": "La bannière « {slot} » n'utilise plus Google AdSense — basculée sur les publicités personnalisées",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Content de vous revoir",

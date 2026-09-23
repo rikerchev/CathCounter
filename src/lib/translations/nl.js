@@ -1202,6 +1202,12 @@ export const nl = {
     "ca.manualItemsHint": "Deze advertenties roteren altijd in de banner samen met de hierboven goedgekeurde handelaars — en zijn het enige dat wordt getoond wanneer geen van hen momenteel een registratie via hun QR-code heeft.",
     "ca.manualItemLabel": "Advertentie",
     "ca.manualItemDurationHint": "Hoe lang deze advertentie op het scherm blijft voordat wordt overgeschakeld naar de volgende in de banner.",
+    "ca.ownContentDuration": "Duur van eigen inhoud",
+    "ca.ownContentDurationHint": "Hoe lang de eigen inhoud van deze advertentie (titel, beschrijving, logo) op het scherm blijft voordat wordt overgeschakeld naar het volgende item in de banner.",
+    "ca.noLanguagesSelected": "Selecteer minstens één taal",
+    "ca.languagesSection": "Talen",
+    "ca.languagesFilterDesc": "Deze advertentie wordt alleen getoond in het menu van de geselecteerde talen.",
+    "ca.adSenseAutoSwitched": "De banner “{slot}” gebruikt Google AdSense niet meer — overgeschakeld naar eigen advertenties",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Welkom terug",

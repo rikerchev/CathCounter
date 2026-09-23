@@ -56,6 +56,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       // standard "Display ad" unit's code has neither, so this stays null
       // and AdSenseSlot.jsx falls back to its original rendering).
       { name: "adsense_ad_layout_key", type: "string", required: false },
+      // v3.45 — "all" (default) or a comma-separated list of language
+      // codes: which menu languages this slot is even eligible to appear
+      // in, mirroring custom_ads.languages below. Checked BEFORE placement
+      // in AdManagement.jsx's slot form, and threaded through
+      // findSlotForPosition()/resolveZone() in src/lib/adCache.js.
+      { name: "languages", type: "string", required: false },
     ],
     rules: {
       read: { kind: "public" },
@@ -333,6 +339,14 @@ export const ENTITIES: Record<string, EntityDef> = {
       // — this one rotates between DIFFERENT custom_ads rows. See
       // src/lib/adCache.js's applyCustomAdRotation().
       { name: "rotation_seconds", type: "integer", required: false },
+      // v3.45 — how long THIS ad's own base content (title/description/
+      // link/logo above) stays on screen each time its turn comes up in
+      // the SAME banner's internal live carousel with its merchants/
+      // manual_items — a brand-new, separate field, deliberately not
+      // reusing rotation_seconds above (that one rotates entire, separate
+      // custom_ads ROWS against each other; this one rotates WITHIN one
+      // row). NULL/0 = the app-wide default (see AdBannerItem.jsx).
+      { name: "own_content_duration_seconds", type: "integer", required: false },
       { name: "bg_class", type: "string", required: false },
       { name: "text_class", type: "string", required: false },
       { name: "is_active", type: "boolean", required: false },

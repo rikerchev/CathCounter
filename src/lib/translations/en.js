@@ -1259,6 +1259,12 @@ export const en = {
     "ca.manualItemsHint": "These ads always rotate in the banner together with the approved merchants above — and are the only thing shown when none of them currently has a QR-code registration.",
     "ca.manualItemLabel": "Ad",
     "ca.manualItemDurationHint": "How long this ad stays on screen before switching to the next one in the banner.",
+    "ca.ownContentDuration": "Own content duration",
+    "ca.ownContentDurationHint": "How long this ad's own content (title, description, logo) stays on screen before switching to the next item in the banner.",
+    "ca.noLanguagesSelected": "Select at least one language",
+    "ca.languagesSection": "Languages",
+    "ca.languagesFilterDesc": "This ad will only show in the menu for the selected languages.",
+    "ca.adSenseAutoSwitched": "The “{slot}” banner no longer uses Google AdSense — switched to custom ads",
 
     // v3.30 — per-banner ad source selection (Google AdSense / own ads /
     // partner-merchant ads), weighted merchant rotation by QR-code

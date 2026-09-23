@@ -1202,6 +1202,12 @@ export const de = {
     "ca.manualItemsHint": "Diese Anzeigen rotieren im Banner immer zusammen mit den oben genehmigten Händlern — und werden allein angezeigt, wenn gerade keiner von ihnen eine Registrierung über seinen QR-Code hat.",
     "ca.manualItemLabel": "Anzeige",
     "ca.manualItemDurationHint": "Wie lange diese Anzeige auf dem Bildschirm bleibt, bevor zur nächsten im Banner gewechselt wird.",
+    "ca.ownContentDuration": "Dauer des eigenen Inhalts",
+    "ca.ownContentDurationHint": "Wie lange der eigene Inhalt dieser Anzeige (Titel, Beschreibung, Logo) auf dem Bildschirm bleibt, bevor zum nächsten Element im Banner gewechselt wird.",
+    "ca.noLanguagesSelected": "Wählen Sie mindestens eine Sprache aus",
+    "ca.languagesSection": "Sprachen",
+    "ca.languagesFilterDesc": "Diese Anzeige wird nur im Menü der ausgewählten Sprachen angezeigt.",
+    "ca.adSenseAutoSwitched": "Das Banner „{slot}“ verwendet Google AdSense nicht mehr — umgestellt auf eigene Anzeigen",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Willkommen zurück",

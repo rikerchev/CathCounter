@@ -380,6 +380,13 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS ad_link TEXT`);
     },
   },
+  "v3.45-own-content-duration-and-language-filters": {
+    label: "v3.45 — Собствено съдържание в ротацията + езикови филтри",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS own_content_duration_seconds INTEGER`);
+      await sql.unsafe(`ALTER TABLE ad_slots ADD COLUMN IF NOT EXISTS languages TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -583,6 +590,16 @@ export async function handleAdminMigrationsRoute(
           )
         `;
         applied = (rows[0]?.n ?? 0) >= 3;
+      }
+      if (id === "v3.45-own-content-duration-and-language-filters") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND (
+            (table_name = 'custom_ads' AND column_name = 'own_content_duration_seconds')
+             OR (table_name = 'ad_slots' AND column_name = 'languages')
+          )
+        `;
+        applied = (rows[0]?.n ?? 0) >= 2;
       }
       out[id] = { label: m.label, applied };
     }

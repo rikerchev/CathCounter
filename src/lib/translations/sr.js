@@ -1202,6 +1202,12 @@ export const sr = {
     "ca.manualItemsHint": "Ove reklame se uvek smenjuju u baneru zajedno sa odobrenim trgovcima iznad — i jedino su prikazane kada nijedan od njih trenutno nema registraciju putem svog QR koda.",
     "ca.manualItemLabel": "Reklama",
     "ca.manualItemDurationHint": "Koliko dugo ova reklama ostaje na ekranu pre nego što se prebaci na sledeću u baneru.",
+    "ca.ownContentDuration": "Trajanje sopstvenog sadržaja",
+    "ca.ownContentDurationHint": "Koliko dugo sopstveni sadržaj ove reklame (naslov, opis, logo) ostaje na ekranu pre nego što se prebaci na sledeći element u baneru.",
+    "ca.noLanguagesSelected": "Izaberite bar jedan jezik",
+    "ca.languagesSection": "Jezici",
+    "ca.languagesFilterDesc": "Ova reklama će se prikazivati samo u meniju izabranih jezika.",
+    "ca.adSenseAutoSwitched": "Baner „{slot}” više ne koristi Google AdSense — prebačen na sopstvene reklame",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Dobro došli nazad",

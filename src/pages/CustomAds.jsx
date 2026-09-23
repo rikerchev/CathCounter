@@ -20,7 +20,7 @@ import { hasRole } from "@/lib/roles";
 import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import { computeAdExpiry, daysUntil } from "@/lib/adBilling";
 import PaymentInfoCard from "@/components/PaymentInfoCard";
-import { rotationUiToSeconds, MERCHANT_TURN_SECONDS } from "@/lib/adCache";
+import { rotationUiToSeconds, MERCHANT_TURN_SECONDS, findSlotForPosition } from "@/lib/adCache";
 
 const PLACEMENT_KEYS = {
   all: "nav.allPages",
@@ -179,30 +179,21 @@ export default function CustomAdsManager() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [countryContent, setCountryContent] = useState({});
+  // v3.45 — no longer edited from the UI (the per-language translate flow
+  // below was removed), but still loaded/round-tripped on save so an older
+  // ad's existing per-language overrides aren't silently wiped out.
   const [languageContent, setLanguageContent] = useState({});
   const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [targetAllCountries, setTargetAllCountries] = useState(true);
-  // When true, this ad is ONLY shown to the languages in `selectedLanguages`
-  // (the same list used for the per-language text below) — this is what
-  // lets one placement (e.g. "Активна сесия") carry a different sponsor per
-  // language instead of one ad taking over that placement for every
-  // language. When false (default), the ad shows to everyone; any entries
-  // in `selectedLanguages`/`languageContent` still just override the text
-  // shown to that language.
-  const [languageRestricted, setLanguageRestricted] = useState(false);
-  // The language the main title/description fields above are actually
-  // written in. This used to be an implicit gap: "restrict to languages"
-  // only ever collected languages the admin explicitly *added* for
-  // translation, so an ad written in Bulgarian and then also "added" for
-  // English (to get an English translation) ended up with languages="en"
-  // only — Bulgarian, its own base language, was never in the list, so the
-  // ad silently stopped showing to Bulgarian users the moment it was
-  // restricted. Now this is a required, separate field whenever
-  // restricting, and it's always folded into the saved `languages` list —
-  // the ad's own language can never be silently left out.
-  const [primaryLanguage, setPrimaryLanguage] = useState("");
-  const [translatingLang, setTranslatingLang] = useState(null);
-  const [translatingAll, setTranslatingAll] = useState(false);
+  // v3.45 — replaces the old `languageRestricted` + auto-translate flow.
+  // A plain, single-purpose filter now — which languages this banner shows
+  // for at all (same idea and same UI pattern as `targetAllCountries`
+  // above) — no more bundled "translate the copy for this language" step;
+  // the ad's title/description stay the same text for every language it's
+  // shown to. true (default) = shown to everyone, `selectedLanguages` is
+  // then just an unused list; false = shown only to the codes in
+  // `selectedLanguages`.
+  const [targetAllLanguages, setTargetAllLanguages] = useState(true);
   // Whether the create-new-ad form is open. Previously the "+ Нова" button
   // only reset the form fields but never made the form panel itself appear
   // once at least one ad already existed (it was shown only while editing,
@@ -231,6 +222,16 @@ export default function CustomAdsManager() {
   const [rotationDisplayEnabled, setRotationDisplayEnabled] = useState(false);
   const [rotationDisplayValue, setRotationDisplayValue] = useState("10");
   const [rotationDisplayUnit, setRotationDisplayUnit] = useState("seconds");
+  // v3.45 — UI-only value+unit pair for form's new own_content_duration_seconds
+  // column: how long THIS ad's own title/description/link/logo stays on
+  // screen within its own internal carousel, now that it's no longer
+  // replaced by an attached merchant but simply joins the rotation as one
+  // more item (see AdBannerItem.jsx's buildCarouselItems()). Deliberately a
+  // separate field from `rotation_seconds` above, which stays exactly what
+  // it always was — the unrelated cross-ROW rotation between different
+  // custom_ads sharing one placement+position.
+  const [ownContentDurationValue, setOwnContentDurationValue] = useState("10");
+  const [ownContentDurationUnit, setOwnContentDurationUnit] = useState("seconds");
 
   useEffect(() => {
     loadAds();
@@ -325,6 +326,9 @@ export default function CustomAdsManager() {
     setRotationDisplayEnabled(Number(ad.rotation_seconds) > 0);
     setRotationDisplayValue(rotDisplayUi.value);
     setRotationDisplayUnit(rotDisplayUi.unit);
+    const ownDurationUi = rotationSecondsToUi(ad.own_content_duration_seconds);
+    setOwnContentDurationValue(ownDurationUi.value);
+    setOwnContentDurationUnit(ownDurationUi.unit);
     setForm({
       title: ad.title || "",
       description: ad.description || "",
@@ -360,27 +364,13 @@ export default function CustomAdsManager() {
     setCountryContent(parsedContent);
 
     const languages = ad.languages || "all";
-    const isRestricted = languages !== "all";
-    const restrictedCodes = isRestricted ? languages.split(",").map((c) => c.trim()).filter(Boolean) : [];
-    const contentCodes = Object.keys(parsedLangContent);
-    // The primary language is a restricted code with no translation
-    // override — that's the one language whose text is the main
-    // title/description fields themselves, not a translated copy. If every
-    // restricted code already has an override (or there are none), this is
-    // an older/broken ad with no primary language recorded — the field
-    // below starts empty and the admin must pick one before saving again.
-    const inferredPrimary = restrictedCodes.find((c) => !contentCodes.includes(c)) || "";
-    setPrimaryLanguage(inferredPrimary);
-    // The editable translation-row list is the union of "languages that
-    // already have translated text" and "restricted languages other than
-    // the inferred primary one" (the primary language has its own field
-    // above and doesn't need a translation row — its text IS the main
-    // title/description).
-    setSelectedLanguages(
-      [...new Set([...contentCodes, ...restrictedCodes])].filter((c) => c !== inferredPrimary)
-    );
+    const isAllLanguages = languages === "all";
+    const languageCodes = isAllLanguages ? [] : languages.split(",").map((c) => c.trim()).filter(Boolean);
+    setTargetAllLanguages(isAllLanguages);
+    setSelectedLanguages(languageCodes);
+    // Preserved as-is (round-tripped on save) even though the UI no longer
+    // edits it — see the languageContent useState comment above.
     setLanguageContent(parsedLangContent);
-    setLanguageRestricted(isRestricted);
   }
 
   function resetForm() {
@@ -392,13 +382,22 @@ export default function CustomAdsManager() {
     setLanguageContent({});
     setSelectedLanguages([]);
     setTargetAllCountries(true);
-    setLanguageRestricted(false);
-    setPrimaryLanguage("");
+    setTargetAllLanguages(true);
     setEditingOriginalPeriod(null);
     setUploadingManualLogoIndex(null);
     setRotationDisplayEnabled(false);
     setRotationDisplayValue("10");
     setRotationDisplayUnit("seconds");
+    setOwnContentDurationValue("10");
+    setOwnContentDurationUnit("seconds");
+  }
+
+  // v3.45 — plain add/remove toggle for the simple language filter (no
+  // longer bundled with translation — see targetAllLanguages above).
+  function toggleLanguage(code) {
+    setSelectedLanguages((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   }
 
   // v3.26 — add/remove/reorder merchants attached to this banner. Each
@@ -495,95 +494,23 @@ export default function CustomAdsManager() {
     );
   };
 
-  // Adds a language to the editable list and immediately kicks off an
-  // auto-translation for it (still editable afterwards) — so enabling a
-  // language for this ad translates it right away instead of requiring a
-  // separate manual step.
-  const addLanguage = (code) => {
-    if (selectedLanguages.includes(code)) return;
-    setSelectedLanguages((prev) => [...prev, code]);
-    autoTranslateLanguage(code);
-  };
-
-  const removeLanguage = (code) => {
-    setSelectedLanguages((prev) => prev.filter((c) => c !== code));
-    setLanguageContent((prev) => {
-      const copy = { ...prev };
-      delete copy[code];
-      return copy;
-    });
-  };
-
-  async function autoTranslateLanguage(code) {
-    if (!form.title && !form.description) return;
-    setTranslatingLang(code);
-    try {
-      const langName = getLanguageNativeName(code) || code;
-      const prompt = `Translate the following advertisement copy into ${langName}. Return ONLY a valid JSON object with keys "title" and "description". Keep any {placeholders} unchanged and keep it as short/punchy as the original.
-
-Title: ${form.title}
-Description: ${form.description}`;
-      const res = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        model: "gemini_3_flash",
-        response_json_schema: {
-          type: "object",
-          properties: {
-            title: { type: "string" },
-            description: { type: "string" },
-          },
-        },
-      });
-      if (res && (res.title || res.description)) {
-        setLanguageContent((prev) => ({
-          ...prev,
-          [code]: {
-            ...(prev[code] || {}),
-            title: res.title || prev[code]?.title || "",
-            description: res.description || prev[code]?.description || "",
-          },
-        }));
-        toast({ title: t("ca.translateDone") });
-      } else {
-        toast({ title: t("ca.translateError") });
-      }
-    } catch (e) {
-      toast({ title: t("ca.translateError"), description: e.message });
-    } finally {
-      setTranslatingLang(null);
-    }
-  }
-
-  async function autoTranslateAllLanguages() {
-    setTranslatingAll(true);
-    for (const code of selectedLanguages) {
-      await autoTranslateLanguage(code);
-    }
-    setTranslatingAll(false);
-  }
-
   async function save() {
     const hasMerchants = (form.merchants || []).length > 0;
-    // When one or more merchants are attached, the title/logo/link are
-    // resolved automatically from them at render time (AdBannerItem.jsx) —
-    // see the disabled fields + note in the form below — so the manual
-    // fields are no longer required.
-    if (!hasMerchants && (!form.title || !form.description || !form.link)) {
+    const hasManualItems = (form.manual_items || []).length > 0;
+    // v3.45 — an ad's own title/description/link are required UNLESS
+    // there's already other content that will show on the banner (an
+    // attached merchant and/or a manual item) — the base fields are never
+    // auto-filled/replaced any more (see AdBannerItem.jsx), so if none of
+    // the three sources has content, the banner would otherwise be blank.
+    if (!hasMerchants && !hasManualItems && (!form.title || !form.description || !form.link)) {
       toast({ title: t("adv.fillAllFields") });
       return;
     }
-    if (languageRestricted && !primaryLanguage) {
-      toast({ title: t("ca.noPrimaryLanguage") });
+    if (!targetAllLanguages && selectedLanguages.length === 0) {
+      toast({ title: t("ca.noLanguagesSelected") });
       return;
     }
-    // The primary language (the one the main title/description are
-    // actually written in) is always folded in here, in addition to
-    // whatever extra translated languages were added — this is what
-    // guarantees an ad restricted to specific languages can never silently
-    // exclude its own base language.
-    const languagesToSave = languageRestricted
-      ? [...new Set([primaryLanguage, ...selectedLanguages])].join(",")
-      : "all";
+    const languagesToSave = targetAllLanguages ? "all" : selectedLanguages.join(",");
     try {
       const countries = targetAllCountries ? "all" : selectedCountries.join(",");
       const expiresAt = computeAdExpiry(form.starts_at, form.duration_months);
@@ -597,12 +524,14 @@ Description: ${form.description}`;
         editingOriginalPeriod.duration_months !== (form.duration_months || "");
       const payload = {
         ...form,
-        // When merchants are attached, fall back to the first one's name so
-        // the admin list (and any code path that still reads ad.title
-        // directly) has something reasonable — the actual display on the
-        // public banner always goes through AdBannerItem.jsx's
-        // merchant-resolution logic instead, which ignores this value.
-        title: hasMerchants ? form.title || form.merchants[0]?.name || "" : form.title,
+        // v3.45 — the ad's own title is always just what's typed now (never
+        // silently replaced) — but if the admin left it blank because a
+        // merchant/manual item will carry the banner, fall back to one of
+        // theirs here so the admin LIST (and anything else that still
+        // reads ad.title directly) has something reasonable to show;
+        // AdBannerItem.jsx's own carousel never reads this fallback, only
+        // form.title's real value (via ad.title in buildCarouselItems).
+        title: form.title || form.merchants[0]?.name || form.manual_items[0]?.title || "",
         countries,
         languages: languagesToSave,
         country_content: JSON.stringify(countryContent),
@@ -634,9 +563,21 @@ Description: ${form.description}`;
         // v3.30 — this ad opts into taking turns with other ads sharing its
         // exact placement+position (see applyCustomAdRotation() in
         // adCache.js) for this many seconds per turn. null = keeps stacking
-        // as before (default, unchanged behavior).
+        // as before (default, unchanged behavior). Unrelated to the field
+        // right below — this one rotates separate custom_ads ROWS against
+        // each other; own_content_duration_seconds rotates WITHIN one row.
         rotation_seconds: rotationDisplayEnabled
           ? rotationUiToSeconds(rotationDisplayValue, rotationDisplayUnit)
+          : null,
+        // v3.45 — how long this ad's OWN content (title/description/link/
+        // logo) stays on screen each time its turn comes up in the
+        // internal carousel with its merchants/manual items (see
+        // AdBannerItem.jsx's buildCarouselItems()). Only meaningful — and
+        // only saved — once there's actually something else to rotate
+        // with; otherwise the own content just renders statically and this
+        // stays null.
+        own_content_duration_seconds: hasCarousel
+          ? rotationUiToSeconds(ownContentDurationValue, ownContentDurationUnit)
           : null,
       };
       if (periodChanged) {
@@ -651,6 +592,29 @@ Description: ${form.description}`;
          await base44.entities.CustomAd.create(payload);
          toast({ title: t("ca.adCreated") });
         }
+
+        // v3.45 — an admin assigning this ad to an exact placement+position
+        // that's currently configured as a Google AdSense slot means that
+        // slot is no longer AdSense's to fill — switch it to "custom" so
+        // this ad (and any others sharing the bucket) actually shows there,
+        // instead of silently losing to an AdSense unit nobody sees this
+        // change conflicts with. Admin-only and best-effort: a non-admin's
+        // submission goes to pending review first and must never touch
+        // slot config before an admin has even looked at it, and a failure
+        // here doesn't roll back the ad save that already succeeded above.
+        if (isAdmin) {
+          try {
+            const slots = await base44.entities.AdSlot.list();
+            const slot = findSlotForPosition(slots, payload.placement, payload.banner_position || "top");
+            if (slot && slot.source_type === "adsense") {
+              await base44.entities.AdSlot.update(slot.id, { source_type: "custom" });
+              toast({ title: t("ca.adSenseAutoSwitched").replace("{slot}", slot.name || slot.placement) });
+            }
+          } catch {
+            // non-fatal — the ad itself already saved fine above
+          }
+        }
+
         resetForm();
         await loadAds();
         } catch (e) {
@@ -690,6 +654,13 @@ Description: ${form.description}`;
   }
 
   const hasMerchants = (form.merchants || []).length > 0;
+  // v3.45 — manual items and the ad's own content now form the internal
+  // carousel together with any merchants, so several UI bits below (the
+  // own-content duration field, the manual-items section itself) need to
+  // key off "is there anything else to rotate with" rather than only
+  // "are there merchants" as before.
+  const hasManualItems = (form.manual_items || []).length > 0;
+  const hasCarousel = hasMerchants || hasManualItems;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -730,7 +701,6 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder={t("adv.titlePlaceholder")}
                 className="min-h-[44px]"
-                disabled={hasMerchants}
               />
             </div>
             <div>
@@ -740,7 +710,6 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder={t("adv.descriptionPlaceholder")}
                 className="min-h-[44px]"
-                disabled={hasMerchants}
               />
             </div>
             <div>
@@ -750,10 +719,9 @@ Description: ${form.description}`;
                 onChange={(e) => setForm({ ...form, link: e.target.value })}
                 placeholder={t("ca.linkPlaceholder")}
                 className="min-h-[44px]"
-                disabled={hasMerchants}
               />
             </div>
-            <div className={hasMerchants ? "opacity-50 pointer-events-none" : ""}>
+            <div>
               <Label>{t("ca.advertiserLogo")}</Label>
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-lg bg-white border border-slate-200 dark:bg-card dark:border-border flex items-center justify-center overflow-hidden shrink-0">
@@ -775,7 +743,7 @@ Description: ${form.description}`;
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    disabled={uploadingLogo || hasMerchants}
+                    disabled={uploadingLogo}
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
@@ -816,6 +784,38 @@ Description: ${form.description}`;
                 </SelectContent>
               </Select>
             </div>
+
+            {/* v3.45 — once this ad has 1+ merchants and/or manual items
+                attached, its own content above stops being static and
+                becomes one more item in the same live carousel
+                (AdBannerItem.jsx) — this sets how long it stays on screen
+                each time its turn comes up, independent of the
+                merchants' flat 10s turn and of each manual item's own
+                duration below. */}
+            {hasCarousel && (
+              <div>
+                <Label>{t("ca.ownContentDuration")}</Label>
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                  <Input
+                    type="number"
+                    min="1"
+                    value={ownContentDurationValue}
+                    onChange={(e) => setOwnContentDurationValue(e.target.value)}
+                    className="min-h-[44px]"
+                  />
+                  <Select value={ownContentDurationUnit} onValueChange={setOwnContentDurationUnit}>
+                    <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {ROTATION_DISPLAY_UNITS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-slate-400">{t("ca.ownContentDurationHint")}</p>
+              </div>
+            )}
 
             {/* v3.26 — attach one or more approved merchants to this
                 banner: the banner then auto-displays their logo + name
@@ -909,10 +909,12 @@ Description: ${form.description}`;
 
                 {/* v3.44 — manual items: a companion "second ad" on the
                     same banner, typed directly instead of pulled from a
-                    merchant — always shown alongside whichever merchants
-                    above are currently eligible, and the only thing shown
-                    when none of them are (see AdBannerItem.jsx). */}
-                {hasMerchants && (
+                    merchant — shown alongside whichever merchants above are
+                    currently eligible, or entirely on its own if none are
+                    attached at all (see AdBannerItem.jsx). v3.45 — no
+                    longer gated on having a merchant attached first: manual
+                    items now stand fully on their own. */}
+                {(
                   <div className="pt-3 border-t border-slate-100 dark:border-border space-y-3">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-semibold text-slate-700 dark:text-foreground">
@@ -1073,6 +1075,53 @@ Description: ${form.description}`;
                 )}
               </div>
             )}
+
+            {/* v3.45 — plain language filter, replacing the old
+                auto-translate-bundled "Languages" section entirely: no
+                translation happens here any more, this only decides WHICH
+                menu languages this ad is eligible to show in — and it's
+                shown BEFORE "Покажи на" below on purpose, since the admin
+                picks the language first, then which placement/menu (see
+                ca.showOn below) to put this ad's language-filtered version
+                into. */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Languages className="w-4 h-4 text-cyan-600" />
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("ca.languagesSection")}</h3>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={targetAllLanguages}
+                  onChange={(e) => setTargetAllLanguages(e.target.checked)}
+                  className="w-4 h-4 rounded accent-cyan-600"
+                />
+                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.allLanguagesTarget")}</span>
+              </label>
+              {!targetAllLanguages && (
+                <>
+                  <p className="text-xs text-slate-400">{t("ca.languagesFilterDesc")}</p>
+                  <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                    {DEFAULT_LANGUAGES.map((l) => {
+                      const checked = selectedLanguages.includes(l.code);
+                      return (
+                        <label key={l.code} className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleLanguage(l.code)}
+                            className="w-4 h-4 rounded accent-cyan-600"
+                          />
+                          <span className="text-sm text-slate-600 dark:text-muted-foreground flex-1 min-w-0 truncate">
+                            {l.native_name || l.name} ({l.code})
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1334,122 +1383,6 @@ Description: ${form.description}`;
               )}
             </div>
 
-            {/* Languages — one place to add a language, get it auto-translated
-                right away (still fully editable), and optionally restrict the
-                ad to only the languages added here. Restricting is what lets
-                the very same placement carry a different sponsor per
-                language (e.g. a Bulgarian-only ad on "Активна сесия" leaves
-                that placement free for an English or German advertiser). */}
-            <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Languages className="w-4 h-4 text-cyan-600" />
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground">{t("adv.languageContent")}</h3>
-                </div>
-                {selectedLanguages.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={autoTranslateAllLanguages}
-                    disabled={translatingAll || !!translatingLang}
-                    className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400 hover:bg-cyan-100 disabled:opacity-50"
-                  >
-                    {translatingAll ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
-                    {t("ca.autoTranslateAll")}
-                  </button>
-                )}
-              </div>
-              <p className="text-xs text-slate-400">{t("ca.languageContentDesc")}</p>
-
-              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-                <input
-                  type="checkbox"
-                  checked={languageRestricted}
-                  onChange={(e) => setLanguageRestricted(e.target.checked)}
-                  className="w-4 h-4 rounded accent-cyan-600"
-                />
-                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.restrictToLanguages")}</span>
-              </label>
-
-              {/* Required whenever restricting: the language the main
-                  title/description fields above are actually written in.
-                  Always folded into the saved `languages` list on save, so
-                  restricting to specific languages can never silently
-                  exclude the ad's own base language (see the note by
-                  `primaryLanguage`'s useState above). */}
-              {languageRestricted && (
-                <div>
-                  <Label>{t("ca.primaryLanguage")}</Label>
-                  <Select value={primaryLanguage} onValueChange={setPrimaryLanguage}>
-                    <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.primaryLanguagePlaceholder")} /></SelectTrigger>
-                    <SelectContent>
-                      {DEFAULT_LANGUAGES.map((l) => (
-                        <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-slate-400 mt-1">{t("ca.primaryLanguageDesc")}</p>
-                </div>
-              )}
-
-              {/* Language picker — adding a language makes it editable below
-                  and immediately requests an auto-translation for it */}
-              <Select value="" onValueChange={addLanguage}>
-                <SelectTrigger className="min-h-[44px]"><SelectValue placeholder={t("ca.addLanguageForTranslation")} /></SelectTrigger>
-                <SelectContent>
-                  {DEFAULT_LANGUAGES.map((l) => (
-                    <SelectItem key={l.code} value={l.code}>{l.native_name || l.name} ({l.code})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {selectedLanguages.length > 0 ? (
-                selectedLanguages.map((code) => {
-                  const langName = getLanguageNativeName(code) || code;
-                  const content = languageContent[code] || { title: "", description: "", cta: "" };
-                  return (
-                    <div key={code} className="space-y-2 pb-3 border-b border-slate-100 dark:border-border last:border-0 last:pb-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold text-slate-500 dark:text-muted-foreground">{langName} ({code})</p>
-                        <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => autoTranslateLanguage(code)}
-                            disabled={translatingLang === code || translatingAll || (!form.title && !form.description)}
-                            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-cyan-50 dark:bg-accent text-cyan-700 dark:text-cyan-400 hover:bg-cyan-100 disabled:opacity-50"
-                            title={t("ca.autoTranslate")}
-                          >
-                            {translatingLang === code ? <Loader2 className="w-3 h-3 animate-spin" /> : t("ca.autoTranslate")}
-                          </button>
-                          <button type="button" onClick={() => removeLanguage(code)} className="text-slate-400 hover:text-red-500 p-1">
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      </div>
-                      <Input
-                        value={content.title || ""}
-                        onChange={(e) => setLanguageContent((prev) => ({ ...prev, [code]: { ...content, title: e.target.value } }))}
-                        placeholder={t("adv.titleForLanguage")}
-                        className="min-h-[44px]"
-                      />
-                      <Input
-                        value={content.description || ""}
-                        onChange={(e) => setLanguageContent((prev) => ({ ...prev, [code]: { ...content, description: e.target.value } }))}
-                        placeholder={t("adv.descriptionForLanguage")}
-                        className="min-h-[44px]"
-                      />
-                      <Input
-                        value={content.cta || ""}
-                        onChange={(e) => setLanguageContent((prev) => ({ ...prev, [code]: { ...content, cta: e.target.value } }))}
-                        placeholder={t("adv.ctaForLanguage")}
-                        className="min-h-[44px]"
-                      />
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-slate-400 text-center py-2">{t("ca.noLanguagesAdded")}</p>
-              )}
-            </div>
           </div>
 
           <div className="flex gap-2">

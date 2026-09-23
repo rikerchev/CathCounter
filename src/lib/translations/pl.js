@@ -1202,6 +1202,12 @@ export const pl = {
     "ca.manualItemsHint": "Te reklamy zawsze rotują w banerze razem z zatwierdzonymi powyżej kupcami — i są jedyną rzeczą wyświetlaną, gdy żaden z nich nie ma obecnie rejestracji przez swój kod QR.",
     "ca.manualItemLabel": "Reklama",
     "ca.manualItemDurationHint": "Jak długo ta reklama pozostaje na ekranie, zanim przełączy się na następną w banerze.",
+    "ca.ownContentDuration": "Czas trwania własnej treści",
+    "ca.ownContentDurationHint": "Jak długo własna treść tej reklamy (tytuł, opis, logo) pozostaje na ekranie, zanim przełączy się na kolejny element w banerze.",
+    "ca.noLanguagesSelected": "Wybierz co najmniej jeden język",
+    "ca.languagesSection": "Języki",
+    "ca.languagesFilterDesc": "Ta reklama będzie wyświetlana tylko w menu wybranych języków.",
+    "ca.adSenseAutoSwitched": "Baner „{slot}” nie korzysta już z Google AdSense — przełączono na własne reklamy",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Witaj ponownie",

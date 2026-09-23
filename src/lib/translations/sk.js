@@ -1202,6 +1202,12 @@ export const sk = {
     "ca.manualItemsHint": "Tieto reklamy sa vždy striedajú v banneri spolu so schválenými obchodníkmi vyššie — a sú jediné, čo sa zobrazí, ak žiaden z nich momentálne nemá registráciu cez svoj QR kód.",
     "ca.manualItemLabel": "Reklama",
     "ca.manualItemDurationHint": "Ako dlho táto reklama zostane na obrazovke, kým sa prepne na ďalšiu v banneri.",
+    "ca.ownContentDuration": "Trvanie vlastného obsahu",
+    "ca.ownContentDurationHint": "Ako dlho vlastný obsah tejto reklamy (názov, popis, logo) zostane na obrazovke, kým sa prepne na ďalší prvok v banneri.",
+    "ca.noLanguagesSelected": "Vyberte aspoň jeden jazyk",
+    "ca.languagesSection": "Jazyky",
+    "ca.languagesFilterDesc": "Táto reklama sa zobrazí iba v ponuke vybraných jazykov.",
+    "ca.adSenseAutoSwitched": "Banner „{slot}“ už nepoužíva Google AdSense — prepnuté na vlastné reklamy",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Vitajte späť",

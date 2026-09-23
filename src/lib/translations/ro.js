@@ -1202,6 +1202,12 @@ export const ro = {
     "ca.manualItemsHint": "Aceste reclame se rotesc mereu în banner împreună cu comercianții aprobați mai sus — și sunt singurele afișate atunci când niciunul dintre ei nu are momentan o înregistrare prin codul QR.",
     "ca.manualItemLabel": "Reclamă",
     "ca.manualItemDurationHint": "Cât timp rămâne această reclamă pe ecran înainte de a trece la următoarea din banner.",
+    "ca.ownContentDuration": "Durata conținutului propriu",
+    "ca.ownContentDurationHint": "Cât timp rămâne conținutul propriu al reclamei (titlu, descriere, logo) pe ecran înainte de a trece la următorul element din banner.",
+    "ca.noLanguagesSelected": "Selectați cel puțin o limbă",
+    "ca.languagesSection": "Limbi",
+    "ca.languagesFilterDesc": "Această reclamă va apărea doar în meniul limbilor selectate.",
+    "ca.adSenseAutoSwitched": "Bannerul „{slot}” nu mai folosește Google AdSense — comutat pe reclame proprii",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Bine ați revenit",

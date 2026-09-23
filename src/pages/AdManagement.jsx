@@ -146,6 +146,10 @@ const emptySlot = {
   source_type: "custom",
   adsense_ad_unit_id: "",
   adsense_ad_layout_key: "",
+  // v3.45 — "all" or a comma-separated list of language codes; see
+  // ad_slots.languages in schema.sql and findSlotForPosition() in
+  // adCache.js.
+  languages: "all",
 };
 
 function formatCountryPrices(basePrice) {
@@ -253,6 +257,20 @@ export default function AdManagement() {
   const [slotCreating, setSlotCreating] = useState(false);
   const [slotForm, setSlotForm] = useState(emptySlot);
   const [savingSlot, setSavingSlot] = useState(false);
+  // v3.45 — slot-level language filter, derived straight from
+  // slotForm.languages (a plain "all"/"bg,en,..." string) rather than its
+  // own useState, so there's nothing extra to keep in sync when the form
+  // resets/loads an existing slot.
+  const slotLanguagesAll = !slotForm.languages || slotForm.languages === "all";
+  const slotSelectedLanguages = slotLanguagesAll
+    ? []
+    : slotForm.languages.split(",").map((c) => c.trim()).filter(Boolean);
+  function toggleSlotLanguage(code) {
+    const next = slotSelectedLanguages.includes(code)
+      ? slotSelectedLanguages.filter((c) => c !== code)
+      : [...slotSelectedLanguages, code];
+    setSlotForm((prev) => ({ ...prev, languages: next.join(",") }));
+  }
 
   // ---- Ad (CustomAd) edit/create panel ----
   const [adEditing, setAdEditing] = useState(null);
@@ -340,6 +358,7 @@ export default function AdManagement() {
       source_type: slot.source_type || "custom",
       adsense_ad_unit_id: slot.adsense_ad_unit_id || "",
       adsense_ad_layout_key: slot.adsense_ad_layout_key || "",
+      languages: slot.languages || "all",
     });
   }
 
@@ -367,6 +386,7 @@ export default function AdManagement() {
         source_type: slotForm.source_type || "custom",
         adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
         adsense_ad_layout_key: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_layout_key || null) : null,
+        languages: slotForm.languages || "all",
       });
       toast({ title: t("aas.slotCreated") });
       resetSlotForm();
@@ -394,6 +414,7 @@ export default function AdManagement() {
         source_type: slotForm.source_type || "custom",
         adsense_ad_unit_id: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_unit_id || null) : null,
         adsense_ad_layout_key: slotForm.source_type === "adsense" ? (slotForm.adsense_ad_layout_key || null) : null,
+        languages: slotForm.languages || "all",
       });
       toast({ title: t("aas.slotUpdated") });
       resetSlotForm();
@@ -849,6 +870,49 @@ Description: ${adForm.description}`;
                 className="min-h-[44px]"
               />
             </div>
+            {/* v3.45 — which menu languages this slot is even eligible to
+                appear in, decided BEFORE placement (see ca.showOn/
+                aas.placement below) — mirrors the plain language filter now
+                on Собствени реклами (CustomAds.jsx), threaded through
+                findSlotForPosition()/resolveZone() in adCache.js. */}
+            <div className="rounded-xl border border-slate-200 dark:border-border p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Languages className="w-4 h-4 text-cyan-600" />
+                <Label className="mb-0">{t("ca.languagesSection")}</Label>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer min-h-[40px]">
+                <input
+                  type="checkbox"
+                  checked={slotLanguagesAll}
+                  onChange={(e) =>
+                    setSlotForm({ ...slotForm, languages: e.target.checked ? "all" : "" })
+                  }
+                  className="w-4 h-4 rounded accent-cyan-600"
+                />
+                <span className="text-sm text-slate-600 dark:text-muted-foreground">{t("ca.allLanguagesTarget")}</span>
+              </label>
+              {!slotLanguagesAll && (
+                <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+                  {DEFAULT_LANGUAGES.map((l) => {
+                    const checked = slotSelectedLanguages.includes(l.code);
+                    return (
+                      <label key={l.code} className="flex items-center gap-2 cursor-pointer min-h-[40px]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleSlotLanguage(l.code)}
+                          className="w-4 h-4 rounded accent-cyan-600"
+                        />
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground flex-1 min-w-0 truncate">
+                          {l.native_name || l.name} ({l.code})
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>{t("aas.placement")}</Label>

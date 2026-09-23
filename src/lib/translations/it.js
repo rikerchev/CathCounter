@@ -1202,6 +1202,12 @@ export const it = {
     "ca.manualItemsHint": "Questi annunci ruotano sempre nel banner insieme ai commercianti approvati sopra — e sono gli unici mostrati quando nessuno di loro ha al momento una registrazione tramite il proprio codice QR.",
     "ca.manualItemLabel": "Annuncio",
     "ca.manualItemDurationHint": "Per quanto tempo questo annuncio resta sullo schermo prima di passare al successivo nel banner.",
+    "ca.ownContentDuration": "Durata del contenuto proprio",
+    "ca.ownContentDurationHint": "Per quanto tempo il contenuto proprio di questo annuncio (titolo, descrizione, logo) resta sullo schermo prima di passare all'elemento successivo nel banner.",
+    "ca.noLanguagesSelected": "Seleziona almeno una lingua",
+    "ca.languagesSection": "Lingue",
+    "ca.languagesFilterDesc": "Questo annuncio verrà mostrato solo nel menu delle lingue selezionate.",
+    "ca.adSenseAutoSwitched": "Il banner “{slot}” non usa più Google AdSense — passato agli annunci personalizzati",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Bentornato",

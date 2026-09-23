@@ -153,9 +153,20 @@ export function getCurrentAds(placement, lang) {
 // AdManagement.jsx (pickPreviewSlot) — pulled out here so the "advertise
 // here" placeholder rule and the new per-slot source-type rule (below) can
 // never drift apart between the live site and its admin preview.
-export function findSlotForPosition(slots, placement, position) {
+//
+// v3.45 — optional `lang`: when passed, a slot restricted to specific
+// languages (ad_slots.languages, same "all"/"bg,en,..." shape as a custom
+// ad's own `languages`) is skipped for a visitor whose menu language isn't
+// in that list — reuses matchesLanguage() below since it only reads
+// `.languages` off whatever object it's given. Omitting `lang` (e.g. the
+// admin's own preview in AdManagement.jsx) keeps every slot eligible,
+// exactly as before this existed.
+export function findSlotForPosition(slots, placement, position, lang) {
   const eligible = (slots || []).filter(
-    (s) => s.is_available !== false && (s.banner_position || "top") === position
+    (s) =>
+      s.is_available !== false &&
+      (s.banner_position || "top") === position &&
+      (lang === undefined || matchesLanguage(s, lang))
   );
   return (
     eligible.find((s) => s.placement === placement) ||
@@ -230,8 +241,14 @@ export function applyCustomAdRotation(ads) {
 // exactly as it always did. Shared by useEligibleAds.js (the live site) and
 // AdManagement.jsx (its own preview), so both can never show different
 // things for the same slot.
-export function resolveZone(ads, slots, placement, position) {
-  const slot = findSlotForPosition(slots, placement, position);
+//
+// v3.45 — optional `lang`, passed straight through to findSlotForPosition()
+// above: a language-restricted slot is treated as if it didn't exist for a
+// visitor outside its allowed languages (falls through to the next-best
+// slot, or none). AdManagement.jsx's own preview calls this without `lang`
+// so the admin always sees every slot regardless of language.
+export function resolveZone(ads, slots, placement, position, lang) {
+  const slot = findSlotForPosition(slots, placement, position, lang);
   const sourceType = slot?.source_type || "custom";
 
   if (sourceType === "adsense") {

@@ -1202,6 +1202,12 @@ export const uk = {
     "ca.manualItemsHint": "Ці реклами завжди чергуються в банері разом зі схваленими вище торговцями — і є єдиним, що показується, коли жоден з них наразі не має реєстрації за своїм QR-кодом.",
     "ca.manualItemLabel": "Реклама",
     "ca.manualItemDurationHint": "Скільки часу ця реклама залишається на екрані, перш ніж перейти до наступної в банері.",
+    "ca.ownContentDuration": "Тривалість власного вмісту",
+    "ca.ownContentDurationHint": "Скільки часу власний вміст цієї реклами (заголовок, опис, логотип) залишається на екрані, перш ніж перейти до наступного елемента в банері.",
+    "ca.noLanguagesSelected": "Виберіть принаймні одну мову",
+    "ca.languagesSection": "Мови",
+    "ca.languagesFilterDesc": "Ця реклама показуватиметься лише в меню вибраних мов.",
+    "ca.adSenseAutoSwitched": "Банер «{slot}» більше не використовує Google AdSense — перемкнено на власні оголошення",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "З поверненням",

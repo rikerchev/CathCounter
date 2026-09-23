@@ -72,10 +72,10 @@ function makeSlotPlaceholderAd(slot) {
 // only fills a gap that would otherwise be empty. Shared by the synchronous
 // (cache-only) initial render and the async (network-fresh) update below,
 // so both apply the exact same rule.
-function buildZones(ads, slots, placement) {
+function buildZones(ads, slots, placement, lang) {
   const zones = {};
   for (const position of ["top", "bottom"]) {
-    const zone = resolveZone(ads, slots, placement, position);
+    const zone = resolveZone(ads, slots, placement, position, lang);
     const needsPlaceholder = zone.sourceType !== "adsense" && zone.ads.length === 0 && zone.slot;
     zones[position] = needsPlaceholder ? { ...zone, ads: [makeSlotPlaceholderAd(zone.slot)] } : zone;
   }
@@ -89,7 +89,7 @@ function buildZones(ads, slots, placement) {
 // below ever fires — see cacheSlots() in adCache.js for why.
 function getInitialZones(placement, lang) {
   const ads = getCachedAds().filter((a) => matchesLanguage(a, lang));
-  return buildZones(ads, getCachedSlots(), placement);
+  return buildZones(ads, getCachedSlots(), placement, lang);
 }
 
 /**
@@ -188,7 +188,7 @@ export function useEligibleAds() {
         cacheAds(allActive);
         cacheSlots(adSlots);
 
-        const newZones = buildZones(allActive, adSlots, placement);
+        const newZones = buildZones(allActive, adSlots, placement, lang);
         for (const position of ["top", "bottom"]) {
           for (const ad of newZones[position].ads) trackImpression(ad.id);
         }

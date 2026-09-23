@@ -18,41 +18,45 @@ const SIZE_CLASSES = {
   large: { wrap: "px-3 py-2", title: "text-base", desc: "text-xs", logo: "w-16 h-16" },
 };
 
-// Where a resolved merchant's own listing lives, when it hasn't set its own
-// `link` (see the new ad_link field on venues, v3.44) — clicking the banner
-// while it's showing a merchant with no own link falls back to that
-// merchant TYPE's public browse page (admin's original v3.26 choice).
-const MERCHANT_LINK_BY_TYPE = {
-  water_body: "/water-bodies",
-  venue: "/commercial-venues",
-};
-
 // Fallback for a manually-entered carousel item with no configured
 // duration (shouldn't normally happen — CustomAds.jsx always writes one —
 // but keeps this component safe against older/malformed rows).
 const DEFAULT_MANUAL_DURATION_SECONDS = 10;
 
 // v3.44 — builds the combined, in-order list of items this banner's live
-// carousel rotates through: every currently-ELIGIBLE attached merchant
-// (see server/routes/merchantReferrals.ts — `eligibleMerchantKeys` is that
+// carousel rotates through: the ad's OWN content (v3.45 — see below),
+// every currently-ELIGIBLE attached merchant (see
+// server/routes/merchantReferrals.ts — `eligibleMerchantKeys` is that
 // resolved list, one "type:id" string per eligible merchant, or undefined
 // while it hasn't resolved yet), each getting the same flat
 // MERCHANT_TURN_SECONDS turn length (see adCache.js for why it's flat, not
 // proportional to referral count — that would leak the private count),
 // followed by every manually-entered item (each keeping its own configured
-// duration, set in CustomAds.jsx). Returns [] when there's nothing to
-// rotate, meaning "render the ad's own plain fields instead" — the
-// pre-v3.44 behaviour for an ordinary ad, unchanged.
+// duration, set in CustomAds.jsx). Returns [] when there's nothing besides
+// the ad's own content to rotate with, meaning "render the ad's own plain
+// fields instead" (see the caller) — the pre-v3.44 behaviour for an
+// ordinary ad, unchanged.
+//
+// v3.45 — an attached merchant no longer REPLACES the ad's own title/
+// description/link/logo (CustomAds.jsx no longer disables those fields
+// either) — instead, whenever this ad has 1+ merchants and/or manual
+// items, its OWN content becomes just one more item in the same live
+// carousel, shown for `own_content_duration_seconds` (a new, separate
+// field — deliberately NOT reusing `rotation_seconds`, which stays exactly
+// what it always was: the unrelated cross-ROW rotation in adCache.js's
+// applyCustomAdRotation()). With nothing else attached, the ad's own
+// content is simply rendered directly (the plain, non-carousel branch
+// below) exactly as before this feature existed — this function isn't even
+// called for that case in spirit, though it still returns [] correctly if
+// it were.
 //
 // While `eligibleMerchantKeys` is still undefined (the network resolution
 // in useEligibleAds.js hasn't come back yet), attached merchants are left
 // out entirely rather than guessed at — so a merchant is never shown and
 // then yanked away a moment later once it turns out to be ineligible. A
-// banner with manual items keeps showing those the whole time regardless,
-// since manual items don't depend on that resolution at all.
+// banner with manual items (or its own content) keeps showing those the
+// whole time regardless, since neither depends on that resolution.
 function buildCarouselItems(ad, eligibleMerchantKeys) {
-  const items = [];
-
   let merchantList = [];
   try {
     const parsed = ad?.merchants ? JSON.parse(ad.merchants) : [];
@@ -60,6 +64,37 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
   } catch {
     merchantList = [];
   }
+
+  let manualList = [];
+  try {
+    const parsed = ad?.manual_items ? JSON.parse(ad.manual_items) : [];
+    if (Array.isArray(parsed)) manualList = parsed;
+  } catch {
+    manualList = [];
+  }
+
+  if (merchantList.length === 0 && manualList.length === 0) return [];
+
+  const items = [];
+
+  // v3.45 — the ad's own base content, always included (never overridden)
+  // once there's something else to rotate with.
+  if (ad?.title) {
+    const ownSeconds =
+      Number(ad.own_content_duration_seconds) > 0
+        ? Number(ad.own_content_duration_seconds)
+        : DEFAULT_MANUAL_DURATION_SECONDS;
+    items.push({
+      key: "own",
+      title: ad.title || "",
+      description: ad.description || "",
+      logoUrl: ad.logo_url || "",
+      logoSize: ad.logo_size || "auto",
+      link: ad.link || "/advertise",
+      durationSeconds: ownSeconds,
+    });
+  }
+
   if (merchantList.length > 0 && Array.isArray(eligibleMerchantKeys)) {
     const eligibleSet = new Set(eligibleMerchantKeys);
     for (const m of merchantList) {
@@ -71,19 +106,16 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
         description: m.description || "",
         logoUrl: m.logo_url || "",
         logoSize: m.logo_size || "auto",
-        link: m.link || MERCHANT_LINK_BY_TYPE[m.type] || ad.link || "/advertise",
+        // v3.45 — the merchant's OWN link (venues.ad_link, v3.44) always
+        // wins now; clicking never falls back to the generic "browse
+        // merchants" menu page any more (only to this ad's own link, then
+        // the generic /advertise, if the merchant set no link of its own).
+        link: m.link || ad.link || "/advertise",
         durationSeconds: MERCHANT_TURN_SECONDS,
       });
     }
   }
 
-  let manualList = [];
-  try {
-    const parsed = ad?.manual_items ? JSON.parse(ad.manual_items) : [];
-    if (Array.isArray(parsed)) manualList = parsed;
-  } catch {
-    manualList = [];
-  }
   manualList.forEach((item, i) => {
     if (!item) return;
     const seconds =
@@ -109,27 +141,43 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
  * and hand one `ad` at a time to this component. Pulled out of AdBanner.jsx
  * in v2.46 when banners stopped being one-per-page.
  *
- * v3.44 — a merchant-source banner (ad.merchants and/or ad.manual_items
- * non-empty — see buildCarouselItems() above) is now a genuine LIVE,
- * client-side carousel: with 2+ combined items it ticks through them with a
- * real timer (setTimeout, rescheduled after every switch for the NEW active
- * item's own duration), visibly switching in the visitor's browser without
- * a page reload or navigation. That's a deliberate departure from every
- * other rotation in this app (the old single-merchant-winner resolution
- * this replaces, and the separate, unrelated custom-ads `rotation_seconds`
+ * v3.44 — a banner with 1+ attached merchants and/or manual items (see
+ * buildCarouselItems() above) is now a genuine LIVE, client-side carousel:
+ * with 2+ combined items it ticks through them with a real timer
+ * (setTimeout, rescheduled after every switch for the NEW active item's
+ * own duration), visibly switching in the visitor's browser without a page
+ * reload or navigation. That's a deliberate departure from every other
+ * rotation in this app (the old single-merchant-winner resolution this
+ * replaces, and the separate, unrelated custom-ads `rotation_seconds`
  * feature in adCache.js), which only ever changed deterministically on the
  * next page load/navigation. With exactly 1 combined item it just renders
- * statically (no timer needed — nothing to switch to). With 0 (no eligible
- * merchant yet and no manual items) it falls back to the ad's own plain
- * fields — including the country/language text overrides — exactly as any
- * ordinary "Собствена реклама" always has.
+ * statically (no timer needed — nothing to switch to). With 0 (no
+ * merchants and no manual items attached at all) it falls back to the ad's
+ * own plain fields — including the country/language text overrides —
+ * exactly as any ordinary "Собствена реклама" always has.
+ *
+ * v3.45 — the ad's own content (title/description/link/logo) is always
+ * editable now (CustomAds.jsx no longer locks it when merchants are
+ * attached) and always participates as one of the carousel items above,
+ * rather than being replaced by an attached merchant.
  */
 export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) {
   const { t, lang } = useLanguage();
 
   const items = useMemo(
     () => (ad ? buildCarouselItems(ad, eligibleMerchantKeys) : []),
-    [ad?.id, ad?.merchants, ad?.manual_items, ad?.link, eligibleMerchantKeys]
+    [
+      ad?.id,
+      ad?.title,
+      ad?.description,
+      ad?.logo_url,
+      ad?.logo_size,
+      ad?.own_content_duration_seconds,
+      ad?.merchants,
+      ad?.manual_items,
+      ad?.link,
+      eligibleMerchantKeys,
+    ]
   );
 
   const [activeIndex, setActiveIndex] = useState(0);

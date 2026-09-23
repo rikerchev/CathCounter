@@ -1202,6 +1202,12 @@ export const cs = {
     "ca.manualItemsHint": "Tyto reklamy se vždy střídají v banneru společně se schválenými obchodníky výše — a jsou jediné, co se zobrazí, pokud žádný z nich momentálně nemá registraci přes svůj QR kód.",
     "ca.manualItemLabel": "Reklama",
     "ca.manualItemDurationHint": "Jak dlouho tato reklama zůstane na obrazovce, než se přepne na další v banneru.",
+    "ca.ownContentDuration": "Doba trvání vlastního obsahu",
+    "ca.ownContentDurationHint": "Jak dlouho vlastní obsah této reklamy (název, popis, logo) zůstane na obrazovce, než se přepne na další prvek v banneru.",
+    "ca.noLanguagesSelected": "Vyberte alespoň jeden jazyk",
+    "ca.languagesSection": "Jazyky",
+    "ca.languagesFilterDesc": "Tato reklama se zobrazí pouze v nabídce vybraných jazyků.",
+    "ca.adSenseAutoSwitched": "Banner „{slot}“ již nepoužívá Google AdSense — přepnuto na vlastní reklamy",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Vítejte zpět",

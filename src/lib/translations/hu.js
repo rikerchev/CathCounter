@@ -1202,6 +1202,12 @@ export const hu = {
     "ca.manualItemsHint": "Ezek a hirdetések mindig a fenti jóváhagyott kereskedőkkel együtt váltakoznak a bannerben — és ezek jelennek meg egyedül, ha egyiküknek sincs éppen QR-kódos regisztrációja.",
     "ca.manualItemLabel": "Hirdetés",
     "ca.manualItemDurationHint": "Meddig marad ez a hirdetés a képernyőn, mielőtt a következőre vált a bannerben.",
+    "ca.ownContentDuration": "Saját tartalom időtartama",
+    "ca.ownContentDurationHint": "Meddig marad a hirdetés saját tartalma (cím, leírás, logó) a képernyőn, mielőtt a banner következő elemére vált.",
+    "ca.noLanguagesSelected": "Válasszon legalább egy nyelvet",
+    "ca.languagesSection": "Nyelvek",
+    "ca.languagesFilterDesc": "Ez a hirdetés csak a kiválasztott nyelvek menüjében jelenik meg.",
+    "ca.adSenseAutoSwitched": "A(z) „{slot}” banner már nem használja a Google AdSense-t — saját hirdetésekre váltott",
 
     // v3.34 — see bg.js's copy of these keys for why they exist.
     "login.welcomeBack": "Üdvözöljük ismét",
