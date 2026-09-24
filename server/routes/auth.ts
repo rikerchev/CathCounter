@@ -150,6 +150,22 @@ async function notifyAdminsOfPhoneAdded(u: {
 // adminMigrations.ts. Tries the fullest insert first, then narrows by
 // exactly which column Postgres says is missing, same reasoning as
 // middleware/auth.ts's selectUser.
+//
+// v3.59 — every brand-new account now also gets its starting `role` mirrored
+// into the multi-role `roles[]` array at creation (not just left at the
+// schema default `'{}'`). Before this, a fresh account only ever showed
+// "Потребител" in Profile.jsx's "Мои роли" list as a client-side fallback
+// label (src/pages/Profile.jsx: `roles.length === 0` → show placeholder
+// text) — never as an actual role. Functionally nothing was broken
+// (src/lib/roles.js's effectiveRoles() already folds the scalar `role` into
+// the roles list wherever it's read), but the account's OWN roles[] column
+// staying empty forever was confusing to look at directly (e.g. in the
+// database, or any future screen that reads `user.roles` without going
+// through effectiveRoles()) and didn't match what the person actually sees
+// in their profile. Every insert below now sets roles to a single-element
+// array containing that same starting role — 'user' for an ordinary
+// registration, 'admin' for the very first account, or whatever an admin's
+// invite explicitly requests (see the invite endpoint further down).
 async function insertNewUser(opts: {
   email: string;
   passwordHash: string;
@@ -159,10 +175,11 @@ async function insertNewUser(opts: {
   verified: boolean;
 }): Promise<AuthUser> {
   const { email, passwordHash, full_name, phone, role, verified } = opts;
+  const roles = [role];
   try {
     const rows = await sql<AuthUser[]>`
-      INSERT INTO users (email, password_hash, full_name, phone, role, email_verified, terms_accepted_at)
-      VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${verified}, now())
+      INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified, terms_accepted_at)
+      VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified}, now())
       RETURNING *
     `;
     return rows[0];
@@ -170,16 +187,16 @@ async function insertNewUser(opts: {
     if (e instanceof Error && /phone/.test(e.message)) {
       try {
         const rows = await sql<AuthUser[]>`
-          INSERT INTO users (email, password_hash, full_name, role, email_verified, terms_accepted_at)
-          VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${verified}, now())
+          INSERT INTO users (email, password_hash, full_name, role, roles, email_verified, terms_accepted_at)
+          VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified}, now())
           RETURNING *
         `;
         return rows[0];
       } catch (e2) {
         if (e2 instanceof Error && /terms_accepted_at/.test(e2.message)) {
           const rows = await sql<AuthUser[]>`
-            INSERT INTO users (email, password_hash, full_name, role, email_verified)
-            VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${verified})
+            INSERT INTO users (email, password_hash, full_name, role, roles, email_verified)
+            VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified})
             RETURNING *
           `;
           return rows[0];
@@ -189,8 +206,8 @@ async function insertNewUser(opts: {
     }
     if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
       const rows = await sql<AuthUser[]>`
-        INSERT INTO users (email, password_hash, full_name, phone, role, email_verified)
-        VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${verified})
+        INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified)
+        VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified})
         RETURNING *
       `;
       return rows[0];
@@ -357,9 +374,14 @@ export async function handleAuthRoute(
         `;
       } else {
         const first = await isFirstUser();
+        const googleRole = first ? "admin" : "user";
+        // v3.59 — see insertNewUser()'s own comment above: mirror the
+        // starting role into roles[] here too, so a brand-new Google
+        // sign-up gets the exact same treatment as one through the
+        // email/password form just above.
         rows = await sql<AuthUser[]>`
-          INSERT INTO users (email, google_id, full_name, role, email_verified)
-          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${first ? "admin" : "user"}, TRUE)
+          INSERT INTO users (email, google_id, full_name, role, roles, email_verified)
+          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${googleRole}, ${[googleRole]}, TRUE)
           RETURNING *
         `;
         // v3.03 — a Google sign-in has no registration form of its own to
@@ -499,7 +521,13 @@ export async function handleAuthRoute(
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
     if (existing.length) return json({ error: "Вече съществува потребител с този имейл" }, 409);
 
-    await sql`INSERT INTO users (email, role, email_verified) VALUES (${email}, ${role || "user"}, FALSE)`;
+    // v3.59 — same roles[] mirroring as insertNewUser()/the Google sign-up
+    // path above, for an account an admin creates directly via invite.
+    const inviteRole = role || "user";
+    await sql`
+      INSERT INTO users (email, role, roles, email_verified)
+      VALUES (${email}, ${inviteRole}, ${[inviteRole]}, FALSE)
+    `;
     const token = randomToken();
     const hash = await sha256Hex(token);
     const expires = new Date(Date.now() + 24 * 60 * 60_000);
