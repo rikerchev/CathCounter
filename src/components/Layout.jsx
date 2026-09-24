@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import {
-  Fish,
   LayoutDashboard,
   Timer,
   PlusCircle,
@@ -330,9 +329,11 @@ export default function Layout() {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-60 flex-col bg-white border-r border-slate-100 dark:bg-card dark:border-border">
         <Link to="/" className="flex items-center gap-2 px-5 py-4 border-b border-slate-100 dark:border-border hover:bg-slate-50 dark:hover:bg-accent transition-colors">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-            <Fish className="w-5 h-5 text-white" />
-          </div>
+          {/* v3.66 — the app's real brand artwork (same fish used for the
+              PWA/home-screen icon — see public/icon-192.png) instead of the
+              generic lucide Fish glyph in a plain gradient square, so the
+              in-app UI finally matches the icon shown everywhere else. */}
+          <img src="/icon-192.png" alt={t("app.name")} className="w-9 h-9 rounded-xl object-cover shrink-0" />
           <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
         </Link>
         <div className="flex-1 overflow-y-auto">
@@ -381,9 +382,9 @@ export default function Layout() {
           style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
         >
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-              <Fish className="w-4 h-4 text-white" />
-            </div>
+            {/* v3.66 — see the matching comment on the desktop sidebar's
+                logo above. */}
+            <img src="/icon-192.png" alt={t("app.name")} className="w-8 h-8 rounded-lg object-cover shrink-0" />
             <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
           </Link>
           <div className="flex items-center gap-1">

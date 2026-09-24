@@ -171,6 +171,7 @@ export default function Register() {
   return (
     <AuthLayout
       icon={Fish}
+      useLogo
       appName="CatchCount"
       title="Създайте профил"
       subtitle="Регистрирайте се, за да започнете"

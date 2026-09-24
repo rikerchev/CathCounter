@@ -63,6 +63,7 @@ export default function Login() {
   return (
     <AuthLayout
       icon={Fish}
+      useLogo
       appName="CatchCount"
       title={t("login.welcomeBack")}
       subtitle={t("login.subtitle")}
