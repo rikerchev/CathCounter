@@ -30,6 +30,7 @@ export const hu = {
   "nav.adRequests": "Hirdetési kérelmek",
   "common.loading": "Betöltés...",
   "common.couldNotLoad": "Adatok betöltése sikertelen",
+  "common.networkError": "Nincs internetkapcsolat. Ellenőrizze a kapcsolatot, és próbálja újra.",
   "common.save": "Mentés",
   "common.cancel": "Mégse",
   "common.workingHours": "Nyitvatartás",

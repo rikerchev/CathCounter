@@ -9,6 +9,8 @@ import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useLanguage } from "@/lib/i18n";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { WifiOff } from "lucide-react";
 
 // v3.34 — this used to hardcode every string in Bulgarian directly, instead
 // of going through the translation system (`t()`) like the rest of the app.
@@ -23,6 +25,13 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // v3.60 — reused from AdBannerItem.jsx's same hook (syncEngine.js's
+  // connectivity tracking is app-wide and initializes as soon as its
+  // module loads, regardless of auth state, so this works fine on a
+  // pre-login screen). Shown as a standing notice below whenever the
+  // browser already knows it's offline — catches the problem before the
+  // person even taps "Вход", rather than only after a failed attempt.
+  const isOnline = useOnlineStatus();
   // Post-login destination (e.g. the MCP OAuth consent page sends users here
   // with returnTo so the grant flow can resume). Same-origin paths only.
   const returnTo = safeReturnTo();
@@ -35,7 +44,13 @@ export default function Login() {
       await base44.auth.loginViaEmailPassword(email, password);
       window.location.href = returnTo;
     } catch (err) {
-      setError(err.message || t("login.invalidCredentials"));
+      // v3.60 — a request that never reached the network at all (no
+      // connectivity, timeout) is marked isNetworkError by apiFetch
+      // (base44Client.js) specifically so this can show one clear,
+      // translated "check your connection" message instead of the raw,
+      // untranslated browser error (e.g. "Failed to fetch") that used to
+      // land here as err.message.
+      setError(err.isNetworkError ? t("common.networkError") : (err.message || t("login.invalidCredentials")));
     } finally {
       setLoading(false);
     }
@@ -80,6 +95,13 @@ export default function Login() {
           <span className="bg-card px-3 text-muted-foreground">{t("login.or")}</span>
         </div>
       </div>
+
+      {!isOnline && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          {t("common.networkError")}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">

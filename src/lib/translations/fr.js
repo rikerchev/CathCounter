@@ -30,6 +30,7 @@ export const fr = {
   "nav.adRequests": "Demandes pub",
   "common.loading": "Chargement...",
   "common.couldNotLoad": "Impossible de charger",
+  "common.networkError": "Pas de connexion internet. Vérifiez votre connexion et réessayez.",
   "common.save": "Enregistrer",
   "common.cancel": "Annuler",
   "common.workingHours": "Horaires d'ouverture",

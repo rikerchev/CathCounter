@@ -33,6 +33,7 @@ export const bg = {
 
     "common.loading": "Зареждане...",
     "common.couldNotLoad": "Грешка при зареждане",
+    "common.networkError": "Няма връзка с интернет. Проверете връзката си и опитайте отново.",
     "common.save": "Запази",
     "common.cancel": "Отказ",
     "common.workingHours": "Работно време",

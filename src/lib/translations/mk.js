@@ -30,6 +30,7 @@ export const mk = {
   "nav.adRequests": "Барања за реклами",
   "common.loading": "Вчитување...",
   "common.couldNotLoad": "Неуспешно вчитување на податоци",
+  "common.networkError": "Нема интернет врска. Проверете ја врската и обидете се повторно.",
   "common.save": "Зачувај",
   "common.cancel": "Откажи",
   "common.workingHours": "Работно време",

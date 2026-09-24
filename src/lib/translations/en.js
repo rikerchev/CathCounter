@@ -33,6 +33,7 @@ export const en = {
 
     "common.loading": "Loading...",
     "common.couldNotLoad": "Could not load data",
+    "common.networkError": "No internet connection. Check your connection and try again.",
     "common.save": "Save",
     "common.cancel": "Cancel",
     "common.workingHours": "Working hours",

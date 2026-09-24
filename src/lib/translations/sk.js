@@ -30,6 +30,7 @@ export const sk = {
   "nav.adRequests": "Žiadosti o reklamu",
   "common.loading": "Načítavanie...",
   "common.couldNotLoad": "Nepodarilo sa načítať dáta",
+  "common.networkError": "Žiadne pripojenie na internet. Skontrolujte pripojenie a skúste to znova.",
   "common.save": "Uložiť",
   "common.cancel": "Zrušiť",
   "common.workingHours": "Otváracie hodiny",

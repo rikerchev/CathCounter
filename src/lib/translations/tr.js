@@ -30,6 +30,7 @@ export const tr = {
   "nav.adRequests": "Reklam talepleri",
   "common.loading": "Yükleniyor...",
   "common.couldNotLoad": "Veriler yüklenemedi",
+  "common.networkError": "İnternet bağlantısı yok. Bağlantınızı kontrol edip tekrar deneyin.",
   "common.save": "Kaydet",
   "common.cancel": "İptal",
   "common.workingHours": "Çalışma saatleri",

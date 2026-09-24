@@ -30,6 +30,7 @@ export const pl = {
   "nav.adRequests": "Wnioski reklamowe",
   "common.loading": "Ładowanie...",
   "common.couldNotLoad": "Nie udało się załadować danych",
+  "common.networkError": "Brak połączenia z internetem. Sprawdź połączenie i spróbuj ponownie.",
   "common.save": "Zapisz",
   "common.cancel": "Anuluj",
   "common.workingHours": "Godziny otwarcia",

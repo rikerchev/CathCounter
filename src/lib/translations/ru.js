@@ -30,6 +30,7 @@ export const ru = {
   "nav.adRequests": "Заявки на рекламу",
   "common.loading": "Загрузка...",
   "common.couldNotLoad": "Не удалось загрузить данные",
+  "common.networkError": "Нет подключения к интернету. Проверьте соединение и попробуйте снова.",
   "common.save": "Сохранить",
   "common.cancel": "Отмена",
   "common.workingHours": "Часы работы",

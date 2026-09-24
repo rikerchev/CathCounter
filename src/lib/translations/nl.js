@@ -30,6 +30,7 @@ export const nl = {
   "nav.adRequests": "Advertentieverzoeken",
   "common.loading": "Laden...",
   "common.couldNotLoad": "Kan gegevens niet laden",
+  "common.networkError": "Geen internetverbinding. Controleer uw verbinding en probeer het opnieuw.",
   "common.save": "Opslaan",
   "common.cancel": "Annuleren",
   "common.workingHours": "Openingstijden",

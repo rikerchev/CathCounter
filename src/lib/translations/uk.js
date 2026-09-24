@@ -30,6 +30,7 @@ export const uk = {
   "nav.adRequests": "Запити на рекламу",
   "common.loading": "Завантаження...",
   "common.couldNotLoad": "Не вдалося завантажити дані",
+  "common.networkError": "Немає з'єднання з інтернетом. Перевірте з'єднання і спробуйте ще раз.",
   "common.save": "Зберегти",
   "common.cancel": "Скасувати",
   "common.workingHours": "Години роботи",

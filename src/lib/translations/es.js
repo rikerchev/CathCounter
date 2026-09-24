@@ -30,6 +30,7 @@ export const es = {
   "nav.adRequests": "Solicitudes de anuncios",
   "common.loading": "Cargando...",
   "common.couldNotLoad": "No se pudieron cargar los datos",
+  "common.networkError": "Sin conexión a internet. Compruebe su conexión e inténtelo de nuevo.",
   "common.save": "Guardar",
   "common.cancel": "Cancelar",
   "common.workingHours": "Horario de atención",

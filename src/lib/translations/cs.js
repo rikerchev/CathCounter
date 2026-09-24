@@ -30,6 +30,7 @@ export const cs = {
   "nav.adRequests": "Žádosti o reklamu",
   "common.loading": "Načítání...",
   "common.couldNotLoad": "Data nelze načíst",
+  "common.networkError": "Žádné připojení k internetu. Zkontrolujte připojení a zkuste to znovu.",
   "common.save": "Uložit",
   "common.cancel": "Zrušit",
   "common.workingHours": "Otevírací doba",

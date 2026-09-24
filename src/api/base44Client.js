@@ -75,9 +75,31 @@ async function apiFetch(path, { method = "GET", body, headers, raw, timeoutMs } 
       signal: controller.signal,
     });
   } catch (e) {
+    // v3.60 — every request that never actually reached the network (no
+    // connectivity, DNS failure, a dropped mobile signal mid-request, or
+    // this 12s timeout above firing on a stalled socket) used to surface
+    // its raw, English, browser-specific message straight to the user —
+    // e.g. Login.jsx's `err.message || ...` would show literally "Failed
+    // to fetch" (Chrome) or "NetworkError when attempting to fetch
+    // resource." (Firefox), neither translated nor meaningful to someone
+    // standing by a lake with no signal trying to log in. Both cases are
+    // marked `isNetworkError` here so any screen that catches the error
+    // can show one clear, translated message instead (see
+    // t("common.networkError") — used by Login.jsx; Register.jsx/
+    // ForgotPassword.jsx/ResetPassword.jsx aren't on the translation
+    // system yet, so they check the same flag and show their own
+    // hardcoded Bulgarian equivalent). This is purely about which message
+    // reaches the user — it changes no actual request/retry behavior.
     if (e.name === "AbortError") {
       const err = new Error("Request timed out");
       err.status = 0;
+      err.isNetworkError = true;
+      throw err;
+    }
+    if (e instanceof TypeError) {
+      const err = new Error("Network error — check your connection");
+      err.status = 0;
+      err.isNetworkError = true;
       throw err;
     }
     throw e;

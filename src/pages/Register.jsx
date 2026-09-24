@@ -4,12 +4,20 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Fish, Mail, Lock, Loader2 } from "lucide-react";
+import { Fish, Mail, Lock, Loader2, WifiOff } from "lucide-react";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+
+// v3.60 — this page (unlike Login.jsx) doesn't go through the translation
+// system at all — every string here is already hardcoded Bulgarian — so
+// the network-error message below matches that existing style rather than
+// introducing a lone translated string. See base44Client.js's apiFetch()
+// for where isNetworkError actually gets set.
+const NETWORK_ERROR_MESSAGE = "Няма връзка с интернет. Проверете връзката си и опитайте отново.";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -26,6 +34,8 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [showOtp, setShowOtp] = useState(false);
   const [otpCode, setOtpCode] = useState("");
+  // v3.60 — see the matching comment/hook use in Login.jsx.
+  const isOnline = useOnlineStatus();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,7 +69,7 @@ export default function Register() {
       }
       setShowOtp(true);
     } catch (err) {
-      setError(err.message || "Регистрацията е неуспешна");
+      setError(err.isNetworkError ? NETWORK_ERROR_MESSAGE : (err.message || "Регистрацията е неуспешна"));
     } finally {
       setLoading(false);
     }
@@ -75,7 +85,7 @@ export default function Register() {
       }
       window.location.href = safeReturnTo();
     } catch (err) {
-      setError(err.message || "Невалиден код за потвърждение");
+      setError(err.isNetworkError ? NETWORK_ERROR_MESSAGE : (err.message || "Невалиден код за потвърждение"));
     } finally {
       setLoading(false);
     }
@@ -90,7 +100,7 @@ export default function Register() {
         description: "Проверете имейла си за новия код.",
       });
     } catch (err) {
-      setError(err.message || "Failed to resend code");
+      setError(err.isNetworkError ? NETWORK_ERROR_MESSAGE : (err.message || "Неуспешно изпращане на код"));
     }
   };
 
@@ -105,6 +115,12 @@ export default function Register() {
         title="Потвърдете имейла си"
         subtitle={`Изпратихме код до ${email}`}
       >
+        {!isOnline && (
+          <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+            <WifiOff className="w-4 h-4 shrink-0" />
+            {NETWORK_ERROR_MESSAGE}
+          </div>
+        )}
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
             {error}
@@ -187,6 +203,13 @@ export default function Register() {
           <span className="bg-card px-3 text-muted-foreground">или</span>
         </div>
       </div>
+
+      {!isOnline && (
+        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm flex items-center gap-2">
+          <WifiOff className="w-4 h-4 shrink-0" />
+          {NETWORK_ERROR_MESSAGE}
+        </div>
+      )}
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">

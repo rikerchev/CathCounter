@@ -30,6 +30,7 @@ export const sr = {
   "nav.adRequests": "Zahtevi za reklame",
   "common.loading": "Učitavanje...",
   "common.couldNotLoad": "Neuspešno učitavanje podataka",
+  "common.networkError": "Nema internet konekcije. Proverite vezu i pokušajte ponovo.",
   "common.save": "Sačuvaj",
   "common.cancel": "Otkaži",
   "common.workingHours": "Radno vreme",

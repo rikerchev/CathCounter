@@ -30,6 +30,7 @@ export const ro = {
   "nav.adRequests": "Cereri reclamă",
   "common.loading": "Se încarcă...",
   "common.couldNotLoad": "Nu s-au putut încărca datele",
+  "common.networkError": "Nu există conexiune la internet. Verificați conexiunea și încercați din nou.",
   "common.save": "Salvează",
   "common.cancel": "Anulează",
   "common.workingHours": "Program de lucru",
