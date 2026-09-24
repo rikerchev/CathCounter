@@ -56,7 +56,10 @@ const DEFAULT_MANUAL_DURATION_SECONDS = 10;
 // out entirely rather than guessed at — so a merchant is never shown and
 // then yanked away a moment later once it turns out to be ineligible. A
 // banner with manual items (or its own content) keeps showing those the
-// whole time regardless, since neither depends on that resolution.
+// whole time regardless, since neither depends on that resolution. The one
+// exception (v3.62) is a merchant snapshot with `forced: true` — it always
+// gets a turn, resolution or not, ineligible or not; see the dedicated
+// comment right above the merchant loop below for what that flag is for.
 //
 // v3.56 — returns { items, hasCarouselConfig } instead of a bare array.
 // `hasCarouselConfig` (merchants and/or manual items actually attached to
@@ -115,11 +118,21 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
     });
   }
 
-  if (merchantList.length > 0 && Array.isArray(eligibleMerchantKeys)) {
-    const eligibleSet = new Set(eligibleMerchantKeys);
+  // v3.62 — a merchant snapshot with `forced: true` (set from CustomAds.jsx's
+  // "Принудително включване" toggle — see toggleMerchantForced() there)
+  // always gets a turn, independent of eligibleMerchantKeys entirely: it
+  // doesn't need to wait for that resolution to come back, and it isn't
+  // removed if the merchant genuinely isn't eligible right now. This is a
+  // pure client-side display override living only in this ad's own
+  // `merchants` snapshot — it never touches the merchant's real bonus/
+  // QR-referral eligibility (merchantReferrals.ts), so turning it back off
+  // later leaves that completely untouched.
+  if (merchantList.length > 0) {
+    const eligibleSet = Array.isArray(eligibleMerchantKeys) ? new Set(eligibleMerchantKeys) : null;
     for (const m of merchantList) {
       if (!m?.type || !m?.id) continue;
-      if (!eligibleSet.has(`${m.type}:${m.id}`)) continue;
+      const forced = m.forced === true;
+      if (!forced && (!eligibleSet || !eligibleSet.has(`${m.type}:${m.id}`))) continue;
       items.push({
         key: `merchant:${m.type}:${m.id}`,
         title: m.name || "",

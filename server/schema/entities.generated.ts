@@ -307,9 +307,14 @@ export const ENTITIES: Record<string, EntityDef> = {
       // attached to this banner by an admin in CustomAds.jsx's "Търговци в
       // банера" section. JSON array of DENORMALIZED snapshots taken at
       // attach time — [{type, id, name, logo_url, logo_size, description,
-      // link}, ...] (description/link added v3.44, sourced from the
-      // merchant's own venues.ad_description/ad_link at attach time), in
-      // rotation order — same JSON-in-TEXT pattern as
+      // link, forced}, ...] (description/link added v3.44, sourced from the
+      // merchant's own venues.ad_description/ad_link at attach time; forced
+      // added v3.62 — an admin-only demo/test override, toggled per merchant
+      // in CustomAds.jsx, that forces this merchant's turn into the live
+      // carousel regardless of its real QR-referral eligibility — see
+      // AdBannerItem.jsx's buildCarouselItems(). Never touches the
+      // merchant's actual bonus_days_per_referral or the merchant_referrals
+      // table), in rotation order — same JSON-in-TEXT pattern as
       // country_content/language_content below, not a live join, so the
       // ad-rendering hot path (every page load) never needs an extra
       // fetch. See AdBannerItem.jsx's carousel-building logic.

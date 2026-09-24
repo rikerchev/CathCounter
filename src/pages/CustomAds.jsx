@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { DEFAULT_LANGUAGES, getLanguageNativeName } from "@/lib/languages";
-import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages, Store, Waves, ArrowUp, ArrowDown, Clock, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Eye, EyeOff, Upload, Loader2, Check, Globe, Languages, Store, Waves, ArrowUp, ArrowDown, Clock, RefreshCw, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -440,6 +440,9 @@ export default function CustomAdsManager() {
   // own). `water_body`-type merchants have no `website` field at all (only
   // venues do — see the v3.44 doc's own scope note), so this fallback is a
   // no-op for those; their snapshot's `link` stays "" if `ad_link` is unset.
+  // v3.62 — `forced: false` by default: see the toggleMerchantForced()
+  // comment below for what this field does. A brand-new attachment always
+  // starts un-forced — eligibility-gated exactly as before this version.
   function snapshotMerchant(mtype, merchant) {
     return {
       type: mtype,
@@ -449,6 +452,7 @@ export default function CustomAdsManager() {
       logo_size: merchant.logo_size || "auto",
       description: merchant.ad_description || "",
       link: merchant.ad_link || normalizeMerchantUrl(merchant.website) || "",
+      forced: false,
     };
   }
 
@@ -499,7 +503,12 @@ export default function CustomAdsManager() {
       setForm((prev) => {
         const arr = [...(prev.merchants || [])];
         if (!arr[index]) return prev;
-        arr[index] = snapshotMerchant(entry.type, merchant);
+        // v3.62 — snapshotMerchant() always resets `forced` to false (a
+        // brand-new attachment's default); refreshing an EXISTING
+        // attachment's logo/link/etc. must not silently flip a
+        // demo/test override back off, so the current entry's own
+        // `forced` value is carried over explicitly.
+        arr[index] = { ...snapshotMerchant(entry.type, merchant), forced: entry.forced === true };
         return { ...prev, merchants: arr };
       });
       // Keep the mount-time cache in sync too, so the "add merchant"
@@ -522,6 +531,29 @@ export default function CustomAdsManager() {
       const j = index + dir;
       if (j < 0 || j >= arr.length) return prev;
       [arr[index], arr[j]] = [arr[j], arr[index]];
+      return { ...prev, merchants: arr };
+    });
+  }
+
+  // v3.62 — "Принудително включване": lets an admin force this ONE attached
+  // merchant's turn to show in the live banner carousel regardless of
+  // whether it's currently eligible under the QR-referral bonus scheme
+  // (server/routes/merchantReferrals.ts's active-merchants check) — for
+  // demoing/testing how a banner looks with this merchant's turn active,
+  // without waiting for (or faking) a real QR scan. Stored as a `forced`
+  // flag INSIDE this ad's own `merchants` JSON snapshot (see
+  // snapshotMerchant() above and the entities.generated.ts column comment)
+  // — never touches the merchant's own row, its bonus_days_per_referral, or
+  // the merchant_referrals table those QR scans actually accumulate into.
+  // Turning it back off just flips this same flag back to false; the
+  // merchant's real, earned eligibility (and every QR scan counted so far)
+  // is completely unaffected either way — see AdBannerItem.jsx's
+  // buildCarouselItems(), which is the only place that reads it.
+  function toggleMerchantForced(index) {
+    setForm((prev) => {
+      const arr = [...(prev.merchants || [])];
+      if (!arr[index]) return prev;
+      arr[index] = { ...arr[index], forced: !arr[index].forced };
       return { ...prev, merchants: arr };
     });
   }
@@ -1001,10 +1033,29 @@ export default function CustomAdsManager() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-slate-700 dark:text-foreground truncate">{m.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-slate-700 dark:text-foreground truncate">{m.name}</p>
+                            {m.forced && (
+                              <span className="inline-flex items-center gap-0.5 shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                                <Zap className="w-2.5 h-2.5" /> {t("ca.forcedBadge")}
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-slate-400">{MERCHANT_TYPE_LABELS[m.type]}</p>
                         </div>
                         <div className="flex items-center gap-0.5">
+                          {/* v3.62 — forces this merchant's turn into the live
+                              carousel for demo/testing, bypassing the QR-referral
+                              eligibility check entirely; see toggleMerchantForced()
+                              above for exactly what this does and doesn't touch. */}
+                          <button
+                            type="button"
+                            onClick={() => toggleMerchantForced(idx)}
+                            className={`p-1.5 rounded hover:bg-slate-200 dark:hover:bg-accent ${m.forced ? "text-amber-600 dark:text-amber-400" : "text-slate-500"}`}
+                            title={m.forced ? t("ca.forceActiveOn") : t("ca.forceActiveOff")}
+                          >
+                            <Zap className={`w-3.5 h-3.5 ${m.forced ? "fill-amber-500" : ""}`} />
+                          </button>
                           <button
                             type="button"
                             onClick={() => refreshMerchant(idx)}
