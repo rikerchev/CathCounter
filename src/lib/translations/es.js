@@ -957,6 +957,8 @@ export const es = {
   "ca.oneDayRemaining": "Queda 1 día",
   "ca.expiresToday": "Expira hoy",
   "ca.expiredOn": "Expiró el: {date}",
+  "ca.hoursRemaining": "Quedan {hours} h",
+  "ca.merchantNotEligible": "No aparece actualmente en el banner",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Gestión de anuncios",
     "am.pageSelector": "Página",

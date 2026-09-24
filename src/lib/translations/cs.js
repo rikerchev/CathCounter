@@ -957,6 +957,8 @@ export const cs = {
   "ca.oneDayRemaining": "Zbývá 1 den",
   "ca.expiresToday": "Dnes vyprší",
   "ca.expiredOn": "Vypršelo: {date}",
+  "ca.hoursRemaining": "Zbývá {hours} h",
+  "ca.merchantNotEligible": "Momentálně se v banneru nezobrazuje",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Správa reklam",
     "am.pageSelector": "Stránka",

@@ -1125,6 +1125,8 @@ export const bg = {
   "ca.oneDayRemaining": "Остава 1 ден",
   "ca.expiresToday": "Изтича днес",
   "ca.expiredOn": "Изтекла на: {date}",
+  "ca.hoursRemaining": "Остават {hours} ч.",
+  "ca.merchantNotEligible": "В момента не се показва в банера",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управление на реклами",
     "am.pageSelector": "Страница",

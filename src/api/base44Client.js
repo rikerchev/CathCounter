@@ -350,6 +350,12 @@ export const base44 = {
     // missing an entry for anything the caller isn't allowed to see (see
     // server/routes/merchantReferrals.ts's own comment on this route).
     counts: (items) => apiFetch("/api/merchant-referrals/counts", { method: "POST", body: { items } }),
+    // v3.68 — owner/admin: how many hours are left before each given
+    // merchant drops out of the live banner carousel's eligibility (see
+    // server/routes/merchantReferrals.ts's own comment on this route).
+    // Powers the per-merchant "remaining time" shown in CustomAds.jsx's
+    // "Търговци в банера" editor.
+    eligibilityRemaining: (items) => apiFetch("/api/merchant-referrals/eligibility-remaining", { method: "POST", body: { items } }),
     // v3.44 — batch-resolves, for each given ad (1+ attached merchants),
     // which of its merchants are currently ELIGIBLE for the live banner
     // carousel (see AdBannerItem.jsx) — a plain array of "type:id" keys per

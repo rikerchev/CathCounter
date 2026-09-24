@@ -224,6 +224,12 @@ export default function CustomAdsManager() {
   // v3.56 — which attached-merchant row (by index) is currently being
   // re-fetched from the server via refreshMerchant() below.
   const [refreshingMerchantIndex, setRefreshingMerchantIndex] = useState(null);
+  // v3.68 — { "type:id": { eligible, remainingHours }, ... } for the
+  // currently attached (non-forced) merchants — how much longer each one
+  // stays eligible for the live banner carousel before it needs a fresh QR
+  // referral. Refetched by the useEffect below whenever the set of
+  // attached merchant keys changes. See base44.merchantReferrals.eligibilityRemaining().
+  const [merchantEligibility, setMerchantEligibility] = useState({});
   // v3.44 — which manual_items row (by index) currently has a logo upload
   // in flight, if any — each row needs its own busy indicator, unlike the
   // single `uploadingLogo` flag below (which only ever covers the ad's own
@@ -274,6 +280,35 @@ export default function CustomAdsManager() {
       })
       .catch(() => setApprovedMerchants([]));
   }, [isAdmin]);
+
+  // v3.68 — refetches each attached (non-forced) merchant's remaining
+  // eligibility time whenever the edit form is open and the actual set of
+  // attached merchants changes (add/remove/refresh) — a `forced` merchant
+  // bypasses eligibility entirely (see toggleMerchantForced()), so it's
+  // left out here and never shown a remaining-time badge. Keyed off a
+  // plain joined-keys string, not `form` itself, so unrelated keystrokes
+  // elsewhere in the form (title, description, ...) don't trigger a
+  // refetch on every render.
+  const eligibilityMerchantKeys = isAdmin
+    ? (form.merchants || []).filter((m) => !m.forced).map((m) => `${m.type}:${m.id}`)
+    : [];
+  const eligibilityKeysSignature = eligibilityMerchantKeys.join(",");
+  useEffect(() => {
+    if (!isAdmin || (!editing && !creatingNew) || eligibilityMerchantKeys.length === 0) {
+      setMerchantEligibility({});
+      return;
+    }
+    let cancelled = false;
+    base44.merchantReferrals
+      .eligibilityRemaining(eligibilityMerchantKeys.map((k) => {
+        const [type, id] = k.split(":");
+        return { type, id };
+      }))
+      .then((data) => { if (!cancelled) setMerchantEligibility(data || {}); })
+      .catch(() => { if (!cancelled) setMerchantEligibility({}); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, editing, creatingNew, eligibilityKeysSignature]);
 
   if (user && !hasRole(user, "advertiser") && !isAdmin) {
     return (
@@ -1114,6 +1149,25 @@ export default function CustomAdsManager() {
                             )}
                           </div>
                           <p className="text-[10px] text-slate-400">{MERCHANT_TYPE_LABELS[m.type]}</p>
+                          {/* v3.68 — how much longer THIS merchant stays
+                              eligible for the live banner carousel (see the
+                              useEffect above) before it needs a fresh QR
+                              referral — deliberately skipped for a `forced`
+                              merchant (its badge above already says it
+                              bypasses eligibility entirely) and while the
+                              fetch hasn't resolved yet (no entry in the map). */}
+                          {!m.forced && (() => {
+                            const elig = merchantEligibility[`${m.type}:${m.id}`];
+                            if (!elig) return null;
+                            const hours = elig.remainingHours || 0;
+                            if (!elig.eligible || hours <= 0) {
+                              return <p className="text-[10px] text-slate-400 italic">{t("ca.merchantNotEligible")}</p>;
+                            }
+                            const label = hours >= 24
+                              ? (Math.ceil(hours / 24) === 1 ? t("ca.oneDayRemaining") : t("ca.daysRemaining").replace("{days}", String(Math.ceil(hours / 24))))
+                              : t("ca.hoursRemaining").replace("{hours}", String(hours));
+                            return <p className="text-[10px] text-cyan-600 dark:text-cyan-400 font-medium">{label}</p>;
+                          })()}
                         </div>
                         <div className="flex items-center gap-0.5">
                           {/* v3.62 — forces this merchant's turn into the live

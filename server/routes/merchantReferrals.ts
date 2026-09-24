@@ -84,6 +84,17 @@ const ELIGIBILITY_WINDOW_DAYS = 3;
  *   left out of the result rather than erroring the whole batch, so one
  *   stray/foreign id never breaks every other row's count.
  *
+ * POST /api/merchant-referrals/eligibility-remaining { items: [{type,id}, ...] }   (owner or admin)
+ *   -> { "type:id": { eligible, remainingHours }, ... }
+ *   v3.68 — same owner-or-admin scoping as /counts above (an item the
+ *   caller doesn't own and isn't admin for is left out, not an error).
+ *   For each merchant, how many hours are left before it drops out of the
+ *   live banner carousel's eligibility (see ELIGIBILITY_WINDOW_DAYS below)
+ *   unless it earns a fresh QR referral first — remainingHours is 0 when
+ *   already ineligible. Powers the "Търговци в банера" editor in
+ *   CustomAds.jsx, which is itself admin-only, so exposing this timing
+ *   (unlike the deliberately-opaque /active-merchants below) is safe here.
+ *
  * POST /api/merchant-referrals/active-merchants { ads: [{id, merchants: [{type,id},...]}] }
  *   (public, no auth needed) -> { [adId]: ["type:id", ...] }
  *   v3.44 — for each ad with 1+ attached merchants (see custom_ads.merchants,
@@ -231,6 +242,61 @@ export async function handleMerchantReferralsRoute(
         SELECT COUNT(*)::int AS n FROM merchant_referrals WHERE merchant_type = ${type} AND merchant_id = ${id}
       `;
       result[key] = rows[0]?.n ?? 0;
+    }
+    return json(result);
+  }
+
+  if (action === "eligibility-remaining" && req.method === "POST") {
+    if (!user) return json({ error: "Not authenticated" }, 401);
+
+    // v3.68 — owner/admin only (same access rule as /counts and /stats
+    // above): unlike /active-merchants below, this DOES expose timing
+    // derived from the referral log, so it must never be reachable
+    // without auth. Requested for CustomAds.jsx's merchant-attach editor
+    // ("Търговци в банера"), which is itself admin-only UI — shows each
+    // attached merchant how much longer it stays ELIGIBLE for the live
+    // banner carousel (see the doc comment on ELIGIBILITY_WINDOW_DAYS
+    // above) before it needs a fresh QR referral to keep showing.
+    const body = await req.json().catch(() => ({}));
+    const itemsIn: Array<{ type?: string; id?: string }> = Array.isArray(body?.items) ? body.items : [];
+
+    const keys = new Set<string>();
+    for (const it of itemsIn) {
+      if (it?.type && it?.id && MERCHANT_TABLES[it.type]) keys.add(`${it.type}:${it.id}`);
+    }
+
+    const admin = isAdmin(user);
+    const windowMs = ELIGIBILITY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    const result: Record<string, { eligible: boolean; remainingHours: number }> = {};
+    for (const key of keys) {
+      const i = key.indexOf(":");
+      const type = key.slice(0, i);
+      const id = key.slice(i + 1);
+      const table = MERCHANT_TABLES[type];
+
+      if (!admin) {
+        const owned = await sql`SELECT id FROM ${sql(table)} WHERE id = ${id} AND created_by_id = ${user.id}`;
+        if (!owned.length) continue; // not this caller's — left out, not an error (see doc comment above)
+      }
+
+      // The most recent referral still inside the eligibility window, if
+      // any — mirrors exactly what /active-merchants checks (just needs
+      // the timestamp here instead of only a boolean).
+      const rows = await sql<{ last_at: string | null }[]>`
+        SELECT MAX(created_at) AS last_at FROM merchant_referrals
+        WHERE merchant_type = ${type} AND merchant_id = ${id}
+          AND created_at >= NOW() - (${ELIGIBILITY_WINDOW_DAYS}::text || ' days')::interval
+      `;
+      const lastAt = rows[0]?.last_at ? new Date(rows[0].last_at).getTime() : null;
+      if (lastAt === null) {
+        result[key] = { eligible: false, remainingHours: 0 };
+        continue;
+      }
+      const remainingMs = lastAt + windowMs - Date.now();
+      result[key] = {
+        eligible: remainingMs > 0,
+        remainingHours: remainingMs > 0 ? Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000))) : 0,
+      };
     }
     return json(result);
   }

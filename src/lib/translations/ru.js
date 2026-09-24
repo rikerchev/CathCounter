@@ -957,6 +957,8 @@ export const ru = {
   "ca.oneDayRemaining": "Остался 1 день",
   "ca.expiresToday": "Истекает сегодня",
   "ca.expiredOn": "Истекла: {date}",
+  "ca.hoursRemaining": "Осталось {hours} ч.",
+  "ca.merchantNotEligible": "Сейчас не показывается в баннере",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управление рекламой",
     "am.pageSelector": "Страница",

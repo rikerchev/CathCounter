@@ -957,6 +957,8 @@ export const tr = {
   "ca.oneDayRemaining": "1 gün kaldı",
   "ca.expiresToday": "Bugün sona eriyor",
   "ca.expiredOn": "Sona erme: {date}",
+  "ca.hoursRemaining": "{hours} saat kaldı",
+  "ca.merchantNotEligible": "Şu anda banerda gösterilmiyor",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Reklam Yönetimi",
     "am.pageSelector": "Sayfa",

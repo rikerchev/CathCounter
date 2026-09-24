@@ -957,6 +957,8 @@ export const uk = {
   "ca.oneDayRemaining": "Залишився 1 день",
   "ca.expiresToday": "Закінчується сьогодні",
   "ca.expiredOn": "Закінчилась: {date}",
+  "ca.hoursRemaining": "Залишилось {hours} год.",
+  "ca.merchantNotEligible": "Наразі не показується в банері",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Керування рекламою",
     "am.pageSelector": "Сторінка",

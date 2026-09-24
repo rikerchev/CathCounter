@@ -957,6 +957,8 @@ export const fr = {
   "ca.oneDayRemaining": "Reste 1 jour",
   "ca.expiresToday": "Expire aujourd'hui",
   "ca.expiredOn": "Expiré le : {date}",
+  "ca.hoursRemaining": "Reste {hours} h",
+  "ca.merchantNotEligible": "N'apparaît pas actuellement dans le bandeau",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Gestion des publicités",
     "am.pageSelector": "Page",

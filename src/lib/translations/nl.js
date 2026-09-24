@@ -957,6 +957,8 @@ export const nl = {
   "ca.oneDayRemaining": "Nog 1 dag",
   "ca.expiresToday": "Verloopt vandaag",
   "ca.expiredOn": "Verlopen op: {date}",
+  "ca.hoursRemaining": "Nog {hours} uur",
+  "ca.merchantNotEligible": "Wordt momenteel niet getoond in de banner",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Advertentiebeheer",
     "am.pageSelector": "Pagina",

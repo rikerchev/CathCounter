@@ -957,6 +957,8 @@ export const hu = {
   "ca.oneDayRemaining": "1 nap van hátra",
   "ca.expiresToday": "Ma jár le",
   "ca.expiredOn": "Lejárt: {date}",
+  "ca.hoursRemaining": "{hours} óra van hátra",
+  "ca.merchantNotEligible": "Jelenleg nem jelenik meg a bannerben",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Hirdetéskezelés",
     "am.pageSelector": "Oldal",

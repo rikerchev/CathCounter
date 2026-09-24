@@ -957,6 +957,8 @@ export const sr = {
   "ca.oneDayRemaining": "Преостао је 1 дан",
   "ca.expiresToday": "Истиче данас",
   "ca.expiredOn": "Истекло: {date}",
+  "ca.hoursRemaining": "Преостало је {hours} ч",
+  "ca.merchantNotEligible": "Тренутно се не приказује у банеру",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управљање рекламама",
     "am.pageSelector": "Страница",

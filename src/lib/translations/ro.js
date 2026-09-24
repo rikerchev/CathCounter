@@ -957,6 +957,8 @@ export const ro = {
   "ca.oneDayRemaining": "Mai rămâne 1 zi",
   "ca.expiresToday": "Expiră astăzi",
   "ca.expiredOn": "Expirat la: {date}",
+  "ca.hoursRemaining": "Mai rămân {hours} h",
+  "ca.merchantNotEligible": "În prezent nu apare în banner",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Gestionare reclame",
     "am.pageSelector": "Pagină",
