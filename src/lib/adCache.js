@@ -217,6 +217,37 @@ export function setLastEligibilitySyncAt(timestamp) {
   }
 }
 
+// v3.64 — near-real-time "did an admin change something" signal, separate
+// from both throttles above. See server/routes/publicSettings.ts's
+// ads-version endpoint for what it returns and why it's cheap (a single
+// MAX(updated_at), no ad/slot content at all). useEligibleAds.js polls it
+// on this short interval and, ONLY when the returned value actually moved
+// since the last poll, triggers the real (heavier) resync immediately —
+// bypassing AD_SYNC_INTERVAL_MS's 10-minute throttle entirely for that one
+// call, since a genuine admin change is exactly the case that throttle was
+// never meant to delay. Reported directly: a brand-new merchant banner,
+// saved by the admin, still hadn't reached an already-open phone 5 minutes
+// later — this closes that gap down to (at most) this poll interval.
+export const AD_VERSION_POLL_INTERVAL_MS = 30 * 1000; // 30 секунди
+
+const AD_VERSION_KEY = "catchcount_ad_version";
+
+export function getCachedAdVersion() {
+  try {
+    return localStorage.getItem(AD_VERSION_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+}
+
+export function setCachedAdVersion(version) {
+  try {
+    localStorage.setItem(AD_VERSION_KEY, version || "");
+  } catch (e) {
+    console.error("setCachedAdVersion error:", e);
+  }
+}
+
 // v3.46 — fire-and-forget warm of the browser's (service-worker-backed —
 // see public/sw.js's cache-first static-asset handler) cache for every ad
 // logo referenced by a freshly-synced ad list, INCLUDING each ad's

@@ -306,6 +306,13 @@ export const base44 = {
     // EVERY user's own Layout.jsx (see src/lib/menuOrder.js). Saving it is
     // admin-only, through admin.updateSettings({ MENU_ORDER: ... }) below.
     getMenuOrder: () => apiFetch("/api/settings/menu-order"),
+    // v3.64 — tiny public "did custom_ads/ad_slots change" signal, polled
+    // often by useEligibleAds.js (see AD_VERSION_POLL_INTERVAL_MS in
+    // src/lib/adCache.js) so a fresh admin change reaches an already-open
+    // device within seconds instead of waiting for the next navigation or
+    // the slower 10-minute ad resync throttle. See
+    // server/routes/publicSettings.ts's own comment on this route.
+    getAdsVersion: () => apiFetch("/api/settings/ads-version"),
   },
 
   // v2.90 — "assign this registration to a real system account" (organizer's

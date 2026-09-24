@@ -13,6 +13,9 @@ import {
   getLastEligibilitySyncAt,
   setLastEligibilitySyncAt,
   ELIGIBILITY_SYNC_INTERVAL_MS,
+  getCachedAdVersion,
+  setCachedAdVersion,
+  AD_VERSION_POLL_INTERVAL_MS,
   preloadAdImages,
   matchesLanguage,
   resolveZone,
@@ -403,6 +406,36 @@ export function useEligibleAds() {
       if (Date.now() - getLastAdSyncAt() >= AD_SYNC_INTERVAL_MS) syncFromNetwork();
     }, AD_RESYNC_CHECK_INTERVAL_MS);
 
+    // v3.64 — the 10-minute fallback above still means an admin's change
+    // can take up to 10 minutes to reach an already-open device even with
+    // v3.63's periodic check, since that check only ever resyncs once the
+    // full throttle window has elapsed — it has no way to know a change
+    // actually happened sooner. This adds a real "did anything change"
+    // signal: a tiny, cheap poll (see server/routes/publicSettings.ts's
+    // ads-version endpoint — just one MAX(updated_at), no ad content) every
+    // AD_VERSION_POLL_INTERVAL_MS. Only when the returned value has moved
+    // since the last poll does this trigger syncFromNetwork() itself,
+    // bypassing AD_SYNC_INTERVAL_MS entirely for that one call — a genuine
+    // admin save is exactly the case that throttle was never meant to
+    // delay. The very first check on a device (no stored version yet) just
+    // records the baseline without forcing an extra resync, since the
+    // effect's own mount/navigation sync already covers "what does the app
+    // look like right now".
+    const checkAdVersion = () => {
+      base44.settings
+        .getAdsVersion()
+        .then((res) => {
+          const version = res?.version || "";
+          if (!version) return;
+          const known = getCachedAdVersion();
+          setCachedAdVersion(version);
+          if (known && version !== known) syncFromNetwork();
+        })
+        .catch(() => {});
+    };
+    checkAdVersion();
+    const adVersionIntervalId = setInterval(checkAdVersion, AD_VERSION_POLL_INTERVAL_MS);
+
     // v3.46 — this effect re-runs on EVERY page navigation
     // (location.pathname is a dependency), which used to mean a fresh
     // network round-trip (CustomAd.list + AdSlot.list, and — for any
@@ -442,6 +475,7 @@ export function useEligibleAds() {
     return () => {
       clearInterval(eligibilityIntervalId);
       clearInterval(adResyncIntervalId);
+      clearInterval(adVersionIntervalId);
       clearTimeout(fetchId);
       // v3.49 — the never-synced-yet retry chain (see syncFromNetwork's own
       // .catch() above) must not keep firing after this effect instance is
