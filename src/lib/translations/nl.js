@@ -1206,6 +1206,7 @@ export const nl = {
     "ca.addMerchantPlaceholder": "Handelaar toevoegen...",
     "ca.noApprovedMerchants": "Nog geen goedgekeurde handelaren.",
     "ca.merchantsAutoNote": "Titel, logo, beschrijving en link worden automatisch bepaald door de handelaar(s) die in de afgelopen 3 dagen minstens één registratie via hun QR-code hebben gekregen — elk wordt {seconds} seconden getoond voordat er wordt gewisseld, tot hij weer aan de beurt is. Zonder registraties nemen alleen de hieronder handmatig ingevoerde advertenties hun plaats in.",
+    "ca.merchantDurationHint": "Hoe lang deze specifieke handelaar in beeld blijft voordat er wordt gewisseld naar de volgende. Gebruik dit om een handelaar die meer nieuwe registraties oplevert te belonen met meer tijd, en die van een minder actieve te verkorten.",
     "ca.rotationInterval": "Wisselinterval",
     "ca.rotationIntervalDesc": "Elke bezoeker ziet op een bepaald moment dezelfde handelaar — deze wisselt volgens dit interval.",
     "ca.rotationUnitMinutes": "minuten",

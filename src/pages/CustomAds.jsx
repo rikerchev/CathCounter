@@ -315,9 +315,20 @@ export default function CustomAdsManager() {
     } catch {
       parsedLangContent = {};
     }
+    // v3.65 — same friendly-value+unit round trip manual_items already does
+    // just below: a merchant snapshot persists a plain `duration_seconds`
+    // (see save()), but the edit form works in duration_value/duration_unit
+    // — missing/0 falls back to MERCHANT_TURN_SECONDS, exactly matching
+    // what AdBannerItem.jsx already treats as "no override set".
     let parsedMerchants = [];
     try {
-      parsedMerchants = ad.merchants ? JSON.parse(ad.merchants) : [];
+      const rawMerchants = ad.merchants ? JSON.parse(ad.merchants) : [];
+      if (Array.isArray(rawMerchants)) {
+        parsedMerchants = rawMerchants.map((m) => {
+          const dUi = rotationSecondsToUi(Number(m?.duration_seconds) > 0 ? m.duration_seconds : MERCHANT_TURN_SECONDS);
+          return { ...m, duration_value: dUi.value, duration_unit: dUi.unit };
+        });
+      }
     } catch {
       parsedMerchants = [];
     }
@@ -443,6 +454,11 @@ export default function CustomAdsManager() {
   // v3.62 — `forced: false` by default: see the toggleMerchantForced()
   // comment below for what this field does. A brand-new attachment always
   // starts un-forced — eligibility-gated exactly as before this version.
+  // v3.65 — `duration_value`/`duration_unit` default to MERCHANT_TURN_SECONDS
+  // worth of "seconds": the friendly UI pair for this merchant's own turn
+  // length in the live carousel — see updateMerchantDuration() below for
+  // what it does and why it's a per-merchant admin choice now instead of a
+  // flat constant.
   function snapshotMerchant(mtype, merchant) {
     return {
       type: mtype,
@@ -453,6 +469,8 @@ export default function CustomAdsManager() {
       description: merchant.ad_description || "",
       link: merchant.ad_link || normalizeMerchantUrl(merchant.website) || "",
       forced: false,
+      duration_value: String(MERCHANT_TURN_SECONDS),
+      duration_unit: "seconds",
     };
   }
 
@@ -508,7 +526,15 @@ export default function CustomAdsManager() {
         // attachment's logo/link/etc. must not silently flip a
         // demo/test override back off, so the current entry's own
         // `forced` value is carried over explicitly.
-        arr[index] = { ...snapshotMerchant(entry.type, merchant), forced: entry.forced === true };
+        // v3.65 — same reasoning for the per-merchant turn length: a
+        // refresh must not silently reset an admin's chosen
+        // duration_value/duration_unit back to the default.
+        arr[index] = {
+          ...snapshotMerchant(entry.type, merchant),
+          forced: entry.forced === true,
+          duration_value: entry.duration_value || String(MERCHANT_TURN_SECONDS),
+          duration_unit: entry.duration_unit || "seconds",
+        };
         return { ...prev, merchants: arr };
       });
       // Keep the mount-time cache in sync too, so the "add merchant"
@@ -554,6 +580,33 @@ export default function CustomAdsManager() {
       const arr = [...(prev.merchants || [])];
       if (!arr[index]) return prev;
       arr[index] = { ...arr[index], forced: !arr[index].forced };
+      return { ...prev, merchants: arr };
+    });
+  }
+
+  // v3.65 — per-merchant editable turn length in the live banner carousel.
+  // Before this, EVERY eligible merchant got the exact same flat
+  // MERCHANT_TURN_SECONDS turn (still the default here) — deliberately so,
+  // because a duration proportional to a merchant's referral COUNT would
+  // leak that private count to anyone watching the banner (see
+  // server/routes/merchantReferrals.ts's own comment on why eligibility is
+  // returned as a plain yes/no, never a count). This is different: it's an
+  // explicit, manual admin decision — like the v3.62 "forced" toggle right
+  // above — not anything derived automatically from a merchant's actual
+  // referral activity, so it doesn't reopen that privacy question. It just
+  // lets an admin reward a merchant who's been bringing in more new
+  // registrations with more on-screen time, and trim it for one that
+  // rarely does, entirely at their own discretion. Stored as
+  // `duration_value`/`duration_unit` (the same friendly value+unit pair
+  // manual items already use — see rotationUiToSeconds()/
+  // rotationSecondsToUi()) inside this merchant's own snapshot; converted
+  // to a plain `duration_seconds` only at save() time, read by
+  // AdBannerItem.jsx's buildCarouselItems().
+  function updateMerchantDuration(index, patch) {
+    setForm((prev) => {
+      const arr = [...(prev.merchants || [])];
+      if (!arr[index]) return prev;
+      arr[index] = { ...arr[index], ...patch };
       return { ...prev, merchants: arr };
     });
   }
@@ -657,7 +710,24 @@ export default function CustomAdsManager() {
         starts_at: form.starts_at || null,
         duration_months: form.duration_months ? Number(form.duration_months) : null,
         expires_at: expiresAt,
-        merchants: JSON.stringify(form.merchants || []),
+        // v3.65 — each merchant's own duration_value/duration_unit (the
+        // form-friendly pair — see updateMerchantDuration() above) is
+        // converted to a plain duration_seconds here, exactly like
+        // manual_items' own per-item duration below — AdBannerItem.jsx only
+        // ever reads the plain number.
+        merchants: JSON.stringify(
+          (form.merchants || []).map((m) => ({
+            type: m.type,
+            id: m.id,
+            name: m.name || "",
+            logo_url: m.logo_url || "",
+            logo_size: m.logo_size || "auto",
+            description: m.description || "",
+            link: m.link || "",
+            forced: m.forced === true,
+            duration_seconds: rotationUiToSeconds(m.duration_value, m.duration_unit),
+          }))
+        ),
         // v3.44 — merchant_rotation_minutes is intentionally no longer sent
         // at all (RETIRED — see entities.generated.ts): eligible merchants
         // all get the same flat MERCHANT_TURN_SECONDS turn now, live, on
@@ -1021,8 +1091,9 @@ export default function CustomAdsManager() {
                     {form.merchants.map((m, idx) => (
                       <div
                         key={`${m.type}:${m.id}`}
-                        className="flex items-center gap-2 rounded-lg bg-slate-50 dark:bg-accent/40 p-2"
+                        className="rounded-lg bg-slate-50 dark:bg-accent/40 p-2 space-y-1.5"
                       >
+                        <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded bg-white border border-slate-200 dark:border-border flex items-center justify-center overflow-hidden shrink-0">
                           {m.logo_url ? (
                             <img src={m.logo_url} alt={m.name} className="w-full h-full object-contain" />
@@ -1096,6 +1167,35 @@ export default function CustomAdsManager() {
                             <X className="w-3.5 h-3.5 text-slate-500" />
                           </button>
                         </div>
+                        </div>
+                        {/* v3.65 — this merchant's OWN turn length in the live
+                            carousel, editable per merchant instead of the old
+                            flat MERCHANT_TURN_SECONDS for everyone — see
+                            updateMerchantDuration() above for why this is
+                            deliberately a manual admin choice, not anything
+                            derived from the merchant's actual referral count. */}
+                        <div className="flex items-center gap-1.5 pl-10">
+                          <Clock className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                          <Input
+                            type="number"
+                            min="1"
+                            value={m.duration_value}
+                            onChange={(e) => updateMerchantDuration(idx, { duration_value: e.target.value })}
+                            className="h-8 w-16 text-xs px-2"
+                          />
+                          <Select
+                            value={m.duration_unit}
+                            onValueChange={(v) => updateMerchantDuration(idx, { duration_unit: v })}
+                          >
+                            <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {ROTATION_DISPLAY_UNITS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <p className="text-[10px] text-slate-400 pl-10">{t("ca.merchantDurationHint")}</p>
                       </div>
                     ))}
                   </div>

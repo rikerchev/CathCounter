@@ -1263,6 +1263,7 @@ export const en = {
     "ca.addMerchantPlaceholder": "Add a merchant...",
     "ca.noApprovedMerchants": "No approved merchants yet.",
     "ca.merchantsAutoNote": "The title, logo, description and link are set automatically by whichever merchant(s) got at least one QR-code registration in the last 3 days — each one shown for {seconds} seconds before switching, until its turn comes again. With no registrations, only the manually-entered ads below take their place.",
+    "ca.merchantDurationHint": "How long this specific merchant stays on screen before switching to the next one. Use it to reward a merchant bringing in more new registrations with more time, and trim it for one that brings in fewer.",
     "ca.rotationInterval": "Rotation interval",
     "ca.rotationIntervalDesc": "Every visitor sees the same merchant at any given moment — it switches on this interval.",
     "ca.rotationUnitMinutes": "minutes",

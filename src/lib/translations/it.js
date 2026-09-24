@@ -1206,6 +1206,7 @@ export const it = {
     "ca.addMerchantPlaceholder": "Aggiungi commerciante...",
     "ca.noApprovedMerchants": "Nessun commerciante approvato ancora.",
     "ca.merchantsAutoNote": "Titolo, logo, descrizione e link sono impostati automaticamente dal/dai commerciante/i che ha/hanno ricevuto almeno una registrazione tramite il proprio codice QR negli ultimi 3 giorni — ciascuno mostrato per {seconds} secondi prima di passare al successivo, finché non torna il suo turno. In assenza di registrazioni, il loro posto è occupato solo dagli annunci inseriti manualmente qui sotto.",
+    "ca.merchantDurationHint": "Per quanto tempo questo specifico commerciante resta visibile prima di passare al successivo. Usalo per premiare con più tempo il commerciante che porta più nuove registrazioni, e ridurlo per chi ne porta meno.",
     "ca.rotationInterval": "Intervallo di rotazione",
     "ca.rotationIntervalDesc": "Ogni visitatore vede lo stesso commerciante in un dato momento — cambia secondo questo intervallo.",
     "ca.rotationUnitMinutes": "minuti",

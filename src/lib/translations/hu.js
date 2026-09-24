@@ -1206,6 +1206,7 @@ export const hu = {
     "ca.addMerchantPlaceholder": "Kereskedő hozzáadása...",
     "ca.noApprovedMerchants": "Még nincs jóváhagyott kereskedő.",
     "ca.merchantsAutoNote": "A címet, logót, leírást és linket automatikusan az(ok) a kereskedő(k) határozzák meg, akik az elmúlt 3 napban legalább egy QR-kódos regisztrációt kaptak — mindegyik {seconds} másodpercig jelenik meg, amíg újra sorra nem kerül. Regisztráció hiányában csak az alább manuálisan megadott hirdetések jelennek meg helyettük.",
+    "ca.merchantDurationHint": "Meddig jelenik meg ez a konkrét kereskedő, mielőtt a következőre vált. Használja arra, hogy több idővel jutalmazza azt a kereskedőt, aki több új regisztrációt hoz, és csökkentse annál, aki kevesebbet.",
     "ca.rotationInterval": "Váltási időköz",
     "ca.rotationIntervalDesc": "Minden látogató ugyanazt a kereskedőt látja egy adott pillanatban — ez az időköz szerint váltakozik.",
     "ca.rotationUnitMinutes": "perc",

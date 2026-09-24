@@ -1206,6 +1206,7 @@ export const cs = {
     "ca.addMerchantPlaceholder": "Přidat obchodníka...",
     "ca.noApprovedMerchants": "Zatím žádní schválení obchodníci.",
     "ca.merchantsAutoNote": "Název, logo, popis a odkaz jsou automaticky určeny obchodníkem(y), který(ří) měl(i) alespoň jednu registraci přes svůj QR kód za posledních 3 dny — každý zobrazen po dobu {seconds} sekund, dokud na něj znovu nepřijde řada. Pokud registrace chybí, jejich místo zaujmou pouze ručně zadané reklamy níže.",
+    "ca.merchantDurationHint": "Jak dlouho se tento konkrétní obchodník zobrazuje, než se přepne na dalšího. Použijte to k odměně obchodníka, který přivádí více nových registrací, delším časem, a ke zkrácení času u toho, kdo jich přivádí méně.",
     "ca.rotationInterval": "Interval střídání",
     "ca.rotationIntervalDesc": "Každý návštěvník vidí ve stejný okamžik stejného obchodníka — přepíná se podle tohoto intervalu.",
     "ca.rotationUnitMinutes": "minuty",

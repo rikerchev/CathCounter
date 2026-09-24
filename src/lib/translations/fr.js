@@ -1206,6 +1206,7 @@ export const fr = {
     "ca.addMerchantPlaceholder": "Ajouter un commerçant...",
     "ca.noApprovedMerchants": "Aucun commerçant approuvé pour le moment.",
     "ca.merchantsAutoNote": "Le titre, le logo, la description et le lien sont définis automatiquement par le(s) commerçant(s) ayant eu au moins une inscription via son code QR au cours des 3 derniers jours — chacun affiché pendant {seconds} secondes avant de passer au suivant, jusqu'à ce que son tour revienne. En l'absence d'inscription, seules les publicités saisies manuellement ci-dessous prennent leur place.",
+    "ca.merchantDurationHint": "Combien de temps ce commerçant précis reste affiché avant de passer au suivant. Utilisez-le pour récompenser d'un temps plus long un commerçant qui apporte plus de nouvelles inscriptions, et le réduire pour celui qui en apporte moins.",
     "ca.rotationInterval": "Intervalle de rotation",
     "ca.rotationIntervalDesc": "Chaque visiteur voit le même commerçant à un instant donné — il change selon cet intervalle.",
     "ca.rotationUnitMinutes": "minutes",

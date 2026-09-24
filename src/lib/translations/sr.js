@@ -1206,6 +1206,7 @@ export const sr = {
     "ca.addMerchantPlaceholder": "Dodaj trgovca...",
     "ca.noApprovedMerchants": "Još nema odobrenih trgovaca.",
     "ca.merchantsAutoNote": "Naslov, logo, opis i link automatski određuje trgovac (trgovci) koji je (su) imao(li) najmanje jednu registraciju putem svog QR koda u poslednja 3 dana — svaki se prikazuje po {seconds} sekundi, dok mu se ponovo ne vrati red. Bez registracija, njihovo mesto zauzimaju samo ručno unete reklame ispod.",
+    "ca.merchantDurationHint": "Koliko dugo se ovaj konkretan trgovac prikazuje pre prelaska na sledećeg. Koristite to da nagradite trgovca koji donosi više novih registracija dužim vremenom, a da skratite vreme onom koji ih donosi manje.",
     "ca.rotationInterval": "Interval rotacije",
     "ca.rotationIntervalDesc": "Svaki posetilac vidi istog trgovca u datom trenutku — menja se prema ovom intervalu.",
     "ca.rotationUnitMinutes": "minuta",

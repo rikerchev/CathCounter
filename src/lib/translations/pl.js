@@ -1206,6 +1206,7 @@ export const pl = {
     "ca.addMerchantPlaceholder": "Dodaj kupca...",
     "ca.noApprovedMerchants": "Brak jeszcze zatwierdzonych kupców.",
     "ca.merchantsAutoNote": "Tytuł, logo, opis i link są ustalane automatycznie przez kupca (kupców), który(-rzy) otrzymał(-li) co najmniej jedną rejestrację przez swój kod QR w ciągu ostatnich 3 dni — każdy wyświetlany przez {seconds} sekund, aż znów nadejdzie jego kolej. Jeśli nie ma żadnych rejestracji, ich miejsce zajmują tylko reklamy wprowadzone ręcznie poniżej.",
+    "ca.merchantDurationHint": "Jak długo ten konkretny kupiec jest wyświetlany, zanim nastąpi przełączenie na kolejnego. Użyj tego, aby nagrodzić większą ilością czasu kupca przynoszącego więcej nowych rejestracji, a skrócić ją temu, który przynosi ich mniej.",
     "ca.rotationInterval": "Interwał rotacji",
     "ca.rotationIntervalDesc": "Każdy odwiedzający widzi tego samego kupca w danej chwili — zmienia się zgodnie z tym interwałem.",
     "ca.rotationUnitMinutes": "minuty",

@@ -1206,6 +1206,7 @@ export const ro = {
     "ca.addMerchantPlaceholder": "Adaugă comerciant...",
     "ca.noApprovedMerchants": "Încă nu există comercianți aprobați.",
     "ca.merchantsAutoNote": "Titlul, sigla, descrierea și linkul sunt stabilite automat de comerciantul (comercianții) care au avut cel puțin o înregistrare prin codul QR în ultimele 3 zile — fiecare afișat timp de {seconds} secunde, până când îi vine din nou rândul. Dacă nu există înregistrări, locul lor este preluat doar de reclamele introduse manual mai jos.",
+    "ca.merchantDurationHint": "Cât timp rămâne afișat acest comerciant anume înainte de a trece la următorul. Folosiți-l pentru a recompensa cu mai mult timp comerciantul care aduce mai multe înregistrări noi și pentru a reduce timpul celui care aduce mai puține.",
     "ca.rotationInterval": "Interval de rotație",
     "ca.rotationIntervalDesc": "Fiecare vizitator vede același comerciant la un moment dat — se schimbă conform acestui interval.",
     "ca.rotationUnitMinutes": "minute",

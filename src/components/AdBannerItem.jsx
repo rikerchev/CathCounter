@@ -153,7 +153,14 @@ function buildCarouselItems(ad, eligibleMerchantKeys) {
         // merchant with no link as plain, non-clickable content instead of
         // guessing at a destination.
         link: m.link || null,
-        durationSeconds: MERCHANT_TURN_SECONDS,
+        // v3.65 — was always the flat MERCHANT_TURN_SECONDS for every
+        // merchant; now an admin-editable PER-MERCHANT override (see
+        // CustomAds.jsx's updateMerchantDuration()), so a merchant bringing
+        // in more new registrations can be given more on-screen time than
+        // one that rarely does. Falls back to MERCHANT_TURN_SECONDS for any
+        // snapshot that never set (or cleared) its own duration_seconds —
+        // every merchant attached before this version included.
+        durationSeconds: Number(m.duration_seconds) > 0 ? Number(m.duration_seconds) : MERCHANT_TURN_SECONDS,
       });
     }
   }

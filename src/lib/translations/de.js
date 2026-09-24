@@ -1206,6 +1206,7 @@ export const de = {
     "ca.addMerchantPlaceholder": "Händler hinzufügen...",
     "ca.noApprovedMerchants": "Noch keine genehmigten Händler.",
     "ca.merchantsAutoNote": "Titel, Logo, Beschreibung und Link werden automatisch von dem/den Händler(n) festgelegt, die in den letzten 3 Tagen mindestens eine Registrierung über ihren QR-Code erhalten haben — jeder wird {seconds} Sekunden lang angezeigt, bis er wieder an der Reihe ist. Ohne Registrierung übernehmen nur die unten manuell eingegebenen Anzeigen ihren Platz.",
+    "ca.merchantDurationHint": "Wie lange dieser konkrete Händler angezeigt wird, bevor zum nächsten gewechselt wird. Nutzen Sie es, um einen Händler, der mehr neue Registrierungen bringt, mit mehr Zeit zu belohnen, und die Zeit bei einem weniger aktiven zu kürzen.",
     "ca.rotationInterval": "Rotationsintervall",
     "ca.rotationIntervalDesc": "Jeder Besucher sieht zu einem bestimmten Zeitpunkt denselben Händler — der Wechsel erfolgt in diesem Intervall.",
     "ca.rotationUnitMinutes": "Minuten",

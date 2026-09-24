@@ -1206,6 +1206,7 @@ export const tr = {
     "ca.addMerchantPlaceholder": "Satıcı ekle...",
     "ca.noApprovedMerchants": "Henüz onaylı satıcı yok.",
     "ca.merchantsAutoNote": "Başlık, logo, açıklama ve bağlantı, son 3 gün içinde QR koduyla en az bir kayıt almış olan satıcı(lar) tarafından otomatik olarak belirlenir — her biri sırası tekrar gelene kadar {seconds} saniye gösterilir. Kayıt yoksa, yerlerini yalnızca aşağıda elle girilen reklamlar alır.",
+    "ca.merchantDurationHint": "Bu belirli satıcının bir sonrakine geçmeden önce ekranda ne kadar süre kalacağı. Daha fazla yeni kayıt getiren satıcıyı daha uzun süreyle ödüllendirmek, daha az getireni ise kısaltmak için kullanın.",
     "ca.rotationInterval": "Değişim aralığı",
     "ca.rotationIntervalDesc": "Her ziyaretçi belirli bir anda aynı satıcıyı görür — bu aralığa göre değişir.",
     "ca.rotationUnitMinutes": "dakika",
