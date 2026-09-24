@@ -268,13 +268,26 @@ export function matchesLanguage(ad, lang) {
     .includes(String(lang).toLowerCase());
 }
 
-// Splits a list of ads into { top, bottom } for a given placement: ads
-// assigned to this exact placement take priority over "all pages" ads —
+// Splits a list of ads into { top, bottom } for a given placement —
 // independently per position, so a page can have its own top banner while
-// still falling back to a shared "all pages" bottom banner, or the other
-// way round. Each bucket is sorted by sort_order, which is what lets
-// several banners share a placement+position and stack in a predictable
-// order (added v2.46 — see AdBanner.jsx / BottomAdBanner.jsx).
+// still showing a shared "all pages" bottom banner, or the other way round.
+//
+// v3.63 — ads assigned to this EXACT placement now STACK together with
+// "all pages" ads instead of the exact ones excluding the generic ones
+// entirely. Before this, a single ad assigned to this exact page was enough
+// to make every "all pages" banner vanish from this position on this page —
+// not rotate together, not show alongside, just disappear — which silently
+// hid a brand new "all pages" merchant banner (see CustomAds.jsx) on any
+// page that already had its own exact-placement ad, with no indication to
+// the admin that anything was wrong. Reported: two freshly-added merchant
+// banners (Yantra Fishing, TS Fishing), both saved and even
+// forced-displayed, never once appeared on a page where SMAX's and Рибарник
+// Писанец's ads were already assigned specifically to that page. The
+// explicit product intent going forward is that a free-tier visitor should
+// see MORE eligible banners, not fewer — every exact-placement ad plus
+// every "all pages" ad now all stack in the same zone, exact ones first
+// (still the most page-relevant), each group internally ordered by
+// sort_order exactly as before.
 export function bucketAdsByPosition(ads, placement) {
   const exactTop = [], exactBottom = [], genericTop = [], genericBottom = [];
   for (const a of ads || []) {
@@ -286,8 +299,8 @@ export function bucketAdsByPosition(ads, placement) {
   }
   const bySortOrder = (a, b) => (a.sort_order || 0) - (b.sort_order || 0);
   return {
-    top: (exactTop.length > 0 ? exactTop : genericTop).slice().sort(bySortOrder),
-    bottom: (exactBottom.length > 0 ? exactBottom : genericBottom).slice().sort(bySortOrder),
+    top: [...exactTop.slice().sort(bySortOrder), ...genericTop.slice().sort(bySortOrder)],
+    bottom: [...exactBottom.slice().sort(bySortOrder), ...genericBottom.slice().sort(bySortOrder)],
   };
 }
 

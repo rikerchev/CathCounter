@@ -378,6 +378,31 @@ export function useEligibleAds() {
     }
     const eligibilityIntervalId = setInterval(checkEligibility, ELIGIBILITY_SYNC_INTERVAL_MS);
 
+    // v3.63 — before this, a full ad/slot resync (syncFromNetwork above)
+    // only ever fired on mount or on a page NAVIGATION (location.pathname
+    // is a dependency of this whole effect) — never just from sitting on
+    // one page. A visitor who opens the app once and stays on a single
+    // page for their whole fishing session (very much the normal case for
+    // "Активна сесия") would never pick up a brand-new ad, an admin's
+    // edit, or a freshly forced merchant (see CustomAds.jsx's ⚡ toggle) —
+    // only navigating away and back, or a manual reload, ever re-fetched
+    // anything. Reported directly: a newly forced merchant banner worked
+    // fine after a reload, but two other newly-added merchant banners
+    // never appeared on a phone that had simply been left open. The
+    // product intent is that a free-tier visitor should never have to
+    // "look for" an ad — it should just show up on its own. This interval
+    // checks every minute (cheap — just a localStorage timestamp compare)
+    // whether AD_SYNC_INTERVAL_MS has elapsed since the last successful
+    // sync, and if so fires syncFromNetwork() itself — completely
+    // independent of navigation, exactly mirroring how checkEligibility()
+    // above already keeps merchant eligibility fresh without it. A
+    // navigation that already synced recently just makes this a no-op,
+    // same as always.
+    const AD_RESYNC_CHECK_INTERVAL_MS = 60 * 1000;
+    const adResyncIntervalId = setInterval(() => {
+      if (Date.now() - getLastAdSyncAt() >= AD_SYNC_INTERVAL_MS) syncFromNetwork();
+    }, AD_RESYNC_CHECK_INTERVAL_MS);
+
     // v3.46 — this effect re-runs on EVERY page navigation
     // (location.pathname is a dependency), which used to mean a fresh
     // network round-trip (CustomAd.list + AdSlot.list, and — for any
@@ -416,6 +441,7 @@ export function useEligibleAds() {
     window.addEventListener("online", handleOnline);
     return () => {
       clearInterval(eligibilityIntervalId);
+      clearInterval(adResyncIntervalId);
       clearTimeout(fetchId);
       // v3.49 — the never-synced-yet retry chain (see syncFromNetwork's own
       // .catch() above) must not keep firing after this effect instance is
