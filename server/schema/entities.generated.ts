@@ -674,6 +674,12 @@ export const ENTITIES: Record<string, EntityDef> = {
     columns: [
       { name: "name", type: "string", required: true },
       { name: "address", type: "string", required: false },
+      // v3.61 — ISO-3166 country code, same free-text column shape as
+      // WaterBody.country above (that one's picked from a required
+      // <select>; this one's optional — see MerchantRequest.jsx/
+      // TraderVenues.jsx and the new Country filter on
+      // CommercialVenues.jsx).
+      { name: "country", type: "string", required: false },
       { name: "bonus_days_per_referral", type: "integer", required: false },
       { name: "linked_custom_ad_id", type: "string", required: false },
       { name: "is_active", type: "boolean", required: false },

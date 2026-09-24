@@ -11,6 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCurrentLocation } from "@/lib/geolocation";
 import { useLanguage } from "@/lib/i18n";
+// v3.61 — same country list WaterBodyEditDialog.jsx already uses for water
+// bodies (grouped by language, src/lib/countries.js), now also offered here
+// at REGISTRATION time for both types, so a new merchant/water body can be
+// filtered by country (CommercialVenues.jsx/WaterBodies.jsx) as soon as it's
+// approved, without waiting for a separate admin edit to set it. Optional
+// for both — unlike WaterBodyEditDialog's own required picker (an existing,
+// pre-v3.61 UI decision this change doesn't touch).
+import { COUNTRY_GROUPS } from "@/lib/countries";
 
 // v3.26 — same logo-size options TraderVenues.jsx/CustomAds.jsx offer; see
 // TraderVenues.jsx's own comment on why this matters (a venue's logo can
@@ -50,6 +58,7 @@ export default function MerchantRequest() {
     contact_phone: "",
     contact_email: user?.email || "",
     location: "",
+    country: "",
     latitude: "",
     longitude: "",
     usage_conditions: "",
@@ -64,7 +73,7 @@ export default function MerchantRequest() {
   // above already serves as that banner's title, so only these two are new.
   const [venueForm, setVenueForm] = useState({
     name: "", address: "", contact_phone: "", contact_email: user?.email || "", website: "", logo_url: "", logo_size: "auto",
-    ad_description: "", ad_link: "",
+    country: "", ad_description: "", ad_link: "",
   });
 
   const setWb = (key) => (e) => setWbForm((f) => ({ ...f, [key]: e.target.value }));
@@ -95,6 +104,7 @@ export default function MerchantRequest() {
       if (type === "water_body") {
         await base44.entities.WaterBody.create({
           ...wbForm,
+          country: wbForm.country || null,
           max_depth: wbForm.max_depth ? Number(wbForm.max_depth) : null,
           capacity: wbForm.capacity || null,
           fee_per_person: wbForm.fee_per_person ? Number(wbForm.fee_per_person) : 0,
@@ -105,6 +115,7 @@ export default function MerchantRequest() {
       } else {
         await base44.entities.Venue.create({
           ...venueForm,
+          country: venueForm.country || null,
           status: "pending",
           is_active: true,
         });
@@ -175,6 +186,24 @@ export default function MerchantRequest() {
             <Input value={wbForm.location} onChange={setWb("location")} required className="min-h-[44px]" />
           </div>
 
+          <div className="space-y-1.5">
+            <Label>{t("wbd.country")}</Label>
+            <select
+              value={wbForm.country}
+              onChange={setWb("country")}
+              className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-card dark:text-foreground"
+            >
+              <option value="">{t("wbd.select")}</option>
+              {COUNTRY_GROUPS.map((group) => (
+                <optgroup key={group.language} label={group.label}>
+                  {group.countries.map((c) => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>{t("wbr.latitude")}</Label>
@@ -234,6 +263,23 @@ export default function MerchantRequest() {
           <div className="space-y-1.5">
             <Label>{t("tv.address")}</Label>
             <Input value={venueForm.address} onChange={setVenue("address")} className="min-h-[44px]" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t("wbd.country")}</Label>
+            <select
+              value={venueForm.country}
+              onChange={setVenue("country")}
+              className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-card dark:text-foreground"
+            >
+              <option value="">{t("wbd.select")}</option>
+              {COUNTRY_GROUPS.map((group) => (
+                <optgroup key={group.language} label={group.label}>
+                  {group.countries.map((c) => (
+                    <option key={c.code} value={c.code}>{c.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
           <div className="space-y-1.5">
             <Label>{t("tv.phone")}</Label>

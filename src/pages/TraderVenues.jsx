@@ -7,6 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+// v3.61 — same country list WaterBodyEditDialog.jsx already uses; see its
+// own comment for why this venue-side one stays optional instead of
+// required. Powers the new Country filter on CommercialVenues.jsx.
+import { COUNTRY_GROUPS } from "@/lib/countries";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
@@ -59,7 +63,7 @@ export default function TraderVenues() {
   // already serves as that banner's title.
   const emptyForm = {
     name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto",
-    working_hours: "", ad_description: "", ad_link: "",
+    country: "", working_hours: "", ad_description: "", ad_link: "",
   };
   const [form, setForm] = useState(emptyForm);
   const [editingVenue, setEditingVenue] = useState(null);
@@ -136,6 +140,7 @@ export default function TraderVenues() {
       website: v.website || "",
       logo_url: v.logo_url || "",
       logo_size: v.logo_size || "auto",
+      country: v.country || "",
       working_hours: v.working_hours || "",
       ad_description: v.ad_description || "",
       ad_link: v.ad_link || "",
@@ -157,6 +162,7 @@ export default function TraderVenues() {
       website: form.website,
       logo_url: form.logo_url,
       logo_size: form.logo_size,
+      country: form.country || null,
       working_hours: form.working_hours,
       ad_description: form.ad_description,
       ad_link: form.ad_link,
@@ -349,6 +355,23 @@ export default function TraderVenues() {
             <div className="space-y-1.5">
               <Label>{t("tv.address")}</Label>
               <Input value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className="min-h-[44px]" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t("wbd.country")}</Label>
+              <select
+                value={form.country}
+                onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+                className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-card dark:text-foreground"
+              >
+                <option value="">{t("wbd.select")}</option>
+                {COUNTRY_GROUPS.map((group) => (
+                  <optgroup key={group.language} label={group.label}>
+                    {group.countries.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </div>
             {/* v2.71 — these four are shown publicly on the "Търговски обекти"
                 browse page (src/pages/CommercialVenues.jsx), never on the

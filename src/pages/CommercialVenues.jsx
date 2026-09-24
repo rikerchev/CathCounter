@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Store, MapPin, Phone, Mail, Globe, Image as ImageIcon, PlusCircle, Clock } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
+// v3.61 — Country filter dropdown for this public browse list, grouped by
+// the same 17 supported-language groups WaterBodyEditDialog.jsx's country
+// picker already uses (src/lib/countries.js). See venues.country's own
+// migration comment (server/schema/schema.sql) for why this field didn't
+// exist on Venue before this version.
+import { COUNTRY_GROUPS, COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 
 /**
  * CommercialVenues — public "Търговски обекти" browse page (v2.71).
@@ -19,6 +25,11 @@ export default function CommercialVenues() {
   const { t } = useLanguage();
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
+  // v3.61 — "" = all countries (no filtering). Client-side only, same as
+  // the rest of this page's filtering (is_active/status, done in load()
+  // below) — the venue list here is small enough not to need a server round
+  // trip per filter change.
+  const [countryFilter, setCountryFilter] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +50,11 @@ export default function CommercialVenues() {
     load();
   }, [load]);
 
+  const filteredVenues = useMemo(
+    () => (countryFilter ? venues.filter((v) => v.country === countryFilter) : venues),
+    [venues, countryFilter]
+  );
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between gap-2">
@@ -54,18 +70,40 @@ export default function CommercialVenues() {
         </Link>
       </div>
 
+      {!loading && venues.length > 0 && (
+        <div className="space-y-1.5">
+          <label className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-muted-foreground">
+            <Globe className="w-3.5 h-3.5" /> {t("wbd.country")}
+          </label>
+          <select
+            value={countryFilter}
+            onChange={(e) => setCountryFilter(e.target.value)}
+            className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm dark:bg-card dark:text-foreground"
+          >
+            <option value="">{t("common.allCountries")}</option>
+            {COUNTRY_GROUPS.map((group) => (
+              <optgroup key={group.language} label={group.label}>
+                {group.countries.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-slate-200 border-t-cyan-600 rounded-full animate-spin" />
         </div>
-      ) : venues.length === 0 ? (
+      ) : filteredVenues.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Store className="w-12 h-12 text-slate-200 mb-3" />
           <p className="text-slate-400 text-sm">{t("cv.noVenues")}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {venues.map((v) => (
+          {filteredVenues.map((v) => (
             <div
               key={v.id}
               className="rounded-2xl bg-white border border-slate-100 dark:bg-card dark:border-border p-4 shadow-sm"
@@ -82,9 +120,12 @@ export default function CommercialVenues() {
                 )}
                 <div className="min-w-0 flex-1">
                   <h2 className="font-bold text-slate-800 dark:text-foreground truncate">{v.name}</h2>
-                  {v.address && (
+                  {(v.address || v.country) && (
                     <div className="flex items-center gap-1 text-xs text-slate-400 mt-1">
-                      <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{v.address}</span>
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">
+                        {[v.address, v.country ? COUNTRY_NAME_BY_CODE[v.country] : null].filter(Boolean).join(", ")}
+                      </span>
                     </div>
                   )}
                   {v.working_hours && (

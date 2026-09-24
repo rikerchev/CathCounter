@@ -401,6 +401,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       );
     },
   },
+  "v3.61-venue-country": {
+    label: "v3.61 — Търговски обекти: държава",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS country TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -626,6 +632,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'water_bodies' AND column_name = 'logo_size'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.61-venue-country") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'venues' AND column_name = 'country'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

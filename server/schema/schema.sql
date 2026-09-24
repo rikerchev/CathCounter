@@ -919,3 +919,17 @@ ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS website TEXT;
 -- WHOLE banner row to grow tall to fit it. See WaterBodyEditDialog.jsx for
 -- the new size picker. Safe to re-run.
 ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_size IN ('16x16', '32x16', '48x16', 'auto'));
+
+-- v3.61: venues.country — water_bodies already had a `country` column (set
+-- via the required select in WaterBodyEditDialog.jsx), but venues never
+-- had one at all, so "Търговски обекти" could never be filtered/shown by
+-- country. Adds the same free-text ISO-3166 country code column to
+-- `venues`, optional (unlike the water_bodies picker, this one is NOT
+-- required — an existing venue with no country set simply won't match any
+-- specific country filter, same as a water body with no logo just shows no
+-- logo). Set at registration (MerchantRequest.jsx) and editable afterwards
+-- (TraderVenues.jsx) via the same country <select> (src/lib/countries.js's
+-- COUNTRY_GROUPS) WaterBodyEditDialog.jsx already uses. Powers the new
+-- Country filter dropdown on CommercialVenues.jsx/WaterBodies.jsx. Safe to
+-- re-run.
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS country TEXT;
