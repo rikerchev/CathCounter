@@ -953,6 +953,10 @@ export const ru = {
   "ca.noDuration": "Без ограничения",
   "ca.expiresOn": "Истекает: {date}",
   "ca.noExpiry": "Срок не задан",
+  "ca.daysRemaining": "Осталось {days} дн.",
+  "ca.oneDayRemaining": "Остался 1 день",
+  "ca.expiresToday": "Истекает сегодня",
+  "ca.expiredOn": "Истекла: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управление рекламой",
     "am.pageSelector": "Страница",

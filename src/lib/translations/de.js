@@ -953,6 +953,10 @@ export const de = {
   "ca.noDuration": "Keine Begrenzung",
   "ca.expiresOn": "Läuft ab am: {date}",
   "ca.noExpiry": "Kein Enddatum festgelegt",
+  "ca.daysRemaining": "Noch {days} Tage",
+  "ca.oneDayRemaining": "Noch 1 Tag",
+  "ca.expiresToday": "Läuft heute ab",
+  "ca.expiredOn": "Abgelaufen am: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Anzeigenverwaltung",
     "am.pageSelector": "Seite",

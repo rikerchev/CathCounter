@@ -953,6 +953,10 @@ export const it = {
   "ca.noDuration": "Nessun limite",
   "ca.expiresOn": "Scade il: {date}",
   "ca.noExpiry": "Nessuna data di fine impostata",
+  "ca.daysRemaining": "Rimangono {days} giorni",
+  "ca.oneDayRemaining": "Rimane 1 giorno",
+  "ca.expiresToday": "Scade oggi",
+  "ca.expiredOn": "Scaduto il: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Gestione annunci",
     "am.pageSelector": "Pagina",

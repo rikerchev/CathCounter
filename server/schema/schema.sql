@@ -285,6 +285,9 @@ CREATE TABLE custom_ads (
   expires_at TEXT,
   renewal_notice_sent BOOLEAN DEFAULT FALSE,
   expiry_notice_sent BOOLEAN DEFAULT FALSE,
+  -- v3.67 — third, more urgent notice fired ~24h before expires_at (see the
+  -- ALTER TABLE note near the bottom of this file and adRenewals.ts).
+  final_notice_sent BOOLEAN DEFAULT FALSE,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -933,3 +936,16 @@ ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_size TEXT CHECK (logo_siz
 -- Country filter dropdown on CommercialVenues.jsx/WaterBodies.jsx. Safe to
 -- re-run.
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS country TEXT;
+
+-- v3.67: custom_ads.final_notice_sent -- a THIRD renewal-cron notice, fired
+-- ~24h before expires_at (see server/routes/adRenewals.ts), on top of the
+-- existing 7-day-out and day-of notices from v2.38. Requested specifically
+-- because a merchant's bonus-earned banner time (water_bodies/venues
+-- .bonus_days_per_referral, extending THIS SAME expires_at by a few days
+-- per QR referral -- see server/routes/merchantReferrals.ts's "redeem"
+-- handler) can leave an ad with only a few days of runway total, so the
+-- existing 7-day-out notice fires almost immediately and gives no genuine
+-- day-before warning. Same idempotency-flag pattern as the other two --
+-- reset to FALSE by CustomAds.jsx whenever the billing period changes.
+-- Safe to re-run.
+ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS final_notice_sent BOOLEAN DEFAULT FALSE;

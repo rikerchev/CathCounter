@@ -953,6 +953,10 @@ export const sr = {
   "ca.noDuration": "Без ограничења",
   "ca.expiresOn": "Истиче: {date}",
   "ca.noExpiry": "Није постављен крајњи датум",
+  "ca.daysRemaining": "Преостало је {days} дана",
+  "ca.oneDayRemaining": "Преостао је 1 дан",
+  "ca.expiresToday": "Истиче данас",
+  "ca.expiredOn": "Истекло: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управљање рекламама",
     "am.pageSelector": "Страница",

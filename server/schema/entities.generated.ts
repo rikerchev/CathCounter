@@ -406,6 +406,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // (a renewal), so the next period gets its own notices.
       { name: "renewal_notice_sent", type: "boolean", required: false },
       { name: "expiry_notice_sent", type: "boolean", required: false },
+      // v3.67 — third, more urgent notice fired ~24h before expires_at,
+      // added specifically for merchant bonus-days ads (see
+      // merchantReferrals.ts's "redeem" handler), whose total runway can be
+      // just a few days — too short for the 7-day-out notice above to give
+      // any real advance warning. Same idempotency/reset rules as the other
+      // two flags. See server/routes/adRenewals.ts.
+      { name: "final_notice_sent", type: "boolean", required: false },
     ],
     rules: {
       read: { kind: "public" },

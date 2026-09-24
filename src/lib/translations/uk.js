@@ -953,6 +953,10 @@ export const uk = {
   "ca.noDuration": "Без обмеження",
   "ca.expiresOn": "Закінчується: {date}",
   "ca.noExpiry": "Дату закінчення не встановлено",
+  "ca.daysRemaining": "Залишилось {days} дн.",
+  "ca.oneDayRemaining": "Залишився 1 день",
+  "ca.expiresToday": "Закінчується сьогодні",
+  "ca.expiredOn": "Закінчилась: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Керування рекламою",
     "am.pageSelector": "Сторінка",

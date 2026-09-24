@@ -777,6 +777,7 @@ export default function CustomAdsManager() {
       };
       if (periodChanged) {
         payload.renewal_notice_sent = false;
+        payload.final_notice_sent = false;
         payload.expiry_notice_sent = false;
       }
       if (editing) {
@@ -1746,9 +1747,27 @@ export default function CustomAdsManager() {
                       // back a day in timezones behind UTC.
                       const [ey, em, ed] = ad.expires_at.split("-").map(Number);
                       const expiryLocal = new Date(ey, (em || 1) - 1, ed || 1);
+                      const formattedDate = expiryLocal.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+                      // v3.67 — remaining-time text alongside the existing
+                      // expiry date, requested so an admin can see at a
+                      // glance how urgent each ad's renewal is (previously
+                      // only the raw date was shown, which needs mental
+                      // arithmetic to judge urgency) — see also the new
+                      // 24h-before email notice in adRenewals.ts.
+                      const dateLabel = expired
+                        ? t("ca.expiredOn").replace("{date}", formattedDate)
+                        : t("ca.expiresOn").replace("{date}", formattedDate);
+                      const remainingLabel = expired
+                        ? null
+                        : left === 0
+                        ? t("ca.expiresToday")
+                        : left === 1
+                        ? t("ca.oneDayRemaining")
+                        : t("ca.daysRemaining").replace("{days}", left);
                       return (
-                        <span className={`inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${expired ? "bg-red-100 text-red-700" : urgent ? "bg-amber-100 text-amber-700" : "bg-white/20 text-white/90"}`}>
-                          {t("ca.expiresOn").replace("{date}", expiryLocal.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }))}
+                        <span className={`inline-flex flex-wrap items-center gap-1 mt-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${expired ? "bg-red-100 text-red-700" : urgent ? "bg-amber-100 text-amber-700" : "bg-white/20 text-white/90"}`}>
+                          {dateLabel}
+                          {remainingLabel && <span className="opacity-80">· {remainingLabel}</span>}
                         </span>
                       );
                     })()}

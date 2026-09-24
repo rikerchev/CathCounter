@@ -953,6 +953,10 @@ export const sk = {
   "ca.noDuration": "Bez obmedzenia",
   "ca.expiresOn": "Vyprší: {date}",
   "ca.noExpiry": "Nie je nastavený dátum ukončenia",
+  "ca.daysRemaining": "Zostáva {days} dní",
+  "ca.oneDayRemaining": "Zostáva 1 deň",
+  "ca.expiresToday": "Dnes vyprší",
+  "ca.expiredOn": "Vypršalo: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Správa reklám",
     "am.pageSelector": "Stránka",

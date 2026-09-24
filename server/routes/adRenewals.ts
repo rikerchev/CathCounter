@@ -19,16 +19,29 @@ type CustomAdRow = {
 
 /**
  * GET/POST /api/cron/ad-renewals — hit daily by Vercel Cron (see
- * vercel.json). Sends the two renewal notices confirmed with the site
+ * vercel.json). Sends the three renewal notices confirmed with the site
  * owner (Sep 2026):
  *   - 7 days before an ad's paid period (custom_ads.expires_at, computed
  *     via src/lib/adBilling.js and stored on the row) runs out.
+ *   - ~24 hours before it runs out (added v3.67 — see below).
  *   - on/after the day it actually runs out.
  * Recipients are every admin user plus the ad's own advertiser_email, if
  * set. Each notice fires at most once per billing period, tracked by the
- * renewal_notice_sent / expiry_notice_sent flags — src/pages/CustomAds.jsx
- * resets both to false whenever an ad's period is renewed (starts_at or
- * duration_months changes), so the next period gets its own notices.
+ * renewal_notice_sent / final_notice_sent / expiry_notice_sent flags —
+ * src/pages/CustomAds.jsx resets all three to false whenever an ad's
+ * period is renewed (starts_at or duration_months changes), so the next
+ * period gets its own notices.
+ *
+ * v3.67 — the 24h-before notice was added specifically for merchants on
+ * the referral bonus program (water_bodies/venues.bonus_days_per_referral,
+ * see merchantReferrals.ts's "redeem" handler): each new QR referral only
+ * extends THIS SAME expires_at by a handful of days, so an ad living off
+ * bonus days can have just 2-3 days of total runway — the existing 7-day
+ * notice then fires immediately on creation/extension and gives no real
+ * day-before warning. This third notice fires once the ad is within its
+ * last 24h, telling the recipient exactly when it expires and inviting
+ * them to request fresh banner time (on whichever page they'd like) from
+ * the team, with a direct link to /advertise.
  *
  * Deliberately does NOT deactivate the ad on expiry — same "admin settles
  * it by hand" philosophy as the rest of this app's paid features (ad slot
@@ -41,6 +54,8 @@ export async function handleAdRenewalsCron(req: Request): Promise<Response> {
 
   const today = new Date().toISOString().slice(0, 10);
   const sevenDaysOut = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+  const oneDayOut = new Date(Date.now() + 1 * 86400000).toISOString().slice(0, 10);
+  const advertiseUrl = `${env.PUBLIC_APP_URL}/advertise`;
 
   const admins = await sql<{ email: string | null }[]>`
     SELECT email FROM users WHERE role = 'admin' OR 'admin' = ANY(roles)
@@ -79,6 +94,25 @@ export async function handleAdRenewalsCron(req: Request): Promise<Response> {
     await sql`UPDATE custom_ads SET renewal_notice_sent = true WHERE id = ${ad.id}`;
   }
 
+  // v3.67 — ads within their last ~24 hours (still not expired). See the
+  // doc comment above for why this exists alongside the 7-day-out notice.
+  const dueFinal = await sql<CustomAdRow[]>`
+    SELECT id, title, placement, advertiser_email, expires_at FROM custom_ads
+    WHERE is_active = true
+      AND expires_at IS NOT NULL
+      AND expires_at <= ${oneDayOut}
+      AND expires_at >= ${today}
+      AND (final_notice_sent IS NOT TRUE)
+  `;
+  for (const ad of dueFinal) {
+    await notify(
+      ad,
+      `Рекламата "${ad.title || "(без заглавие)"}" изтича след 24 часа`,
+      `Рекламният банер "${ad.title || ""}" (${ad.placement || "?"}) изтича на ${ad.expires_at} — след около 24 часа.\n\nАко желаете да продължите да рекламирате при нас, включително в банер на друга, предпочитана от Вас страница, свържете се с нашия екип и заявете ново рекламно време: ${advertiseUrl}`,
+    );
+    await sql`UPDATE custom_ads SET final_notice_sent = true WHERE id = ${ad.id}`;
+  }
+
   // Ads that have actually reached (or passed) their expiry date.
   const dueToday = await sql<CustomAdRow[]>`
     SELECT id, title, placement, advertiser_email, expires_at FROM custom_ads
@@ -96,5 +130,10 @@ export async function handleAdRenewalsCron(req: Request): Promise<Response> {
     await sql`UPDATE custom_ads SET expiry_notice_sent = true WHERE id = ${ad.id}`;
   }
 
-  return json({ ok: true, renewalNoticesSent: dueSoon.length, expiryNoticesSent: dueToday.length });
+  return json({
+    ok: true,
+    renewalNoticesSent: dueSoon.length,
+    finalNoticesSent: dueFinal.length,
+    expiryNoticesSent: dueToday.length,
+  });
 }

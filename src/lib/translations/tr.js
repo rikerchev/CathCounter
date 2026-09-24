@@ -953,6 +953,10 @@ export const tr = {
   "ca.noDuration": "Sınırsız",
   "ca.expiresOn": "Sona erme tarihi: {date}",
   "ca.noExpiry": "Bitiş tarihi ayarlanmadı",
+  "ca.daysRemaining": "{days} gün kaldı",
+  "ca.oneDayRemaining": "1 gün kaldı",
+  "ca.expiresToday": "Bugün sona eriyor",
+  "ca.expiredOn": "Sona erme: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Reklam Yönetimi",
     "am.pageSelector": "Sayfa",

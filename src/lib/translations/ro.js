@@ -953,6 +953,10 @@ export const ro = {
   "ca.noDuration": "Fără limită",
   "ca.expiresOn": "Expiră la: {date}",
   "ca.noExpiry": "Nu este setată o dată de final",
+  "ca.daysRemaining": "Mai rămân {days} zile",
+  "ca.oneDayRemaining": "Mai rămâne 1 zi",
+  "ca.expiresToday": "Expiră astăzi",
+  "ca.expiredOn": "Expirat la: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Gestionare reclame",
     "am.pageSelector": "Pagină",

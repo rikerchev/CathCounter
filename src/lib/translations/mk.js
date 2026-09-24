@@ -953,6 +953,10 @@ export const mk = {
   "ca.noDuration": "Без ограничување",
   "ca.expiresOn": "Истекува на: {date}",
   "ca.noExpiry": "Нема поставен краен датум",
+  "ca.daysRemaining": "Преостануваат {days} дена",
+  "ca.oneDayRemaining": "Преостанува 1 ден",
+  "ca.expiresToday": "Истекува денес",
+  "ca.expiredOn": "Истечена на: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управување со реклами",
     "am.pageSelector": "Страница",

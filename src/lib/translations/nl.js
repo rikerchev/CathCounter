@@ -953,6 +953,10 @@ export const nl = {
   "ca.noDuration": "Geen limiet",
   "ca.expiresOn": "Verloopt op: {date}",
   "ca.noExpiry": "Geen einddatum ingesteld",
+  "ca.daysRemaining": "Nog {days} dagen",
+  "ca.oneDayRemaining": "Nog 1 dag",
+  "ca.expiresToday": "Verloopt vandaag",
+  "ca.expiredOn": "Verlopen op: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Advertentiebeheer",
     "am.pageSelector": "Pagina",

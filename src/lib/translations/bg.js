@@ -1121,6 +1121,10 @@ export const bg = {
   "ca.noDuration": "Без ограничение",
   "ca.expiresOn": "Изтича на: {date}",
   "ca.noExpiry": "Без зададен срок",
+  "ca.daysRemaining": "Остават {days} дни",
+  "ca.oneDayRemaining": "Остава 1 ден",
+  "ca.expiresToday": "Изтича днес",
+  "ca.expiredOn": "Изтекла на: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Управление на реклами",
     "am.pageSelector": "Страница",

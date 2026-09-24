@@ -1125,6 +1125,10 @@ export const en = {
   "ca.noDuration": "No limit",
   "ca.expiresOn": "Expires on: {date}",
   "ca.noExpiry": "No end date set",
+  "ca.daysRemaining": "{days} days remaining",
+  "ca.oneDayRemaining": "1 day remaining",
+  "ca.expiresToday": "Expires today",
+  "ca.expiredOn": "Expired on: {date}",
     // v2.65 - unified ad management screen
     "nav.adManagement": "Ad Management",
     "am.pageSelector": "Page",
