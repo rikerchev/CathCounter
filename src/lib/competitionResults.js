@@ -61,6 +61,37 @@ export function hasAnyResult(results) {
   return (results || []).some((w) => typeof w === "number");
 }
 
+// v3.69 — a registration's catch is now split into two separately-tracked
+// per-round categories, both JSON-encoded arrays with the exact same shape
+// as catch_results always had: catch_results itself ("Улов" — the keep-net
+// catch, weighed at the end) and the new catch_results_scale ("Кантарни
+// риби" — fish weighed on the scale immediately after the catch and
+// released right away, never held in the keep-net). Requested so the
+// xlsx export/import (src/lib/competitionExcel.js) can show and accept
+// both numbers separately, with their sum ("Общ улов") feeding the exact
+// same scoring this module already had — nothing about the ranking RULES
+// changed, only what a single round's "weight" is built from.
+//
+// Returns one combined per-round weight array, same shape/semantics as
+// parseCatchResults's own return value (null = nothing recorded for that
+// round in EITHER category; a number = the sum of whichever of the two
+// categories has something recorded for that round, missing side treated
+// as 0). Every ranking/points function below reads through this instead of
+// parseCatchResults(reg.catch_results) directly, so a round only counted
+// via one category before now counts the same when split into two.
+export function combinedResults(reg) {
+  const keep = parseCatchResults(reg?.catch_results);
+  const scale = parseCatchResults(reg?.catch_results_scale);
+  const len = Math.max(keep.length, scale.length);
+  const out = [];
+  for (let i = 0; i < len; i++) {
+    const k = keep[i];
+    const s = scale[i];
+    out.push(k == null && s == null ? null : (k || 0) + (s || 0));
+  }
+  return out;
+}
+
 // Standings, descending by total weight — heaviest total catch first,
 // lightest last. Superseded as the STANDINGS ranking by
 // rankByPenaltyAndWeight below (v2.89 — sector penalty points became the
@@ -70,7 +101,7 @@ export function hasAnyResult(results) {
 export function rankByTotalWeight(registrations) {
   return (registrations || [])
     .map((r) => {
-      const results = parseCatchResults(r.catch_results);
+      const results = combinedResults(r); // v3.69 — кантарни риби + улов combined, see above
       return { ...r, results, total: totalCatchWeight(results) };
     })
     .filter((r) => hasAnyResult(r.results))
@@ -104,7 +135,7 @@ export function roundSectorPoints(registrations, roundIndex) {
   const bySector = new Map();
   for (const r of registrations || []) {
     if (!r.assigned_sector || r.assigned_box == null) continue;
-    const w = parseCatchResults(r.catch_results)[roundIndex];
+    const w = combinedResults(r)[roundIndex]; // v3.69 — кантарни риби + улов combined, see above
     if (typeof w !== "number") continue;
     if (!bySector.has(r.assigned_sector)) bySector.set(r.assigned_sector, []);
     bySector.get(r.assigned_sector).push({ id: r.id, weight: w });
@@ -150,7 +181,7 @@ export function rankByPenaltyAndWeight(registrations, roundsCount) {
   return (registrations || [])
     .filter((r) => penaltyMap.has(r.id))
     .map((r) => {
-      const results = parseCatchResults(r.catch_results);
+      const results = combinedResults(r); // v3.69 — кантарни риби + улов combined, see above
       return { ...r, results, total: totalCatchWeight(results), penalty: penaltyMap.get(r.id) };
     })
     .sort((a, b) => (a.penalty !== b.penalty ? a.penalty - b.penalty : b.total - a.total))

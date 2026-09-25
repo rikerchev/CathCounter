@@ -17,7 +17,7 @@ import ZoomableImage from "@/components/ZoomableImage";
 import { ALL_COUNTRIES } from "@/lib/countries";
 import { Filter } from "lucide-react";
 import {
-  parseCatchResults, totalCatchWeight, hasAnyResult, rankByPenaltyAndWeight,
+  parseCatchResults, totalCatchWeight, hasAnyResult, rankByPenaltyAndWeight, combinedResults,
 } from "@/lib/competitionResults";
 import { downloadStandingsImage, downloadParticipantsImage } from "@/lib/standingsImage";
 
@@ -106,7 +106,9 @@ export default function Competitions() {
         if (c.status === "closed") {
           const compRegs = (regs || []).filter((r) => r.competition_id === c.id && r.status === "active");
           const isMine = compRegs.some((r) => r.created_by_id === user?.id);
-          const hasResults = compRegs.some((r) => hasAnyResult(parseCatchResults(r.catch_results)));
+          // v3.69 — combinedResults(r) sums "Кантарни риби" + "Улов", so a
+          // round weighed in only via the new scale field still counts.
+          const hasResults = compRegs.some((r) => hasAnyResult(combinedResults(r)));
           return isMine || hasResults;
         }
         return false;
@@ -551,7 +553,7 @@ export default function Competitions() {
                                   to fish without asking the organizer. */}
                               {r.assigned_box != null && (
                                 <div className="rounded-xl bg-cyan-50 border border-cyan-200 dark:bg-cyan-900/20 dark:border-cyan-800 px-3 py-2 text-xs font-medium text-cyan-800 dark:text-cyan-300">
-                                  {t("comp.yourBox")}: {r.assigned_sector} — {r.assigned_box}
+                                  {t("comp.yourBox")}: {r.assigned_sector} — {r.assigned_box}{r.box_manual ? " *" : ""}
                                 </div>
                               )}
                               {/* v2.90 — read-only: catch weight is now
@@ -560,11 +562,11 @@ export default function Competitions() {
                                   what's been recorded so far, plus this
                                   registration's own overall standing once
                                   it's been scored (see rankByPenaltyAndWeight). */}
-                              {(totalCatchWeight(parseCatchResults(r.catch_results)) > 0 || rankedMap.has(r.id)) && (
+                              {(totalCatchWeight(combinedResults(r)) > 0 || rankedMap.has(r.id)) && (
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  {totalCatchWeight(parseCatchResults(r.catch_results)) > 0 && (
+                                  {totalCatchWeight(combinedResults(r)) > 0 && (
                                     <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
-                                      {t("comp.totalWeight")}: {totalCatchWeight(parseCatchResults(r.catch_results))} {t("comp.kg")}
+                                      {t("comp.totalWeight")}: {totalCatchWeight(combinedResults(r))} {t("comp.kg")}
                                     </span>
                                   )}
                                   {rankedMap.has(r.id) && (
@@ -745,7 +747,7 @@ export default function Competitions() {
                           <p className="truncate text-sm font-medium text-slate-800">{r.participant_name}</p>
                           {r.assigned_box != null && (
                             <p className="text-[10px] text-slate-400">
-                              {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+                              {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}{r.box_manual ? " *" : ""}
                             </p>
                           )}
                         </div>
@@ -756,6 +758,9 @@ export default function Competitions() {
                       </div>
                     ))}
                   </div>
+                )}
+                {ranked.some((r) => r.box_manual) && (
+                  <p className="text-[10px] text-slate-400 italic">{t("wb.manualPlacementHint")}</p>
                 )}
                 <p className="text-[10px] text-slate-300 text-right">{t("app.name")} · CatchCount</p>
               </div>

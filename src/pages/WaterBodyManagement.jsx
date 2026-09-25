@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
@@ -17,6 +17,9 @@ import ZoomableImage from "@/components/ZoomableImage";
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
 } from "@/lib/competitionResults";
+import {
+  exportCompetitionResultsExcel, parseCompetitionResultsExcelFile, buildCompetitionResultsImport,
+} from "@/lib/competitionExcel";
 import { downloadStandingsImage, downloadParticipantsImage, downloadDrawResultsImage } from "@/lib/standingsImage";
 import WaterBodyEditDialog from "@/components/WaterBodyEditDialog";
 import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
@@ -213,10 +216,21 @@ const PAYMENT_STATUS_LABEL_KEYS = {
 // fixes both: React now just diffs props against the SAME existing DOM
 // node, so focus and scroll position are left alone.
 function ParticipantRow({
-  r, seqById, rankedMap, roundPointsMatrix, roundsCount, resultsDraft, updateResultDraft, openEditReg, t,
+  r, seqById, rankedMap, roundPointsMatrix, roundsCount, resultsDraft, updateResultDraft,
+  scaleDraft, updateScaleDraft, openEditReg, t,
 }) {
   const draftResults = resultsDraft[r.id] || Array.from({ length: roundsCount }, () => "");
-  const total = totalCatchWeight(draftResults.map((v) => (v === "" ? null : Number(v))));
+  // v3.69 — "Кантарни риби" (scaleDraft), a parallel per-round draft next to
+  // the pre-existing "Улов" one (resultsDraft) — see
+  // src/lib/competitionResults.js's combinedResults() for why the two are
+  // summed for scoring/total, never one in place of the other.
+  const draftScale = scaleDraft[r.id] || Array.from({ length: roundsCount }, () => "");
+  const combined = draftResults.map((v, i) => {
+    const catchW = v === "" ? null : Number(v);
+    const scaleW = draftScale[i] === "" ? null : Number(draftScale[i]);
+    return catchW == null && scaleW == null ? null : (catchW || 0) + (scaleW || 0);
+  });
+  const total = totalCatchWeight(combined);
   const ranked = rankedMap.get(r.id);
   const roundPoints = roundPointsMatrix.map((m) => m.get(r.id));
   return (
@@ -236,19 +250,35 @@ function ParticipantRow({
           footer below — see saveParticipantsResults. */}
       <div className="flex items-center gap-1.5 flex-wrap pt-0.5 pb-0.5">
         {draftResults.map((w, i) => (
-          <div key={i} className="flex items-center gap-1">
+          <div key={i} className="flex items-center gap-1 flex-wrap">
             {roundsCount > 1 && (
               <span className="text-[10px] text-slate-400 dark:text-muted-foreground shrink-0">{t("wb.roundLabel")} {i + 1}</span>
             )}
+            {/* v3.69 — "Кантарни риби" (weighed on the scale and released
+                right away) and "Улов" (from the keep-net) are now tracked as
+                two separate numbers per round, summed only for the total/
+                scoring shown below — see combinedResults(). */}
             <Input
               type="number"
               step="any"
               min="0"
               inputMode="decimal"
-              placeholder={t("wb.kg")}
+              placeholder={t("wb.scaleCatchLabel")}
+              title={t("wb.scaleCatchLabel")}
+              value={draftScale[i] ?? ""}
+              onChange={(e) => updateScaleDraft(r.id, i, e.target.value)}
+              className="h-8 w-[86px] text-xs px-2"
+            />
+            <Input
+              type="number"
+              step="any"
+              min="0"
+              inputMode="decimal"
+              placeholder={t("wb.keepnetCatchLabel")}
+              title={t("wb.keepnetCatchLabel")}
               value={w}
               onChange={(e) => updateResultDraft(r.id, i, e.target.value)}
-              className="h-8 w-[76px] text-xs px-2"
+              className="h-8 w-[86px] text-xs px-2"
             />
           </div>
         ))}
@@ -280,10 +310,14 @@ function ParticipantRow({
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 dark:bg-accent text-slate-600 dark:text-muted-foreground">
           {t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending")}
         </span>
-        {/* v2.83 — set once the organizer runs "Тегли жребий" below. */}
+        {/* v2.83 — set once the organizer runs "Тегли жребий" below.
+            v3.69 — box_manual (set via xlsx import instead of the system
+            draw) is marked with a trailing " *", per the site owner's own
+            request, so a manually-entered placement is never mistaken for
+            a system-drawn one. */}
         {r.assigned_box != null && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
-            {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+            {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}{r.box_manual ? " *" : ""}
           </span>
         )}
         {total > 0 && (
@@ -452,6 +486,12 @@ export default function WaterBodyManagement() {
   // typed-in weights to a stray click was exactly the failure mode this
   // whole feature exists to prevent.
   const [resultsDraft, setResultsDraft] = useState({});
+  // v3.69 — "Кантарни риби" per-round draft, parallel to resultsDraft above
+  // ("Улов") — same seeding/save/reset lifecycle, just a second field. See
+  // updateScaleDraft/openParticipants/saveParticipantsResults.
+  const [scaleDraft, setScaleDraft] = useState({});
+  const [importingResults, setImportingResults] = useState(false);
+  const resultsFileInputRef = useRef(null);
   const [savingResults, setSavingResults] = useState(false);
 
   // v2.77 scoped this to the signed-in merchant's own water bodies only.
@@ -882,7 +922,11 @@ export default function WaterBodyManagement() {
         await base44.entities.Competition.update(compEditing.id, payload);
         if (drawnRegs.length > 0) {
           await base44.entities.CompetitionRegistration.bulkUpdate(
-            drawnRegs.map((r) => ({ id: r.id, assigned_sector: null, assigned_box: null }))
+            // v3.69 — box_manual reset alongside assigned_sector/box: a
+            // stale "manually placed" flag on a now-blank box would be
+            // harmless (nothing reads it once assigned_box is null again),
+            // but keeping it in sync is cleaner.
+            drawnRegs.map((r) => ({ id: r.id, assigned_sector: null, assigned_box: null, box_manual: false }))
           );
         }
         toast({ title: t("wb.competitionUpdated") });
@@ -943,9 +987,17 @@ export default function WaterBodyManagement() {
       // or in principle any regs not in this draw) only gets touched if
       // they actually have a result to clear.
       const allRegs = regsFor(comp.id);
+      // v3.69 — a fresh draw also wipes the parallel "Кантарни риби" field
+      // (catch_results_scale) and resets box_manual back to false: the new
+      // boxes were just assigned by the system draw itself, not an import.
       const updates = [
-        ...assignments.map((a) => ({ id: a.id, assigned_sector: a.sector, assigned_box: a.box, catch_results: null })),
-        ...allRegs.filter((r) => !assignedIds.has(r.id) && r.catch_results).map((r) => ({ id: r.id, catch_results: null })),
+        ...assignments.map((a) => ({
+          id: a.id, assigned_sector: a.sector, assigned_box: a.box, box_manual: false,
+          catch_results: null, catch_results_scale: null,
+        })),
+        ...allRegs
+          .filter((r) => !assignedIds.has(r.id) && (r.catch_results || r.catch_results_scale))
+          .map((r) => ({ id: r.id, catch_results: null, catch_results_scale: null })),
       ];
       await base44.entities.CompetitionRegistration.bulkUpdate(updates);
       // Keep the inline results draft (see resultsDraft/openParticipants)
@@ -956,6 +1008,11 @@ export default function WaterBodyManagement() {
         const roundsCount = Math.max(1, comp.rounds_count || 1);
         const blank = Array.from({ length: roundsCount }, () => "");
         setResultsDraft((d) => {
+          const next = { ...d };
+          for (const r of allRegs) next[r.id] = blank.slice();
+          return next;
+        });
+        setScaleDraft((d) => {
           const next = { ...d };
           for (const r of allRegs) next[r.id] = blank.slice();
           return next;
@@ -1196,6 +1253,41 @@ export default function WaterBodyManagement() {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   }
 
+  // v3.69 — "Импорт *.xlsx": reads a previously-exported (or hand-filled,
+  // same column layout) results file and fills in only what it actually
+  // carries — see src/lib/competitionExcel.js's own comment for exactly
+  // what is and isn't importable (Общ улов/Наказателни точки/Класиране
+  // never are; Място only when the system draw hasn't run yet). Always
+  // reads against the CURRENT saved registrations, not any open draft, so
+  // an organizer mid-way through typing inline results doesn't have that
+  // draft silently clobbered by an unrelated import.
+  async function handleImportResultsExcel(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same filename next time
+    if (!file || !participantsFor) return;
+    setImportingResults(true);
+    try {
+      const rows = await parseCompetitionResultsExcelFile(file);
+      const { updates, skipped, touchedCount } = buildCompetitionResultsImport(
+        rows, participantsFor, regsFor(participantsFor.id)
+      );
+      if (updates.length > 0) {
+        await base44.entities.CompetitionRegistration.bulkUpdate(updates);
+        await load();
+        // Re-seed the inline drafts from the freshly-imported data, so the
+        // dialog (if still open) immediately reflects what was just
+        // imported instead of the pre-import values.
+        openParticipants(participantsFor);
+      }
+      const skippedNote = skipped > 0 ? ` · ${t("wb.importResultsSkipped").replace("{count}", skipped)}` : "";
+      toast({ title: t("wb.importResultsSuccess"), description: `${touchedCount}${skippedNote}` });
+    } catch (err) {
+      toast({ title: t("wb.importResultsError"), description: err.message, variant: "destructive" });
+    } finally {
+      setImportingResults(false);
+    }
+  }
+
   // v3.03 — one email per registering account for this competition, listing
   // every participant that account registered, plus the organizer's own
   // free-text message — see server/routes/functions.ts's
@@ -1285,13 +1377,20 @@ export default function WaterBodyManagement() {
     // dialog.
     const roundsCount = Math.max(1, comp.rounds_count || 1);
     const draft = {};
+    const scale = {};
     regsFor(comp.id).forEach((r) => {
       const results = parseCatchResults(r.catch_results);
       draft[r.id] = Array.from({ length: roundsCount }, (_, i) => (
         results[i] != null ? String(results[i]) : ""
       ));
+      // v3.69 — same seeding, for the parallel "Кантарни риби" field.
+      const scaleResults = parseCatchResults(r.catch_results_scale);
+      scale[r.id] = Array.from({ length: roundsCount }, (_, i) => (
+        scaleResults[i] != null ? String(scaleResults[i]) : ""
+      ));
     });
     setResultsDraft(draft);
+    setScaleDraft(scale);
   }
 
   function closeParticipants() {
@@ -1299,6 +1398,7 @@ export default function WaterBodyManagement() {
     setReorderParticipants(false);
     setParticipantsOrderDraft(null);
     setResultsDraft({});
+    setScaleDraft({});
     // v3.25 — these two dialogs stack on top of the participants dialog
     // (see the buttons/handlers above); clear them too so a stale target
     // never lingers if the participants dialog itself gets closed first.
@@ -1311,6 +1411,16 @@ export default function WaterBodyManagement() {
   // "Запази" (saveParticipantsResults) actually writes it.
   function updateResultDraft(regId, index, value) {
     setResultsDraft((d) => {
+      const arr = (d[regId] || []).slice();
+      arr[index] = value;
+      return { ...d, [regId]: arr };
+    });
+  }
+
+  // v3.69 — same as updateResultDraft above, for the parallel "Кантарни
+  // риби" field (scaleDraft).
+  function updateScaleDraft(regId, index, value) {
+    setScaleDraft((d) => {
       const arr = (d[regId] || []).slice();
       arr[index] = value;
       return { ...d, [regId]: arr };
@@ -1331,10 +1441,23 @@ export default function WaterBodyManagement() {
       const updates = [];
       for (const r of regs) {
         const draft = resultsDraft[r.id];
-        if (!draft) continue;
-        const newStr = stringifyCatchResults(draft);
-        const oldStr = JSON.stringify(parseCatchResults(r.catch_results));
-        if (newStr !== oldStr) updates.push({ id: r.id, catch_results: newStr });
+        const scale = scaleDraft[r.id];
+        if (!draft && !scale) continue;
+        const update = { id: r.id };
+        let changed = false;
+        if (draft) {
+          const newStr = stringifyCatchResults(draft);
+          const oldStr = JSON.stringify(parseCatchResults(r.catch_results));
+          if (newStr !== oldStr) { update.catch_results = newStr; changed = true; }
+        }
+        // v3.69 — same diff-and-only-write-if-changed logic, for the
+        // parallel "Кантарни риби" field.
+        if (scale) {
+          const newScaleStr = stringifyCatchResults(scale);
+          const oldScaleStr = JSON.stringify(parseCatchResults(r.catch_results_scale));
+          if (newScaleStr !== oldScaleStr) { update.catch_results_scale = newScaleStr; changed = true; }
+        }
+        if (changed) updates.push(update);
       }
       if (updates.length > 0) {
         await base44.entities.CompetitionRegistration.bulkUpdate(updates);
@@ -2262,9 +2385,15 @@ export default function WaterBodyManagement() {
             // saved value for anything not touched yet this session — so
             // round points and standings below update live as the organizer
             // types, not only after pressing "Запази".
-            const regsWithDraft = regs.map((r) => (
-              resultsDraft[r.id] ? { ...r, catch_results: stringifyCatchResults(resultsDraft[r.id]) } : r
-            ));
+            const regsWithDraft = regs.map((r) => {
+              // v3.69 — same live-preview substitution as before, now for
+              // BOTH catch fields, so round points/standings below update
+              // live for either input, not just "Улов".
+              const withCatch = resultsDraft[r.id] ? { ...r, catch_results: stringifyCatchResults(resultsDraft[r.id]) } : r;
+              return scaleDraft[r.id]
+                ? { ...withCatch, catch_results_scale: stringifyCatchResults(scaleDraft[r.id]) }
+                : withCatch;
+            });
             // v2.89 — per-round sector points (one Map per round index) and
             // the overall penalty-points ranking, both computed once here
             // from the SAME regs list every ParticipantRow reads from below,
@@ -2361,6 +2490,8 @@ export default function WaterBodyManagement() {
                               roundsCount={roundsCount}
                               resultsDraft={resultsDraft}
                               updateResultDraft={updateResultDraft}
+                              scaleDraft={scaleDraft}
+                              updateScaleDraft={updateScaleDraft}
                               openEditReg={openEditReg}
                               t={t}
                             />
@@ -2384,12 +2515,20 @@ export default function WaterBodyManagement() {
                               roundsCount={roundsCount}
                               resultsDraft={resultsDraft}
                               updateResultDraft={updateResultDraft}
+                              scaleDraft={scaleDraft}
+                              updateScaleDraft={updateScaleDraft}
                               openEditReg={openEditReg}
                               t={t}
                             />
                           ))}
                         </div>
                       </div>
+                    )}
+                    {/* v3.69 — see the matching legend in the "Класиране"
+                        dialog above; shown here too since box assignments
+                        are visible on this list independent of standings. */}
+                    {regs.some((r) => r.box_manual) && (
+                      <p className="text-[10px] text-slate-400 italic">{t("wb.manualPlacementHint")}</p>
                     )}
                   </>
                 )}
@@ -2444,6 +2583,34 @@ export default function WaterBodyManagement() {
               className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
+            </Button>
+            {/* v3.69 — the full scored results table (both catch categories,
+                penalty points, standings) as xlsx — see
+                src/lib/competitionExcel.js. Deliberately separate from the
+                plain CSV export above, which stays a simple participant
+                list. */}
+            <Button
+              variant="outline"
+              onClick={() => exportCompetitionResultsExcel(participantsFor, regsFor(participantsFor.id))}
+              className="min-h-[44px]"
+            >
+              <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportResultsExcel")}
+            </Button>
+            <input
+              ref={resultsFileInputRef}
+              type="file"
+              accept=".xlsx"
+              className="hidden"
+              onChange={(e) => handleImportResultsExcel(e)}
+            />
+            <Button
+              variant="outline"
+              onClick={() => resultsFileInputRef.current?.click()}
+              disabled={importingResults}
+              className="min-h-[44px]"
+            >
+              {importingResults ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
+              {t("wb.importResultsExcel")}
             </Button>
             {/* v3.07 — only once a draw has actually happened (at least one
                 registration carries a drawn box) — no point offering an
@@ -2557,7 +2724,7 @@ export default function WaterBodyManagement() {
                           <p className="truncate text-sm font-medium text-slate-800">{r.participant_name}</p>
                           {r.assigned_box != null && (
                             <p className="text-[10px] text-slate-400">
-                              {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}
+                              {t("wb.competitionSector")} {r.assigned_sector} — {t("wb.assignedBox")} {r.assigned_box}{r.box_manual ? " *" : ""}
                             </p>
                           )}
                         </div>
@@ -2568,6 +2735,11 @@ export default function WaterBodyManagement() {
                       </div>
                     ))}
                   </div>
+                )}
+                {/* v3.69 — shown once per dialog, only when relevant, rather
+                    than repeating the explanation on every asterisked row. */}
+                {ranked.some((r) => r.box_manual) && (
+                  <p className="text-[10px] text-slate-400 italic">{t("wb.manualPlacementHint")}</p>
                 )}
                 <p className="text-[10px] text-slate-300 text-right">{t("app.name")} · CatchCount</p>
               </div>

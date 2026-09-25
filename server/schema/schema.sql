@@ -228,6 +228,10 @@ CREATE TABLE competition_registrations (
   -- v2.87: JSON-encoded per-round catch weight in kg, e.g. "[12.5,null,8.3]"
   -- — see the matching column comment in server/schema/entities.generated.ts.
   catch_results TEXT,
+  -- v3.69: companion "Кантарни риби" per-round array + manual-placement flag
+  -- — see the matching column comments in server/schema/entities.generated.ts.
+  catch_results_scale TEXT,
+  box_manual BOOLEAN DEFAULT FALSE,
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -949,3 +953,19 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS country TEXT;
 -- reset to FALSE by CustomAds.jsx whenever the billing period changes.
 -- Safe to re-run.
 ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS final_notice_sent BOOLEAN DEFAULT FALSE;
+
+-- v3.69 — competition results split into two catch categories, plus a
+-- manual-placement flag, for the new xlsx export/import of competition
+-- results (src/lib/competitionExcel.js). catch_results_scale mirrors
+-- catch_results exactly (same JSON-encoded per-round array of kg), but
+-- tracks "Кантарни риби" (fish weighed on the scale immediately after
+-- the catch and released right away) separately from catch_results
+-- itself, which keeps its existing meaning of "Улов" (the keep-net
+-- catch). src/lib/competitionResults.js's combinedResults() sums the
+-- two for scoring -- see that module's own v3.69 comment. box_manual
+-- marks assigned_sector/assigned_box as having come from the xlsx
+-- import rather than the organizer's system draw (drawBoxes) -- shown
+-- as a visible marker wherever a participant's box is displayed. Safe
+-- to re-run.
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results_scale TEXT;
+ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS box_manual BOOLEAN DEFAULT FALSE;

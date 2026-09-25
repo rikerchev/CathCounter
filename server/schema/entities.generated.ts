@@ -267,6 +267,28 @@ export const ENTITIES: Record<string, EntityDef> = {
       // who registered this participant, the competition's organizer, and
       // admins.
       { name: "catch_results", type: "string", required: false },
+      // v3.69 — companion to catch_results above, same JSON-encoded
+      // per-round array shape: "Кантарни риби" — fish weighed on the scale
+      // immediately after the catch and released right away (never held in
+      // the keep-net), tracked separately from catch_results ("Улов" — the
+      // keep-net catch). Added for the xlsx export/import
+      // (src/lib/competitionExcel.js), which the site owner asked to show
+      // and accept both numbers as their own columns, with "Общ улов"
+      // (total) computed as their sum. src/lib/competitionResults.js's
+      // combinedResults() is the one place that sums the two for scoring —
+      // every ranking function reads through it instead of this column
+      // directly.
+      { name: "catch_results_scale", type: "string", required: false },
+      // v3.69 — true when assigned_sector/assigned_box were set by the new
+      // xlsx import (src/lib/competitionExcel.js) instead of the organizer's
+      // "Тегли жребий" system draw (src/lib/competitionSectors.js
+      // drawBoxes()) — the site owner's own distinction: importing a place
+      // is only meant as a stand-in for competitions that never ran the
+      // system draw at all, and wherever a box is shown it must be visibly
+      // marked so nobody mistakes a manually-entered placement for a
+      // verifiably random one. Left false (or cleared back to false) for
+      // anything the system itself assigned.
+      { name: "box_manual", type: "boolean", required: false },
       // v2.90 — ISO timestamp set by the organizer's "edit participant"
       // dialog (WaterBodyManagement.jsx's saveRegEdit) every time it saves —
       // NOT touched by the draw, the quick payment-status toggle, or the
