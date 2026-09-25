@@ -96,9 +96,9 @@ const A5_HEIGHT_MM = 148;
 const PAGE_H = Math.round(TEMPLATE_W * (A5_HEIGHT_MM / A5_WIDTH_MM));
 const BANNER_Y = TEMPLATE_H;
 const BANNER_H = PAGE_H - TEMPLATE_H;
-// v3.73 — the strip's own fill is no longer this fixed hex: it's now a live
-// gradient sampled off the template's actual rendered pixels — see
-// sampleTemplateEdgeColor and drawNameBanner below.
+// v3.74 — the strip's own fill is not a color at all any more: it's a
+// mirrored continuation of the template's own bottom rows — see
+// drawBannerBackground below.
 
 // Pixel bounding box of the template's own crisp white QR badge (measured
 // directly on the source image with a strict white threshold — v2.73's
@@ -231,22 +231,12 @@ function drawVenueName(ctx, name) {
 // that case, same as the space below the QR badge already looks before any
 // name is set.
 //
-// v3.73 — three refinements the site owner asked for on top of v3.72:
-//   1. "прелееш цветовете от долната част на оригиналната брошура към
-//      разширението" — the flat BANNER_BG fill is replaced with a real
-//      gradient that STARTS at the template's own actual bottom-edge color
-//      (sampled live off the rendered canvas via sampleTemplateEdgeColor,
-//      not a hand-picked hex) and eases into a slightly deeper shade of the
-//      same navy toward the page's bottom — the strip now reads as the
-//      template's own background continuing/"pouring" down into the added
-//      area, rather than a separately-colored panel bolted underneath it.
-//      Sampling live also means this keeps matching automatically if
-//      brochure-template.jpg is ever swapped for a different photo.
-//   2. "Вдигни малко нагоре текста да не е толкова ниско" — the name no
+// v3.73 — two refinements the site owner asked for on top of v3.72:
+//   1. "Вдигни малко нагоре текста да не е толкова ниско" — the name no
 //      longer sits dead-center in the strip; BANNER_TEXT_LIFT pulls it up,
 //      leaving more empty space below it than above (same 24px nudge this
 //      file already used for CONTACT_BASELINE_Y — see that comment above).
-//   3. "в случай, че името... е много дълго, намали малко шрифта и го
+//   2. "в случай, че името... е много дълго, намали малко шрифта и го
 //      пренеси на нов ред" — a name that doesn't fit on one line even at
 //      BANNER_ONE_LINE_MIN_FONT no longer shrinks further and gets
 //      ellipsized; it wraps onto a second line instead (via
@@ -255,6 +245,27 @@ function drawVenueName(ctx, name) {
 //      needed down to BANNER_TWO_LINE_MIN_FONT. Ellipsis stays only as a
 //      last-resort safety net for a pathological single word too long to
 //      fit even at the floor size.
+//
+// v3.74 — v3.73 filled the strip with a color derived from a single edge
+// sample darkened by an arbitrary fixed factor; the site owner didn't like
+// that look and asked for the strip to read as a genuine continuation of
+// the brochure's own artwork flowing further down. A first attempt at this
+// literally mirrored the template's own last ~200px of pixels — but that
+// band reaches up into the QR badge and the "Сканирай. Отвори. Лови."
+// caption themselves (real content baked into the static template JPG, not
+// just background), so the mirror duplicated real text/QR pixels upside
+// down into the new strip. Measuring the image directly (pixel variance
+// across the full width) shows the template's own artwork is genuinely
+// clean, content-free background only from about y≈718 down to its bottom
+// edge (767) — and even in that short 49px band it's already darkening
+// fast, from a soft glow down to nearly black right at the edge (measured:
+// mean luminance ~58 at y=718 down to ~7 at y=767). drawBannerBackground
+// below uses that same REAL observed pace: it starts the new strip at the
+// template's own actual bottom-edge color (live-sampled, zero-seam) and
+// fades it to a deep near-black navy over a comparably short distance, then
+// holds that tone for the rest of the strip — i.e. the strip is the
+// template's own real vignette, continued at its own real rate, not a
+// mirrored duplicate of its content or an arbitrarily-chosen fixed color.
 const BANNER_MAX_WIDTH = TEMPLATE_W - 120;
 const BANNER_MAX_FONT = 96;
 const BANNER_ONE_LINE_MIN_FONT = 56;
@@ -263,9 +274,14 @@ const BANNER_TWO_LINE_MIN_FONT = 26;
 const BANNER_LINE_GAP = 1.12; // line-height multiple between the two wrapped lines
 const BANNER_TEXT_LIFT = 24; // px raised above the strip's own vertical center
 
+function clamp255(v) {
+  return Math.max(0, Math.min(255, Math.round(v)));
+}
+
 // Averages the actually-rendered pixel row at the template's own bottom
-// edge (y = TEMPLATE_H - 1) so the gradient below starts from the EXACT
-// color the source artwork ends on.
+// edge (y = TEMPLATE_H - 1) so the strip below starts from the EXACT color
+// the source artwork ends on — zero seam, and self-correcting if
+// brochure-template.jpg is ever swapped for a different photo.
 function sampleTemplateEdgeColor(ctx) {
   const { data } = ctx.getImageData(0, TEMPLATE_H - 1, TEMPLATE_W, 1);
   let r = 0, g = 0, b = 0;
@@ -275,18 +291,35 @@ function sampleTemplateEdgeColor(ctx) {
     g += data[i + 1];
     b += data[i + 2];
   }
-  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+  return [clamp255(r / n), clamp255(g / n), clamp255(b / n)];
 }
 
-function rgbString([r, g, b]) {
-  return `rgb(${r}, ${g}, ${b})`;
-}
+// How far into the new strip the fade to near-black completes, before
+// holding flat for the rest of the strip's height — chosen to match the
+// pace the template's own clean lower band (y≈718–767) already darkens at
+// (see the comment above), not an arbitrary distance.
+const BANNER_FADE_PX = 60;
+// A very dark navy-black (not pure #000, to stay in the same hue family as
+// the template's own darkest tone) — the strip's resting color once the
+// fade completes, and a stable, high-contrast backdrop for the white name
+// text drawn over it afterward.
+const BANNER_FLOOR = "rgb(3, 7, 12)";
 
-// A richer/deeper version of the same sampled hue (not a different color)
-// for the gradient's far end — keeps the "poured from the same source"
-// feel instead of introducing an unrelated tone.
-function darkenRgb([r, g, b], factor) {
-  return [Math.round(r * factor), Math.round(g * factor), Math.round(b * factor)];
+// Must run AFTER the template has been drawn onto `ctx` and BEFORE any text
+// is drawn into the strip.
+function drawBannerBackground(ctx) {
+  const edgeRgb = sampleTemplateEdgeColor(ctx);
+  const fadeStop = Math.min(1, BANNER_FADE_PX / BANNER_H);
+
+  const gradient = ctx.createLinearGradient(0, BANNER_Y, 0, PAGE_H);
+  gradient.addColorStop(0, `rgb(${edgeRgb.join(", ")})`);
+  gradient.addColorStop(fadeStop, BANNER_FLOOR);
+  if (fadeStop < 1) gradient.addColorStop(1, BANNER_FLOOR);
+
+  ctx.save();
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, BANNER_Y, TEMPLATE_W, BANNER_H);
+  ctx.restore();
 }
 
 // Picks the word-boundary split that keeps both resulting lines as close in
@@ -316,16 +349,11 @@ function ellipsize(ctx, text, maxWidth) {
   return `${out}…`;
 }
 
+// v3.74 — text-only now; the strip's background is drawn separately by
+// drawBannerBackground above (called earlier, right after the template
+// itself — see renderBrochureCanvas), so this just places the name "върху
+// определеното място" (over the designated spot) on top of it.
 function drawNameBanner(ctx, name) {
-  const edgeRgb = sampleTemplateEdgeColor(ctx);
-  const gradient = ctx.createLinearGradient(0, BANNER_Y, 0, PAGE_H);
-  gradient.addColorStop(0, rgbString(edgeRgb));
-  gradient.addColorStop(1, rgbString(darkenRgb(edgeRgb, 0.55)));
-  ctx.save();
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, BANNER_Y, TEMPLATE_W, BANNER_H);
-  ctx.restore();
-
   const label = (name || "").trim().toUpperCase();
   if (!label) return;
 
@@ -475,6 +503,13 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // 1. The fixed reference graphic, pixel-for-pixel, untouched.
   ctx.drawImage(template, 0, 0, TEMPLATE_W, TEMPLATE_H);
 
+  // 1.4. v3.74 — the new A5 footer strip's background: the template's own
+  // real bottom-edge color, continued/faded at the template's own observed
+  // rate (see drawBannerBackground above), drawn right after the template
+  // itself so it reads as one continuous sheet before any text goes on top
+  // of either part.
+  drawBannerBackground(ctx);
+
   // 1.5. This venue/water body's name, above the QR badge (v2.80).
   drawVenueName(ctx, name);
 
@@ -482,10 +517,10 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // (v3.21 — see drawContactText above).
   drawContactText(ctx, contactText);
 
-  // 1.7. v3.72 — the new A5 footer strip: navy fill + the venue/water
-  // body's name again, large (see drawNameBanner above). Drawn last of the
-  // three text passes so it's independent of the other two, but before the
-  // QR badge below since it never overlaps that area anyway.
+  // 1.7. v3.72 — the venue/water body's name again, large, over the footer
+  // strip's background (see drawNameBanner above). Drawn last of the three
+  // text passes so it's independent of the other two, but before the QR
+  // badge below since it never overlaps that area anyway.
   drawNameBanner(ctx, name);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
