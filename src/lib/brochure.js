@@ -96,11 +96,9 @@ const A5_HEIGHT_MM = 148;
 const PAGE_H = Math.round(TEMPLATE_W * (A5_HEIGHT_MM / A5_WIDTH_MM));
 const BANNER_Y = TEMPLATE_H;
 const BANNER_H = PAGE_H - TEMPLATE_H;
-// Sampled directly off public/brochure-template.jpg's own bottom edge
-// (mean RGB across the last ~30px, full width) so the new strip reads as a
-// seamless continuation of the template's existing dark background rather
-// than a visibly different panel bolted on underneath it.
-const BANNER_BG = "#061a2a";
+// v3.73 — the strip's own fill is no longer this fixed hex: it's now a live
+// gradient sampled off the template's actual rendered pixels — see
+// sampleTemplateEdgeColor and drawNameBanner below.
 
 // Pixel bounding box of the template's own crisp white QR badge (measured
 // directly on the source image with a strict white threshold — v2.73's
@@ -232,13 +230,99 @@ function drawVenueName(ctx, name) {
 // the page at the requested A5 ratio) — it just stays a plain navy band in
 // that case, same as the space below the QR badge already looks before any
 // name is set.
+//
+// v3.73 — three refinements the site owner asked for on top of v3.72:
+//   1. "прелееш цветовете от долната част на оригиналната брошура към
+//      разширението" — the flat BANNER_BG fill is replaced with a real
+//      gradient that STARTS at the template's own actual bottom-edge color
+//      (sampled live off the rendered canvas via sampleTemplateEdgeColor,
+//      not a hand-picked hex) and eases into a slightly deeper shade of the
+//      same navy toward the page's bottom — the strip now reads as the
+//      template's own background continuing/"pouring" down into the added
+//      area, rather than a separately-colored panel bolted underneath it.
+//      Sampling live also means this keeps matching automatically if
+//      brochure-template.jpg is ever swapped for a different photo.
+//   2. "Вдигни малко нагоре текста да не е толкова ниско" — the name no
+//      longer sits dead-center in the strip; BANNER_TEXT_LIFT pulls it up,
+//      leaving more empty space below it than above (same 24px nudge this
+//      file already used for CONTACT_BASELINE_Y — see that comment above).
+//   3. "в случай, че името... е много дълго, намали малко шрифта и го
+//      пренеси на нов ред" — a name that doesn't fit on one line even at
+//      BANNER_ONE_LINE_MIN_FONT no longer shrinks further and gets
+//      ellipsized; it wraps onto a second line instead (via
+//      bestTwoLineSplit, which measures every word-boundary split and picks
+//      the one that keeps both lines narrowest), shrinking a bit further if
+//      needed down to BANNER_TWO_LINE_MIN_FONT. Ellipsis stays only as a
+//      last-resort safety net for a pathological single word too long to
+//      fit even at the floor size.
 const BANNER_MAX_WIDTH = TEMPLATE_W - 120;
 const BANNER_MAX_FONT = 96;
-const BANNER_MIN_FONT = 32;
+const BANNER_ONE_LINE_MIN_FONT = 56;
+const BANNER_TWO_LINE_MAX_FONT = 56;
+const BANNER_TWO_LINE_MIN_FONT = 26;
+const BANNER_LINE_GAP = 1.12; // line-height multiple between the two wrapped lines
+const BANNER_TEXT_LIFT = 24; // px raised above the strip's own vertical center
+
+// Averages the actually-rendered pixel row at the template's own bottom
+// edge (y = TEMPLATE_H - 1) so the gradient below starts from the EXACT
+// color the source artwork ends on.
+function sampleTemplateEdgeColor(ctx) {
+  const { data } = ctx.getImageData(0, TEMPLATE_H - 1, TEMPLATE_W, 1);
+  let r = 0, g = 0, b = 0;
+  const n = data.length / 4;
+  for (let i = 0; i < data.length; i += 4) {
+    r += data[i];
+    g += data[i + 1];
+    b += data[i + 2];
+  }
+  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
+}
+
+function rgbString([r, g, b]) {
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+// A richer/deeper version of the same sampled hue (not a different color)
+// for the gradient's far end — keeps the "poured from the same source"
+// feel instead of introducing an unrelated tone.
+function darkenRgb([r, g, b], factor) {
+  return [Math.round(r * factor), Math.round(g * factor), Math.round(b * factor)];
+}
+
+// Picks the word-boundary split that keeps both resulting lines as close in
+// width as possible (measured with ctx's current font), so a multi-word
+// name wraps evenly instead of leaving one line nearly empty.
+function bestTwoLineSplit(ctx, words) {
+  if (words.length < 2) return [words.join(" "), ""];
+  let best = [words.join(" "), ""];
+  let bestWidest = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const line1 = words.slice(0, i).join(" ");
+    const line2 = words.slice(i).join(" ");
+    const widest = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+    if (widest < bestWidest) {
+      bestWidest = widest;
+      best = [line1, line2];
+    }
+  }
+  return best;
+}
+
+function ellipsize(ctx, text, maxWidth) {
+  let out = text;
+  while (out.length > 1 && ctx.measureText(`${out}…`).width > maxWidth) {
+    out = out.slice(0, -1);
+  }
+  return `${out}…`;
+}
 
 function drawNameBanner(ctx, name) {
+  const edgeRgb = sampleTemplateEdgeColor(ctx);
+  const gradient = ctx.createLinearGradient(0, BANNER_Y, 0, PAGE_H);
+  gradient.addColorStop(0, rgbString(edgeRgb));
+  gradient.addColorStop(1, rgbString(darkenRgb(edgeRgb, 0.55)));
   ctx.save();
-  ctx.fillStyle = BANNER_BG;
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, BANNER_Y, TEMPLATE_W, BANNER_H);
   ctx.restore();
 
@@ -246,33 +330,56 @@ function drawNameBanner(ctx, name) {
   if (!label) return;
 
   const centerX = TEMPLATE_W / 2;
-  const centerY = BANNER_Y + BANNER_H / 2;
+  const centerY = BANNER_Y + BANNER_H / 2 - BANNER_TEXT_LIFT;
   const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
 
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-
-  let fontSize = BANNER_MAX_FONT;
-  ctx.font = `700 ${fontSize}px ${fontStack}`;
-  while (fontSize > BANNER_MIN_FONT && ctx.measureText(label).width > BANNER_MAX_WIDTH) {
-    fontSize -= 2;
-    ctx.font = `700 ${fontSize}px ${fontStack}`;
-  }
-
-  let text = label;
-  if (ctx.measureText(text).width > BANNER_MAX_WIDTH) {
-    while (text.length > 1 && ctx.measureText(`${text}…`).width > BANNER_MAX_WIDTH) {
-      text = text.slice(0, -1);
-    }
-    text = `${text}…`;
-  }
-
   ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
   ctx.shadowBlur = 8;
   ctx.shadowOffsetY = 2;
   ctx.fillStyle = "#ffffff";
-  ctx.fillText(text, centerX, centerY);
+
+  // Single line first, shrinking down to BANNER_ONE_LINE_MIN_FONT.
+  let fontSize = BANNER_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  while (fontSize > BANNER_ONE_LINE_MIN_FONT && ctx.measureText(label).width > BANNER_MAX_WIDTH) {
+    fontSize -= 2;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+  }
+
+  if (ctx.measureText(label).width <= BANNER_MAX_WIDTH) {
+    ctx.fillText(label, centerX, centerY);
+    ctx.restore();
+    return;
+  }
+
+  // Doesn't fit on one line even at the smallest single-line size — wrap
+  // onto two lines instead of ellipsizing, shrinking further if needed.
+  const words = label.split(/\s+/).filter(Boolean);
+  fontSize = BANNER_TWO_LINE_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  let lines = bestTwoLineSplit(ctx, words);
+  while (
+    fontSize > BANNER_TWO_LINE_MIN_FONT &&
+    (ctx.measureText(lines[0]).width > BANNER_MAX_WIDTH || ctx.measureText(lines[1]).width > BANNER_MAX_WIDTH)
+  ) {
+    fontSize -= 2;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+    lines = bestTwoLineSplit(ctx, words);
+  }
+
+  // Still too wide at the floor size (a pathological single long word) —
+  // ellipsize whichever line overflows, same safety net used elsewhere in
+  // this file.
+  lines = lines.map((line) =>
+    ctx.measureText(line).width > BANNER_MAX_WIDTH ? ellipsize(ctx, line, BANNER_MAX_WIDTH) : line
+  );
+
+  const lineHeight = fontSize * BANNER_LINE_GAP;
+  ctx.fillText(lines[0], centerX, centerY - lineHeight / 2);
+  if (lines[1]) ctx.fillText(lines[1], centerX, centerY + lineHeight / 2);
   ctx.restore();
 }
 
