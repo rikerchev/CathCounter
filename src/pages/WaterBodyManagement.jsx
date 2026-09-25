@@ -1208,50 +1208,11 @@ export default function WaterBodyManagement() {
     }
   }
 
-  // v2.80 — one CSV cell must never break the file just because a name or
-  // phone happens to contain a comma/quote/newline: wrap in quotes and
-  // double up any embedded quote, the standard CSV escaping rule.
-  function csvCell(value) {
-    const s = value == null ? "" : String(value);
-    return `"${s.replace(/"/g, '""')}"`;
-  }
-
-  // v3.14 — moved to module scope (near ParticipantRow, which also needs
-  // it) — see that component's own comment for why.
-  function exportParticipantsCsv(comp) {
-    const regs = regsFor(comp.id);
-    const header = [
-      t("wb.participantName"),
-      t("wb.participantPhone"),
-      t("wb.slotType"),
-      t("wb.registeredByAccount"),
-      t("wb.paymentStatus"),
-      t("wb.competitionSector"),
-      t("wb.assignedBox"),
-    ];
-    const rows = regs.map((r) => [
-      r.participant_name || "",
-      r.participant_phone || "",
-      r.slot_type === "reserve" ? t("comp.reserves") : t("comp.participants"),
-      r.registered_by_email ? maskEmail(r.registered_by_email) : "",
-      t(PAYMENT_STATUS_LABEL_KEYS[r.payment_status] || "wb.paymentStatusPending"),
-      r.assigned_sector || "",
-      r.assigned_box != null ? String(r.assigned_box) : "",
-    ]);
-    const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
-    // — UTF-8 BOM so Excel on Windows (this app's whole userbase, per
-    // the device-bridge platform: win32) opens Cyrillic text correctly
-    // instead of mangling it as if it were a different encoding.
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `uchastnici-${(comp.title || "sastezanie").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  }
+  // v3.71 — the plain "Изтегли CSV" export (name/phone/slot/box list)
+  // was removed here: the xlsx export added in v3.69/v3.70
+  // (exportCompetitionResultsExcel) already covers everything this one
+  // did and more, so the site owner asked to drop the now-redundant
+  // button.
 
   // v3.69 — "Импорт *.xlsx": reads a previously-exported (or hand-filled,
   // same column layout) results file and fills in only what it actually
@@ -2578,21 +2539,14 @@ export default function WaterBodyManagement() {
               {generatingParticipantsImage ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
               {t("comp.downloadParticipantsImage")}
             </Button>
+            {/* v3.69/v3.70 — the results table (both catch categories) as
+                xlsx — see src/lib/competitionExcel.js. v3.71 — now the
+                primary export action in this footer (bg-cyan-600, same
+                styling the removed plain-CSV button used to have) since
+                that CSV export was dropped as redundant. */}
             <Button
-              onClick={() => exportParticipantsCsv(participantsFor)}
-              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
-            >
-              <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportCsv")}
-            </Button>
-            {/* v3.69 — the full scored results table (both catch categories,
-                penalty points, standings) as xlsx — see
-                src/lib/competitionExcel.js. Deliberately separate from the
-                plain CSV export above, which stays a simple participant
-                list. */}
-            <Button
-              variant="outline"
               onClick={() => exportCompetitionResultsExcel(participantsFor, regsFor(participantsFor.id))}
-              className="min-h-[44px]"
+              className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]"
             >
               <FileDown className="w-4 h-4 mr-1" /> {t("wb.exportResultsExcel")}
             </Button>
