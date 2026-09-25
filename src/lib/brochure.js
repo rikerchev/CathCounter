@@ -113,6 +113,10 @@ const BADGE_X = 1096;
 const BADGE_Y = 460;
 const BADGE_W = 209;
 const BADGE_H = 209;
+// v3.75 briefly made these straight-cornered; v3.76 reverts that — the site
+// owner clarified they didn't mean to touch anything on the QR badge itself
+// ("не съм искал да буташ нищо по QR кода"), so this goes back to its
+// original rounded corners.
 const BADGE_R = 20;
 
 const QR_PAD = 14;
@@ -322,6 +326,45 @@ function drawBannerBackground(ctx) {
   ctx.restore();
 }
 
+// v3.76 — drawBannerBackground's own fill (a flat gradient built from an
+// AVERAGED edge color) still left a faint but visible seam at y=BANNER_Y:
+// the real template row directly above it has pixel-to-pixel variation
+// (grain, slight hue drift across the width) that a single averaged color
+// can't match everywhere at once, so a thin, visible line remained where
+// the real pixels stopped and the flat fill began — exactly what the site
+// owner flagged ("не искам да се вижда този ръб... цветовете трябва да
+// преливат плавно"). This draws the template's own actual last few rows of
+// pixels (not an average — the real image data, grain and all) stretched
+// across a short feather zone right at the seam, with their opacity faded
+// from fully solid (at y=BANNER_Y, where they're pixel-for-pixel what the
+// template already looks like one row up, so there's nothing to see) down
+// to fully transparent a little further down (revealing
+// drawBannerBackground's fill underneath). Because the top of the feather
+// is the real image and not an approximation, there is nothing left for the
+// eye to catch — it's a true crossfade, not a color match. Must run after
+// both the template and drawBannerBackground have been drawn onto `ctx`.
+const SEAM_FEATHER_H = 64; // how far down the crossfade reaches
+const SEAM_SLIVER_H = 6; // how many real rows of the template are stretched across it — thin enough to avoid dragging in any JPEG block artifacts from further up
+
+function drawSeamFeather(ctx, template) {
+  const srcY = TEMPLATE_H - SEAM_SLIVER_H;
+
+  const off = document.createElement("canvas");
+  off.width = TEMPLATE_W;
+  off.height = SEAM_FEATHER_H;
+  const octx = off.getContext("2d");
+  octx.drawImage(template, 0, srcY, TEMPLATE_W, SEAM_SLIVER_H, 0, 0, TEMPLATE_W, SEAM_FEATHER_H);
+
+  octx.globalCompositeOperation = "destination-in";
+  const mask = octx.createLinearGradient(0, 0, 0, SEAM_FEATHER_H);
+  mask.addColorStop(0, "rgba(0, 0, 0, 1)");
+  mask.addColorStop(1, "rgba(0, 0, 0, 0)");
+  octx.fillStyle = mask;
+  octx.fillRect(0, 0, TEMPLATE_W, SEAM_FEATHER_H);
+
+  ctx.drawImage(off, 0, BANNER_Y);
+}
+
 // Picks the word-boundary split that keeps both resulting lines as close in
 // width as possible (measured with ctx's current font), so a multi-word
 // name wraps evenly instead of leaving one line nearly empty.
@@ -509,6 +552,11 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // itself so it reads as one continuous sheet before any text goes on top
   // of either part.
   drawBannerBackground(ctx);
+
+  // 1.41. v3.76 — crossfades the template's own real edge pixels over the
+  // seam (see drawSeamFeather above) so no visible line remains between the
+  // template and the new strip.
+  drawSeamFeather(ctx, template);
 
   // 1.5. This venue/water body's name, above the QR badge (v2.80).
   drawVenueName(ctx, name);
