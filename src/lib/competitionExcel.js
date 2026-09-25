@@ -1,39 +1,34 @@
-// src/lib/competitionExcel.js — v3.69
+// src/lib/competitionExcel.js — v3.69, revised v3.70
 //
-// xlsx export/import of a competition's full RESULTS table (catch weights,
-// penalty points, standings) — requested verbatim by the site owner as a
-// standalone feature next to the existing plain-participant CSV export
-// (exportParticipantsCsv in WaterBodyManagement.jsx, left unchanged — that
-// one is just a name/phone/slot/box list, this one is the scored results
-// table). Reuses the same "xlsx" library already used elsewhere in this app
-// (src/lib/excelUtils.js, src/lib/translationExcel.js) — no new dependency.
+// xlsx export/import of a competition's RESULTS table (catch weights) —
+// requested verbatim by the site owner as a standalone feature next to the
+// existing plain-participant CSV export (exportParticipantsCsv in
+// WaterBodyManagement.jsx, left unchanged — that one is just a name/phone/
+// slot/box list, this one is the catch-results table). Reuses the same
+// "xlsx" library already used elsewhere in this app (src/lib/excelUtils.js,
+// src/lib/translationExcel.js) — no new dependency.
+//
+// v3.70 — the site owner asked to DROP "Общ улов"/"Наказателни точки"/
+// "Класиране" from the file entirely (not just non-importable — not
+// present at all): "от файла премахни... нещата, които трябва да се
+// изчисляват". Those three stay computed-and-shown elsewhere in the app
+// (the standings dialog, the participant rows) — this module no longer
+// touches roundSectorPoints/rankByPenaltyAndWeight at all.
 //
 // Row shape: one row per (participant, round/"манш") — confirmed with the
-// site owner, since their column spec (one "Кантарни риби"/"Улов"/"Общ
-// улов"/"Наказателни точки" column each, no round breakdown) only
-// unambiguously describes a single-round competition. For a multi-round
-// one, every participant gets one row per манш, with its own "Манш" column
-// — omitted entirely when the competition has only 1 round, matching the
-// literal column list given. "Наказателни точки" on each row is that
-// round's own sector points (see competitionResults.js's roundSectorPoints
-// — a real, already-existing per-round number). "Класиране" is the
-// participant's OVERALL rank across every round (rankByPenaltyAndWeight)
-// and is simply repeated on every one of that participant's rows.
+// site owner. For a multi-round competition, every participant gets one row
+// per манш, with its own "Манш" column — omitted entirely when the
+// competition has only 1 round.
 //
 // Two catch categories, per the site owner's request: "Кантарни риби" (fish
 // weighed on the scale immediately after the catch and released right
-// away) is the NEW CompetitionRegistration.catch_results_scale column;
-// "Улов" (the keep-net catch) is the pre-existing catch_results column,
-// untouched in meaning. "Общ улов" is always their sum, computed here for
-// display — never itself stored or importable. Same for "Наказателни
-// точки" and "Класиране": always computed fresh from whatever weights are
-// on record, never read back from the file on import.
+// away) is the CompetitionRegistration.catch_results_scale column; "Улов"
+// (the keep-net catch) is the pre-existing catch_results column, untouched
+// in meaning.
 import * as XLSX from "xlsx";
 import { maskEmail } from "./emailMask";
 import { parseSectorsConfig, allBoxes } from "./competitionSectors";
-import {
-  parseCatchResults, stringifyCatchResults, roundSectorPoints, rankByPenaltyAndWeight,
-} from "./competitionResults";
+import { parseCatchResults, stringifyCatchResults } from "./competitionResults";
 
 // Column headers are fixed, plain-Bulgarian constants — deliberately NOT
 // routed through t() — so a file exported while the app is showing one
@@ -50,9 +45,6 @@ const COL = {
   round: "Манш",
   scale: "Кантарни риби (кг)",
   catchNet: "Улов (кг)",
-  total: "Общ улов (кг)",
-  penalty: "Наказателни точки",
-  rank: "Класиране",
 };
 
 // "когато има само един сектор изписваш само номера на бокса" (the site
@@ -71,43 +63,45 @@ function orderedRegs(registrations) {
   );
 }
 
+// v3.70 — "в потребител записвай мейла на потребителя, който е назначен,
+// ако няма такъв, тогава записва мейла на потребителя, който е записал
+// участника": assigned_user_email (set by the organizer's "assign to
+// user" action — see WaterBodyManagement.jsx's v2.90 comment) wins when
+// present, registered_by_email is only the fallback. Masked either way,
+// same as the existing CSV export.
+function userEmailLabel(r) {
+  const email = r.assigned_user_email || r.registered_by_email;
+  return email ? maskEmail(email) : "";
+}
+
 export function exportCompetitionResultsExcel(comp, registrations) {
   const roundsCount = Math.max(1, comp?.rounds_count || 1);
   const sectors = parseSectorsConfig(comp?.sectors_config);
   const regs = orderedRegs(registrations);
-  const rankedMap = new Map(rankByPenaltyAndWeight(regs, roundsCount).map((x) => [x.id, x]));
-  const roundPointsMatrix = Array.from({ length: roundsCount }, (_, i) => roundSectorPoints(regs, i));
 
   const header = [COL.id, COL.no, COL.name, COL.phone, COL.user, COL.place];
   if (roundsCount > 1) header.push(COL.round);
-  header.push(COL.scale, COL.catchNet, COL.total, COL.penalty, COL.rank);
+  header.push(COL.scale, COL.catchNet);
 
   const rows = [];
   regs.forEach((r, idx) => {
     const scaleArr = parseCatchResults(r.catch_results_scale);
     const catchArr = parseCatchResults(r.catch_results);
-    const ranked = rankedMap.get(r.id);
     for (let i = 0; i < roundsCount; i++) {
       const scale = scaleArr[i];
       const catchW = catchArr[i];
-      const hasEither = scale != null || catchW != null;
-      const total = hasEither ? (scale || 0) + (catchW || 0) : null;
-      const pts = roundPointsMatrix[i].get(r.id);
       const row = [
         r.id,
         idx + 1,
         r.participant_name || "",
         r.participant_phone || "",
-        r.registered_by_email ? maskEmail(r.registered_by_email) : "",
+        userEmailLabel(r),
         placeLabel(r, sectors.length),
       ];
       if (roundsCount > 1) row.push(i + 1);
       row.push(
         scale != null ? scale : "",
-        catchW != null ? catchW : "",
-        total != null ? total : "",
-        typeof pts === "number" ? pts : "",
-        ranked ? ranked.rank : ""
+        catchW != null ? catchW : ""
       );
       rows.push(row);
     }
@@ -143,11 +137,44 @@ export function parseCompetitionResultsExcelFile(file) {
   });
 }
 
+function isValidBox(sectors, sector, box) {
+  if (sectors.length === 0) return true; // nothing configured to validate against — accept as given
+  return allBoxes(sectors).some((b) => b.sector === sector && b.box === box);
+}
+
+// v3.70 — "добави и синтаксис за графа място (А15 или А-15 или А/15 или
+// вариант в който успяваш да разчетеш мястото... буквата винаги е сектор,
+// а цифрата винаги е бокс, а ти ги изписваш в приложението, както е било
+// до сега)": the cell can be typed by hand in whatever shorthand is
+// convenient — with or without a separator, whichever separator — as long
+// as it's [letters][digits] somewhere in there. Builds every plausible
+// (sector, box) reading of the cell and lets the caller's isValidBox check
+// against the competition's ACTUAL configured sectors/boxes pick the right
+// one — far more robust than committing to one fixed syntax, and it can
+// never silently accept a place that doesn't exist in this competition.
+// The app's own DISPLAY/export format (placeLabel above) is unchanged —
+// this only widens what's accepted on import.
+function placeCandidates(clean) {
+  const candidates = [];
+  // Any run of whitespace, hyphen, en/em dash or slash as a separator:
+  // "А - 15", "А-15", "А/15", "А 15" all become ["А", "15"].
+  const parts = clean.split(/[\s\-–—/]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const box = parts[parts.length - 1];
+    candidates.push({ sector: parts.slice(0, -1).join(" "), box });
+    candidates.push({ sector: parts.slice(0, -1).join("-"), box });
+  }
+  // No separator at all: "А15" — leading letters = sector, trailing digits
+  // = box (Cyrillic or Latin letters, \p{L} needs the "u" regex flag).
+  const compact = clean.match(/^(\p{L}+)[\s\-–—/]*(\d+)$/u);
+  if (compact) candidates.push({ sector: compact[1], box: compact[2] });
+  return candidates;
+}
+
 // "Мястото също може да се попълни, ако жребия не е изтеглен от системата,
-// но се отбелязва със звездичка, ако е попълнено ръчно" — parses the same
-// "Sector — Box" / "Box"(single-sector) / "...*" text this module's own
-// export produces. Returns null for anything it can't confidently parse
-// (left untouched rather than guessed at).
+// но се отбелязва със звездичка, ако е попълнено ръчно". Returns null for
+// anything that doesn't resolve to one of the competition's actually
+// configured boxes (left untouched rather than guessed at).
 function parsePlaceCell(raw, sectors) {
   const s = String(raw ?? "").trim();
   if (!s) return null;
@@ -158,16 +185,12 @@ function parsePlaceCell(raw, sectors) {
     const soleSector = sectors[0]?.name || "";
     return { sector: soleSector, box: clean };
   }
-  const parts = clean.split(/\s*[—-]\s*/);
-  if (parts.length < 2) return null;
-  const box = parts[parts.length - 1].trim();
-  const sector = parts.slice(0, -1).join(" - ").trim();
-  return sector && box ? { sector, box } : null;
-}
-
-function isValidBox(sectors, sector, box) {
-  if (sectors.length === 0) return true; // nothing configured to validate against — accept as given
-  return allBoxes(sectors).some((b) => b.sector === sector && b.box === box);
+  for (const cand of placeCandidates(clean)) {
+    if (cand.sector && cand.box && isValidBox(sectors, cand.sector, cand.box)) {
+      return cand;
+    }
+  }
+  return null;
 }
 
 // Builds the CompetitionRegistration.bulkUpdate payload from a parsed xlsx
