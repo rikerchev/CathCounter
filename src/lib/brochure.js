@@ -60,6 +60,21 @@ import QRCode from "qrcode";
  * caption). Same "same source file, untouched pixels" approach as always —
  * this is a one-time edit to the shared template asset, not something drawn
  * per-download.
+ *
+ * v3.72 — resized to a true A5 landscape sheet (210×148mm — requested with
+ * a reference mockup, so paper trimmed at that size doesn't cut anything
+ * off/leave the flyer undersized on the page). The template's own aspect
+ * ratio (1376×768, ≈1.79:1) is narrower than A5's (210:148 ≈1.42:1), so
+ * getting to exactly 210×148mm without stretching or cropping the photo
+ * means adding height, not changing the existing artwork — see BANNER_H
+ * below: a new solid strip is drawn under the untouched template image,
+ * filled with the template's own dominant background navy (sampled
+ * directly off the source JPG so the seam is invisible) and carrying the
+ * venue/water body's name again, large — "текста отдолу копира текста,
+ * който е над QR кода" (the site owner's own wording: the bottom text
+ * repeats the same name already drawn above the QR badge by
+ * drawVenueName, just big enough to read from across a room, the way a
+ * printed flyer's own footer banner would).
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
@@ -69,7 +84,23 @@ const TEMPLATE_URL = "/brochure-template.jpg";
 export const APP_ICON_URL = "/icon-512.png";
 const FONT_BOLD_URL = "/fonts/CatchCountBrochure-Bold.ttf";
 const TEMPLATE_W = 1376;
-const TEMPLATE_H = 768;
+const TEMPLATE_H = 768; // the ORIGINAL template image's own height — untouched pixels stop here
+
+// v3.72 — A5 landscape, requested by exact millimeter size. The final
+// canvas/PDF page is TEMPLATE_W wide × PAGE_H tall, where PAGE_H is
+// TEMPLATE_W scaled to the A5 ratio (not TEMPLATE_H's own 1.79:1 ratio) —
+// see the file header comment for why this means ADDING a strip below the
+// template rather than stretching or cropping it.
+const A5_WIDTH_MM = 210;
+const A5_HEIGHT_MM = 148;
+const PAGE_H = Math.round(TEMPLATE_W * (A5_HEIGHT_MM / A5_WIDTH_MM));
+const BANNER_Y = TEMPLATE_H;
+const BANNER_H = PAGE_H - TEMPLATE_H;
+// Sampled directly off public/brochure-template.jpg's own bottom edge
+// (mean RGB across the last ~30px, full width) so the new strip reads as a
+// seamless continuation of the template's existing dark background rather
+// than a visibly different panel bolted on underneath it.
+const BANNER_BG = "#061a2a";
 
 // Pixel bounding box of the template's own crisp white QR badge (measured
 // directly on the source image with a strict white threshold — v2.73's
@@ -190,6 +221,61 @@ function drawVenueName(ctx, name) {
   ctx.restore();
 }
 
+// v3.72 — the new A5 footer strip (BANNER_Y..PAGE_H, see the constants
+// above): filled with the template's own background navy first (so the
+// added height reads as part of the same sheet, not a separate panel), then
+// the venue/water body's name again — "текста отдолу копира текста, който е
+// над QR кода на търговеца" — same trimmed/uppercased text drawVenueName
+// already draws above the QR badge, just large enough to fill most of the
+// strip's width, the way a printed flyer's own name banner would. Drawn
+// even when `name` is blank (the strip itself still has to exist to keep
+// the page at the requested A5 ratio) — it just stays a plain navy band in
+// that case, same as the space below the QR badge already looks before any
+// name is set.
+const BANNER_MAX_WIDTH = TEMPLATE_W - 120;
+const BANNER_MAX_FONT = 96;
+const BANNER_MIN_FONT = 32;
+
+function drawNameBanner(ctx, name) {
+  ctx.save();
+  ctx.fillStyle = BANNER_BG;
+  ctx.fillRect(0, BANNER_Y, TEMPLATE_W, BANNER_H);
+  ctx.restore();
+
+  const label = (name || "").trim().toUpperCase();
+  if (!label) return;
+
+  const centerX = TEMPLATE_W / 2;
+  const centerY = BANNER_Y + BANNER_H / 2;
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  let fontSize = BANNER_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  while (fontSize > BANNER_MIN_FONT && ctx.measureText(label).width > BANNER_MAX_WIDTH) {
+    fontSize -= 2;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+  }
+
+  let text = label;
+  if (ctx.measureText(text).width > BANNER_MAX_WIDTH) {
+    while (text.length > 1 && ctx.measureText(`${text}…`).width > BANNER_MAX_WIDTH) {
+      text = text.slice(0, -1);
+    }
+    text = `${text}…`;
+  }
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(text, centerX, centerY);
+  ctx.restore();
+}
+
 // Draws the optional free-text contact line, left-aligned, in the empty
 // dark strip below the template's own "Сканирай. Отвори. Лови." caption
 // (that caption's icon sits at x=73, y≈666-701; the strip below it, y≈700-
@@ -276,7 +362,7 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
 
   const canvas = document.createElement("canvas");
   canvas.width = TEMPLATE_W;
-  canvas.height = TEMPLATE_H;
+  canvas.height = PAGE_H; // v3.72 — was TEMPLATE_H; PAGE_H adds the A5 footer banner strip below it
   const ctx = canvas.getContext("2d");
 
   // 1. The fixed reference graphic, pixel-for-pixel, untouched.
@@ -288,6 +374,12 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // 1.6. Optional free-text contact line, below "Сканирай. Изтегли. Лови."
   // (v3.21 — see drawContactText above).
   drawContactText(ctx, contactText);
+
+  // 1.7. v3.72 — the new A5 footer strip: navy fill + the venue/water
+  // body's name again, large (see drawNameBanner above). Drawn last of the
+  // three text passes so it's independent of the other two, but before the
+  // QR badge below since it never overlaps that area anyway.
+  drawNameBanner(ctx, name);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
   //    exact same spot.
@@ -326,11 +418,12 @@ function downloadDataUrl(dataUrl, filename) {
 }
 
 // v3.22 — `format` picks the downloaded file type: "pdf" (default, one-page
-// PDF sized to the template's own aspect ratio — unchanged from v2.69), or
-// a direct image download, "png" or "jpg". `filename` is now the BASE name
-// with no extension — this function appends the right one for `format` (it
-// used to be the full "*.pdf" name; all three callers were updated to stop
-// including the extension themselves).
+// PDF — v3.72: a true A5 landscape sheet, 210×148mm, see PAGE_H/A5_*_MM
+// above; was sized to the template's own narrower aspect ratio before
+// that), or a direct image download, "png" or "jpg". `filename` is now the
+// BASE name with no extension — this function appends the right one for
+// `format` (it used to be the full "*.pdf" name; all three callers were
+// updated to stop including the extension themselves).
 export async function downloadInviteBrochure({ name, link, filename, contactText, format = "pdf" }) {
   const canvas = await renderBrochureCanvas({ link, name, contactText });
   const baseName = filename || "catchcount-broshura";
@@ -358,8 +451,12 @@ export async function downloadInviteBrochure({ name, link, filename, contactText
   // one-off client-side download, not a network cost).
   const imageDataUrl = canvas.toDataURL("image/png");
 
-  const pageWidthMm = 210;
-  const pageHeightMm = pageWidthMm * (TEMPLATE_H / TEMPLATE_W);
+  // v3.72 — a true A5 sheet (was pageWidthMm * (TEMPLATE_H/TEMPLATE_W),
+  // i.e. the template's own 1.79:1 ratio); the canvas itself is already
+  // built at (very nearly, see PAGE_H's rounding) this same ratio, so this
+  // page size doesn't stretch or crop it.
+  const pageWidthMm = A5_WIDTH_MM;
+  const pageHeightMm = A5_HEIGHT_MM;
 
   const doc = new jsPDF({ unit: "mm", format: [pageWidthMm, pageHeightMm], orientation: "landscape" });
   if (name) doc.setProperties({ title: `CatchCount — ${name}` });
