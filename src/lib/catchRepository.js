@@ -1,5 +1,5 @@
 // Local catch repository: all reads go through local DB, writes go local-first
-import { getAllCatches, getCatch as getCatchLocal, saveCatchLocal, deleteCatchLocal } from "@/lib/localDb";
+import { getAllCatches, getCatch as getCatchLocal, saveCatchLocal, deleteCatchLocal, getPendingPhotosByCatch, removePendingPhoto } from "@/lib/localDb";
 import { addPendingSync } from "@/lib/localDb";
 import { syncAll, pushOnly } from "@/lib/syncEngine";
 import { base44 } from "@/api/base44Client";
@@ -47,6 +47,39 @@ export async function deleteCatch(id) {
       });
     }
   }
+
+  // v3.82 — a catch can also have a photo still sitting in the *pending*
+  // upload queue (PENDING_PHOTOS_STORE) at the moment it's deleted — picked
+  // on the log/edit screen but not yet uploaded, or already uploaded but not
+  // yet re-linked (the race markCatchSynced() closed in v3.81). Nothing else
+  // in the app ever cleans these up: deleteCatchLocal() below only touches
+  // the catches store, and cleanupOrphanedPendingPhotos() (see the startup
+  // sweep in SyncProvider.jsx) only catches photos that were never linked to
+  // any catch at all (catch_id null) — a photo still linked to a catch_id
+  // that's about to disappear falls through both. Without this, such a
+  // photo stayed in the pending queue forever: uploadPendingPhoto() would
+  // keep trying to link it to a catch that no longer exists and (since
+  // v3.81) keep leaving it as "pending" for the next retry instead of
+  // silently dropping it — a harmless but permanent retry loop. Clean it up
+  // here instead, at the one point the app actually knows the catch is gone
+  // for good.
+  try {
+    const orphanedPhotos = await getPendingPhotosByCatch(id);
+    for (const photo of orphanedPhotos) {
+      if (photo.cloud_url) {
+        const orphanedPhotoId = extractPhotoId(photo.cloud_url);
+        if (orphanedPhotoId) {
+          base44.catchPhotos.gcIfOrphaned(orphanedPhotoId).catch(() => {
+            // best-effort — a leftover unused photo is harmless
+          });
+        }
+      }
+      await removePendingPhoto(photo.id);
+    }
+  } catch (e) {
+    console.error(`Failed to clean up pending photos for deleted catch ${id}:`, e);
+  }
+
   await deleteCatchLocal(id);
   pushOnly();
 }
