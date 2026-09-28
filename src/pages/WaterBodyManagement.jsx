@@ -11,7 +11,7 @@ import { getMerchantBrochureLink } from "@/lib/referral";
 import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import {
-  parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
+  parseSectorsConfig, stringifySectorsConfig, totalBoxes, allBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
 import ZoomableImage from "@/components/ZoomableImage";
 import {
@@ -375,7 +375,17 @@ export default function WaterBodyManagement() {
   // per-row inputs on the participants list itself (see resultsDraft) — this
   // form is name/phone/slot/payment status only now.
   const [editingReg, setEditingReg] = useState(null);
-  const [regEditForm, setRegEditForm] = useState({ participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending" });
+  const [regEditForm, setRegEditForm] = useState({
+    participant_name: "", participant_phone: "", slot_type: "main", payment_status: "pending",
+    assigned_sector: "", assigned_box: "",
+  });
+  // v3.85 — tracks whether the organizer actually touched the new manual
+  // sector/box selects below (openEditReg resets it to false). saveRegEdit
+  // only sends assigned_sector/assigned_box/box_manual when this is true —
+  // otherwise just opening the dialog to fix e.g. the phone number and
+  // saving would silently re-stamp an existing, system-drawn placement as
+  // "manual" even though nothing about it was touched.
+  const [regBoxTouched, setRegBoxTouched] = useState(false);
   // v2.90 — "assign this registration to a real system account" (see
   // reassignParticipant below): a single draft email input + busy flag,
   // reset whenever a different participant is opened for editing (openEditReg).
@@ -1058,14 +1068,20 @@ export default function WaterBodyManagement() {
       participant_phone: r.participant_phone || "",
       slot_type: r.slot_type || "main",
       payment_status: r.payment_status || "pending",
+      // v3.85 — pre-filled from whatever is already assigned (system draw,
+      // a prior manual edit, or xlsx import) so opening this dialog never
+      // looks like it's clearing an existing placement.
+      assigned_sector: r.assigned_sector || "",
+      assigned_box: r.assigned_box || "",
     });
+    setRegBoxTouched(false);
     setReassignEmail("");
   }
 
   async function saveRegEdit() {
     if (!editingReg) return;
     try {
-      await base44.entities.CompetitionRegistration.update(editingReg.id, {
+      const payload = {
         participant_name: regEditForm.participant_name,
         participant_phone: regEditForm.participant_phone,
         slot_type: regEditForm.slot_type,
@@ -1077,7 +1093,19 @@ export default function WaterBodyManagement() {
         // ever set by the manual drag-and-drop reorder below
         // (saveManualOrder), so a participant's spot in the list stays put
         // through any number of edits.
-      });
+      };
+      // v3.85 — manual sector/box entry, for competitions whose actual draw
+      // happened physically at the venue rather than through "Тегли
+      // жребий" here. Only included when the organizer actually used the
+      // new selects (regBoxTouched) — see its declaration above for why.
+      // Clearing both back to "not assigned" sends null/null and resets
+      // box_manual, same as a fresh, undrawn registration.
+      if (regBoxTouched) {
+        payload.assigned_sector = regEditForm.assigned_sector || null;
+        payload.assigned_box = regEditForm.assigned_box || null;
+        payload.box_manual = !!(regEditForm.assigned_sector && regEditForm.assigned_box);
+      }
+      await base44.entities.CompetitionRegistration.update(editingReg.id, payload);
       toast({ title: t("wb.participantUpdated") });
       setEditingReg(null);
       await load();
@@ -2761,6 +2789,80 @@ export default function WaterBodyManagement() {
                 </Select>
               </div>
             </div>
+            {/* v3.85 — manual sector/box entry: for the closing-day case
+                where the actual draw happened physically at the venue (a
+                bag of numbered boxes, a printed sheet, etc.) rather than
+                through the "Тегли жребий" button here — the organizer can
+                just record each participant's real placement directly,
+                without the system running its own random draw first. Only
+                shown once the competition actually has sectors/boxes
+                configured (nothing to pick from otherwise). The box list is
+                restricted to boxes not already taken by another active
+                registration IN THIS COMPETITION (plus whatever this
+                participant already has, so their own current box always
+                stays selectable) — see regBoxTouched above for why saving
+                only touches assigned_sector/box when this section was
+                actually used. */}
+            {editingReg && participantsFor && (() => {
+              const sectors = parseSectorsConfig(participantsFor.sectors_config);
+              if (sectors.length === 0) return null;
+              const selectedSector = sectors.find((s) => s.name === regEditForm.assigned_sector);
+              const takenKeys = new Set(
+                regsFor(participantsFor.id)
+                  .filter((r) => r.id !== editingReg.id && r.assigned_box != null)
+                  .map((r) => `${r.assigned_sector}::${r.assigned_box}`)
+              );
+              const availableBoxes = selectedSector
+                ? selectedSector.boxes.filter((b) => !takenKeys.has(`${selectedSector.name}::${b}`))
+                : [];
+              return (
+                <div className="space-y-1.5 pt-1 border-t border-slate-100 dark:border-border">
+                  <Label className="flex items-center gap-1.5">
+                    <Shuffle className="w-3.5 h-3.5 text-slate-400" /> {t("wb.manualBoxAssign")}
+                  </Label>
+                  <p className="text-xs text-slate-500 dark:text-muted-foreground">{t("wb.manualBoxAssignHint")}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t("wb.competitionSector")}</Label>
+                      <Select
+                        value={regEditForm.assigned_sector || "__none"}
+                        onValueChange={(v) => {
+                          setRegBoxTouched(true);
+                          setRegEditForm((f) => ({ ...f, assigned_sector: v === "__none" ? "" : v, assigned_box: "" }));
+                        }}
+                      >
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">{t("wb.notAssignedOption")}</SelectItem>
+                          {sectors.map((s) => (
+                            <SelectItem key={s.name} value={s.name}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">{t("wb.assignedBox")}</Label>
+                      <Select
+                        value={regEditForm.assigned_box || "__none"}
+                        onValueChange={(v) => {
+                          setRegBoxTouched(true);
+                          setRegEditForm((f) => ({ ...f, assigned_box: v === "__none" ? "" : v }));
+                        }}
+                        disabled={!selectedSector}
+                      >
+                        <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">{t("wb.notAssignedOption")}</SelectItem>
+                          {availableBoxes.map((b) => (
+                            <SelectItem key={b} value={b}>{b}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
             {/* v2.90 — assign this registration to a real system account
                 (reassignParticipant): typing an existing account's email and
                 pressing "Назначи" moves created_by_id to them, so that

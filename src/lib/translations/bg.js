@@ -519,6 +519,9 @@ export const bg = {
     "wb.importResultsSkipped": "{count} пропуснати реда",
     "wb.importResultsError": "Грешка при импортиране на файла",
     "wb.manualPlacementHint": "* мястото е въведено ръчно, не чрез жребий в системата",
+    "wb.manualBoxAssign": "Ръчно назначаване на сектор/бокс",
+    "wb.manualBoxAssignHint": "Ако жребият е бил изтеглен физически, извън приложението, изберете сектор и бокс тук.",
+    "wb.notAssignedOption": "— не е назначен —",
     "wb.standings": "Класиране",
     "wb.noResultsYet": "Все още няма въведени резултати.",
     // v2.91 — text drawn onto the standings download PNG's bottom banner

@@ -529,6 +529,9 @@ export const en = {
     "wb.importResultsSkipped": "{count} rows skipped",
     "wb.importResultsError": "Error importing the file",
     "wb.manualPlacementHint": "* placement entered manually, not drawn by the system",
+    "wb.manualBoxAssign": "Manual sector/box assignment",
+    "wb.manualBoxAssignHint": "If the draw was done physically, outside the app, pick the sector and box here.",
+    "wb.notAssignedOption": "— not assigned —",
     "wb.standings": "Standings",
     "wb.noResultsYet": "No results recorded yet.",
     // v2.91 — text drawn onto the standings download PNG's bottom banner
