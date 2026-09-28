@@ -38,20 +38,33 @@ import { useLanguage } from "@/lib/i18n";
 // callers relabel the dialog/button for what's actually being exported
 // ("Списък участници" / "Изтегли жребий (снимка)") instead of the brochure
 // wording, without needing new translation keys — both reuse existing ones.
+//
+// v3.84 — new "kind" picker (Брошура А5 / Постер А4), gated by the new
+// `allowPoster` prop (default true). Defaults to "brochure" so every
+// existing call site keeps its exact prior behavior unless the person
+// downloading explicitly switches it. The two standings/draw-results
+// reuses above pass `allowPoster={false}` — they always embed the actual
+// brochure specifically, a poster doesn't fit that composition (table on
+// top, brochure at the bottom), so the picker would be meaningless there.
+// `onConfirm(text, format, kind)` — existing callers that only destructure
+// `(text, format)` are unaffected, they just don't read the third argument.
 const FORMATS = ["pdf", "jpg", "png"];
+const KINDS = ["brochure", "poster"];
 
 export default function BrochureContactDialog({
   open, onOpenChange, defaultValue, downloading, onConfirm,
-  showFormat = true, title, confirmLabel,
+  showFormat = true, allowPoster = true, title, confirmLabel,
 }) {
   const { t } = useLanguage();
   const [text, setText] = useState(defaultValue || "");
   const [format, setFormat] = useState("pdf");
+  const [kind, setKind] = useState("brochure");
 
   useEffect(() => {
     if (open) {
       setText(defaultValue || "");
       setFormat("pdf");
+      setKind("brochure");
     }
   }, [open, defaultValue]);
 
@@ -73,6 +86,19 @@ export default function BrochureContactDialog({
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">{t("brochure.contactHint")}</p>
           </div>
+          {allowPoster && (
+            <div className="space-y-1.5">
+              <Label>{t("brochure.kindLabel")}</Label>
+              <Select value={kind} onValueChange={setKind}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {KINDS.map((k) => (
+                    <SelectItem key={k} value={k}>{t(`brochure.kind.${k}`)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {showFormat && (
             <div className="space-y-1.5">
               <Label>{t("brochure.formatLabel")}</Label>
@@ -91,7 +117,7 @@ export default function BrochureContactDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={downloading}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={() => onConfirm(text.trim(), format)} disabled={downloading}>
+          <Button onClick={() => onConfirm(text.trim(), format, kind)} disabled={downloading}>
             {downloading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}
             {confirmLabel || t("tv.downloadBrochure")}
           </Button>

@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { ALL_MENU_ITEMS } from "@/lib/menuItems";
 import { GROUP_DEFS, DEFAULT_MENU_ORDER, normalizeMenuOrder, cloneOrder } from "@/lib/menuOrder";
-import { downloadInviteBrochure } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 
 // Static wizard copy — deliberately not routed through the i18n dictionary
@@ -137,12 +137,17 @@ export default function AdminSetup() {
   const [showGenericBrochure, setShowGenericBrochure] = useState(false);
   const [downloadingGenericBrochure, setDownloadingGenericBrochure] = useState(false);
 
-  async function handleDownloadGenericBrochure(contactText, format) {
+  // v3.84 — `kind` ("brochure" | "poster") picks the downloader. No venue/
+  // water-body object here (this is the venue-independent generic
+  // marketing brochure), so there's no logoUrl to pass — brochure.js
+  // handles that gracefully (no logo card drawn).
+  async function handleDownloadGenericBrochure(contactText, format, kind) {
     setDownloadingGenericBrochure(true);
     try {
-      await downloadInviteBrochure({
+      const download = kind === "poster" ? downloadInvitePoster : downloadInviteBrochure;
+      await download({
         link: `${window.location.origin}/register`,
-        filename: "catchcount-broshura",
+        filename: kind === "poster" ? "catchcount-poster" : "catchcount-broshura",
         contactText,
         format,
       });

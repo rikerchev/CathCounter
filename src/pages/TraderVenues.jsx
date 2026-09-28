@@ -15,7 +15,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
-import { downloadInviteBrochure } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
@@ -223,14 +223,20 @@ export default function TraderVenues() {
   // BrochureContactDialog (may be empty — entirely optional).
   // v3.22 — plus `format` (PDF/JPG/PNG); `filename` dropped its extension,
   // downloadInviteBrochure appends the right one for `format`.
-  async function handleDownload(v, contactText, format) {
+  // v3.84 — `kind` ("brochure" | "poster") picks the downloader; both now
+  // also carry the venue's own logo (v.logo_url — blank/missing is handled
+  // gracefully by brochure.js).
+  async function handleDownload(v, contactText, format, kind) {
     setDownloadingId(v.id);
     try {
-      await downloadInviteBrochure({
+      const baseFilename = `catchcount-${kind === "poster" ? "poster" : "broshura"}-${(v.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`;
+      const download = kind === "poster" ? downloadInvitePoster : downloadInviteBrochure;
+      await download({
         name: v.name,
         link: getMerchantBrochureLink("venue", v.id),
-        filename: `catchcount-broshura-${(v.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`,
+        filename: baseFilename,
         contactText,
+        logoUrl: v.logo_url,
         format,
       });
       setBrochureTarget(null);
@@ -492,7 +498,7 @@ export default function TraderVenues() {
         onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
         defaultValue={brochureTarget?.contact_phone || ""}
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
-        onConfirm={(text, format) => handleDownload(brochureTarget, text, format)}
+        onConfirm={(text, format, kind) => handleDownload(brochureTarget, text, format, kind)}
       />
 
       <MerchantRegistrationsDialog

@@ -8,7 +8,7 @@ import { Waves, PlusCircle, Users, Medal, Settings2, CalendarCheck, Pencil, Land
 import { maskEmail } from "@/lib/emailMask";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { getMerchantBrochureLink } from "@/lib/referral";
-import { downloadInviteBrochure } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, drawBoxes, NOT_ENOUGH_BOXES,
@@ -671,14 +671,21 @@ export default function WaterBodyManagement() {
   // BrochureContactDialog (may be empty — entirely optional).
   // v3.22 — `filename` has no extension anymore; downloadInviteBrochure
   // appends the right one for `format` (PDF/JPG/PNG, picked in the dialog).
-  async function handleDownloadBrochure(wb, contactText, format) {
+  // v3.84 — `kind` ("brochure" | "poster", from BrochureContactDialog's new
+  // picker) selects which of the two downloaders to call; both take the
+  // water body's own logo now too (logo_url — blank/missing is handled
+  // gracefully by brochure.js, drawn card just no-ops).
+  async function handleDownloadBrochure(wb, contactText, format, kind) {
     setDownloadingId(wb.id);
     try {
-      await downloadInviteBrochure({
+      const baseFilename = `catchcount-${kind === "poster" ? "poster" : "broshura"}-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`;
+      const download = kind === "poster" ? downloadInvitePoster : downloadInviteBrochure;
+      await download({
         name: wb.name,
         link: getMerchantBrochureLink("water_body", wb.id),
-        filename: `catchcount-broshura-${(wb.name || "vodoem").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`,
+        filename: baseFilename,
         contactText,
+        logoUrl: wb.logo_url,
         format,
       });
       setBrochureTarget(null);
@@ -2812,17 +2819,21 @@ export default function WaterBodyManagement() {
         onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
         defaultValue=""
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
-        onConfirm={(text, format) => handleDownloadBrochure(brochureTarget, text, format)}
+        onConfirm={(text, format, kind) => handleDownloadBrochure(brochureTarget, text, format, kind)}
       />
 
       {/* v3.25 — same dialog, reused for the two other exports that embed
           this water body's brochure (see the handlers/buttons above).
-          showFormat=false: both exports are always PNG. */}
+          showFormat=false: both exports are always PNG. v3.84 —
+          allowPoster=false too: both always embed the actual brochure
+          specifically (table on top, brochure at the bottom), a poster
+          doesn't fit that composition. */}
       <BrochureContactDialog
         open={!!participantsImageTarget}
         onOpenChange={(open) => { if (!open) setParticipantsImageTarget(null); }}
         defaultValue=""
         showFormat={false}
+        allowPoster={false}
         title={t("comp.downloadParticipantsImage")}
         confirmLabel={t("comp.downloadParticipantsImage")}
         downloading={generatingParticipantsImage}
@@ -2833,6 +2844,7 @@ export default function WaterBodyManagement() {
         onOpenChange={(open) => { if (!open) setDrawResultsImageTarget(null); }}
         defaultValue=""
         showFormat={false}
+        allowPoster={false}
         title={t("wb.exportDrawResults")}
         confirmLabel={t("wb.exportDrawResults")}
         downloading={generatingDrawResultsImage}

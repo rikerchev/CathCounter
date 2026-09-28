@@ -328,6 +328,10 @@ async function renderRowsPage({
         link: getMerchantBrochureLink("water_body", competition.water_body_id),
         name: waterBody?.name || competition?.water_body_name || "",
         contactText,
+        // v3.84 — the embedded brochure now also carries the water body's
+        // own logo (if any) and CatchCount's fixed contact line, same as a
+        // direct brochure download — see renderBrochureCanvas.
+        logoUrl: waterBody?.logo_url,
       });
     } catch {
       brochureCanvas = null; // template asset failed to load — the list alone still works

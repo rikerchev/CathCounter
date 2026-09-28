@@ -310,19 +310,22 @@ const BANNER_FADE_PX = 60;
 const BANNER_FLOOR = "rgb(3, 7, 12)";
 
 // Must run AFTER the template has been drawn onto `ctx` and BEFORE any text
-// is drawn into the strip.
-function drawBannerBackground(ctx) {
+// is drawn into the strip. `bannerY`/`bannerH` are explicit (not the module
+// A5 constants) as of v3.84 — reused by the new A4 poster's own, much
+// taller footer strip (see renderPosterCanvas), which needs the exact same
+// seamless-continuation treatment at a different height.
+function drawBannerBackground(ctx, bannerY, bannerH) {
   const edgeRgb = sampleTemplateEdgeColor(ctx);
-  const fadeStop = Math.min(1, BANNER_FADE_PX / BANNER_H);
+  const fadeStop = Math.min(1, BANNER_FADE_PX / bannerH);
 
-  const gradient = ctx.createLinearGradient(0, BANNER_Y, 0, PAGE_H);
+  const gradient = ctx.createLinearGradient(0, bannerY, 0, bannerY + bannerH);
   gradient.addColorStop(0, `rgb(${edgeRgb.join(", ")})`);
   gradient.addColorStop(fadeStop, BANNER_FLOOR);
   if (fadeStop < 1) gradient.addColorStop(1, BANNER_FLOOR);
 
   ctx.save();
   ctx.fillStyle = gradient;
-  ctx.fillRect(0, BANNER_Y, TEMPLATE_W, BANNER_H);
+  ctx.fillRect(0, bannerY, TEMPLATE_W, bannerH);
   ctx.restore();
 }
 
@@ -346,7 +349,9 @@ function drawBannerBackground(ctx) {
 const SEAM_FEATHER_H = 64; // how far down the crossfade reaches
 const SEAM_SLIVER_H = 6; // how many real rows of the template are stretched across it — thin enough to avoid dragging in any JPEG block artifacts from further up
 
-function drawSeamFeather(ctx, template) {
+// `bannerY` is explicit as of v3.84 (was the module A5 BANNER_Y constant) —
+// see drawBannerBackground's own comment above for why.
+function drawSeamFeather(ctx, template, bannerY) {
   const srcY = TEMPLATE_H - SEAM_SLIVER_H;
 
   const off = document.createElement("canvas");
@@ -362,7 +367,7 @@ function drawSeamFeather(ctx, template) {
   octx.fillStyle = mask;
   octx.fillRect(0, 0, TEMPLATE_W, SEAM_FEATHER_H);
 
-  ctx.drawImage(off, 0, BANNER_Y);
+  ctx.drawImage(off, 0, bannerY);
 }
 
 // Picks the word-boundary split that keeps both resulting lines as close in
@@ -396,11 +401,17 @@ function ellipsize(ctx, text, maxWidth) {
 // drawBannerBackground above (called earlier, right after the template
 // itself — see renderBrochureCanvas), so this just places the name "върху
 // определеното място" (over the designated spot) on top of it.
-function drawNameBanner(ctx, name) {
+// v3.84 — `opts.centerX`/`opts.maxWidth` let a caller shift the name aside
+// to make room for the new logo card (see drawLogoCard below) without
+// touching the default, still-centered-full-width layout that every
+// existing brochure (the overwhelming majority — a logo is a new, optional
+// field) keeps using unchanged.
+function drawNameBanner(ctx, name, opts = {}) {
   const label = (name || "").trim().toUpperCase();
   if (!label) return;
 
-  const centerX = TEMPLATE_W / 2;
+  const centerX = opts.centerX ?? TEMPLATE_W / 2;
+  const maxWidth = opts.maxWidth ?? BANNER_MAX_WIDTH;
   const centerY = BANNER_Y + BANNER_H / 2 - BANNER_TEXT_LIFT;
   const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
 
@@ -415,12 +426,12 @@ function drawNameBanner(ctx, name) {
   // Single line first, shrinking down to BANNER_ONE_LINE_MIN_FONT.
   let fontSize = BANNER_MAX_FONT;
   ctx.font = `700 ${fontSize}px ${fontStack}`;
-  while (fontSize > BANNER_ONE_LINE_MIN_FONT && ctx.measureText(label).width > BANNER_MAX_WIDTH) {
+  while (fontSize > BANNER_ONE_LINE_MIN_FONT && ctx.measureText(label).width > maxWidth) {
     fontSize -= 2;
     ctx.font = `700 ${fontSize}px ${fontStack}`;
   }
 
-  if (ctx.measureText(label).width <= BANNER_MAX_WIDTH) {
+  if (ctx.measureText(label).width <= maxWidth) {
     ctx.fillText(label, centerX, centerY);
     ctx.restore();
     return;
@@ -434,7 +445,7 @@ function drawNameBanner(ctx, name) {
   let lines = bestTwoLineSplit(ctx, words);
   while (
     fontSize > BANNER_TWO_LINE_MIN_FONT &&
-    (ctx.measureText(lines[0]).width > BANNER_MAX_WIDTH || ctx.measureText(lines[1]).width > BANNER_MAX_WIDTH)
+    (ctx.measureText(lines[0]).width > maxWidth || ctx.measureText(lines[1]).width > maxWidth)
   ) {
     fontSize -= 2;
     ctx.font = `700 ${fontSize}px ${fontStack}`;
@@ -445,7 +456,7 @@ function drawNameBanner(ctx, name) {
   // ellipsize whichever line overflows, same safety net used elsewhere in
   // this file.
   lines = lines.map((line) =>
-    ctx.measureText(line).width > BANNER_MAX_WIDTH ? ellipsize(ctx, line, BANNER_MAX_WIDTH) : line
+    ctx.measureText(line).width > maxWidth ? ellipsize(ctx, line, maxWidth) : line
   );
 
   const lineHeight = fontSize * BANNER_LINE_GAP;
@@ -516,11 +527,255 @@ function drawContactText(ctx, contactText) {
   ctx.restore();
 }
 
+// v3.84 — like loadImage above, but resolves `null` instead of rejecting on
+// failure. Used only for the venue/water-body's own uploaded logo: it's an
+// optional, best-effort addition to the brochure/poster, and a missing or
+// broken logo_url must never break the rest of the download.
+function loadImageSafe(src) {
+  if (!src) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+// v3.84 — draws the venue/water body's own uploaded logo (TraderVenues.jsx /
+// WaterBodyManagement.jsx logo_url) on a small white rounded card, scaled
+// and centered the same way CSS `object-fit: contain` already displays this
+// same logo everywhere else in the app (venue lists, ad banners) — never
+// distorted, never cropped. A plain white card rather than trying to blend
+// the logo's own pixels into the dark background: most uploaded logos have
+// a solid-color background of their own, and a real alpha blend would often
+// make them unreadable or muddy; a clean card is how this exact logo is
+// already presented throughout the rest of the app, so it stays consistent.
+// No-op if `logoImg` is null — missing logo, or it failed to load.
+const LOGO_CARD_PAD = 16;
+const LOGO_CARD_R = 18;
+
+function drawLogoCard(ctx, logoImg, centerX, topY, maxW, maxH) {
+  if (!logoImg) return;
+
+  ctx.save();
+  roundRectPath(ctx, centerX - maxW / 2, topY, maxW, maxH, LOGO_CARD_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetY = 4;
+  ctx.fill();
+  ctx.restore();
+
+  const innerW = maxW - LOGO_CARD_PAD * 2;
+  const innerH = maxH - LOGO_CARD_PAD * 2;
+  const naturalW = logoImg.naturalWidth || logoImg.width || 1;
+  const naturalH = logoImg.naturalHeight || logoImg.height || 1;
+  const scale = Math.min(innerW / naturalW, innerH / naturalH);
+  const drawW = naturalW * scale;
+  const drawH = naturalH * scale;
+  ctx.drawImage(logoImg, centerX - drawW / 2, topY + LOGO_CARD_PAD + (innerH - drawH) / 2, drawW, drawH);
+}
+
+// v3.84 — CatchCount's OWN fixed contact line, requested to appear on every
+// single brochure and poster, unconditionally — distinct from
+// drawContactText above, which draws the venue/water body's own OPTIONAL,
+// freely-typed contact info. This one is never editable, never empty, and
+// never omitted: whoever ends up holding a printed flyer or poster can
+// always reach CatchCount directly, not just the venue it was handed out
+// for.
+const CATCHCOUNT_APP_LABEL = "catchcount.app";
+const CATCHCOUNT_PHONE = "+359 894 31 88 33";
+const CATCHCOUNT_EMAIL = "catch.count.bg@gmail.com";
+
+// Two centered lines — used by the new A4 poster, which has the vertical
+// room for it. See drawCatchCountFooterCompact below for the A5 brochure's
+// own, single-line version (its footer strip is far shorter).
+function drawCatchCountFooter(ctx, centerX, appY, detailY, { appFont = 30, detailFont = 22 } = {}) {
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+
+  ctx.font = `700 ${appFont}px ${fontStack}`;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(CATCHCOUNT_APP_LABEL, centerX, appY);
+
+  ctx.font = `700 ${detailFont}px ${fontStack}`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillText(`${CATCHCOUNT_PHONE}   ·   ${CATCHCOUNT_EMAIL}`, centerX, detailY);
+  ctx.restore();
+}
+
+// Compact single line, right-aligned in the A5 brochure's own short footer
+// strip (BANNER_H is only ~202px, already carrying the venue name at up to
+// 96px font — see drawNameBanner) — tucked into the bottom-right corner,
+// below and clear of the centered name in every case (the name's own
+// vertical band, lifted by BANNER_TEXT_LIFT, never reaches this close to
+// the strip's bottom edge).
+const A5_FOOTER_RIGHT_MARGIN = 30;
+const A5_FOOTER_BOTTOM_MARGIN = 14;
+const A5_FOOTER_FONT = 16;
+
+function drawCatchCountFooterCompact(ctx) {
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+  const text = `${CATCHCOUNT_APP_LABEL}  ·  ${CATCHCOUNT_PHONE}  ·  ${CATCHCOUNT_EMAIL}`;
+  ctx.save();
+  ctx.textAlign = "right";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `700 ${A5_FOOTER_FONT}px ${fontStack}`;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 4;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillText(text, TEMPLATE_W - A5_FOOTER_RIGHT_MARGIN, PAGE_H - A5_FOOTER_BOTTOM_MARGIN);
+  ctx.restore();
+}
+
+// v3.84 — where the A5 brochure's logo card sits (top-left of the short
+// footer strip) and how much width it reserves so drawNameBanner's own
+// centered name shifts right to make room instead of overlapping it — see
+// drawNameBanner's `opts` parameter above.
+const A5_LOGO_CARD_W = 130;
+const A5_LOGO_CARD_H = 80;
+const A5_LOGO_CARD_X = 30;
+const A5_LOGO_RESERVED_W = 220; // width to give back to the name's centerX/maxWidth when a logo is present
+
+// ─── A4 portrait poster (v3.84) ─────────────────────────────────────────
+// A separate downloadable sheet for merchants/water bodies to print and
+// hang up, "да наподобява брошурите" (to resemble the brochures) — so it
+// reuses the exact same top artwork (public/brochure-template.jpg,
+// untouched) and the same visual language (font, QR badge style, gradient
+// footer strip) as renderBrochureCanvas above, just built around A4
+// portrait's much taller aspect ratio (210×297mm, vs A5 landscape's
+// 210×148mm) instead of a short footer strip: the template's own width
+// stays TEMPLATE_W (1376px, matching its native resolution, so the photo
+// itself is never stretched/cropped), and the extra height all goes into
+// one tall footer strip below it, stacked top-to-bottom with the venue
+// name (repeated, large — same as the A5 banner), the venue's own logo (if
+// any), a big primary QR code (sized for scanning from a few steps back —
+// the brochure's own corner badge, kept below for visual consistency, is
+// too small for that), and CatchCount's own fixed contact line.
+const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
+const POSTER_PAGE_H = Math.round(TEMPLATE_W * (A4_HEIGHT_MM / A4_WIDTH_MM));
+const POSTER_BANNER_Y = TEMPLATE_H; // same top photo as the brochure, unchanged
+const POSTER_BANNER_H = POSTER_PAGE_H - TEMPLATE_H;
+
+const POSTER_NAME_CENTER_Y = POSTER_BANNER_Y + 150;
+const POSTER_NAME_MAX_WIDTH = TEMPLATE_W - 160;
+const POSTER_NAME_MAX_FONT = 88;
+const POSTER_NAME_ONE_LINE_MIN_FONT = 52;
+const POSTER_NAME_TWO_LINE_MAX_FONT = 52;
+const POSTER_NAME_TWO_LINE_MIN_FONT = 28;
+
+const POSTER_LOGO_CARD_W = 340;
+const POSTER_LOGO_CARD_H = 170;
+const POSTER_LOGO_CARD_Y = POSTER_BANNER_Y + 260;
+
+const POSTER_QR_SIZE = 480;
+const POSTER_QR_Y = POSTER_BANNER_Y + 500;
+const POSTER_QR_R = 28;
+
+const POSTER_FOOTER_APP_Y = POSTER_QR_Y + POSTER_QR_SIZE + 90;
+const POSTER_FOOTER_DETAIL_Y = POSTER_FOOTER_APP_Y + 46;
+
+// Same wrap/shrink algorithm as drawNameBanner (kept as an independent copy
+// rather than a shared parametrized function — the A5 banner's layout has
+// already been tuned across five rounds of real user feedback, v3.72–v3.76;
+// duplicating this one screen's worth of logic here means changes to the
+// poster's own sizing can never accidentally shift the A5 brochure's
+// already-dialed-in text).
+function drawPosterName(ctx, name) {
+  const label = (name || "").trim().toUpperCase();
+  if (!label) return;
+
+  const centerX = TEMPLATE_W / 2;
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = "#ffffff";
+
+  let fontSize = POSTER_NAME_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  while (fontSize > POSTER_NAME_ONE_LINE_MIN_FONT && ctx.measureText(label).width > POSTER_NAME_MAX_WIDTH) {
+    fontSize -= 2;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+  }
+
+  if (ctx.measureText(label).width <= POSTER_NAME_MAX_WIDTH) {
+    ctx.fillText(label, centerX, POSTER_NAME_CENTER_Y);
+    ctx.restore();
+    return;
+  }
+
+  const words = label.split(/\s+/).filter(Boolean);
+  fontSize = POSTER_NAME_TWO_LINE_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  let lines = bestTwoLineSplit(ctx, words);
+  while (
+    fontSize > POSTER_NAME_TWO_LINE_MIN_FONT &&
+    (ctx.measureText(lines[0]).width > POSTER_NAME_MAX_WIDTH || ctx.measureText(lines[1]).width > POSTER_NAME_MAX_WIDTH)
+  ) {
+    fontSize -= 2;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+    lines = bestTwoLineSplit(ctx, words);
+  }
+
+  lines = lines.map((line) =>
+    ctx.measureText(line).width > POSTER_NAME_MAX_WIDTH ? ellipsize(ctx, line, POSTER_NAME_MAX_WIDTH) : line
+  );
+
+  const lineHeight = fontSize * BANNER_LINE_GAP;
+  ctx.fillText(lines[0], centerX, POSTER_NAME_CENTER_Y - lineHeight / 2);
+  if (lines[1]) ctx.fillText(lines[1], centerX, POSTER_NAME_CENTER_Y + lineHeight / 2);
+  ctx.restore();
+}
+
+// The poster's own big, primary QR badge — same white rounded card + fish
+// icon styling as the brochure's corner badge (BADGE_*/QR_PAD/ICON_* above),
+// scaled up proportionally so the padding/icon ratios look identical, just
+// bigger and easier to scan from a few steps back.
+function drawPosterQr(ctx, qrImg, iconImg) {
+  const cx = TEMPLATE_W / 2;
+  const x = cx - POSTER_QR_SIZE / 2;
+  const y = POSTER_QR_Y;
+  const scale = POSTER_QR_SIZE / BADGE_W;
+
+  ctx.save();
+  roundRectPath(ctx, x, y, POSTER_QR_SIZE, POSTER_QR_SIZE, POSTER_QR_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+  ctx.shadowBlur = 18;
+  ctx.shadowOffsetY = 6;
+  ctx.fill();
+  ctx.restore();
+
+  const pad = QR_PAD * scale;
+  const qrSize = POSTER_QR_SIZE - pad * 2;
+  ctx.drawImage(qrImg, x + pad, y + pad, qrSize, qrSize);
+
+  const iconBacking = ICON_BACKING * scale;
+  const iconSize = ICON_SIZE * scale;
+  const iconR = ICON_BACKING_R * scale;
+  const iconCy = y + POSTER_QR_SIZE / 2;
+  roundRectPath(ctx, cx - iconBacking / 2, iconCy - iconBacking / 2, iconBacking, iconBacking, iconR);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.drawImage(iconImg, cx - iconSize / 2, iconCy - iconSize / 2, iconSize, iconSize);
+}
+
 // v2.92 — exported: src/lib/standingsImage.js embeds this SAME rendered
 // brochure (unchanged) at the bottom of the competition standings image,
 // per the organizer's request that the standings download use "the actual
 // individual brochure", not an approximation of it.
-export async function renderBrochureCanvas({ link, name, contactText }) {
+export async function renderBrochureCanvas({ link, name, contactText, logoUrl }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,
@@ -531,10 +786,11 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
     color: { dark: "#0b3554", light: "#ffffff" },
   });
 
-  const [template, qrImg, iconImg] = await Promise.all([
+  const [template, qrImg, iconImg, logoImg] = await Promise.all([
     loadImage(TEMPLATE_URL),
     loadImage(qrDataUrl),
     loadImage(APP_ICON_URL),
+    loadImageSafe(logoUrl), // v3.84 — best-effort, never rejects
     ensureBrochureFont(),
   ]);
 
@@ -551,12 +807,12 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // rate (see drawBannerBackground above), drawn right after the template
   // itself so it reads as one continuous sheet before any text goes on top
   // of either part.
-  drawBannerBackground(ctx);
+  drawBannerBackground(ctx, BANNER_Y, BANNER_H);
 
   // 1.41. v3.76 — crossfades the template's own real edge pixels over the
   // seam (see drawSeamFeather above) so no visible line remains between the
   // template and the new strip.
-  drawSeamFeather(ctx, template);
+  drawSeamFeather(ctx, template, BANNER_Y);
 
   // 1.5. This venue/water body's name, above the QR badge (v2.80).
   drawVenueName(ctx, name);
@@ -569,7 +825,18 @@ export async function renderBrochureCanvas({ link, name, contactText }) {
   // strip's background (see drawNameBanner above). Drawn last of the three
   // text passes so it's independent of the other two, but before the QR
   // badge below since it never overlaps that area anyway.
-  drawNameBanner(ctx, name);
+  // v3.84 — when a logo is present, the name shifts right to share the
+  // strip with the logo card drawn just below (see A5_LOGO_RESERVED_W).
+  drawNameBanner(ctx, name, logoImg
+    ? { centerX: TEMPLATE_W / 2 + A5_LOGO_RESERVED_W / 2, maxWidth: BANNER_MAX_WIDTH - A5_LOGO_RESERVED_W }
+    : undefined);
+
+  // 1.8. v3.84 — the venue/water body's own logo, top-left of the footer
+  // strip (no-op if there isn't one), and CatchCount's own fixed contact
+  // line, bottom-right of the same strip — see both functions above for why
+  // these are separate from the venue's own optional contact line (1.6).
+  drawLogoCard(ctx, logoImg, A5_LOGO_CARD_X + A5_LOGO_CARD_W / 2, BANNER_Y + (BANNER_H - A5_LOGO_CARD_H) / 2, A5_LOGO_CARD_W, A5_LOGO_CARD_H);
+  drawCatchCountFooterCompact(ctx);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
   //    exact same spot.
@@ -614,8 +881,8 @@ function downloadDataUrl(dataUrl, filename) {
 // BASE name with no extension — this function appends the right one for
 // `format` (it used to be the full "*.pdf" name; all three callers were
 // updated to stop including the extension themselves).
-export async function downloadInviteBrochure({ name, link, filename, contactText, format = "pdf" }) {
-  const canvas = await renderBrochureCanvas({ link, name, contactText });
+export async function downloadInviteBrochure({ name, link, filename, contactText, logoUrl, format = "pdf" }) {
+  const canvas = await renderBrochureCanvas({ link, name, contactText, logoUrl });
   const baseName = filename || "catchcount-broshura";
 
   if (format === "png") {
@@ -651,5 +918,109 @@ export async function downloadInviteBrochure({ name, link, filename, contactText
   const doc = new jsPDF({ unit: "mm", format: [pageWidthMm, pageHeightMm], orientation: "landscape" });
   if (name) doc.setProperties({ title: `CatchCount — ${name}` });
   doc.addImage(imageDataUrl, "PNG", 0, 0, pageWidthMm, pageHeightMm);
+  doc.save(`${baseName}.pdf`);
+}
+
+// v3.84 — the A4 portrait poster's own canvas builder, mirroring
+// renderBrochureCanvas's structure closely (same template, same QR/font
+// loading, same "1, 2, 3, 4..." step comments) but built around the much
+// taller POSTER_* layout above instead of the short A5 banner.
+export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
+  const qrDataUrl = await QRCode.toDataURL(link, {
+    // Bigger source render than the brochure's own QR (700) — this one is
+    // drawn much larger on the page (POSTER_QR_SIZE = 480 vs the brochure
+    // badge's 209), so it needs more source resolution to stay crisp.
+    width: 900,
+    margin: 3,
+    errorCorrectionLevel: "H",
+    color: { dark: "#0b3554", light: "#ffffff" },
+  });
+
+  const [template, qrImg, iconImg, logoImg] = await Promise.all([
+    loadImage(TEMPLATE_URL),
+    loadImage(qrDataUrl),
+    loadImage(APP_ICON_URL),
+    loadImageSafe(logoUrl),
+    ensureBrochureFont(),
+  ]);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = TEMPLATE_W;
+  canvas.height = POSTER_PAGE_H;
+  const ctx = canvas.getContext("2d");
+
+  // 1. The exact same fixed reference graphic as the brochure, untouched —
+  //    "да наподобява брошурите" (to resemble the brochures).
+  ctx.drawImage(template, 0, 0, TEMPLATE_W, TEMPLATE_H);
+
+  // 1.4–1.41. The footer strip's seamless gradient background + crossfaded
+  // seam — same treatment as the A5 brochure (drawBannerBackground/
+  // drawSeamFeather above), just reaching much further down.
+  drawBannerBackground(ctx, POSTER_BANNER_Y, POSTER_BANNER_H);
+  drawSeamFeather(ctx, template, POSTER_BANNER_Y);
+
+  // 1.5–1.6. Same top-of-photo elements as the brochure, completely
+  // unchanged: the venue/water body's name above the small QR badge, and
+  // its own optional free-text contact line — both live inside the
+  // template's own untouched top artwork (y < TEMPLATE_H), shared as-is.
+  drawVenueName(ctx, name);
+  drawContactText(ctx, contactText);
+
+  // 1.7. The name again, large, at the top of the poster's own tall footer
+  // strip (mirrors drawNameBanner's role in the brochure).
+  drawPosterName(ctx, name);
+
+  // 1.8. The venue/water body's own logo, if any — centered, below the name.
+  drawLogoCard(ctx, logoImg, TEMPLATE_W / 2, POSTER_LOGO_CARD_Y, POSTER_LOGO_CARD_W, POSTER_LOGO_CARD_H);
+
+  // 1.9. The poster's own big, primary QR — this is the one actually meant
+  // to be scanned off a wall from a few steps back.
+  drawPosterQr(ctx, qrImg, iconImg);
+
+  // 1.10. CatchCount's own fixed contact line, near the bottom of the page.
+  drawCatchCountFooter(ctx, TEMPLATE_W / 2, POSTER_FOOTER_APP_Y, POSTER_FOOTER_DETAIL_Y);
+
+  // 2–4. The small corner QR badge, exactly like the brochure — kept for
+  // visual consistency with it, even though the big QR above is the
+  // practical one for a printed poster.
+  roundRectPath(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BADGE_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  const qrSize = BADGE_W - QR_PAD * 2;
+  const qrX = BADGE_X + (BADGE_W - qrSize) / 2;
+  const qrY = BADGE_Y + (BADGE_H - qrSize) / 2;
+  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+  const cx = BADGE_X + BADGE_W / 2;
+  const cy = BADGE_Y + BADGE_H / 2;
+  roundRectPath(ctx, cx - ICON_BACKING / 2, cy - ICON_BACKING / 2, ICON_BACKING, ICON_BACKING, ICON_BACKING_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.drawImage(iconImg, cx - ICON_SIZE / 2, cy - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE);
+
+  return canvas;
+}
+
+// v3.84 — same format/download mechanics as downloadInviteBrochure above,
+// built around the A4 portrait poster instead of the A5 landscape brochure.
+export async function downloadInvitePoster({ name, link, filename, contactText, logoUrl, format = "pdf" }) {
+  const canvas = await renderPosterCanvas({ link, name, contactText, logoUrl });
+  const baseName = filename || "catchcount-poster";
+
+  if (format === "png") {
+    downloadDataUrl(canvas.toDataURL("image/png"), `${baseName}.png`);
+    return;
+  }
+
+  if (format === "jpg") {
+    downloadDataUrl(canvas.toDataURL("image/jpeg", 0.97), `${baseName}.jpg`);
+    return;
+  }
+
+  const imageDataUrl = canvas.toDataURL("image/png");
+  const doc = new jsPDF({ unit: "mm", format: [A4_WIDTH_MM, A4_HEIGHT_MM], orientation: "portrait" });
+  if (name) doc.setProperties({ title: `CatchCount — ${name} — Постер` });
+  doc.addImage(imageDataUrl, "PNG", 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
   doc.save(`${baseName}.pdf`);
 }

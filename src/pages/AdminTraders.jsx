@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { effectiveRoles, highestRole } from "@/lib/roles";
 import { getMerchantBrochureLink } from "@/lib/referral";
-import { downloadInviteBrochure } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
 import MerchantBonusEditor from "@/components/MerchantBonusEditor";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import { useLanguage } from "@/lib/i18n";
@@ -95,14 +95,20 @@ export default function AdminTraders() {
   // BrochureContactDialog (may be empty — entirely optional).
   // v3.22 — plus `format` (PDF/JPG/PNG); `filename` dropped its extension,
   // downloadInviteBrochure appends the right one for `format`.
-  async function handleDownload(item, contactText, format) {
+  // v3.84 — `kind` ("brochure" | "poster") picks the downloader; both now
+  // also carry the object's own logo (item.logo_url — blank/missing is
+  // handled gracefully by brochure.js).
+  async function handleDownload(item, contactText, format, kind) {
     setDownloadingId(item.id);
     try {
-      await downloadInviteBrochure({
+      const baseFilename = `catchcount-${kind === "poster" ? "poster" : "broshura"}-${(item.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`;
+      const download = kind === "poster" ? downloadInvitePoster : downloadInviteBrochure;
+      await download({
         name: item.name,
         link: getMerchantBrochureLink(item._type, item.id),
-        filename: `catchcount-broshura-${(item.name || "obekt").toLowerCase().replace(/[^a-z0-9а-я]+/gi, "-")}`,
+        filename: baseFilename,
         contactText,
+        logoUrl: item.logo_url,
         format,
       });
       setBrochureTarget(null);
@@ -289,7 +295,7 @@ export default function AdminTraders() {
         onOpenChange={(open) => { if (!open) setBrochureTarget(null); }}
         defaultValue={brochureTarget?.contact_phone || ""}
         downloading={!!brochureTarget && downloadingId === brochureTarget.id}
-        onConfirm={(text, format) => handleDownload(brochureTarget, text, format)}
+        onConfirm={(text, format, kind) => handleDownload(brochureTarget, text, format, kind)}
       />
     </div>
   );
