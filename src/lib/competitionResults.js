@@ -119,10 +119,20 @@ export function rankByTotalWeight(registrations) {
 // (exactly "сектор със 7 бокса → последният получава 7 точки"), and is
 // simply lower than that while some of the sector's boxes haven't reported
 // yet for this round (self-corrects as more weights are entered — nothing
-// here waits for the whole sector to be complete first). Two competitors
-// with the exact same weight split the average of their tied rank
-// positions (the standard tie convention in this scoring system) instead of
-// an arbitrary order.
+// here waits for the whole sector to be complete first).
+//
+// v3.86 — two (or more) competitors with the exact same weight now SHARE
+// the better (lower/1-based) of their tied positions — standard "1,2,2,4"
+// competition ranking — instead of the fractional average used before
+// (e.g. tied for what would be places 6 and 7 → both now get 6, not 6.5).
+// The site owner pointed out the old averaging produced confusing
+// fractional points (18th/19th place both showing "6.5") for what was
+// really an exact tie that should read as "both 6th in their sector",
+// which matters directly for any league that accumulates points across
+// several competitions. The next distinct competitor after a tied block
+// still starts counting from the position right after the whole block
+// (unchanged — see `i = j + 1` below), so the usual "gap" a tie leaves
+// behind (1,2,2,4 — no one gets "3") is preserved.
 //
 // A registration with no assigned sector/box yet (жребий not drawn), or
 // with no recorded weight for THIS round, simply isn't in the returned map
@@ -147,8 +157,8 @@ export function roundSectorPoints(registrations, roundIndex) {
     while (i < entries.length) {
       let j = i;
       while (j + 1 < entries.length && entries[j + 1].weight === entries[i].weight) j++;
-      const avgRank = (i + 1 + (j + 1)) / 2; // 1-based positions i+1..j+1, averaged
-      for (let k = i; k <= j; k++) points.set(entries[k].id, avgRank);
+      const sharedRank = i + 1; // v3.86 — was the average of i+1..j+1; now the shared lower position
+      for (let k = i; k <= j; k++) points.set(entries[k].id, sharedRank);
       i = j + 1;
     }
   }
@@ -176,14 +186,27 @@ export function totalPenaltyPoints(registrations, roundsCount) {
 // ranked — same "hasn't fished yet, not on the leaderboard" rule as
 // rankByTotalWeight, just driven by the penalty map instead of a plain
 // hasAnyResult check. `rank` is 1-based.
+//
+// v3.86 — a genuine tie on BOTH criteria (equal total penalty points AND
+// equal total weight — not merely adjacent after sorting) now shares the
+// same overall rank, instead of always getting two consecutive numbers.
+// Same "shared lower position, next block skips ahead" convention as
+// roundSectorPoints above, so a sector-level tie and the overall standings
+// it feeds into read consistently.
 export function rankByPenaltyAndWeight(registrations, roundsCount) {
   const penaltyMap = totalPenaltyPoints(registrations, roundsCount);
-  return (registrations || [])
+  const sorted = (registrations || [])
     .filter((r) => penaltyMap.has(r.id))
     .map((r) => {
       const results = combinedResults(r); // v3.69 — кантарни риби + улов combined, see above
       return { ...r, results, total: totalCatchWeight(results), penalty: penaltyMap.get(r.id) };
     })
-    .sort((a, b) => (a.penalty !== b.penalty ? a.penalty - b.penalty : b.total - a.total))
-    .map((r, i) => ({ ...r, rank: i + 1 }));
+    .sort((a, b) => (a.penalty !== b.penalty ? a.penalty - b.penalty : b.total - a.total));
+  const out = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const prev = out[i - 1];
+    const tied = prev && sorted[i].penalty === sorted[i - 1].penalty && sorted[i].total === sorted[i - 1].total;
+    out.push({ ...sorted[i], rank: tied ? prev.rank : i + 1 });
+  }
+  return out;
 }
