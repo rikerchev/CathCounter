@@ -76,16 +76,22 @@ function showReminderNotification(title, options) {
  *
  * v3.47 — the wake lock above is now ALSO gated on the user's own
  *  "Дръж екрана буден по време на сесия" preference (Профил → Икономия на
- *  енергия — see useKeepScreenAwakePref.js), OFF by default. Screen-on time
- *  is by far the single biggest battery draw over a multi-hour session —
- *  far more than GPS or network — and, per the v2.45 note just above, the
- *  reminder itself never actually needed the screen lit: it already fires
- *  correctly (beep, vibration, notification) with the screen off. So the
- *  wake lock defaulting off costs nothing functionally; it only stops
- *  automatically keeping the screen lit for anglers who never look at it
- *  anyway. Turning the preference on restores exactly the old, always-lit
- *  behaviour for anyone who prefers watching the live countdown without
- *  unlocking their phone.
+ *  енергия — see useKeepScreenAwakePref.js). Originally defaulted OFF, on
+ *  the assumption that the reminder never actually needed the screen lit
+ *  (per the v2.45 note just above — beep, vibration, notification all fire
+ *  with the screen off, via beep.js's audio-clock scheduling).
+ *
+ * v3.78 — that assumption did not hold up in real use: a user's screen
+ *  turned off on its own from inactivity (the preference was off) and the
+ *  reminder did not sound. The default was flipped back to ON
+ *  (batteryPrefs.js's getKeepScreenAwake) — anyone who hasn't explicitly
+ *  chosen a value now gets the screen kept awake automatically again,
+ *  which prevents the OS from ever reaching that inactivity screen-off path
+ *  in the first place. Existing users who had already explicitly turned the
+ *  preference off keep that choice. Turning the preference off remains
+ *  available for anyone who explicitly wants to save battery and accepts
+ *  the (device-dependent) risk that a reminder relying solely on the audio
+ *  clock might not fire on every phone once the screen is off.
  *
  * v2.48 — reminder notification now reaches a paired Wear OS watch:
  *  the system notification used to be created with the plain

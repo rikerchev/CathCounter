@@ -37,6 +37,13 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
 
   const isMultiCountry = countries.length > 1;
 
+  // Once a request is paid, the period/price it was actually paid for must
+  // not silently change from this dialog (v3.77) — only title, description
+  // and per-country content stay editable at that point. Any change to the
+  // months/price for a paid ad now has to go through an admin, not the
+  // advertiser self-service edit.
+  const isPaid = request.status === "paid";
+
   // total_price was originally computed from price_per_month × the
   // per-country multipliers × months (see lib/pricing.js) — recompute it
   // the same way whenever the period changes, using the country set the
@@ -53,13 +60,16 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
   async function handleSave() {
     setSaving(true);
     try {
-      await onSave({
+      const payload = {
         ad_title: adTitle,
         ad_description: adDescription,
         country_content: JSON.stringify(countryContent),
-        months: Number(months),
-        total_price: recalculatedTotal,
-      });
+      };
+      if (!isPaid) {
+        payload.months = Number(months);
+        payload.total_price = recalculatedTotal;
+      }
+      await onSave(payload);
     } finally {
       setSaving(false);
     }
@@ -83,23 +93,29 @@ export default function AdRequestEditDialog({ request, onClose, onSave }) {
             <Input value={adDescription} onChange={(e) => setAdDescription(e.target.value)} placeholder="Описание на рекламата" className="min-h-[44px]" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Срок (месеци)</Label>
-              <Select value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
-                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MONTH_OPTIONS.map((m) => (<SelectItem key={m} value={String(m)}>{m} мес.</SelectItem>))}
-                </SelectContent>
-              </Select>
+          {isPaid ? (
+            <div className="rounded-xl bg-slate-50 dark:bg-accent p-3 text-xs text-slate-500 dark:text-muted-foreground">
+              Рекламата вече е платена за {request.months} мес. (€{Number(request.total_price).toFixed(2)}). Срокът и цената на платена реклама не могат да се променят оттук — свържете се с нас, ако е необходима промяна.
             </div>
-            <div className="flex items-end">
-              <div className="w-full p-3 rounded-xl bg-cyan-50 dark:bg-accent text-center">
-                <p className="text-xs text-slate-500 dark:text-muted-foreground">Обща цена</p>
-                <p className="text-lg font-bold text-cyan-700 dark:text-cyan-400">€{recalculatedTotal.toFixed(2)}</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Срок (месеци)</Label>
+                <Select value={String(months)} onValueChange={(v) => setMonths(Number(v))}>
+                  <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map((m) => (<SelectItem key={m} value={String(m)}>{m} мес.</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <div className="w-full p-3 rounded-xl bg-cyan-50 dark:bg-accent text-center">
+                  <p className="text-xs text-slate-500 dark:text-muted-foreground">Обща цена</p>
+                  <p className="text-lg font-bold text-cyan-700 dark:text-cyan-400">€{recalculatedTotal.toFixed(2)}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {countries.length > 0 && (
             <div className="rounded-xl border border-slate-200 dark:border-border p-4 space-y-4">

@@ -11,23 +11,27 @@ const KEEP_SCREEN_AWAKE_KEY = "catchcount_keep_screen_awake";
 
 let keepScreenAwakeListeners = new Set();
 
-// Default is OFF: a running rod timer's reminder (beep, vibration, and — if
-// permission was granted — a real system notification) already fires
-// reliably even with the screen off or the phone locked, via beep.js's
-// Web-Audio-clock scheduling (see the v2.45 note in useRodTimerMonitor.js)
-// — the screen was never actually REQUIRED for the reminder to work, only
-// for watching the live countdown without unlocking the phone. Since
-// keeping the screen lit is by far the single biggest battery draw during
-// a multi-hour fishing session (much more than GPS or network — see
-// claude/battery-audit-3.47.md), defaulting this OFF is what actually
-// fixes "the phone died mid-session" without giving up anything the
-// reminder itself needs. Anyone who prefers the old always-lit behaviour
-// can switch it back on in Профил.
+// v3.47 defaulted this OFF, on the assumption that beep.js's Web-Audio-clock
+// scheduling (see the v2.45 note in useRodTimerMonitor.js) makes the screen
+// unnecessary for the reminder to fire. v3.78 — a real-world session proved
+// that assumption wrong: the screen turned off on its own from inactivity
+// (Wake Lock was off), and the reminder did NOT sound. Whatever the exact
+// cause on that phone (OS-level throttling of the audio clock once the tab
+// is fully backgrounded, battery-optimization killing it, or something
+// device-specific), the practical fix is the same: don't let the screen
+// turn off from inactivity in the first place, so the page never gets
+// backgrounded that way at all. Defaulting back to ON is what actually
+// guarantees the reminder is seen/heard for anyone who hasn't touched this
+// setting. Anyone who explicitly prefers to save battery and accepts the
+// (device-dependent) risk of a missed reminder can still turn it off in
+// Профил.
 export function getKeepScreenAwake() {
   try {
-    return localStorage.getItem(KEEP_SCREEN_AWAKE_KEY) === "true";
+    const stored = localStorage.getItem(KEEP_SCREEN_AWAKE_KEY);
+    if (stored === null) return true;
+    return stored === "true";
   } catch (e) {
-    return false;
+    return true;
   }
 }
 

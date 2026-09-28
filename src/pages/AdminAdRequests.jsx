@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
-import { Check, X, Megaphone, Loader2, ExternalLink } from "lucide-react";
+import { Check, X, Megaphone, Loader2, ExternalLink, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/lib/i18n";
 
@@ -42,6 +42,7 @@ export default function AdminAdRequests() {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(null);
   const [markingPaid, setMarkingPaid] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -139,6 +140,22 @@ export default function AdminAdRequests() {
     }
   }
 
+  // Admin-only permanent delete — this is the only way to actually remove a
+  // request record (owner/advertiser can only cancel it, see MyAdRequests.jsx).
+  async function remove(req) {
+    if (!window.confirm(t("aar.confirmDelete"))) return;
+    setDeletingId(req.id);
+    try {
+      await base44.entities.AdSlotRequest.delete(req.id);
+      toast({ title: t("aar.requestDeleted") });
+      await load();
+    } catch (e) {
+      toast({ title: t("aar.deleteError"), description: e.message, variant: "destructive" });
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const pending = requests.filter((r) => r.status === "pending");
   const others = requests.filter((r) => r.status !== "pending");
 
@@ -226,6 +243,15 @@ export default function AdminAdRequests() {
                         {t("aar.markPaid")}
                       </Button>
                     )}
+                    <Button
+                      onClick={() => remove(r)}
+                      disabled={deletingId === r.id}
+                      size="sm"
+                      variant="outline"
+                      className="min-h-[36px] w-9 p-0 text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    >
+                      {deletingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </Button>
                   </div>
                 </div>
               ))}

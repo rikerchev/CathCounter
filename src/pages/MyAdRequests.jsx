@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
-import { Megaphone, ExternalLink, Loader2, Globe, Pencil } from "lucide-react";
+import { Megaphone, ExternalLink, Loader2, Globe, Pencil, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { COUNTRY_NAME_BY_CODE } from "@/lib/countries";
 import AdRequestEditDialog from "@/components/AdRequestEditDialog";
@@ -54,6 +54,7 @@ export default function MyAdRequests() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingRequest, setEditingRequest] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -83,6 +84,20 @@ export default function MyAdRequests() {
       await loadRequests();
     } catch (e) {
       toast({ title: t("awb.error"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  async function handleCancel(r) {
+    if (!window.confirm(t("aar.confirmCancel"))) return;
+    setCancellingId(r.id);
+    try {
+      await base44.entities.AdSlotRequest.update(r.id, { status: "cancelled" });
+      toast({ title: t("aar.cancelledToast") });
+      await loadRequests();
+    } catch (e) {
+      toast({ title: t("awb.error"), description: e.message, variant: "destructive" });
+    } finally {
+      setCancellingId(null);
     }
   }
 
@@ -158,13 +173,31 @@ export default function MyAdRequests() {
               {r.status === "paid" && (
                 <p className="text-xs text-emerald-600">{t("aar.paidDesc")}</p>
               )}
-              {(r.status === "pending" || r.status === "approved") && (
+              {r.status === "cancelled" && (
+                <p className="text-xs text-slate-500">{t("aar.cancelledDesc")}</p>
+              )}
+              {(r.status === "pending" || r.status === "approved" || r.status === "paid") && (
                 <Button
                   variant="outline"
                   onClick={() => setEditingRequest(r)}
                   className="min-h-[44px] w-full"
                 >
                   <Pencil className="w-4 h-4 mr-1" /> {t("aar.editTitleDesc")}
+                </Button>
+              )}
+              {(r.status === "pending" || r.status === "approved" || r.status === "paid") && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleCancel(r)}
+                  disabled={cancellingId === r.id}
+                  className="min-h-[44px] w-full text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  {cancellingId === r.id ? (
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                  ) : (
+                    <Ban className="w-4 h-4 mr-1" />
+                  )}
+                  {t("aar.cancelRequest")}
                 </Button>
               )}
             </div>
