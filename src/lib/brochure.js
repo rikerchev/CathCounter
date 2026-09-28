@@ -583,9 +583,13 @@ function drawLogoCard(ctx, logoImg, centerX, topY, maxW, maxH) {
 // never omitted: whoever ends up holding a printed flyer or poster can
 // always reach CatchCount directly, not just the venue it was handed out
 // for.
-const CATCHCOUNT_APP_LABEL = "catchcount.app";
-const CATCHCOUNT_PHONE = "+359 894 31 88 33";
-const CATCHCOUNT_EMAIL = "catch.count.bg@gmail.com";
+// v3.87 — exported: src/pages/ContactUs.jsx ("Връзка с нас") also shows
+// these same three values directly, so both places read from one source
+// instead of the phone/email being retyped (and risking drifting apart) in
+// two files.
+export const CATCHCOUNT_APP_LABEL = "catchcount.app";
+export const CATCHCOUNT_PHONE = "+359 894 31 88 33";
+export const CATCHCOUNT_EMAIL = "catch.count.bg@gmail.com";
 
 // Two centered lines — used by the new A4 poster, which has the vertical
 // room for it. See drawCatchCountFooterCompact below for the A5 brochure's
@@ -637,10 +641,14 @@ function drawCatchCountFooterCompact(ctx) {
 // footer strip) and how much width it reserves so drawNameBanner's own
 // centered name shifts right to make room instead of overlapping it — see
 // drawNameBanner's `opts` parameter above.
-const A5_LOGO_CARD_W = 130;
-const A5_LOGO_CARD_H = 80;
+// v3.87 — enlarged (~25%) at the site owner's request ("направи логото на
+// брошурата малко по-голямо"). Still comfortably clear of the strip's own
+// top/bottom edges (BANNER_H=202 vs the card's 100px height, centered) and
+// of drawCatchCountFooterCompact's text in the bottom-right corner.
+const A5_LOGO_CARD_W = 160;
+const A5_LOGO_CARD_H = 100;
 const A5_LOGO_CARD_X = 30;
-const A5_LOGO_RESERVED_W = 220; // width to give back to the name's centerX/maxWidth when a logo is present
+const A5_LOGO_RESERVED_W = 250; // width to give back to the name's centerX/maxWidth when a logo is present
 
 // ─── A4 portrait poster (v3.84) ─────────────────────────────────────────
 // A separate downloadable sheet for merchants/water bodies to print and
@@ -1000,6 +1008,135 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
   ctx.drawImage(iconImg, cx - ICON_SIZE / 2, cy - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE);
 
   return canvas;
+}
+
+// ─── A6 flyer, for the GENERIC (no-merchant) brochure only (v3.87) ────────
+// "На празната рекламна брошура, която не е обвързана с търговец добави
+// формат А6, в който да липсва празната част отдолу" — the generic flyer
+// (AdminSetup.jsx's "Обща брошура", no venue name and no logo) draws
+// drawNameBanner with an empty `name`, which — per that function's own
+// early return — leaves the whole A5 footer banner (BANNER_H≈202px) as a
+// plain navy strip with nothing in it but the small corner contact line:
+// exactly the wasted "empty part at the bottom" being described.
+//
+// True ISO A6 landscape (148×105mm) is, by construction, almost the exact
+// same aspect ratio as A5 landscape (both are the same ISO 216 shape, just
+// different sizes — A6 is literally an A5 sheet folded in half) — so
+// hitting it to the millimeter from this same wide template would need
+// essentially the SAME added height as the A5 banner already uses, not
+// less, and narrowing the template itself to fit A6's ratio instead would
+// crop into the QR badge sitting near the right edge (BADGE_X=1096, only
+// ~280px from the template's own right edge at 1376) — unacceptable, since
+// the QR is the one thing a flyer can't do without. So this deliberately
+// keeps the FULL, uncropped template (nothing trimmed, QR badge untouched)
+// and adds only a compact strip — just tall enough for CatchCount's own
+// contact line — instead of the full A5 banner height. The resulting PDF
+// page keeps A6's own 148mm width but comes out a bit shorter than 105mm
+// as a result (see A6_HEIGHT_MM below) — a deliberate trade favoring "no
+// wasted blank space and nothing cropped" over exact ISO conformance.
+const FLYER_STRIP_H = 100;
+const FLYER_PAGE_H = TEMPLATE_H + FLYER_STRIP_H;
+const A6_WIDTH_MM = 148;
+// Derived from the actual pixel ratio (not a fixed 105) so the PDF page
+// never stretches the canvas — see the comment above for why it isn't
+// literally 105.
+const A6_HEIGHT_MM = Math.round((A6_WIDTH_MM * FLYER_PAGE_H / TEMPLATE_W) * 10) / 10;
+
+// v3.87 — "остави информацията за връзка с catchcount.app, но я повдигнеш
+// малко по-нагоре, да не е съвсем в долната част да не е проблем при
+// отрязването на брошурите": the detail line's baseline sits well clear of
+// the strip's own bottom edge (FLYER_PAGE_H), not hugging it, so a
+// slightly-off physical trim cut on a printed sheet of these flyers won't
+// clip it.
+const FLYER_FOOTER_APP_Y = TEMPLATE_H + 44;
+const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 30;
+
+// Same structure as renderBrochureCanvas/renderPosterCanvas above, minus
+// everything that only makes sense for a specific venue: no name (there is
+// none), no logo (no venue to own one). Still takes `contactText` — the
+// admin's own optional free-text line (see drawContactText) works exactly
+// the same way here as on the other two.
+export async function renderFlyerA6Canvas({ link, contactText }) {
+  const qrDataUrl = await QRCode.toDataURL(link, {
+    width: 700,
+    margin: 3,
+    errorCorrectionLevel: "H",
+    color: { dark: "#0b3554", light: "#ffffff" },
+  });
+
+  const [template, qrImg, iconImg] = await Promise.all([
+    loadImage(TEMPLATE_URL),
+    loadImage(qrDataUrl),
+    loadImage(APP_ICON_URL),
+    ensureBrochureFont(),
+  ]);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = TEMPLATE_W;
+  canvas.height = FLYER_PAGE_H;
+  const ctx = canvas.getContext("2d");
+
+  // 1. The exact same fixed reference graphic, fully untouched — nothing
+  //    cropped, so the QR badge and every other pixel stay intact.
+  ctx.drawImage(template, 0, 0, TEMPLATE_W, TEMPLATE_H);
+
+  // 1.4–1.41. The compact strip's own seamless gradient background +
+  // crossfaded seam — same treatment as the A5 brochure/A4 poster, just a
+  // much shorter strip.
+  drawBannerBackground(ctx, TEMPLATE_H, FLYER_STRIP_H);
+  drawSeamFeather(ctx, template, TEMPLATE_H);
+
+  // 1.6. The admin's own optional free-text contact line, same spot as on
+  // the other two formats (lives inside the untouched top artwork).
+  drawContactText(ctx, contactText);
+
+  // 1.7. CatchCount's own fixed contact line — the ONLY thing in the new
+  // strip, deliberately smaller than the poster's own two-line footer
+  // (POSTER_FOOTER_*) to match this much shorter strip.
+  drawCatchCountFooter(ctx, TEMPLATE_W / 2, FLYER_FOOTER_APP_Y, FLYER_FOOTER_DETAIL_Y, { appFont: 24, detailFont: 16 });
+
+  // 2–4. The small corner QR badge, exactly like the brochure/poster.
+  roundRectPath(ctx, BADGE_X, BADGE_Y, BADGE_W, BADGE_H, BADGE_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+
+  const qrSize = BADGE_W - QR_PAD * 2;
+  const qrX = BADGE_X + (BADGE_W - qrSize) / 2;
+  const qrY = BADGE_Y + (BADGE_H - qrSize) / 2;
+  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+
+  const cx = BADGE_X + BADGE_W / 2;
+  const cy = BADGE_Y + BADGE_H / 2;
+  roundRectPath(ctx, cx - ICON_BACKING / 2, cy - ICON_BACKING / 2, ICON_BACKING, ICON_BACKING, ICON_BACKING_R);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.drawImage(iconImg, cx - ICON_SIZE / 2, cy - ICON_SIZE / 2, ICON_SIZE, ICON_SIZE);
+
+  return canvas;
+}
+
+// v3.87 — same format/download mechanics as downloadInviteBrochure above,
+// built around the compact A6 flyer instead of the A5/A4 layouts. No
+// `name`/`logoUrl` params — see renderFlyerA6Canvas above for why.
+export async function downloadFlyerA6({ link, filename, contactText, format = "pdf" }) {
+  const canvas = await renderFlyerA6Canvas({ link, contactText });
+  const baseName = filename || "catchcount-flaer-a6";
+
+  if (format === "png") {
+    downloadDataUrl(canvas.toDataURL("image/png"), `${baseName}.png`);
+    return;
+  }
+
+  if (format === "jpg") {
+    downloadDataUrl(canvas.toDataURL("image/jpeg", 0.97), `${baseName}.jpg`);
+    return;
+  }
+
+  const imageDataUrl = canvas.toDataURL("image/png");
+  const doc = new jsPDF({ unit: "mm", format: [A6_WIDTH_MM, A6_HEIGHT_MM], orientation: "landscape" });
+  doc.setProperties({ title: "CatchCount — Флаер А6" });
+  doc.addImage(imageDataUrl, "PNG", 0, 0, A6_WIDTH_MM, A6_HEIGHT_MM);
+  doc.save(`${baseName}.pdf`);
 }
 
 // v3.84 — same format/download mechanics as downloadInviteBrochure above,

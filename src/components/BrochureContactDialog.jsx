@@ -48,17 +48,24 @@ import { useLanguage } from "@/lib/i18n";
 // top, brochure at the bottom), so the picker would be meaningless there.
 // `onConfirm(text, format, kind)` — existing callers that only destructure
 // `(text, format)` are unaffected, they just don't read the third argument.
+//
+// v3.87 — third kind, "a6" (src/lib/brochure.js's downloadFlyerA6), gated
+// by its own `allowA6` prop (default false — unlike posters, this one is
+// NOT offered everywhere). Only the venue-independent generic brochure in
+// AdminSetup.jsx passes `allowA6`: the A6 flyer has no name/logo (see
+// renderFlyerA6Canvas's own comment for why), so it only makes sense for
+// that one no-venue download, not for a specific water body/merchant.
 const FORMATS = ["pdf", "jpg", "png"];
-const KINDS = ["brochure", "poster"];
 
 export default function BrochureContactDialog({
   open, onOpenChange, defaultValue, downloading, onConfirm,
-  showFormat = true, allowPoster = true, title, confirmLabel,
+  showFormat = true, allowPoster = true, allowA6 = false, title, confirmLabel,
 }) {
   const { t } = useLanguage();
   const [text, setText] = useState(defaultValue || "");
   const [format, setFormat] = useState("pdf");
   const [kind, setKind] = useState("brochure");
+  const kinds = ["brochure", ...(allowPoster ? ["poster"] : []), ...(allowA6 ? ["a6"] : [])];
 
   useEffect(() => {
     if (open) {
@@ -86,13 +93,13 @@ export default function BrochureContactDialog({
             />
             <p className="text-xs text-slate-500 dark:text-slate-400">{t("brochure.contactHint")}</p>
           </div>
-          {allowPoster && (
+          {kinds.length > 1 && (
             <div className="space-y-1.5">
               <Label>{t("brochure.kindLabel")}</Label>
               <Select value={kind} onValueChange={setKind}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {KINDS.map((k) => (
+                  {kinds.map((k) => (
                     <SelectItem key={k} value={k}>{t(`brochure.kind.${k}`)}</SelectItem>
                   ))}
                 </SelectContent>

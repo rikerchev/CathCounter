@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { ALL_MENU_ITEMS } from "@/lib/menuItems";
 import { GROUP_DEFS, DEFAULT_MENU_ORDER, normalizeMenuOrder, cloneOrder } from "@/lib/menuOrder";
-import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster, downloadFlyerA6 } from "@/lib/brochure";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 
 // Static wizard copy — deliberately not routed through the i18n dictionary
@@ -130,10 +130,16 @@ export default function AdminSetup() {
 
   // v3.22 — "Обща брошура": the same printable flyer as WaterBodyManagement.jsx
   // / TraderVenues.jsx / AdminTraders.jsx, but not tied to any water body or
-  // commercial venue — its QR just links to /register (no ?merchant=...), so
-  // it's meant for general marketing handouts, not for one owner's referral
-  // bonus. Reuses the same BrochureContactDialog (contact text + PDF/JPG/PNG
-  // format) and downloadInviteBrochure() as those three screens.
+  // commercial venue — meant for general marketing handouts, not for one
+  // owner's referral bonus. Reuses the same BrochureContactDialog (contact
+  // text + PDF/JPG/PNG format) and downloadInviteBrochure() as those three
+  // screens.
+  // v3.87 — the QR now links to the bare site root (catchcount.app) instead
+  // of straight to /register, at the site owner's own request ("QR кода да
+  // води към catchcount.app") — this flyer isn't tied to any one owner's
+  // referral bonus, so there's no id to attribute a scan to anyway; a
+  // scanner lands on the homepage rather than being pushed straight into
+  // the registration form.
   const [showGenericBrochure, setShowGenericBrochure] = useState(false);
   const [downloadingGenericBrochure, setDownloadingGenericBrochure] = useState(false);
 
@@ -141,13 +147,16 @@ export default function AdminSetup() {
   // water-body object here (this is the venue-independent generic
   // marketing brochure), so there's no logoUrl to pass — brochure.js
   // handles that gracefully (no logo card drawn).
+  // v3.87 — third kind, "a6" (downloadFlyerA6) — see BrochureContactDialog's
+  // own comment for why this is the only download that offers it.
   async function handleDownloadGenericBrochure(contactText, format, kind) {
     setDownloadingGenericBrochure(true);
     try {
-      const download = kind === "poster" ? downloadInvitePoster : downloadInviteBrochure;
+      const download = kind === "poster" ? downloadInvitePoster : kind === "a6" ? downloadFlyerA6 : downloadInviteBrochure;
+      const filename = kind === "poster" ? "catchcount-poster" : kind === "a6" ? "catchcount-flaer-a6" : "catchcount-broshura";
       await download({
-        link: `${window.location.origin}/register`,
-        filename: kind === "poster" ? "catchcount-poster" : "catchcount-broshura",
+        link: window.location.origin,
+        filename,
         contactText,
         format,
       });
@@ -658,6 +667,7 @@ export default function AdminSetup() {
         defaultValue=""
         downloading={downloadingGenericBrochure}
         onConfirm={handleDownloadGenericBrochure}
+        allowA6
       />
     </div>
   );
