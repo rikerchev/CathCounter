@@ -267,6 +267,7 @@ export const es = {
   "profile.energySavingTitle": "Ahorro de energía",
   "profile.keepScreenAwake": "Mantener la pantalla encendida durante la sesión",
   "profile.keepScreenAwakeDesc": "Activado por defecto — mantiene la pantalla encendida mientras un temporizador está en marcha en \"Sesión activa\", para que no te pierdas el recordatorio, incluso en teléfonos que normalmente apagan la pantalla tras inactividad. Desactívalo solo si prefieres deliberadamente ahorrar batería — el recordatorio dependerá entonces únicamente del sonido/vibración/notificación con la pantalla apagada, algo que no está garantizado en todos los teléfonos.",
+  "profile.manualLockWarning": "Nota: incluso con esta opción activada, si pulsas manualmente el botón de bloqueo de tu teléfono (en lugar de dejar que se apague solo), es posible que el sonido y la notificación al finalizar un temporizador no se activen.",
   "profile.language": "Idioma",
   "rod.model": "Caña",
   "rod.line": "Línea",

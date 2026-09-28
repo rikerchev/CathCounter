@@ -267,6 +267,7 @@ export const fr = {
   "profile.energySavingTitle": "Économie d'énergie",
   "profile.keepScreenAwake": "Garder l'écran allumé pendant la session",
   "profile.keepScreenAwakeDesc": "Activé par défaut — garde l'écran allumé pendant qu'un minuteur tourne sur \"Session active\", pour ne jamais manquer le rappel, même sur les téléphones qui éteignent normalement l'écran après une inactivité. Désactivez uniquement si vous préférez délibérément économiser la batterie — le rappel dépendra alors uniquement du son/vibration/notification écran éteint, ce qui n'est pas garanti sur tous les téléphones.",
+  "profile.manualLockWarning": "Remarque : même avec cette option activée, si vous appuyez vous-même sur le bouton de verrouillage de votre téléphone (au lieu de le laisser s'éteindre tout seul), le son et la notification à l'expiration d'un minuteur peuvent ne pas se déclencher.",
   "profile.language": "Langue",
   "rod.model": "Canne",
   "rod.line": "Ligne",

@@ -284,6 +284,7 @@ export const en = {
     "profile.energySavingTitle": "Energy saving",
     "profile.keepScreenAwake": "Keep screen awake during a session",
     "profile.keepScreenAwakeDesc": "On by default — keeps the screen awake while a timer is running on Active Session, so you never miss the reminder even on phones that normally turn the screen off after inactivity. Turn this off only if you deliberately want to save battery — the reminder then relies solely on sound/vibration/notification with the screen off, which isn't guaranteed to fire on every phone.",
+    "profile.manualLockWarning": "Note: even with this on, if you manually press your phone's own lock button (rather than letting it turn off on its own), the sound and notification when a timer expires may not fire.",
     "profile.language": "Language",
 
     "rod.model": "Rod",

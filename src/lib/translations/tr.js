@@ -267,6 +267,7 @@ export const tr = {
   "profile.energySavingTitle": "Enerji tasarrufu",
   "profile.keepScreenAwake": "Oturum sırasında ekranı uyanık tut",
   "profile.keepScreenAwakeDesc": "Varsayılan olarak açıktır — \"Aktif Oturum\" sayfasında bir zamanlayıcı çalışırken ekranı açık tutar, böylece ekranı genellikle hareketsizlikten sonra kapatan telefonlarda bile hatırlatıcıyı asla kaçırmazsınız. Yalnızca bilerek pil tasarrufu yapmak isterseniz kapatın — bu durumda hatırlatıcı yalnızca ekran kapalıyken ses/titreşim/bildirime dayanır, bu da her telefonda garanti edilmez.",
+  "profile.manualLockWarning": "Not: bu açık olsa bile, telefonunuzun kilit düğmesine kendiniz basarsanız (ekranın kendiliğinden kapanmasını beklemek yerine), zamanlayıcı süresi dolduğunda ses ve bildirim çalışmayabilir.",
   "profile.language": "Dil",
   "rod.model": "Kamış",
   "rod.line": "Misina",

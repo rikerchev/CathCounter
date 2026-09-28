@@ -267,6 +267,7 @@ export const de = {
   "profile.energySavingTitle": "Energiesparen",
   "profile.keepScreenAwake": "Bildschirm während der Sitzung wach halten",
   "profile.keepScreenAwakeDesc": "Standardmäßig aktiviert — hält den Bildschirm eingeschaltet, während ein Timer auf \"Aktive Sitzung\" läuft, damit die Erinnerung nicht verpasst wird, selbst bei Telefonen, die den Bildschirm normalerweise nach Inaktivität abschalten. Nur deaktivieren, wenn bewusst Akku gespart werden soll — dann verlässt sich die Erinnerung allein auf Ton/Vibration/Benachrichtigung bei ausgeschaltetem Bildschirm, was nicht auf jedem Telefon garantiert funktioniert.",
+  "profile.manualLockWarning": "Hinweis: Auch wenn diese Option aktiviert ist, funktionieren Ton und Benachrichtigung beim Ablauf eines Timers möglicherweise nicht, wenn Sie den Sperrknopf Ihres Telefons selbst drücken (statt es von allein abschalten zu lassen).",
   "profile.language": "Sprache",
   "rod.model": "Rute",
   "rod.line": "Schnur",

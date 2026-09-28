@@ -267,6 +267,7 @@ export const nl = {
   "profile.energySavingTitle": "Energie besparen",
   "profile.keepScreenAwake": "Scherm actief houden tijdens sessie",
   "profile.keepScreenAwakeDesc": "Standaard ingeschakeld — houdt het scherm aan terwijl een timer loopt op \"Actieve sessie\", zodat je de herinnering nooit mist, zelfs op telefoons die het scherm normaal na inactiviteit uitschakelen. Zet dit alleen uit als je bewust batterij wilt sparen — de herinnering vertrouwt dan uitsluitend op geluid/trilling/melding met het scherm uit, wat niet op elke telefoon gegarandeerd werkt.",
+  "profile.manualLockWarning": "Let op: zelfs als dit is ingeschakeld, kan het geluid en de melding bij het aflopen van een timer uitblijven als je zelf op de vergrendelknop van je telefoon drukt (in plaats van het scherm vanzelf te laten uitgaan).",
   "profile.language": "Taal",
   "rod.model": "Hengel",
   "rod.line": "Lijn",

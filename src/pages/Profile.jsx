@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging, Zap } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging, Zap, AlertTriangle } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
@@ -461,6 +461,19 @@ export default function Profile() {
             <p className="text-xs text-slate-400">{t("profile.keepScreenAwakeDesc")}</p>
           </div>
           <Switch checked={keepScreenAwake} onCheckedChange={setKeepScreenAwake} />
+        </div>
+        {/* v3.79 — always shown, regardless of the toggle above: a Wake Lock
+            (what the toggle controls) only stops the OS from turning the
+            screen off on its own from inactivity. It does NOT stop — and
+            cannot stop, by design — the user themselves pressing the phone's
+            own lock button. That manual lock still happens instantly and
+            still risks the reminder not sounding on some phones, exactly as
+            if the toggle were off. This has to be visible unconditionally,
+            not folded into keepScreenAwakeDesc above (which most people
+            won't read closely once the switch already looks "on" and safe). */}
+        <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 p-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700">{t("profile.manualLockWarning")}</p>
         </div>
       </div>
 

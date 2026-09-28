@@ -267,6 +267,7 @@ export const it = {
   "profile.energySavingTitle": "Risparmio energetico",
   "profile.keepScreenAwake": "Mantieni lo schermo acceso durante la sessione",
   "profile.keepScreenAwakeDesc": "Attivato di default — mantiene lo schermo acceso mentre un timer è in esecuzione su \"Sessione attiva\", cosicché il promemoria non venga mai perso, anche sui telefoni che normalmente spengono lo schermo dopo inattività. Disattivalo solo se preferisci deliberatamente risparmiare batteria — il promemoria dipenderà allora solo da suono/vibrazione/notifica a schermo spento, cosa non garantita su ogni telefono.",
+  "profile.manualLockWarning": "Nota: anche con questa opzione attiva, se premi manualmente il pulsante di blocco del telefono (invece di lasciare che si spenga da solo), il suono e la notifica alla scadenza di un timer potrebbero non attivarsi.",
   "profile.language": "Lingua",
   "rod.model": "Canna",
   "rod.line": "Lenza",

@@ -267,6 +267,7 @@ export const pl = {
   "profile.energySavingTitle": "Oszczędzanie energii",
   "profile.keepScreenAwake": "Nie wygaszaj ekranu podczas sesji",
   "profile.keepScreenAwakeDesc": "Domyślnie włączone — utrzymuje ekran włączony, gdy minutnik działa na stronie \"Aktywna sesja\", abyś nigdy nie przegapił przypomnienia, nawet na telefonach, które zwykle wyłączają ekran po bezczynności. Wyłącz tylko, jeśli świadomie chcesz oszczędzać baterię — wtedy przypomnienie polega wyłącznie na dźwięku/wibracji/powiadomieniu przy wyłączonym ekranie, co nie jest gwarantowane na każdym telefonie.",
+  "profile.manualLockWarning": "Uwaga: nawet przy włączonej tej opcji, jeśli sam naciśniesz przycisk blokady telefonu (zamiast pozwolić mu wyłączyć się samoczynnie), dźwięk i powiadomienie po upływie minutnika mogą się nie uruchomić.",
   "profile.language": "Język",
   "rod.model": "Wędka",
   "rod.line": "Żyłka",

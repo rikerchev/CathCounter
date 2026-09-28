@@ -167,13 +167,37 @@ export async function pushOnly() {
     notifyListeners();
     if (pendingReRun) {
       pendingReRun = false;
-      pushOnly();
+      // v3.79 — escalate the retry to a full syncAll() (was pushOnly()).
+      // pushOnly() only pushes catches/bait/deletions; it never uploads
+      // pending photos. A pushOnly() call that got deferred here because
+      // another sync was already running, or the connection blipped offline
+      // for a moment, used to only ever get a pushOnly() retry — so a photo
+      // sitting in the pending-photo queue at that exact moment could go
+      // uncovered by every retry this app ever runs, unless something else
+      // (another catch save, a genuine "online" transition) happened to
+      // trigger a real syncAll() later. Retrying with the full syncAll()
+      // closes that gap: whatever was missed, including photos, gets a real
+      // second chance.
+      syncAll();
     }
   }
 }
 
 export async function syncAll() {
-  if (syncing || !isOnline) return;
+  if (syncing || !isOnline) {
+    // v3.79 — previously this just silently returned with no retry at all,
+    // unlike pushOnly() just above. A syncAll() call that lost this race
+    // (called while another sync was still running, or right as the
+    // connection was still registering as offline) used to vanish
+    // completely — the pending photo(s) it would have uploaded then had to
+    // wait for some unrelated future trigger (another catch save, or a
+    // fresh "online" event) to ever get another chance. Now it leaves the
+    // same breadcrumb pushOnly() already did, so the sync that's currently
+    // running (or the next one that actually goes through) picks it back up
+    // instead of dropping it.
+    pendingReRun = true;
+    return;
+  }
   syncing = true;
   notifyListeners();
 
@@ -212,9 +236,37 @@ export async function syncAll() {
     notifyListeners();
     if (pendingReRun) {
       pendingReRun = false;
-      pushOnly();
+      // v3.79 — was pushOnly(); see the note on pushOnly()'s own retry above.
+      // A syncAll() that gets superseded here also needs the retry to be a
+      // real syncAll(), not a lighter pushOnly() that skips photos.
+      syncAll();
     }
   }
+}
+
+// v3.79 — safety net for the case the "online" event alone doesn't cover:
+// the app was closed or fully backgrounded (screen off/locked) while
+// offline, connectivity came back while nothing was there to react to it,
+// and the user then reopens/refocuses the app already "online" — so no
+// online→offline→online transition ever fires within this page's
+// lifetime for the existing listeners below to catch. Mirrors the
+// visibilitychange+focus pattern already used elsewhere in this app (see
+// useRodTimerMonitor.js, NotificationsBell.jsx) rather than inventing a new
+// one. Throttled so flipping between apps/tabs repeatedly doesn't fire a
+// real network sync every single time.
+const MIN_VISIBILITY_SYNC_INTERVAL_MS = 15000;
+let lastVisibilitySyncAt = 0;
+
+if (typeof window !== "undefined") {
+  const onVisibilityOrFocus = () => {
+    if (document.hidden || !isOnline) return;
+    const now = Date.now();
+    if (now - lastVisibilitySyncAt < MIN_VISIBILITY_SYNC_INTERVAL_MS) return;
+    lastVisibilitySyncAt = now;
+    syncAll();
+  };
+  document.addEventListener("visibilitychange", onVisibilityOrFocus);
+  window.addEventListener("focus", onVisibilityOrFocus);
 }
 
 // Auto-sync on startup if online

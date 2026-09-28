@@ -267,6 +267,7 @@ export const sk = {
   "profile.energySavingTitle": "Úspora energie",
   "profile.keepScreenAwake": "Nevypínať obrazovku počas session",
   "profile.keepScreenAwakeDesc": "V predvolenom nastavení zapnuté — udržuje obrazovku zapnutú, kým na stránke \"Aktívna relácia\" beží časovač, aby ste pripomienku nikdy nezmeškali, aj na telefónoch, ktoré obrazovku bežne po nečinnosti vypínajú. Vypnite iba vtedy, ak vedome chcete šetriť batériu — pripomienka sa potom spolieha iba na zvuk/vibrácie/oznámenie s vypnutou obrazovkou, čo nie je zaručené na každom telefóne.",
+  "profile.manualLockWarning": "Poznámka: aj pri zapnutej tejto voľbe platí, že ak sami stlačíte tlačidlo uzamknutia telefónu (namiesto toho, aby sa vypol sám), zvuk a oznámenie po uplynutí časovača sa nemusia spustiť.",
   "profile.language": "Jazyk",
   "rod.model": "Prút",
   "rod.line": "Vlaszec",

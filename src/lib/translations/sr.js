@@ -267,6 +267,7 @@ export const sr = {
   "profile.energySavingTitle": "Ušteda energije",
   "profile.keepScreenAwake": "Ne gasi ekran tokom sesije",
   "profile.keepScreenAwakeDesc": "Podrazumevano uključeno — održava ekran upaljenim dok tajmer radi na stranici \"Aktivna sesija\", da nikada ne propustite podsetnik, čak i na telefonima koji obično gase ekran nakon neaktivnosti. Isključite samo ako svesno želite da štedite bateriju — podsetnik se tada oslanja isključivo na zvuk/vibraciju/obaveštenje sa ugašenim ekranom, što nije garantovano na svakom telefonu.",
+  "profile.manualLockWarning": "Napomena: čak i kada je ovo uključeno, ako sami pritisnete dugme za zaključavanje telefona (umesto da sačekate da se sam ugasi), zvuk i obaveštenje po isteku tajmera možda neće da se oglase.",
   "profile.language": "Jezik",
   "rod.model": "Štap",
   "rod.line": "Najlon",

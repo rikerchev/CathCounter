@@ -267,6 +267,7 @@ export const hu = {
   "profile.energySavingTitle": "Energiatakarékosság",
   "profile.keepScreenAwake": "Képernyő ébren tartása munkamenet közben",
   "profile.keepScreenAwakeDesc": "Alapértelmezés szerint bekapcsolva — ébren tartja a kijelzőt, amíg az \"Aktív munkamenet\" oldalon időzítő fut, hogy soha ne maradj le az emlékeztetőről, még olyan telefonokon sem, amelyek inaktivitás után rendszerint kikapcsolják a kijelzőt. Csak akkor kapcsold ki, ha tudatosan akkumulátort szeretnél spórolni — az emlékeztető ekkor kizárólag hangra/rezgésre/értesítésre támaszkodik kikapcsolt kijelző mellett, ami nem garantált minden telefonon.",
+  "profile.manualLockWarning": "Megjegyzés: még ha ez be is van kapcsolva, ha saját kezűleg megnyomod a telefon zárgombját (ahelyett, hogy magától kapcsolna ki), előfordulhat, hogy az időzítő lejártakor a hang és az értesítés nem szólal meg.",
   "profile.language": "Nyelv",
   "rod.model": "Bot",
   "rod.line": "Zsinór",
