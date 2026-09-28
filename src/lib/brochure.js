@@ -1051,19 +1051,27 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
 // seamless gradient background starts, see drawBannerBackground/
 // drawSeamFeather below) now starts a bit BEFORE the template's real
 // bottom edge (TEMPLATE_H) instead of exactly at it — safe to do because
-// that last stretch of the template's own artwork (below the optional
-// venue contact line at CONTACT_BASELINE_Y=728, see drawContactText) is
-// itself just plain, empty background with nothing drawn on it, so
-// starting the strip's fill a little early simply reclaims that unused
-// margin instead of drawing it twice. FLYER_STRIP_H is also trimmed to fit
-// the (already compact) CatchCount footer more snugly. Net effect: the
-// whole flyer is shorter, and CatchCount's own contact line — the only
-// thing in the added strip — now sits right under the strip's start with
-// noticeably less dead air above it, reading as "moved up" relative to the
-// old, taller version, while the trim-safety margin below it (see
-// FLYER_FOOTER_DETAIL_Y below) is kept.
-const FLYER_STRIP_H = 80;
-const FLYER_BANNER_Y = TEMPLATE_H - 20;
+// that last stretch of the template's own artwork is itself just plain,
+// empty background with nothing drawn on it, so starting the strip's fill
+// a little early simply reclaims that unused margin instead of drawing it
+// twice.
+//
+// v3.90 — pushed a good deal further still ("Вдигни и контактите още
+// нагоре, за да се свие още флаера по вертикала"). Safe to do more
+// aggressively than the v3.87 pass allowed, because v3.89 hid the
+// free-text "own contact" field (BrochureContactDialog's showContactText)
+// for this exact download — the generic, venue-less flyer never has
+// anything drawn at CONTACT_BASELINE_Y=728 any more (see drawContactText
+// below), so there's no longer any admin-typed text to protect clearance
+// for. The REAL floor turned out not to be the left-side caption (its own
+// row ends around y≈700) but the "СКАНИРАЙ И ..." label under the QR
+// badge on the right — baked into the template at y≈701-719, further
+// down than the caption. A first pass here only checked the caption and
+// clipped that label under the new strip's own fill; FLYER_BANNER_Y=730
+// clears the label's real bottom edge (plus its soft shadow) with a small
+// safety margin instead.
+const FLYER_STRIP_H = 76;
+const FLYER_BANNER_Y = 730;
 const FLYER_PAGE_H = FLYER_BANNER_Y + FLYER_STRIP_H;
 const A6_WIDTH_MM = 148;
 // Derived from the actual pixel ratio (not a fixed 105) so the PDF page
@@ -1076,9 +1084,11 @@ const A6_HEIGHT_MM = Math.round((A6_WIDTH_MM * FLYER_PAGE_H / TEMPLATE_W) * 10) 
 // отрязването на брошурите": the detail line's baseline sits well clear of
 // the strip's own bottom edge (FLYER_PAGE_H), not hugging it, so a
 // slightly-off physical trim cut on a printed sheet of these flyers won't
-// clip it.
-const FLYER_FOOTER_APP_Y = FLYER_BANNER_Y + 30;
-const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 26;
+// clip it. v3.90 — padding trimmed slightly to match the shorter strip;
+// the bottom margin below the detail line stays ~26px, the same
+// trim-safety cushion as before.
+const FLYER_FOOTER_APP_Y = FLYER_BANNER_Y + 26;
+const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 24;
 
 // Same structure as renderBrochureCanvas/renderPosterCanvas above, minus
 // everything that only makes sense for a specific venue: no name (there is
