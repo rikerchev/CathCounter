@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging, Zap, AlertTriangle } from "lucide-react";
+import { User, MapPin, Bell, Plus, Trash2, Loader2, Crown, Sparkles, LogOut, KeyRound, Mail, ShieldCheck, Loader, Phone, Lock, BatteryCharging, Zap, AlertTriangle, ImageUp, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { usePremium } from "@/hooks/usePremium";
@@ -15,6 +15,8 @@ import AppLockPrompt from "@/components/AppLockPrompt";
 import { useBatteryPrompt } from "@/hooks/useBatteryPrompt";
 import BatteryOptimizationPrompt from "@/components/BatteryOptimizationPrompt";
 import { useKeepScreenAwakePref } from "@/hooks/useKeepScreenAwakePref";
+import { getAllPendingPhotos } from "@/lib/localDb";
+import { syncAll, onSyncChange, getOnlineStatus } from "@/lib/syncEngine";
 
 const loadLocations = () => {
   try {
@@ -46,6 +48,44 @@ export default function Profile() {
   const [upgrading, setUpgrading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false);
+
+  // v3.80 — lets someone check, right there on THIS device, whether any
+  // photo taken here is still sitting unsent in this device's own local
+  // queue (IndexedDB — see pendingPhotos.js/localDb.js). That queue is
+  // never visible server-side or from any other device by design (a photo
+  // that hasn't uploaded yet has nothing to be visible ON the server), so
+  // this is the only way to actually answer "did my photos really sync" —
+  // asked after v3.79's fix to a real case of photos going unsent. Refreshes
+  // itself after every sync attempt (via onSyncChange) so it stays live
+  // while this screen is open, not just on first load.
+  const [pendingPhotoCount, setPendingPhotoCount] = useState(null);
+  const [syncingNow, setSyncingNow] = useState(false);
+  const [isOnlineNow, setIsOnlineNow] = useState(getOnlineStatus());
+
+  const refreshPendingPhotoCount = useCallback(async () => {
+    try {
+      const all = await getAllPendingPhotos();
+      setPendingPhotoCount(all.length);
+    } catch {
+      // IndexedDB unavailable (e.g. private browsing) — leave as unknown
+      // rather than claiming a count we can't actually verify.
+      setPendingPhotoCount(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPendingPhotoCount();
+    const unsubscribe = onSyncChange(({ isOnline, syncing }) => {
+      setIsOnlineNow(isOnline);
+      setSyncingNow(syncing);
+      if (!syncing) refreshPendingPhotoCount();
+    });
+    return unsubscribe;
+  }, [refreshPendingPhotoCount]);
+
+  const handleSyncNow = () => {
+    syncAll();
+  };
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -475,6 +515,45 @@ export default function Profile() {
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700">{t("profile.manualLockWarning")}</p>
         </div>
+      </div>
+
+      {/* v3.80 — lets the person answer "did my photos actually sync" for
+          THEMSELVES, on THIS device, by reading this device's own local
+          pending-photo queue directly — see the state/effect above for why
+          this can only ever be checked this way, never from another device
+          or from an admin screen. */}
+      <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <ImageUp className="w-4 h-4 text-cyan-600" />
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("profile.pendingPhotosTitle")}</h2>
+        </div>
+        {pendingPhotoCount === null ? (
+          <p className="text-xs text-slate-400">{t("profile.pendingPhotosUnknown")}</p>
+        ) : pendingPhotoCount === 0 ? (
+          <div className="flex items-center gap-2 text-emerald-600">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <p className="text-sm">{t("profile.pendingPhotosNone")}</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-amber-700">
+              {t("profile.pendingPhotosCount").replace("{count}", pendingPhotoCount)}
+            </p>
+            <Button
+              onClick={handleSyncNow}
+              disabled={syncingNow || !isOnlineNow}
+              size="sm"
+              variant="outline"
+              className="min-h-[40px] shrink-0"
+            >
+              {syncingNow ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
+              {t("profile.syncNow")}
+            </Button>
+          </div>
+        )}
+        {!isOnlineNow && pendingPhotoCount > 0 && (
+          <p className="text-xs text-slate-400">{t("profile.pendingPhotosOfflineHint")}</p>
+        )}
       </div>
 
       {/* v3.41 — separate from the App Lock card above: this one is about
