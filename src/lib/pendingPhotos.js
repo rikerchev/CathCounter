@@ -69,7 +69,18 @@ export async function uploadPendingPhoto(item) {
   // If already uploaded to cloud, just link to catch
   if (item.cloud_url) {
     if (item.catch_id) {
-      await updateCatchPhoto(item.catch_id, item.catch_created_date, item.cloud_url);
+      const linked = await updateCatchPhoto(item.catch_id, item.catch_created_date, item.cloud_url);
+      if (!linked) {
+        // v3.81 — second, independent safety net (see markCatchSynced() in
+        // localDb.js for the primary fix). catch_id didn't resolve to any
+        // local catch — most likely caught mid-rename from a local_ ID to
+        // its real server ID. The cloud copy already exists; leave the
+        // pending record in place (instead of discarding it) so the next
+        // sync pass retries just this cheap link step, rather than the
+        // photo being permanently lost from both the queue and the catch.
+        await updatePendingPhoto(item.id, { status: "pending" });
+        return null;
+      }
     }
     await removePendingPhoto(item.id);
     return item.cloud_url;
@@ -80,7 +91,13 @@ export async function uploadPendingPhoto(item) {
     const { file_url } = await base44.integrations.Core.UploadPublicFile({ file: item.blob });
     await updatePendingPhoto(item.id, { cloud_url: file_url });
     if (item.catch_id) {
-      await updateCatchPhoto(item.catch_id, item.catch_created_date, file_url);
+      const linked = await updateCatchPhoto(item.catch_id, item.catch_created_date, file_url);
+      if (!linked) {
+        // Same v3.81 safety net as above, for the first-time upload path.
+        console.warn(`Pending photo ${item.id} uploaded but catch ${item.catch_id} was not found yet; will retry linking`);
+        await updatePendingPhoto(item.id, { status: "pending" });
+        return file_url;
+      }
     }
     await removePendingPhoto(item.id);
     return file_url;

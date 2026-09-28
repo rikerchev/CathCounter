@@ -57,6 +57,10 @@ export async function deleteSession(catches) {
   }
 }
 
+// Returns true if a matching local catch was found and updated, false
+// otherwise (v3.81) — callers use this to decide whether it's safe to treat
+// the photo as fully delivered, or whether they need to keep it around for
+// a retry. See pendingPhotos.js's uploadPendingPhoto().
 export async function updateCatchPhoto(id, createdDate, photoUrl) {
   let record = await getCatchLocal(id);
   if (!record && createdDate) {
@@ -85,7 +89,9 @@ export async function updateCatchPhoto(id, createdDate, photoUrl) {
         });
       }
     }
+    return true;
   }
+  return false;
 }
 
 export async function updateCatchLocation(id, createdDate, location, latitude, longitude) {

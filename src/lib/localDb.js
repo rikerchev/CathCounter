@@ -164,19 +164,47 @@ export async function markCatchSynced(localId, remoteId, originalUpdatedDate) {
       store.delete(localId);
       const putReq = store.put(record);
       putReq.onsuccess = async () => {
-        // Re-link any pending photos that still reference the old local ID
+        // Re-link any pending photos that still reference the old local ID.
+        // v3.81 — this used to fire the re-link's IndexedDB request and call
+        // resolve(record) right after, without waiting for it to actually
+        // land. pushPendingCatches() (syncEngine.js) awaits this function
+        // per catch and then moves straight on to uploading pending photos
+        // — so on a fast device/connection, a photo whose catch had just
+        // been renamed from local_xxx to its real ID could still get
+        // uploaded while its own record still pointed at the old local_xxx
+        // catch_id: updateCatchPhoto() would then find nothing to attach it
+        // to (the old ID no longer exists in the catches store) and
+        // silently do nothing, while uploadPendingPhoto() removed the
+        // pending record anyway since the cloud upload itself had
+        // succeeded — the photo ended up uploaded to storage but never
+        // linked to any catch, invisible in the app, with the pending queue
+        // already showing zero. This is the mechanism behind the 27.09
+        // session's missing photos. Now this genuinely awaits the re-link
+        // transaction's completion (via its oncomplete event, which only
+        // fires once every put() inside it has committed) before resolving,
+        // so no photo upload started from this path can ever read a stale
+        // catch_id again. See pendingPhotos.js's uploadPendingPhoto() for a
+        // second, independent safety net covering any other path that could
+        // still leave catch_id stale.
         try {
-          const photoStore = await tx(PENDING_PHOTOS_STORE, "readwrite");
-          const photoGetAll = photoStore.getAll();
-          photoGetAll.onsuccess = () => {
-            const photos = photoGetAll.result || [];
-            for (const p of photos) {
-              if (p.catch_id === localId) {
-                p.catch_id = remoteId;
-                photoStore.put(p);
+          const db = await openDB();
+          await new Promise((res, rej) => {
+            const relinkTx = db.transaction(PENDING_PHOTOS_STORE, "readwrite");
+            const photoStore = relinkTx.objectStore(PENDING_PHOTOS_STORE);
+            const photoGetAll = photoStore.getAll();
+            photoGetAll.onsuccess = () => {
+              const photos = photoGetAll.result || [];
+              for (const p of photos) {
+                if (p.catch_id === localId) {
+                  p.catch_id = remoteId;
+                  photoStore.put(p);
+                }
               }
-            }
-          };
+            };
+            photoGetAll.onerror = () => rej(photoGetAll.error);
+            relinkTx.oncomplete = () => res();
+            relinkTx.onerror = () => rej(relinkTx.error);
+          });
         } catch (e) {
           console.error("Failed to re-link pending photos after sync:", e);
         }
