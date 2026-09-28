@@ -75,6 +75,17 @@ import QRCode from "qrcode";
  * repeats the same name already drawn above the QR badge by
  * drawVenueName, just big enough to read from across a room, the way a
  * printed flyer's own footer banner would).
+ *
+ * v3.87 — the reference graphic's own baked-in "Сканирай. Отвори. Лови."
+ * caption and its "СКАНИРАЙ И ОТВОРИ" QR-corner label were both edited
+ * (same one-time, pixel-level asset edit approach as v3.25's own
+ * "Изтегли"→"Отвори" pass) to replace "Отвори" with "Регистрирай се" —
+ * "QR кода да води към catchcount.app и ... промени [го] във всички
+ * рекламни материали". Content-aware fill (OpenCV inpainting) erased the
+ * old word cleanly off the real background, then the new word was redrawn
+ * with the same CatchCountBrochure-Bold font already used to match this
+ * graphic's own type style elsewhere. Every other pixel — icon, the rest
+ * of the caption, the whole rest of the photo — is untouched.
  */
 
 const TEMPLATE_URL = "/brochure-template.jpg";
@@ -1031,11 +1042,29 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
 // keeps the FULL, uncropped template (nothing trimmed, QR badge untouched)
 // and adds only a compact strip — just tall enough for CatchCount's own
 // contact line — instead of the full A5 banner height. The resulting PDF
-// page keeps A6's own 148mm width but comes out a bit shorter than 105mm
-// as a result (see A6_HEIGHT_MM below) — a deliberate trade favoring "no
-// wasted blank space and nothing cropped" over exact ISO conformance.
-const FLYER_STRIP_H = 100;
-const FLYER_PAGE_H = TEMPLATE_H + FLYER_STRIP_H;
+// page keeps A6's own 148mm width but comes out shorter than 105mm as a
+// result (see A6_HEIGHT_MM below) — a deliberate trade favoring "no wasted
+// blank space and nothing cropped" over exact ISO conformance.
+//
+// v3.87 — "Свий флаера още по вертикала... отдолу постави контактите":
+// shrunk further still. FLYER_BANNER_Y (where the added strip's own
+// seamless gradient background starts, see drawBannerBackground/
+// drawSeamFeather below) now starts a bit BEFORE the template's real
+// bottom edge (TEMPLATE_H) instead of exactly at it — safe to do because
+// that last stretch of the template's own artwork (below the optional
+// venue contact line at CONTACT_BASELINE_Y=728, see drawContactText) is
+// itself just plain, empty background with nothing drawn on it, so
+// starting the strip's fill a little early simply reclaims that unused
+// margin instead of drawing it twice. FLYER_STRIP_H is also trimmed to fit
+// the (already compact) CatchCount footer more snugly. Net effect: the
+// whole flyer is shorter, and CatchCount's own contact line — the only
+// thing in the added strip — now sits right under the strip's start with
+// noticeably less dead air above it, reading as "moved up" relative to the
+// old, taller version, while the trim-safety margin below it (see
+// FLYER_FOOTER_DETAIL_Y below) is kept.
+const FLYER_STRIP_H = 80;
+const FLYER_BANNER_Y = TEMPLATE_H - 20;
+const FLYER_PAGE_H = FLYER_BANNER_Y + FLYER_STRIP_H;
 const A6_WIDTH_MM = 148;
 // Derived from the actual pixel ratio (not a fixed 105) so the PDF page
 // never stretches the canvas — see the comment above for why it isn't
@@ -1048,8 +1077,8 @@ const A6_HEIGHT_MM = Math.round((A6_WIDTH_MM * FLYER_PAGE_H / TEMPLATE_W) * 10) 
 // the strip's own bottom edge (FLYER_PAGE_H), not hugging it, so a
 // slightly-off physical trim cut on a printed sheet of these flyers won't
 // clip it.
-const FLYER_FOOTER_APP_Y = TEMPLATE_H + 44;
-const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 30;
+const FLYER_FOOTER_APP_Y = FLYER_BANNER_Y + 30;
+const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 26;
 
 // Same structure as renderBrochureCanvas/renderPosterCanvas above, minus
 // everything that only makes sense for a specific venue: no name (there is
@@ -1082,9 +1111,11 @@ export async function renderFlyerA6Canvas({ link, contactText }) {
 
   // 1.4–1.41. The compact strip's own seamless gradient background +
   // crossfaded seam — same treatment as the A5 brochure/A4 poster, just a
-  // much shorter strip.
-  drawBannerBackground(ctx, TEMPLATE_H, FLYER_STRIP_H);
-  drawSeamFeather(ctx, template, TEMPLATE_H);
+  // much shorter strip. Starts at FLYER_BANNER_Y (a little before the
+  // template's own real bottom edge) — see that constant's comment above
+  // for why that's safe.
+  drawBannerBackground(ctx, FLYER_BANNER_Y, FLYER_STRIP_H);
+  drawSeamFeather(ctx, template, FLYER_BANNER_Y);
 
   // 1.6. The admin's own optional free-text contact line, same spot as on
   // the other two formats (lives inside the untouched top artwork).

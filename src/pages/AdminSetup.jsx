@@ -668,6 +668,7 @@ export default function AdminSetup() {
         downloading={downloadingGenericBrochure}
         onConfirm={handleDownloadGenericBrochure}
         allowA6
+        showContactText={false}
       />
     </div>
   );

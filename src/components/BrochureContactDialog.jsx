@@ -55,11 +55,22 @@ import { useLanguage } from "@/lib/i18n";
 // AdminSetup.jsx passes `allowA6`: the A6 flyer has no name/logo (see
 // renderFlyerA6Canvas's own comment for why), so it only makes sense for
 // that one no-venue download, not for a specific water body/merchant.
+//
+// v3.88 — `showContactText = true` hides this free-text field entirely,
+// for the one caller where it's redundant: the generic, venue-independent
+// download in AdminSetup.jsx already prints CatchCount's own fixed
+// contact line (catchcount.app/phone/email — see brochure.js's
+// drawCatchCountFooter/drawCatchCountFooterCompact) on every single
+// download regardless of this field, unconditionally — "ако контактите ги
+// има няма нужда от [ръчно добавения текст]". Every OTHER caller keeps
+// this field: those are downloads for a SPECIFIC water body/merchant, and
+// this is the one place that venue/merchant's OWN phone/contact (distinct
+// from CatchCount's own) can be added.
 const FORMATS = ["pdf", "jpg", "png"];
 
 export default function BrochureContactDialog({
   open, onOpenChange, defaultValue, downloading, onConfirm,
-  showFormat = true, allowPoster = true, allowA6 = false, title, confirmLabel,
+  showFormat = true, showContactText = true, allowPoster = true, allowA6 = false, title, confirmLabel,
 }) {
   const { t } = useLanguage();
   const [text, setText] = useState(defaultValue || "");
@@ -82,17 +93,19 @@ export default function BrochureContactDialog({
           <DialogTitle>{title || t("brochure.contactTitle")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>{t("brochure.contactLabel")}</Label>
-            <Input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={t("brochure.contactPlaceholder")}
-              className="min-h-[44px]"
-              autoFocus
-            />
-            <p className="text-xs text-slate-500 dark:text-slate-400">{t("brochure.contactHint")}</p>
-          </div>
+          {showContactText && (
+            <div className="space-y-1.5">
+              <Label>{t("brochure.contactLabel")}</Label>
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder={t("brochure.contactPlaceholder")}
+                className="min-h-[44px]"
+                autoFocus
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">{t("brochure.contactHint")}</p>
+            </div>
+          )}
           {kinds.length > 1 && (
             <div className="space-y-1.5">
               <Label>{t("brochure.kindLabel")}</Label>
