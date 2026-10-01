@@ -982,3 +982,13 @@ ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS box_manual BOOLEA
 -- re-run.
 ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_bg_color TEXT;
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_bg_color TEXT;
+
+-- v3.92 — the SAME logo card's own SIZE ("Увеличи размера на логото...
+-- логото е много малко"), a separate axis from logo_bg_color's color above:
+-- "normal" (the original, unchanged default), "large" or "xlarge". See
+-- src/lib/brochure.js's exported LOGO_SCALES and A5_LOGO_SCALES/
+-- POSTER_LOGO_SCALES for the exact pixel dimensions each step maps to.
+-- NULL/unset behaves exactly like "normal", so every existing water
+-- body/venue keeps its prior look. Safe to re-run.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'));
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'));

@@ -414,6 +414,17 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_bg_color TEXT`);
     },
   },
+  "v3.92-brochure-logo-size": {
+    label: "v3.92 — Водоеми/обекти: размер на логото в брошурата",
+    run: async () => {
+      await sql.unsafe(
+        `ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'))`
+      );
+      await sql.unsafe(
+        `ALTER TABLE venues ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'))`
+      );
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -653,6 +664,14 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_schema = 'public' AND column_name = 'logo_bg_color'
+            AND table_name IN ('water_bodies', 'venues')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.92-brochure-logo-size") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND column_name = 'brochure_logo_size'
             AND table_name IN ('water_bodies', 'venues')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;

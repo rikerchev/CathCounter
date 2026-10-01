@@ -335,6 +335,8 @@ async function renderRowsPage({
         // v3.91 — same logo-card background color the owner picked, so this
         // embedded brochure never drifts from a direct download of it.
         logoBgColor: waterBody?.logo_bg_color,
+        // v3.92 — same logo-card SIZE the owner picked, for the same reason.
+        logoScale: waterBody?.brochure_logo_size,
       });
     } catch {
       brochureCanvas = null; // template asset failed to load — the list alone still works

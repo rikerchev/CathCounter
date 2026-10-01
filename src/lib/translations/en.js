@@ -1217,6 +1217,12 @@ export const en = {
     "brochure.logoBg.navy": "Navy",
     "brochure.logoBg.black": "Black",
     "brochure.logoBg.transparent": "Transparent",
+    "brochure.logoScaleLabel": "Logo size in the brochure/poster",
+    "brochure.logoScale.normal": "Standard",
+    "brochure.logoScale.large": "Large",
+    "brochure.logoScale.xlarge": "Extra large",
+    "brochure.logoBgCustomLabel": "Custom color",
+    "brochure.logoBgTransparentSwitch": "Transparent background (for a logo with its own transparent PNG/SVG)",
     "tv.created": "Venue created",
     // v2.71 — contact/logo, shown publicly on the "Commercial Venues" menu
     "tv.editVenue": "Edit venue",

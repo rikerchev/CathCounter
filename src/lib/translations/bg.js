@@ -1213,6 +1213,12 @@ export const bg = {
     "brochure.logoBg.navy": "Тъмно синьо",
     "brochure.logoBg.black": "Черно",
     "brochure.logoBg.transparent": "Прозрачен",
+    "brochure.logoScaleLabel": "Размер на логото в брошурата/постера",
+    "brochure.logoScale.normal": "Стандартен",
+    "brochure.logoScale.large": "Голям",
+    "brochure.logoScale.xlarge": "Много голям",
+    "brochure.logoBgCustomLabel": "Персонализиран цвят",
+    "brochure.logoBgTransparentSwitch": "Прозрачен фон (за лого с прозрачен PNG/SVG)",
     "tv.created": "Търговският обект е създаден",
     // v2.71 — контакти/лого, показвани публично в менюто "Търговски обекти"
     "tv.editVenue": "Редактирай търговски обект",

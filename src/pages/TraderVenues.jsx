@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/use-toast";
 // v3.61 — same country list WaterBodyEditDialog.jsx already uses; see its
 // own comment for why this venue-side one stays optional instead of
@@ -15,7 +16,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
-import { downloadInviteBrochure, downloadInvitePoster, LOGO_BG_COLORS } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster, LOGO_BG_COLORS, LOGO_SCALES } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
@@ -52,6 +53,18 @@ const LOGO_BG_COLOR_LABEL_KEYS = {
   transparent: "brochure.logoBg.transparent",
 };
 
+// v3.92 — the SAME logo card's own SIZE ("не е подравнено с текста и няма
+// симетрия" / "много малки" размери) — a separate axis from the color
+// above. The value list (normal/large/xlarge, mapped to exact pixel sizes
+// in src/lib/brochure.js) lives there as LOGO_SCALES so the picker and the
+// render code can never drift apart; only the translated labels are looked
+// up here, same pattern as LOGO_BG_COLOR_LABEL_KEYS above.
+const LOGO_SCALE_LABEL_KEYS = {
+  normal: "brochure.logoScale.normal",
+  large: "brochure.logoScale.large",
+  xlarge: "brochure.logoScale.xlarge",
+};
+
 /**
  * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
  * v2.77, admin bypass restored v2.78). Editing screen for the signed-in
@@ -69,6 +82,7 @@ export default function TraderVenues() {
   const isAdmin = hasRole(user, "admin");
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
   const LOGO_BG_OPTIONS = LOGO_BG_COLORS.map((o) => ({ ...o, label: t(LOGO_BG_COLOR_LABEL_KEYS[o.key]) }));
+  const LOGO_SCALE_OPTIONS = LOGO_SCALES.map((o) => ({ ...o, label: t(LOGO_SCALE_LABEL_KEYS[o.key]) }));
 
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -79,7 +93,7 @@ export default function TraderVenues() {
   // already serves as that banner's title.
   const emptyForm = {
     name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto",
-    logo_bg_color: "#ffffff",
+    logo_bg_color: "#ffffff", brochure_logo_size: "normal",
     country: "", working_hours: "", ad_description: "", ad_link: "",
   };
   const [form, setForm] = useState(emptyForm);
@@ -158,6 +172,7 @@ export default function TraderVenues() {
       logo_url: v.logo_url || "",
       logo_size: v.logo_size || "auto",
       logo_bg_color: v.logo_bg_color || "#ffffff",
+      brochure_logo_size: v.brochure_logo_size || "normal",
       country: v.country || "",
       working_hours: v.working_hours || "",
       ad_description: v.ad_description || "",
@@ -181,6 +196,7 @@ export default function TraderVenues() {
       logo_url: form.logo_url,
       logo_size: form.logo_size,
       logo_bg_color: form.logo_bg_color,
+      brochure_logo_size: form.brochure_logo_size,
       country: form.country || null,
       working_hours: form.working_hours,
       ad_description: form.ad_description,
@@ -257,6 +273,7 @@ export default function TraderVenues() {
         contactText,
         logoUrl: v.logo_url,
         logoBgColor: v.logo_bg_color,
+        logoScale: v.brochure_logo_size,
         format,
       });
       setBrochureTarget(null);
@@ -493,29 +510,63 @@ export default function TraderVenues() {
                 </SelectContent>
               </Select>
             </div>
-            {/* v3.91 — the brochure/poster logo CARD's own background color
-                — see LOGO_BG_COLOR_LABEL_KEYS comment above. */}
+            {/* v3.92 — the brochure/poster logo card's own SIZE, a separate
+                axis from its color below — see LOGO_SCALE_LABEL_KEYS comment
+                above. Requested together with the color picker: the default
+                card was "много малко" (too small) for some logos. */}
             <div className="space-y-1.5">
-              <Label>{t("brochure.logoBgLabel")}</Label>
-              <Select value={form.logo_bg_color} onValueChange={(v) => setForm((f) => ({ ...f, logo_bg_color: v }))}>
+              <Label>{t("brochure.logoScaleLabel")}</Label>
+              <Select value={form.brochure_logo_size} onValueChange={(v) => setForm((f) => ({ ...f, brochure_logo_size: v }))}>
                 <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {LOGO_BG_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <span className="inline-flex items-center gap-2">
-                        <span
-                          className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
-                          style={opt.value === "transparent"
-                            ? { background: "repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 0 / 8px 8px" }
-                            : { backgroundColor: opt.value }}
-                        />
-                        {opt.label}
-                      </span>
-                    </SelectItem>
+                  {LOGO_SCALE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* v3.91 — the brochure/poster logo CARD's own background color.
+                v3.92 — replaced the fixed 5-preset <Select> with a real color
+                picker ("избор на цвят от палитра, тъй като... трябва да се
+                намери точния нюанс"): some logos (light text + dark
+                elements, or the reverse) need an exact in-between shade no
+                flat preset can give — see brochure.js's own v3.91/v3.92
+                comments. The 4 swatches stay as one-click shortcuts to the
+                most common choices; the native color input lets the owner
+                dial in anything else. "Прозрачен" is its own switch, not a
+                5th swatch, since it isn't a color at all — drawLogoCard
+                skips the card fill entirely when it's on. */}
+            <div className="space-y-1.5">
+              <Label>{t("brochure.logoBgLabel")}</Label>
               <p className="text-xs text-slate-400">{t("brochure.logoBgHint")}</p>
+              <div className="flex items-center gap-2">
+                {LOGO_BG_OPTIONS.filter((opt) => opt.value !== "transparent").map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    title={opt.label}
+                    onClick={() => setForm((f) => ({ ...f, logo_bg_color: opt.value }))}
+                    className={`w-7 h-7 rounded-full border-2 shrink-0 ${form.logo_bg_color === opt.value ? "border-blue-500" : "border-slate-300"}`}
+                    style={{ backgroundColor: opt.value }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  aria-label={t("brochure.logoBgCustomLabel")}
+                  disabled={form.logo_bg_color === "transparent"}
+                  value={form.logo_bg_color === "transparent" ? "#ffffff" : (form.logo_bg_color || "#ffffff")}
+                  onChange={(e) => setForm((f) => ({ ...f, logo_bg_color: e.target.value }))}
+                  className="w-10 h-8 rounded border border-slate-300 bg-transparent p-0.5 disabled:opacity-40"
+                />
+                <span className="text-xs text-slate-400">{t("brochure.logoBgCustomLabel")}</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <Switch
+                  checked={form.logo_bg_color === "transparent"}
+                  onCheckedChange={(checked) => setForm((f) => ({ ...f, logo_bg_color: checked ? "transparent" : "#ffffff" }))}
+                />
+                <span className="text-sm">{t("brochure.logoBgTransparentSwitch")}</span>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>{t("common.workingHours")}</Label>

@@ -110,6 +110,7 @@ export default function AdminTraders() {
         contactText,
         logoUrl: item.logo_url,
         logoBgColor: item.logo_bg_color,
+        logoScale: item.brochure_logo_size,
         format,
       });
       setBrochureTarget(null);

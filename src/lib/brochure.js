@@ -582,6 +582,23 @@ export const LOGO_BG_COLORS = [
   { value: "transparent", key: "transparent" },
 ];
 
+// v3.92 — the card's own SIZE is now also configurable ("Увеличи размера на
+// логото в брошурата... не е подравнено с текста и няма симетрия"), via
+// `logoScale` (`water_bodies.brochure_logo_size` / `venues.brochure_logo_size`
+// — a DIFFERENT column from the existing `logo_size` enum above, which only
+// ever sized this same logo inside an AD BANNER; this one is the printable
+// brochure/poster card). Three fixed steps rather than a free slider — each
+// one pre-checked (see A5_LOGO_SCALES/POSTER_LOGO_SCALES below) to still fit
+// cleanly inside its footer strip without colliding with the name banner or,
+// on the poster, the big QR code below it. "normal" is the exact size this
+// card has always been, so every existing water body/venue (NULL column)
+// keeps its prior look.
+export const LOGO_SCALES = [
+  { value: "normal", key: "normal" },
+  { value: "large", key: "large" },
+  { value: "xlarge", key: "xlarge" },
+];
+
 const LOGO_CARD_PAD = 16;
 const LOGO_CARD_R = 18;
 
@@ -678,10 +695,36 @@ function drawCatchCountFooterCompact(ctx) {
 // брошурата малко по-голямо"). Still comfortably clear of the strip's own
 // top/bottom edges (BANNER_H=202 vs the card's 100px height, centered) and
 // of drawCatchCountFooterCompact's text in the bottom-right corner.
-const A5_LOGO_CARD_W = 160;
-const A5_LOGO_CARD_H = 100;
-const A5_LOGO_CARD_X = 30;
-const A5_LOGO_RESERVED_W = 250; // width to give back to the name's centerX/maxWidth when a logo is present
+// v3.92 — TWO fixes requested together ("не е подравнено с текста и няма
+// симетрия"):
+//   1. X moved from 30 to 73 — that's CONTACT_X, the SAME left margin the
+//      template's own feature-icon column and the optional contact line use
+//      directly above this strip. The card used to sit adrift at its own
+//      arbitrary margin; it now continues that same vertical line, which is
+//      what actually reads as "aligned" here.
+//   2. The card is no longer centered on the strip's own full BANNER_H
+//      band — it's centered on the exact same centerY drawNameBanner uses
+//      (BANNER_TEXT_LIFT raises the name 24px above true-center, so a card
+//      centered on the FULL band sat 24px lower than the name it's supposed
+//      to sit level with). Computed once below as A5_LOGO_CENTER_Y so both
+//      drawNameBanner's reserved-width math and drawLogoCard's own topY stay
+//      in sync by construction instead of as two numbers someone has to
+//      remember to keep matching.
+// Three selectable sizes (v3.92, "мога да задавам... размера на логото") —
+// see LOGO_SCALES above for the picker. Each ceiling here is hand-checked
+// against A5_LOGO_CENTER_Y below: even xlarge's 145px height keeps the card
+// a few px clear of the strip's own top edge.
+const A5_LOGO_CARD_X = 73;
+const A5_LOGO_GAP = 50; // breathing room between the card's right edge and the name's own reserved zone
+const A5_LOGO_SCALES = {
+  normal: { w: 160, h: 100 },
+  large: { w: 215, h: 125 },
+  xlarge: { w: 270, h: 145 },
+};
+function getA5LogoDims(logoScale) {
+  return A5_LOGO_SCALES[logoScale] || A5_LOGO_SCALES.normal;
+}
+const A5_LOGO_CENTER_Y = BANNER_Y + BANNER_H / 2 - BANNER_TEXT_LIFT; // same centerY drawNameBanner's text uses
 
 // ─── A4 portrait poster (v3.84) ─────────────────────────────────────────
 // A separate downloadable sheet for merchants/water bodies to print and
@@ -711,8 +754,20 @@ const POSTER_NAME_ONE_LINE_MIN_FONT = 52;
 const POSTER_NAME_TWO_LINE_MAX_FONT = 52;
 const POSTER_NAME_TWO_LINE_MIN_FONT = 28;
 
-const POSTER_LOGO_CARD_W = 340;
-const POSTER_LOGO_CARD_H = 170;
+// v3.92 — same three selectable sizes as the A5 brochure (see LOGO_SCALES/
+// A5_LOGO_SCALES above) — the card is already centered horizontally
+// (TEMPLATE_W / 2, see drawLogoCard's call below) and its TOP stays pinned
+// at POSTER_BANNER_Y+260 regardless of scale, growing downward; xlarge's
+// 210px height was hand-checked to still leave ~30px clear above
+// POSTER_QR_Y (500) so it can never touch the big QR code below it.
+const POSTER_LOGO_SCALES = {
+  normal: { w: 340, h: 170 },
+  large: { w: 400, h: 195 },
+  xlarge: { w: 450, h: 210 },
+};
+function getPosterLogoDims(logoScale) {
+  return POSTER_LOGO_SCALES[logoScale] || POSTER_LOGO_SCALES.normal;
+}
 const POSTER_LOGO_CARD_Y = POSTER_BANNER_Y + 260;
 
 const POSTER_QR_SIZE = 480;
@@ -816,7 +871,7 @@ function drawPosterQr(ctx, qrImg, iconImg) {
 // brochure (unchanged) at the bottom of the competition standings image,
 // per the organizer's request that the standings download use "the actual
 // individual brochure", not an approximation of it.
-export async function renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor }) {
+export async function renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor, logoScale }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,
@@ -867,16 +922,29 @@ export async function renderBrochureCanvas({ link, name, contactText, logoUrl, l
   // text passes so it's independent of the other two, but before the QR
   // badge below since it never overlaps that area anyway.
   // v3.84 — when a logo is present, the name shifts right to share the
-  // strip with the logo card drawn just below (see A5_LOGO_RESERVED_W).
+  // strip with the logo card drawn just below.
+  // v3.92 — the reserved width is now computed from the SAME logoDims used
+  // to draw the card two lines down, instead of a separate hand-kept
+  // constant, so a bigger logoScale can never end up overlapping the name
+  // (or, the opposite failure, reserving more room than the actual card
+  // needs) — the two can't drift apart because there's only one number.
+  const logoDims = getA5LogoDims(logoScale);
+  const a5ReservedW = A5_LOGO_CARD_X + logoDims.w + A5_LOGO_GAP;
   drawNameBanner(ctx, name, logoImg
-    ? { centerX: TEMPLATE_W / 2 + A5_LOGO_RESERVED_W / 2, maxWidth: BANNER_MAX_WIDTH - A5_LOGO_RESERVED_W }
+    ? { centerX: TEMPLATE_W / 2 + a5ReservedW / 2, maxWidth: BANNER_MAX_WIDTH - a5ReservedW }
     : undefined);
 
   // 1.8. v3.84 — the venue/water body's own logo, top-left of the footer
   // strip (no-op if there isn't one), and CatchCount's own fixed contact
   // line, bottom-right of the same strip — see both functions above for why
   // these are separate from the venue's own optional contact line (1.6).
-  drawLogoCard(ctx, logoImg, A5_LOGO_CARD_X + A5_LOGO_CARD_W / 2, BANNER_Y + (BANNER_H - A5_LOGO_CARD_H) / 2, A5_LOGO_CARD_W, A5_LOGO_CARD_H, logoBgColor);
+  // v3.92 — centered on A5_LOGO_CENTER_Y (see that constant's comment) so the
+  // card sits level with the name banner's own text instead of 24px below it.
+  drawLogoCard(
+    ctx, logoImg,
+    A5_LOGO_CARD_X + logoDims.w / 2, A5_LOGO_CENTER_Y - logoDims.h / 2,
+    logoDims.w, logoDims.h, logoBgColor
+  );
   drawCatchCountFooterCompact(ctx);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
@@ -922,8 +990,8 @@ function downloadDataUrl(dataUrl, filename) {
 // BASE name with no extension — this function appends the right one for
 // `format` (it used to be the full "*.pdf" name; all three callers were
 // updated to stop including the extension themselves).
-export async function downloadInviteBrochure({ name, link, filename, contactText, logoUrl, logoBgColor, format = "pdf" }) {
-  const canvas = await renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor });
+export async function downloadInviteBrochure({ name, link, filename, contactText, logoUrl, logoBgColor, logoScale, format = "pdf" }) {
+  const canvas = await renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor, logoScale });
   const baseName = filename || "catchcount-broshura";
 
   if (format === "png") {
@@ -966,7 +1034,7 @@ export async function downloadInviteBrochure({ name, link, filename, contactText
 // renderBrochureCanvas's structure closely (same template, same QR/font
 // loading, same "1, 2, 3, 4..." step comments) but built around the much
 // taller POSTER_* layout above instead of the short A5 banner.
-export async function renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor }) {
+export async function renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor, logoScale }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     // Bigger source render than the brochure's own QR (700) — this one is
     // drawn much larger on the page (POSTER_QR_SIZE = 480 vs the brochure
@@ -1012,7 +1080,9 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl, log
   drawPosterName(ctx, name);
 
   // 1.8. The venue/water body's own logo, if any — centered, below the name.
-  drawLogoCard(ctx, logoImg, TEMPLATE_W / 2, POSTER_LOGO_CARD_Y, POSTER_LOGO_CARD_W, POSTER_LOGO_CARD_H, logoBgColor);
+  // v3.92 — size now configurable, see POSTER_LOGO_SCALES above.
+  const posterLogoDims = getPosterLogoDims(logoScale);
+  drawLogoCard(ctx, logoImg, TEMPLATE_W / 2, POSTER_LOGO_CARD_Y, posterLogoDims.w, posterLogoDims.h, logoBgColor);
 
   // 1.9. The poster's own big, primary QR — this is the one actually meant
   // to be scanned off a wall from a few steps back.
@@ -1204,8 +1274,8 @@ export async function downloadFlyerA6({ link, filename, contactText, format = "p
 
 // v3.84 — same format/download mechanics as downloadInviteBrochure above,
 // built around the A4 portrait poster instead of the A5 landscape brochure.
-export async function downloadInvitePoster({ name, link, filename, contactText, logoUrl, logoBgColor, format = "pdf" }) {
-  const canvas = await renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor });
+export async function downloadInvitePoster({ name, link, filename, contactText, logoUrl, logoBgColor, logoScale, format = "pdf" }) {
+  const canvas = await renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor, logoScale });
   const baseName = filename || "catchcount-poster";
 
   if (format === "png") {

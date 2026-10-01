@@ -697,6 +697,7 @@ export default function WaterBodyManagement() {
         contactText,
         logoUrl: wb.logo_url,
         logoBgColor: wb.logo_bg_color,
+        logoScale: wb.brochure_logo_size,
         format,
       });
       setBrochureTarget(null);

@@ -701,6 +701,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       // keeps its exact prior look. See WaterBodyEditDialog.jsx and
       // src/lib/brochure.js's exported LOGO_BG_COLORS for the preset list.
       { name: "logo_bg_color", type: "string", required: false },
+      // v3.92 — the SAME logo card's own SIZE (not logo_bg_color's color, a
+      // separate axis) — one of "normal" (the original, unchanged default),
+      // "large" or "xlarge". See src/lib/brochure.js's exported LOGO_SCALES
+      // and A5_LOGO_SCALES/POSTER_LOGO_SCALES for the exact pixel dimensions
+      // each step maps to. NULL/unset behaves exactly like "normal".
+      { name: "brochure_logo_size", type: "enum", required: false, enumValues: ["normal", "large", "xlarge"] },
       // v3.06 — the last-used {name, boxes} sector/box layout for this water
       // body (same JSON model as SectorAvailability.sectors_config — see
       // src/lib/sectorLabels.js/competitionSectors.js), so opening a NEW
@@ -768,6 +774,12 @@ export const ENTITIES: Record<string, EntityDef> = {
       // its exact prior look. See WaterBodyEditDialog.jsx and
       // src/lib/brochure.js's exported LOGO_BG_COLORS for the preset list.
       { name: "logo_bg_color", type: "string", required: false },
+      // v3.92 — the SAME logo card's own SIZE (not logo_bg_color's color, a
+      // separate axis) — one of "normal" (the original, unchanged default),
+      // "large" or "xlarge". See src/lib/brochure.js's exported LOGO_SCALES
+      // and A5_LOGO_SCALES/POSTER_LOGO_SCALES for the exact pixel dimensions
+      // each step maps to. NULL/unset behaves exactly like "normal".
+      { name: "brochure_logo_size", type: "enum", required: false, enumValues: ["normal", "large", "xlarge"] },
       // v3.44 — optional ad-style content, matching what a manually-created
       // custom ad already has (title/description/link — `name` above
       // already serves as the title). Lets this venue, once attached to a
