@@ -641,6 +641,50 @@ export const CATCHCOUNT_APP_LABEL = "catchcount.app";
 export const CATCHCOUNT_PHONE = "+359 894 31 88 33";
 export const CATCHCOUNT_EMAIL = "catch.count.bg@gmail.com";
 
+// v3.93 — the brand's own short tagline, requested to appear somewhere on
+// the promotional materials, same spirit as the fixed contact line above
+// (never translated — a fixed Bulgarian/brand line, not venue content).
+// "CatchCount" is drawn in the brand's own teal accent (sampled from the app
+// icon itself — see drawCatchCountMotto below), the rest in white, mirroring
+// the two-tone treatment the reference image showed.
+export const CATCHCOUNT_MOTTO_PREFIX = "Всеки риболов разказва нещо. ";
+export const CATCHCOUNT_MOTTO_BRAND = "CatchCount";
+export const CATCHCOUNT_MOTTO_SUFFIX = " го помни.";
+const CATCHCOUNT_MOTTO_ACCENT = "#5eead4";
+
+// One centered line, "CatchCount" itself in the accent color, everything
+// else in white — used only where there's genuine spare vertical room (see
+// its one call site in renderPosterCanvas for why the A5 brochure and A6
+// flyer don't also get this: both footer strips are already at the tightest
+// size several earlier rounds of "shrink it" feedback left them at).
+function drawCatchCountMotto(ctx, centerX, y, { font = 26 } = {}) {
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+  ctx.save();
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.font = `700 ${font}px ${fontStack}`;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+
+  const w1 = ctx.measureText(CATCHCOUNT_MOTTO_PREFIX).width;
+  const w2 = ctx.measureText(CATCHCOUNT_MOTTO_BRAND).width;
+  const w3 = ctx.measureText(CATCHCOUNT_MOTTO_SUFFIX).width;
+  let x = centerX - (w1 + w2 + w3) / 2;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.fillText(CATCHCOUNT_MOTTO_PREFIX, x, y);
+  x += w1;
+
+  ctx.fillStyle = CATCHCOUNT_MOTTO_ACCENT;
+  ctx.fillText(CATCHCOUNT_MOTTO_BRAND, x, y);
+  x += w2;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
+  ctx.fillText(CATCHCOUNT_MOTTO_SUFFIX, x, y);
+  ctx.restore();
+}
+
 // Two centered lines — used by the new A4 poster, which has the vertical
 // room for it. See drawCatchCountFooterCompact below for the A5 brochure's
 // own, single-line version (its footer strip is far shorter).
@@ -776,6 +820,13 @@ const POSTER_QR_R = 28;
 
 const POSTER_FOOTER_APP_Y = POSTER_QR_Y + POSTER_QR_SIZE + 90;
 const POSTER_FOOTER_DETAIL_Y = POSTER_FOOTER_APP_Y + 46;
+
+// v3.93 — the brand motto, tucked into the existing gap between the big QR
+// and the CatchCount contact line below (POSTER_QR_Y+POSTER_QR_SIZE=1748 to
+// POSTER_FOOTER_APP_Y=1838 — an 90px gap built in from the start, see that
+// constant's own history): 52px clear of the QR, 38px clear of the contact
+// line above it, no other constant on this page had to move for this.
+const POSTER_MOTTO_Y = POSTER_QR_Y + POSTER_QR_SIZE + 52;
 
 // Same wrap/shrink algorithm as drawNameBanner (kept as an independent copy
 // rather than a shared parametrized function — the A5 banner's layout has
@@ -1088,7 +1139,12 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl, log
   // to be scanned off a wall from a few steps back.
   drawPosterQr(ctx, qrImg, iconImg);
 
-  // 1.10. CatchCount's own fixed contact line, near the bottom of the page.
+  // 1.10. v3.93 — the brand motto, right above CatchCount's own fixed
+  // contact line (see POSTER_MOTTO_Y's own comment for why only the poster
+  // gets this and not the brochure/flyer).
+  drawCatchCountMotto(ctx, TEMPLATE_W / 2, POSTER_MOTTO_Y);
+
+  // 1.11. CatchCount's own fixed contact line, near the bottom of the page.
   drawCatchCountFooter(ctx, TEMPLATE_W / 2, POSTER_FOOTER_APP_Y, POSTER_FOOTER_DETAIL_Y);
 
   // 2–4. The small corner QR badge, exactly like the brochure — kept for
