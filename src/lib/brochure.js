@@ -282,10 +282,17 @@ function drawVenueName(ctx, name) {
 // template's own real vignette, continued at its own real rate, not a
 // mirrored duplicate of its content or an arbitrarily-chosen fixed color.
 const BANNER_MAX_WIDTH = TEMPLATE_W - 120;
-const BANNER_MAX_FONT = 96;
-const BANNER_ONE_LINE_MIN_FONT = 56;
-const BANNER_TWO_LINE_MAX_FONT = 56;
-const BANNER_TWO_LINE_MIN_FONT = 26;
+// v3.95 — all four sizes scaled down ~25% from their original v3.72 values
+// (96/56/56/26) to free up real vertical room in the strip for the brand
+// motto (see drawCatchCountMottoCompact below) at a genuinely readable size,
+// instead of a tiny corner line — the user's own explicit choice over
+// growing the page past true A5. A short one-line name is still clearly the
+// most prominent thing in the strip, just no longer sized to nearly fill it
+// edge-to-edge on its own.
+const BANNER_MAX_FONT = 72;
+const BANNER_ONE_LINE_MIN_FONT = 42;
+const BANNER_TWO_LINE_MAX_FONT = 42;
+const BANNER_TWO_LINE_MIN_FONT = 20;
 const BANNER_LINE_GAP = 1.12; // line-height multiple between the two wrapped lines
 const BANNER_TEXT_LIFT = 24; // px raised above the strip's own vertical center
 
@@ -731,6 +738,49 @@ function drawCatchCountFooterCompact(ctx) {
   ctx.restore();
 }
 
+// v3.94 — the brand motto's own compact, single-line form, right-aligned
+// directly above drawCatchCountFooterCompact's own line, same right margin.
+// Unlike the venue name banner — which can span the full width and run
+// close to this corner on a long one-line name — this line only ever has to
+// clear the LOGO CARD vertically, and the two never actually overlap
+// horizontally (the card sits at the strip's far left, A5_LOGO_CARD_X=73,
+// while this stays right-aligned) regardless of the card's own scale.
+// v3.95 — sized up from 13px to a genuinely visible 24px (the user's own
+// call: "не трябва да е малък ред в ъгъла... по-голям шрифт" — it shouldn't
+// be a small line in the corner), made possible by BANNER_MAX_FONT etc.
+// shrinking above — the user's own explicit choice of trade-off over
+// growing the page past true A5.
+const A5_MOTTO_FONT = 24;
+const A5_MOTTO_GAP = 32; // baseline-to-baseline distance up from the footer line below it
+
+function drawCatchCountMottoCompact(ctx) {
+  const fontStack = `"CatchCountBrochure", Arial, sans-serif`;
+  const y = PAGE_H - A5_FOOTER_BOTTOM_MARGIN - A5_MOTTO_GAP;
+  ctx.save();
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `700 ${A5_MOTTO_FONT}px ${fontStack}`;
+  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
+  ctx.shadowBlur = 4;
+
+  const w1 = ctx.measureText(CATCHCOUNT_MOTTO_PREFIX).width;
+  const w2 = ctx.measureText(CATCHCOUNT_MOTTO_BRAND).width;
+  const w3 = ctx.measureText(CATCHCOUNT_MOTTO_SUFFIX).width;
+  let x = TEMPLATE_W - A5_FOOTER_RIGHT_MARGIN - (w1 + w2 + w3);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillText(CATCHCOUNT_MOTTO_PREFIX, x, y);
+  x += w1;
+
+  ctx.fillStyle = CATCHCOUNT_MOTTO_ACCENT;
+  ctx.fillText(CATCHCOUNT_MOTTO_BRAND, x, y);
+  x += w2;
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+  ctx.fillText(CATCHCOUNT_MOTTO_SUFFIX, x, y);
+  ctx.restore();
+}
+
 // v3.84 — where the A5 brochure's logo card sits (top-left of the short
 // footer strip) and how much width it reserves so drawNameBanner's own
 // centered name shifts right to make room instead of overlapping it — see
@@ -997,6 +1047,7 @@ export async function renderBrochureCanvas({ link, name, contactText, logoUrl, l
     logoDims.w, logoDims.h, logoBgColor
   );
   drawCatchCountFooterCompact(ctx);
+  drawCatchCountMottoCompact(ctx);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
   //    exact same spot.
