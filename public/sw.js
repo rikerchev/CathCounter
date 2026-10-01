@@ -14,7 +14,24 @@
 // cached manifest.json (without "id") indefinitely, never picking up the
 // fix. Bumping CACHE_NAME forces exactly this kind of already-cached static
 // file to be re-fetched from the network the next time this file updates.
-const CACHE_NAME = "catchcount-shell-v3";
+//
+// v3.96 — bumped again (v3 -> v4), and the actual bug fixed this time, not
+// just flushed: brochure-template.jpg is a static asset (not in APP_SHELL,
+// but cached the same cache-first way as everything else below) that has
+// now been edited several times in a row (v3.88, v3.93, v3.94, v3.95) to
+// fix its text. A device that had EVER downloaded a brochure before any of
+// those fixes kept serving that one original cached copy forever — cache-
+// first means the cached entry is never re-checked against the network
+// once stored, no matter how many times the real file changes server-side
+// afterward. This is why a user could be running the latest app version
+// (visible in the footer, since index.html/JS bundles DO get this same
+// flush on every CACHE_NAME bump) yet still download a brochure with
+// months-old text ("Отвори" instead of "Регистрирай се"): the JS updated,
+// the image never did, on that one device. Bumping CACHE_NAME flushes that
+// stale copy immediately; the fetch handler below is ALSO changed so this
+// exact class of bug can't quietly reappear the next time an unhashed
+// public/ asset gets edited.
+const CACHE_NAME = "catchcount-shell-v4";
 const APP_SHELL = ["/", "/index.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -92,21 +109,44 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static assets: cache-first, then fill the cache from the network — but
-  // never trust (or store) a poisoned HTML-instead-of-asset response, see
-  // isPoisonedResponse() above.
+  // Static assets: v3.96 — stale-while-revalidate instead of plain
+  // cache-first. A cached hit still answers immediately (same speed,
+  // same offline support as before), but a network re-fetch now always
+  // runs alongside it to refresh the cache for next time — via
+  // event.waitUntil(), so it keeps running even after the response has
+  // already gone back to the page. Plain cache-first (what this replaces)
+  // never re-checked the network once an entry existed, so any unhashed
+  // file under public/ — brochure-template.jpg being the real example
+  // that surfaced this (see CACHE_NAME's own v3.96 note above) — stayed
+  // stuck on whichever copy was first ever cached, forever, no matter how
+  // many times it changed on the server afterward. Never trust (or store)
+  // a poisoned HTML-instead-of-asset response, see isPoisonedResponse()
+  // above.
   event.respondWith(
     caches.match(request).then((cached) => {
-      if (cached && isPoisonedResponse(cached)) cached = undefined;
-      return (
-        cached ||
-        fetch(request).then((response) => {
+      const validCached = cached && !isPoisonedResponse(cached) ? cached : null;
+
+      const networkFetch = fetch(request)
+        .then((response) => {
           if (response.ok && !isPoisonedResponse(response)) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
-        }).catch(() => cached)
+        })
+        .catch(() => null);
+
+      if (validCached) {
+        // Answer now from cache; let the refresh finish in the background.
+        event.waitUntil(networkFetch);
+        return validCached;
+      }
+
+      // Nothing usable cached yet: this request has to wait on the network.
+      // Always resolve to a real Response (never undefined) — see the
+      // navigate-request comment above for exactly what breaks otherwise.
+      return networkFetch.then(
+        (response) => response || new Response(null, { status: 504, statusText: "Offline and not cached" }),
       );
     }),
   );
