@@ -1210,6 +1210,13 @@ export const en = {
     "brochure.format.pdf": "PDF",
     "brochure.format.jpg": "JPG (image)",
     "brochure.format.png": "PNG (image)",
+    "brochure.logoBgLabel": "Logo background color",
+    "brochure.logoBgHint": "The background of the logo card on the brochure/poster. Choose Transparent if the logo already has its own transparent background (e.g. a vector/PNG image).",
+    "brochure.logoBg.white": "White",
+    "brochure.logoBg.lightGray": "Light gray",
+    "brochure.logoBg.navy": "Navy",
+    "brochure.logoBg.black": "Black",
+    "brochure.logoBg.transparent": "Transparent",
     "tv.created": "Venue created",
     // v2.71 — contact/logo, shown publicly on the "Commercial Venues" menu
     "tv.editVenue": "Edit venue",

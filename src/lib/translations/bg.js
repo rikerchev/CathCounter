@@ -1206,6 +1206,13 @@ export const bg = {
     "brochure.format.pdf": "PDF",
     "brochure.format.jpg": "JPG (изображение)",
     "brochure.format.png": "PNG (изображение)",
+    "brochure.logoBgLabel": "Цвят на фона на логото",
+    "brochure.logoBgHint": "Фонът на картичката с логото в брошурата/постера. Изберете опцията Прозрачен, ако логото вече има собствен прозрачен фон (напр. векторно/PNG изображение).",
+    "brochure.logoBg.white": "Бяло",
+    "brochure.logoBg.lightGray": "Светло сиво",
+    "brochure.logoBg.navy": "Тъмно синьо",
+    "brochure.logoBg.black": "Черно",
+    "brochure.logoBg.transparent": "Прозрачен",
     "tv.created": "Търговският обект е създаден",
     // v2.71 — контакти/лого, показвани публично в менюто "Търговски обекти"
     "tv.editVenue": "Редактирай търговски обект",

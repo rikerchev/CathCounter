@@ -332,6 +332,9 @@ async function renderRowsPage({
         // own logo (if any) and CatchCount's fixed contact line, same as a
         // direct brochure download — see renderBrochureCanvas.
         logoUrl: waterBody?.logo_url,
+        // v3.91 — same logo-card background color the owner picked, so this
+        // embedded brochure never drifts from a direct download of it.
+        logoBgColor: waterBody?.logo_bg_color,
       });
     } catch {
       brochureCanvas = null; // template asset failed to load — the list alone still works

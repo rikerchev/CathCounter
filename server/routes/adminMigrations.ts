@@ -407,6 +407,13 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS country TEXT`);
     },
   },
+  "v3.91-logo-bg-color": {
+    label: "v3.91 — Водоеми/обекти: цвят на фона на логото в брошурата",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_bg_color TEXT`);
+      await sql.unsafe(`ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_bg_color TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -641,6 +648,14 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'venues' AND column_name = 'country'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.91-logo-bg-color") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND column_name = 'logo_bg_color'
+            AND table_name IN ('water_bodies', 'venues')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 2;
       }
       out[id] = { label: m.label, applied };
     }

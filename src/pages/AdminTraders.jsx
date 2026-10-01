@@ -109,6 +109,7 @@ export default function AdminTraders() {
         filename: baseFilename,
         contactText,
         logoUrl: item.logo_url,
+        logoBgColor: item.logo_bg_color,
         format,
       });
       setBrochureTarget(null);

@@ -12,6 +12,7 @@ import { COUNTRY_GROUPS } from "@/lib/countries";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/components/ui/use-toast";
 import { base44 } from "@/api/base44Client";
+import { LOGO_BG_COLORS } from "@/lib/brochure";
 
 // v3.55 — same logo-size options TraderVenues.jsx already offers for a
 // commercial venue's own logo (see its own LOGO_SIZE_KEYS comment for the
@@ -30,10 +31,26 @@ const LOGO_SIZE_KEYS = [
   { value: "auto", labelKey: "adv.sizeAuto" },
 ];
 
+// v3.91 — the brochure/poster logo CARD's own background color ("Искам да
+// мога да задавам цвета на фона на логото в брошурата"). Distinct from
+// LOGO_SIZE_KEYS above (that only sizes this water body's logo inside an AD
+// BANNER, CustomAds.jsx — unrelated to the printable brochure/poster). The
+// value list itself (hex colors + the "transparent" sentinel) lives in
+// src/lib/brochure.js (`LOGO_BG_COLORS`) so the render code and this picker
+// can never drift apart; only the translated labels are looked up here.
+const LOGO_BG_COLOR_LABEL_KEYS = {
+  white: "brochure.logoBg.white",
+  lightGray: "brochure.logoBg.lightGray",
+  navy: "brochure.logoBg.navy",
+  black: "brochure.logoBg.black",
+  transparent: "brochure.logoBg.transparent",
+};
+
 const EMPTY = {
   name: "", owner_name: "", contact_phone: "", contact_email: "", website: "",
   location: "", country: "", latitude: "", longitude: "", usage_conditions: "",
-  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", logo_size: "auto", region: "",
+  fish_population: "", max_depth: "", capacity: "", fee_per_person: "", logo_url: "", logo_size: "auto",
+  logo_bg_color: "#ffffff", region: "",
   working_hours: "",
 };
 
@@ -41,6 +58,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
   const { t, lang } = useLanguage();
   const { toast } = useToast();
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
+  const LOGO_BG_OPTIONS = LOGO_BG_COLORS.map((o) => ({ ...o, label: t(LOGO_BG_COLOR_LABEL_KEYS[o.key]) }));
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -71,6 +89,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         fee_per_person: wb.fee_per_person != null ? String(wb.fee_per_person) : "",
         logo_url: wb.logo_url || "",
         logo_size: wb.logo_size || "auto",
+        logo_bg_color: wb.logo_bg_color || "#ffffff",
         working_hours: wb.working_hours || "",
       });
     }
@@ -129,6 +148,7 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
         fee_per_person: form.fee_per_person ? Number(form.fee_per_person) : 0,
         logo_url: form.logo_url || null,
         logo_size: form.logo_size || "auto",
+        logo_bg_color: form.logo_bg_color || "#ffffff",
         working_hours: form.working_hours || null,
       });
     } finally {
@@ -295,6 +315,30 @@ export default function WaterBodyEditDialog({ wb, open, onOpenChange, onSaved })
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          {/* v3.91 — the brochure/poster logo CARD's own background color —
+              see LOGO_BG_COLOR_LABEL_KEYS comment above. */}
+          <div className="space-y-1.5">
+            <Label>{t("brochure.logoBgLabel")}</Label>
+            <Select value={form.logo_bg_color} onValueChange={(v) => set("logo_bg_color", v)}>
+              <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {LOGO_BG_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
+                        style={opt.value === "transparent"
+                          ? { background: "repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 0 / 8px 8px" }
+                          : { backgroundColor: opt.value }}
+                      />
+                      {opt.label}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-slate-400">{t("brochure.logoBgHint")}</p>
           </div>
           <div className="space-y-1.5">
             <Label>{t("common.workingHours")}</Label>

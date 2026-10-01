@@ -15,7 +15,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { base44 } from "@/api/base44Client";
 import { getMerchantBrochureLink } from "@/lib/referral";
-import { downloadInviteBrochure, downloadInvitePoster } from "@/lib/brochure";
+import { downloadInviteBrochure, downloadInvitePoster, LOGO_BG_COLORS } from "@/lib/brochure";
 import { hasRole } from "@/lib/roles";
 import BrochureContactDialog from "@/components/BrochureContactDialog";
 import MerchantRegistrationsDialog from "@/components/MerchantRegistrationsDialog";
@@ -37,6 +37,21 @@ const LOGO_SIZE_KEYS = [
   { value: "auto", labelKey: "adv.sizeAuto" },
 ];
 
+// v3.91 — the brochure/poster logo CARD's own background color ("Искам да
+// мога да задавам цвета на фона на логото в брошурата"). Distinct from
+// LOGO_SIZE_KEYS above (which only sizes this venue's logo inside an AD
+// BANNER, CustomAds.jsx — unrelated to the printable brochure/poster). The
+// value list itself (hex colors + the "transparent" sentinel) lives in
+// src/lib/brochure.js (`LOGO_BG_COLORS`) so the render code and this picker
+// can never drift apart; only the translated labels are looked up here.
+const LOGO_BG_COLOR_LABEL_KEYS = {
+  white: "brochure.logoBg.white",
+  lightGray: "brochure.logoBg.lightGray",
+  navy: "brochure.logoBg.navy",
+  black: "brochure.logoBg.black",
+  transparent: "brochure.logoBg.transparent",
+};
+
 /**
  * TraderVenues — "Одобрени търговци" → "Търговски обекти" (v2.69, reworked
  * v2.77, admin bypass restored v2.78). Editing screen for the signed-in
@@ -53,6 +68,7 @@ export default function TraderVenues() {
   const { toast } = useToast();
   const isAdmin = hasRole(user, "admin");
   const LOGO_SIZES = LOGO_SIZE_KEYS.map((o) => ({ ...o, label: o.labelKey ? t(o.labelKey) : o.label }));
+  const LOGO_BG_OPTIONS = LOGO_BG_COLORS.map((o) => ({ ...o, label: t(LOGO_BG_COLOR_LABEL_KEYS[o.key]) }));
 
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +79,7 @@ export default function TraderVenues() {
   // already serves as that banner's title.
   const emptyForm = {
     name: "", address: "", contact_phone: "", contact_email: "", website: "", logo_url: "", logo_size: "auto",
+    logo_bg_color: "#ffffff",
     country: "", working_hours: "", ad_description: "", ad_link: "",
   };
   const [form, setForm] = useState(emptyForm);
@@ -140,6 +157,7 @@ export default function TraderVenues() {
       website: v.website || "",
       logo_url: v.logo_url || "",
       logo_size: v.logo_size || "auto",
+      logo_bg_color: v.logo_bg_color || "#ffffff",
       country: v.country || "",
       working_hours: v.working_hours || "",
       ad_description: v.ad_description || "",
@@ -162,6 +180,7 @@ export default function TraderVenues() {
       website: form.website,
       logo_url: form.logo_url,
       logo_size: form.logo_size,
+      logo_bg_color: form.logo_bg_color,
       country: form.country || null,
       working_hours: form.working_hours,
       ad_description: form.ad_description,
@@ -237,6 +256,7 @@ export default function TraderVenues() {
         filename: baseFilename,
         contactText,
         logoUrl: v.logo_url,
+        logoBgColor: v.logo_bg_color,
         format,
       });
       setBrochureTarget(null);
@@ -472,6 +492,30 @@ export default function TraderVenues() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            {/* v3.91 — the brochure/poster logo CARD's own background color
+                — see LOGO_BG_COLOR_LABEL_KEYS comment above. */}
+            <div className="space-y-1.5">
+              <Label>{t("brochure.logoBgLabel")}</Label>
+              <Select value={form.logo_bg_color} onValueChange={(v) => setForm((f) => ({ ...f, logo_bg_color: v }))}>
+                <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LOGO_BG_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-slate-300 shrink-0"
+                          style={opt.value === "transparent"
+                            ? { background: "repeating-conic-gradient(#cbd5e1 0% 25%, #fff 0% 50%) 0 / 8px 8px" }
+                            : { backgroundColor: opt.value }}
+                        />
+                        {opt.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-slate-400">{t("brochure.logoBgHint")}</p>
             </div>
             <div className="space-y-1.5">
               <Label>{t("common.workingHours")}</Label>

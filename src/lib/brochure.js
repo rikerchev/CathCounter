@@ -553,29 +553,51 @@ function loadImageSafe(src) {
 }
 
 // v3.84 — draws the venue/water body's own uploaded logo (TraderVenues.jsx /
-// WaterBodyManagement.jsx logo_url) on a small white rounded card, scaled
-// and centered the same way CSS `object-fit: contain` already displays this
+// WaterBodyManagement.jsx logo_url) on a small rounded card, scaled and
+// centered the same way CSS `object-fit: contain` already displays this
 // same logo everywhere else in the app (venue lists, ad banners) — never
-// distorted, never cropped. A plain white card rather than trying to blend
+// distorted, never cropped. A plain solid card rather than trying to blend
 // the logo's own pixels into the dark background: most uploaded logos have
 // a solid-color background of their own, and a real alpha blend would often
 // make them unreadable or muddy; a clean card is how this exact logo is
 // already presented throughout the rest of the app, so it stays consistent.
 // No-op if `logoImg` is null — missing logo, or it failed to load.
+//
+// v3.91 — the card's own background is now configurable ("Искам да мога да
+// задавам цвета на фона на логото в брошурата"), via `bgColor`
+// (`water_bodies.logo_bg_color` / `venues.logo_bg_color`, picked in
+// WaterBodyEditDialog.jsx/TraderVenues.jsx — see LOGO_BG_COLORS below for
+// the preset list shown there). Defaults to the original white when no
+// color is set, so every existing water body/venue (NULL column) keeps
+// its exact prior look with no migration-day visual change. The special
+// value `"transparent"` skips the rounded card entirely — no fill, no
+// shadow, just the logo image drawn straight onto the brochure's own dark
+// background — for a logo that's already a vector/PNG with its own
+// transparent background and doesn't need (or want) a card under it.
+export const LOGO_BG_COLORS = [
+  { value: "#ffffff", key: "white" },
+  { value: "#e2e8f0", key: "lightGray" },
+  { value: "#0b3554", key: "navy" },
+  { value: "#000000", key: "black" },
+  { value: "transparent", key: "transparent" },
+];
+
 const LOGO_CARD_PAD = 16;
 const LOGO_CARD_R = 18;
 
-function drawLogoCard(ctx, logoImg, centerX, topY, maxW, maxH) {
+function drawLogoCard(ctx, logoImg, centerX, topY, maxW, maxH, bgColor = "#ffffff") {
   if (!logoImg) return;
 
-  ctx.save();
-  roundRectPath(ctx, centerX - maxW / 2, topY, maxW, maxH, LOGO_CARD_R);
-  ctx.fillStyle = "#ffffff";
-  ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
-  ctx.shadowBlur = 14;
-  ctx.shadowOffsetY = 4;
-  ctx.fill();
-  ctx.restore();
+  if (bgColor !== "transparent") {
+    ctx.save();
+    roundRectPath(ctx, centerX - maxW / 2, topY, maxW, maxH, LOGO_CARD_R);
+    ctx.fillStyle = bgColor || "#ffffff";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.35)";
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = 4;
+    ctx.fill();
+    ctx.restore();
+  }
 
   const innerW = maxW - LOGO_CARD_PAD * 2;
   const innerH = maxH - LOGO_CARD_PAD * 2;
@@ -794,7 +816,7 @@ function drawPosterQr(ctx, qrImg, iconImg) {
 // brochure (unchanged) at the bottom of the competition standings image,
 // per the organizer's request that the standings download use "the actual
 // individual brochure", not an approximation of it.
-export async function renderBrochureCanvas({ link, name, contactText, logoUrl }) {
+export async function renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     width: 700,
     margin: 3,
@@ -854,7 +876,7 @@ export async function renderBrochureCanvas({ link, name, contactText, logoUrl })
   // strip (no-op if there isn't one), and CatchCount's own fixed contact
   // line, bottom-right of the same strip — see both functions above for why
   // these are separate from the venue's own optional contact line (1.6).
-  drawLogoCard(ctx, logoImg, A5_LOGO_CARD_X + A5_LOGO_CARD_W / 2, BANNER_Y + (BANNER_H - A5_LOGO_CARD_H) / 2, A5_LOGO_CARD_W, A5_LOGO_CARD_H);
+  drawLogoCard(ctx, logoImg, A5_LOGO_CARD_X + A5_LOGO_CARD_W / 2, BANNER_Y + (BANNER_H - A5_LOGO_CARD_H) / 2, A5_LOGO_CARD_W, A5_LOGO_CARD_H, logoBgColor);
   drawCatchCountFooterCompact(ctx);
 
   // 2. Blank out the template's own QR with a fresh white badge in the
@@ -900,8 +922,8 @@ function downloadDataUrl(dataUrl, filename) {
 // BASE name with no extension — this function appends the right one for
 // `format` (it used to be the full "*.pdf" name; all three callers were
 // updated to stop including the extension themselves).
-export async function downloadInviteBrochure({ name, link, filename, contactText, logoUrl, format = "pdf" }) {
-  const canvas = await renderBrochureCanvas({ link, name, contactText, logoUrl });
+export async function downloadInviteBrochure({ name, link, filename, contactText, logoUrl, logoBgColor, format = "pdf" }) {
+  const canvas = await renderBrochureCanvas({ link, name, contactText, logoUrl, logoBgColor });
   const baseName = filename || "catchcount-broshura";
 
   if (format === "png") {
@@ -944,7 +966,7 @@ export async function downloadInviteBrochure({ name, link, filename, contactText
 // renderBrochureCanvas's structure closely (same template, same QR/font
 // loading, same "1, 2, 3, 4..." step comments) but built around the much
 // taller POSTER_* layout above instead of the short A5 banner.
-export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
+export async function renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor }) {
   const qrDataUrl = await QRCode.toDataURL(link, {
     // Bigger source render than the brochure's own QR (700) — this one is
     // drawn much larger on the page (POSTER_QR_SIZE = 480 vs the brochure
@@ -990,7 +1012,7 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl }) {
   drawPosterName(ctx, name);
 
   // 1.8. The venue/water body's own logo, if any — centered, below the name.
-  drawLogoCard(ctx, logoImg, TEMPLATE_W / 2, POSTER_LOGO_CARD_Y, POSTER_LOGO_CARD_W, POSTER_LOGO_CARD_H);
+  drawLogoCard(ctx, logoImg, TEMPLATE_W / 2, POSTER_LOGO_CARD_Y, POSTER_LOGO_CARD_W, POSTER_LOGO_CARD_H, logoBgColor);
 
   // 1.9. The poster's own big, primary QR — this is the one actually meant
   // to be scanned off a wall from a few steps back.
@@ -1182,8 +1204,8 @@ export async function downloadFlyerA6({ link, filename, contactText, format = "p
 
 // v3.84 — same format/download mechanics as downloadInviteBrochure above,
 // built around the A4 portrait poster instead of the A5 landscape brochure.
-export async function downloadInvitePoster({ name, link, filename, contactText, logoUrl, format = "pdf" }) {
-  const canvas = await renderPosterCanvas({ link, name, contactText, logoUrl });
+export async function downloadInvitePoster({ name, link, filename, contactText, logoUrl, logoBgColor, format = "pdf" }) {
+  const canvas = await renderPosterCanvas({ link, name, contactText, logoUrl, logoBgColor });
   const baseName = filename || "catchcount-poster";
 
   if (format === "png") {

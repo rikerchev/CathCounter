@@ -691,6 +691,16 @@ export const ENTITIES: Record<string, EntityDef> = {
       // back to "auto", which for a large source image forces the WHOLE
       // banner row to grow tall to fit it. See WaterBodyEditDialog.jsx.
       { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
+      // v3.91 — the brochure/poster logo CARD's own background color (not
+      // the ad-banner logo_size above — this is the small rounded card
+      // src/lib/brochure.js's drawLogoCard draws behind the logo on a
+      // printed brochure/poster). A hex color, or the literal string
+      // "transparent" to skip the card entirely (for a logo that's already
+      // a vector/PNG with its own transparent background). NULL/unset is
+      // treated as white by drawLogoCard, so every existing water body
+      // keeps its exact prior look. See WaterBodyEditDialog.jsx and
+      // src/lib/brochure.js's exported LOGO_BG_COLORS for the preset list.
+      { name: "logo_bg_color", type: "string", required: false },
       // v3.06 — the last-used {name, boxes} sector/box layout for this water
       // body (same JSON model as SectorAvailability.sectors_config — see
       // src/lib/sectorLabels.js/competitionSectors.js), so opening a NEW
@@ -748,6 +758,16 @@ export const ENTITIES: Record<string, EntityDef> = {
       // snapshots this value at the time it's attached, see
       // custom_ads.merchants below).
       { name: "logo_size", type: "enum", required: false, enumValues: ["16x16", "32x16", "48x16", "auto"] },
+      // v3.91 — the brochure/poster logo CARD's own background color (not
+      // the ad-banner logo_size above — this is the small rounded card
+      // src/lib/brochure.js's drawLogoCard draws behind the logo on a
+      // printed brochure/poster). A hex color, or the literal string
+      // "transparent" to skip the card entirely (for a logo that's already
+      // a vector/PNG with its own transparent background). NULL/unset is
+      // treated as white by drawLogoCard, so every existing venue keeps
+      // its exact prior look. See WaterBodyEditDialog.jsx and
+      // src/lib/brochure.js's exported LOGO_BG_COLORS for the preset list.
+      { name: "logo_bg_color", type: "string", required: false },
       // v3.44 — optional ad-style content, matching what a manually-created
       // custom ad already has (title/description/link — `name` above
       // already serves as the title). Lets this venue, once attached to a

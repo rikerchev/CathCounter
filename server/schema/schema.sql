@@ -969,3 +969,16 @@ ALTER TABLE custom_ads ADD COLUMN IF NOT EXISTS final_notice_sent BOOLEAN DEFAUL
 -- to re-run.
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS catch_results_scale TEXT;
 ALTER TABLE competition_registrations ADD COLUMN IF NOT EXISTS box_manual BOOLEAN DEFAULT FALSE;
+
+-- v3.91 — the brochure/poster logo CARD's own background color (the small
+-- rounded card src/lib/brochure.js's drawLogoCard draws behind the logo on
+-- a printed brochure/poster — unrelated to the ad-banner logo_size added in
+-- v3.26/v3.55 above). A hex color string, or the literal string
+-- "transparent" to skip the card entirely, for a logo that already has its
+-- own transparent background (e.g. a vector/PNG logo). NULL/unset is
+-- treated as white by drawLogoCard, so every existing water body/venue
+-- keeps its exact prior look. See WaterBodyEditDialog.jsx/TraderVenues.jsx
+-- and brochure.js's exported LOGO_BG_COLORS for the preset list. Safe to
+-- re-run.
+ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS logo_bg_color TEXT;
+ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_bg_color TEXT;
