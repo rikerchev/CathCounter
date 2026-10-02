@@ -507,6 +507,26 @@ const CONTACT_MAX_WIDTH = 950;
 const CONTACT_MAX_FONT = 24;
 const CONTACT_MIN_FONT = 13;
 
+// v3.100 — "на мястото на червената зона трябва да може да се добавя
+// свободния текст... на два реда подравнен с текста над него, като не
+// застъпва картинката на рибата": this free-text line used to only ever
+// shrink to fit on ONE line (down to CONTACT_MIN_FONT, then ellipsize) —
+// fine for a short phone number, but a longer address/website/combined
+// line either came out tiny or got cut off with "…". It now falls back to
+// TWO lines, same left edge as the caption above it (CONTACT_X=73, so it
+// keeps reading as a continuation of that line, not a separate block), only
+// when the text genuinely doesn't fit on one line even at the smallest
+// single-line size — short text (the common case: a single phone number or
+// short URL) renders exactly as before, unchanged. CONTACT_MAX_WIDTH=950
+// is untouched, so both the one-line and two-line paths stay just as clear
+// of the QR badge (BADGE_X=1096) and of the carp's silhouette in this lower
+// strip as the original single-line version always was — confirmed empty
+// background there up to that width on the source template.
+const CONTACT_2L_MAX_FONT = 19;
+const CONTACT_2L_MIN_FONT = 12;
+const CONTACT_2L_LINE1_Y = 722;
+const CONTACT_2L_LINE_GAP = 25; // line2 baseline = 747, still 21px clear of the photo's own bottom edge (768)
+
 function drawContactText(ctx, contactText) {
   // Free text, as typed — no trim-to-empty-only-check beyond whitespace, no
   // uppercasing (unlike drawVenueName): this may be a URL or a Facebook
@@ -519,7 +539,13 @@ function drawContactText(ctx, contactText) {
   ctx.save();
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
+  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 1;
+  ctx.fillStyle = "#ffffff";
 
+  // Try the original one-line treatment first, shrinking down to
+  // CONTACT_MIN_FONT.
   let fontSize = CONTACT_MAX_FONT;
   ctx.font = `700 ${fontSize}px ${fontStack}`;
   while (fontSize > CONTACT_MIN_FONT && ctx.measureText(text).width > CONTACT_MAX_WIDTH) {
@@ -527,21 +553,40 @@ function drawContactText(ctx, contactText) {
     ctx.font = `700 ${fontSize}px ${fontStack}`;
   }
 
-  let out = text;
-  if (ctx.measureText(out).width > CONTACT_MAX_WIDTH) {
-    while (out.length > 1 && ctx.measureText(`${out}…`).width > CONTACT_MAX_WIDTH) {
-      out = out.slice(0, -1);
-    }
-    out = `${out}…`;
+  if (ctx.measureText(text).width <= CONTACT_MAX_WIDTH) {
+    ctx.fillText(text, CONTACT_X, CONTACT_BASELINE_Y);
+    ctx.restore();
+    return;
   }
 
-  // Same soft shadow treatment as drawVenueName, for the same reason —
-  // legibility over the template's variable particle/line background.
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
-  ctx.shadowBlur = 6;
-  ctx.shadowOffsetY = 1;
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(out, CONTACT_X, CONTACT_BASELINE_Y);
+  // Doesn't fit on one line even at the smallest single-line size — wrap
+  // onto two lines instead of just ellipsizing, shrinking further if
+  // needed, same balanced-split approach drawNameBanner/drawPosterName use
+  // for the venue name (bestTwoLineSplit picks whichever split point keeps
+  // the widest of the two lines narrowest — works just as well for free
+  // text as for a name).
+  const words = text.split(/\s+/).filter(Boolean);
+  fontSize = CONTACT_2L_MAX_FONT;
+  ctx.font = `700 ${fontSize}px ${fontStack}`;
+  let lines = bestTwoLineSplit(ctx, words);
+  while (
+    fontSize > CONTACT_2L_MIN_FONT &&
+    (ctx.measureText(lines[0]).width > CONTACT_MAX_WIDTH || ctx.measureText(lines[1]).width > CONTACT_MAX_WIDTH)
+  ) {
+    fontSize -= 1;
+    ctx.font = `700 ${fontSize}px ${fontStack}`;
+    lines = bestTwoLineSplit(ctx, words);
+  }
+
+  // Still too wide at the floor size (e.g. one pathologically long word/URL
+  // with no spaces to split on) — ellipsize whichever line overflows, same
+  // safety net as the one-line path always had.
+  lines = lines.map((line) =>
+    ctx.measureText(line).width > CONTACT_MAX_WIDTH ? ellipsize(ctx, line, CONTACT_MAX_WIDTH) : line
+  );
+
+  ctx.fillText(lines[0], CONTACT_X, CONTACT_2L_LINE1_Y);
+  if (lines[1]) ctx.fillText(lines[1], CONTACT_X, CONTACT_2L_LINE1_Y + CONTACT_2L_LINE_GAP);
   ctx.restore();
 }
 
@@ -1269,7 +1314,22 @@ export async function renderPosterCanvas({ link, name, contactText, logoUrl, log
 // clipped that label under the new strip's own fill; FLYER_BANNER_Y=730
 // clears the label's real bottom edge (plus its soft shadow) with a small
 // safety margin instead.
-const FLYER_STRIP_H = 76;
+// v3.98 — grown from 76 to 104px to fit the brand motto as its own, fully
+// legible line (not a squeeze into the existing two lines): "добави към
+// флаера мотото на CatchCount, така че да е забележимо" (add the motto to
+// the flyer, so it's noticeable) — the user's own explicit call, same
+// trade-off already accepted for this format (A6_HEIGHT_MM below has never
+// been exact ISO 105mm — see the comment above this block for why). The
+// generic flyer has no venue name and no logo, so unlike the A5 brochure
+// there's nothing for a centered, full-width line to ever collide with.
+//
+// v3.99 — "намали пак размера на долната лента и увеличи малко текста на
+// мотото": strip shrunk again (104 -> 84) while the motto's own font grew
+// (20 -> 23px, see FLYER_MOTTO_Y below) — the three line gaps and the
+// trim-safety margin were each tightened a few px to absorb that, rather
+// than reverting toward the pre-motto 76px (which no longer has room for
+// the motto as its own line at all).
+const FLYER_STRIP_H = 84;
 const FLYER_BANNER_Y = 730;
 const FLYER_PAGE_H = FLYER_BANNER_Y + FLYER_STRIP_H;
 const A6_WIDTH_MM = 148;
@@ -1278,6 +1338,13 @@ const A6_WIDTH_MM = 148;
 // literally 105.
 const A6_HEIGHT_MM = Math.round((A6_WIDTH_MM * FLYER_PAGE_H / TEMPLATE_W) * 10) / 10;
 
+// v3.98 — the motto sits first, right under the seam, sized between the
+// app label (24px) and the detail line (16px) so it reads as the strip's
+// headline rather than competing with "catchcount.app" for attention.
+// v3.99 — font raised 20 -> 23px ("увеличи малко текста на мотото"); the
+// seam gap tightened 24 -> 22px to help offset the strip's own shrink.
+const FLYER_MOTTO_Y = FLYER_BANNER_Y + 22;
+
 // v3.87 — "остави информацията за връзка с catchcount.app, но я повдигнеш
 // малко по-нагоре, да не е съвсем в долната част да не е проблем при
 // отрязването на брошурите": the detail line's baseline sits well clear of
@@ -1285,9 +1352,15 @@ const A6_HEIGHT_MM = Math.round((A6_WIDTH_MM * FLYER_PAGE_H / TEMPLATE_W) * 10) 
 // slightly-off physical trim cut on a printed sheet of these flyers won't
 // clip it. v3.90 — padding trimmed slightly to match the shorter strip;
 // the bottom margin below the detail line stays ~26px, the same
-// trim-safety cushion as before.
-const FLYER_FOOTER_APP_Y = FLYER_BANNER_Y + 26;
-const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 24;
+// trim-safety cushion as before. v3.98 — app/detail both shifted down to
+// make room for FLYER_MOTTO_Y above them; the ~26px trim-safety cushion
+// below the detail line is preserved unchanged (FLYER_STRIP_H grew by
+// exactly the same amount these two shifted by). v3.99 — both gaps
+// tightened (30 -> 25, 24 -> 19) and the trim-safety cushion below the
+// detail line trimmed 26 -> 18px (still a real cushion, just a smaller
+// one) so the strip could shrink again while the motto's own font grew.
+const FLYER_FOOTER_APP_Y = FLYER_MOTTO_Y + 25;
+const FLYER_FOOTER_DETAIL_Y = FLYER_FOOTER_APP_Y + 19;
 
 // Same structure as renderBrochureCanvas/renderPosterCanvas above, minus
 // everything that only makes sense for a specific venue: no name (there is
@@ -1330,9 +1403,14 @@ export async function renderFlyerA6Canvas({ link, contactText }) {
   // the other two formats (lives inside the untouched top artwork).
   drawContactText(ctx, contactText);
 
-  // 1.7. CatchCount's own fixed contact line — the ONLY thing in the new
-  // strip, deliberately smaller than the poster's own two-line footer
-  // (POSTER_FOOTER_*) to match this much shorter strip.
+  // 1.65. v3.98 — the brand motto, first line of the strip (see
+  // FLYER_MOTTO_Y's own comment for why this format can take it as a
+  // plain centered line, unlike the A5 brochure).
+  drawCatchCountMotto(ctx, TEMPLATE_W / 2, FLYER_MOTTO_Y, { font: 23 });
+
+  // 1.7. CatchCount's own fixed contact line — deliberately smaller than
+  // the poster's own two-line footer (POSTER_FOOTER_*) to match this much
+  // shorter strip.
   drawCatchCountFooter(ctx, TEMPLATE_W / 2, FLYER_FOOTER_APP_Y, FLYER_FOOTER_DETAIL_Y, { appFont: 24, detailFont: 16 });
 
   // 2–4. The small corner QR badge, exactly like the brochure/poster.
