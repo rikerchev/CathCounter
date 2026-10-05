@@ -1,10 +1,12 @@
 // IndexedDB wrapper for local-first catch storage
 const DB_NAME = "catchcount_db";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const CATCHES_STORE = "catches";
 const PENDING_SYNC_STORE = "pending_sync";
 const BAIT_STORE = "bait";
 const PENDING_PHOTOS_STORE = "pending_photos";
+// v3.108 — one row per press of "Старт" (see rodCastRepository.js).
+const ROD_CASTS_STORE = "rod_casts";
 
 let dbPromise = null;
 
@@ -27,6 +29,9 @@ function openDB() {
       if (!db.objectStoreNames.contains(PENDING_PHOTOS_STORE)) {
         const photoStore = db.createObjectStore(PENDING_PHOTOS_STORE, { keyPath: "id" });
         photoStore.createIndex("catch_id", "catch_id");
+      }
+      if (!db.objectStoreNames.contains(ROD_CASTS_STORE)) {
+        db.createObjectStore(ROD_CASTS_STORE, { keyPath: "id" });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -114,6 +119,65 @@ export async function deleteBaitLocal(id) {
     const request = store.delete(id);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
+  });
+}
+
+// v3.108 — rod casts (see rodCastRepository.js): pure append-only events,
+// never edited after creation, so unlike catches/bait there is no "update"
+// path here — just create, list, and merge-in-what's-missing from the
+// server.
+export async function getAllRodCasts() {
+  const store = await tx(ROD_CASTS_STORE, "readonly");
+  return new Promise((resolve, reject) => {
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function saveRodCastLocal(castItem) {
+  const store = await tx(ROD_CASTS_STORE, "readwrite");
+  const record = {
+    ...castItem,
+    id: castItem.id || `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    date: castItem.date || new Date().toISOString(),
+    _synced: castItem._synced || false
+  };
+  return new Promise((resolve, reject) => {
+    const request = store.put(record);
+    request.onsuccess = () => resolve(record);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function deleteRodCastLocal(id) {
+  const store = await tx(ROD_CASTS_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Only adds casts missing locally — a cast is never edited after creation,
+// so (unlike mergeRemoteCatches/mergeRemoteBait) there is nothing to
+// reconcile for one that's already here.
+export async function mergeRemoteRodCasts(items) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(ROD_CASTS_STORE, "readwrite");
+    const store = tx.objectStore(ROD_CASTS_STORE);
+    const getAllReq = store.getAll();
+    getAllReq.onsuccess = () => {
+      const existingIds = new Set((getAllReq.result || []).map((c) => c.id));
+      items.forEach((item) => {
+        if (!existingIds.has(item.id)) {
+          store.put({ ...item, _synced: true });
+        }
+      });
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -359,7 +423,7 @@ export async function mergeRemoteBait(items) {
 // account's local data survives into another account's session here.
 export async function clearAllLocalData() {
   const db = await openDB();
-  const storeNames = [CATCHES_STORE, PENDING_SYNC_STORE, BAIT_STORE, PENDING_PHOTOS_STORE];
+  const storeNames = [CATCHES_STORE, PENDING_SYNC_STORE, BAIT_STORE, PENDING_PHOTOS_STORE, ROD_CASTS_STORE];
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(storeNames, "readwrite");
     storeNames.forEach((name) => transaction.objectStore(name).clear());

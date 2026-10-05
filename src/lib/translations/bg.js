@@ -368,6 +368,8 @@ export const bg = {
     "sessions.avgWind": "Среден вятър",
     "sessions.totalWeight": "Общо тегло",
     "sessions.biggestFish": "Най-голяма риба",
+    "sessions.totalCasts": "Общо замятания",
+    "sessions.castsByRod": "Замятания по въдица",
     "sessions.topBait": "Топ стръв",
     "sessions.topGroundbait": "Топ захранка",
     "sessions.topHook": "Топ кука",

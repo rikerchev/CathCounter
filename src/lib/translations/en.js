@@ -169,6 +169,8 @@ export const en = {
     "sessions.avgWind": "Avg Wind",
     "sessions.totalWeight": "Total Weight",
     "sessions.biggestFish": "Biggest Fish",
+    "sessions.totalCasts": "Total Casts",
+    "sessions.castsByRod": "Casts by rod",
     "sessions.topBait": "Top Bait",
     "sessions.topGroundbait": "Top Groundbait",
     "sessions.topHook": "Top Hook",

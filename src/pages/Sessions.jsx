@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Loader2, MapPin, Thermometer, Wind, Clock, Weight, Trophy,
   ChevronRight, ChevronDown, ChevronUp, Trash2, CalendarArrowDown as CalendarDown,
-  Fish,
+  Fish, Target,
 } from "lucide-react";
 import Thumbnail from "@/components/Thumbnail";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { listCatchesByUser, deleteCatch } from "@/lib/catchRepository";
+import { listRodCastsByUser } from "@/lib/rodCastRepository";
 import SessionCalendar from "@/components/SessionCalendar";
 
 import { parseCatchDate } from "@/lib/dateUtils";
@@ -18,7 +19,7 @@ import { translateSpecies } from "@/lib/speciesUtils";
 // Grouping logic moved to src/lib/sessions.js so it's shared with the
 // backup/export code (src/lib/photoNaming.js) instead of living only here —
 // same rule, same 4-hour gap, just one copy of it now.
-import { groupCatchesIntoSessions as groupIntoSessions } from "@/lib/sessions";
+import { groupCatchesIntoSessions as groupIntoSessions, assignCastsToSessions } from "@/lib/sessions";
 function parseDate(c) {
   return parseCatchDate(c).getTime();
 }
@@ -73,7 +74,7 @@ function formatCatchDuration(s) {
   return `${m}м ${sec}с`;
 }
 
-function SessionCard({ session, sessionNumber, t, expanded, onToggle, onDeleteSession, onDeleteCatch }) {
+function SessionCard({ session, sessionNumber, casts, t, expanded, onToggle, onDeleteSession, onDeleteCatch }) {
   const startTs = parseDate(session[0]);
   const endTs = parseDate(session[session.length - 1]);
   const durationMs = endTs - startTs;
@@ -95,6 +96,15 @@ function SessionCard({ session, sessionNumber, t, expanded, onToggle, onDeleteSe
   const avgTemp = avg(temperatures);
   const avgWind = avg(windSpeeds);
   const totalWeight = sum(weights);
+
+  // v3.108 — total casts (every "Старт" press, win or not) for this
+  // session, plus the same broken out per rod.
+  const totalCasts = (casts || []).length;
+  const castsByRod = {};
+  for (const cast of casts || []) {
+    castsByRod[cast.rod] = (castsByRod[cast.rod] || 0) + 1;
+  }
+  const rodNumbersWithCasts = Object.keys(castsByRod).map(Number).sort((a, b) => a - b);
 
   return (
     <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
@@ -145,6 +155,7 @@ function SessionCard({ session, sessionNumber, t, expanded, onToggle, onDeleteSe
         <StatCell icon={Wind} label={t("sessions.avgWind")} value={avgWind != null ? `${avgWind.toFixed(1)} m/s` : "—"} />
         <StatCell icon={Weight} label={t("sessions.totalWeight")} value={totalWeight ? `${totalWeight.toFixed(2)} kg` : "—"} />
         <StatCell icon={Trophy} label={t("sessions.biggestFish")} value={biggestFish ? `${biggestFish.weight} kg` : "—"} />
+        <StatCell icon={Target} label={t("sessions.totalCasts")} value={totalCasts ? String(totalCasts) : "—"} />
       </div>
 
       {/* Top items */}
@@ -154,6 +165,16 @@ function SessionCard({ session, sessionNumber, t, expanded, onToggle, onDeleteSe
         <TopItem label={t("sessions.topHook")} value={topHook} />
         <TopItem label={t("sessions.topDistance")} value={topDistance} />
       </div>
+
+      {/* v3.108 — casts per rod */}
+      {rodNumbersWithCasts.length > 0 && (
+        <div className="px-4 py-3 space-y-1.5 border-t border-slate-50">
+          <div className="text-xs text-slate-400 font-medium mb-1">{t("sessions.castsByRod")}</div>
+          {rodNumbersWithCasts.map((rodNum) => (
+            <TopItem key={rodNum} label={`${t("rod.rod")} ${rodNum}`} value={String(castsByRod[rodNum])} />
+          ))}
+        </div>
+      )}
 
       {/* Expand/collapse catches */}
       <button
@@ -226,6 +247,7 @@ export default function Sessions() {
   const { t } = useLanguage();
   const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
+  const [casts, setCasts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [expandedIdx, setExpandedIdx] = useState(null);
@@ -234,14 +256,25 @@ export default function Sessions() {
   const load = useCallback(async () => {
     if (!user) return;
     try {
-      const catches = await listCatchesByUser(user.id);
+      const [catches, rodCasts] = await Promise.all([
+        listCatchesByUser(user.id),
+        listRodCastsByUser(user.id),
+      ]);
       setSessions(groupIntoSessions(catches));
+      setCasts(rodCasts);
     } catch {
       toast({ title: t("history.couldNotLoad"), variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [toast, t, user]);
+
+  // v3.108 — { sessionNumber -> RodCast[] }, keyed the same way
+  // sessionNumber is computed below (sessions.indexOf(session) + 1).
+  const castsBySession = useMemo(
+    () => assignCastsToSessions(sessions.flat(), casts),
+    [sessions, casts]
+  );
 
   useEffect(() => {
     load();
@@ -328,6 +361,7 @@ export default function Sessions() {
               key={idx}
               session={session}
               sessionNumber={sessions.indexOf(session) + 1}
+              casts={castsBySession.get(sessions.indexOf(session) + 1)}
               t={t}
               expanded={expandedIdx === idx}
               onToggle={() => setExpandedIdx(expandedIdx === idx ? null : idx)}

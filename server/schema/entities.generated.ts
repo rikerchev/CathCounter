@@ -477,6 +477,24 @@ export const ENTITIES: Record<string, EntityDef> = {
       delete: { kind: "owner", field: "user_id" },
     },
   },
+  RodCast: {
+    name: "RodCast",
+    table: "rod_casts",
+    columns: [
+      // v3.108 — one row per press of "Старт" (src/components/RodTimer.jsx's
+      // handleStart), independent of whether that cast ever lands a fish or
+      // gets cancelled. See src/lib/sessions.js's assignCastsToSessions()
+      // for how these get attributed back to a (catch-based) session.
+      { name: "rod", type: "integer", required: true, enumValues: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
+      { name: "date", type: "string", required: false },
+    ],
+    rules: {
+      read: { kind: "owner", field: "created_by_id" },
+      create: { kind: "authenticated" },
+      update: { kind: "owner", field: "created_by_id" },
+      delete: { kind: "owner", field: "created_by_id" },
+    },
+  },
   RoleRequest: {
     name: "RoleRequest",
     table: "role_requests",

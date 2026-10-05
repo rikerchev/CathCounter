@@ -11,7 +11,11 @@ import {
   getAllBait,
   saveBaitLocal,
   deleteBaitLocal,
-  mergeRemoteBait
+  mergeRemoteBait,
+  getAllRodCasts,
+  saveRodCastLocal,
+  deleteRodCastLocal,
+  mergeRemoteRodCasts
 } from "@/lib/localDb";
 
 let syncing = false;
@@ -127,6 +131,43 @@ export async function pushPendingBait() {
   }
 }
 
+// v3.108 — one row per press of "Старт" (see rodCastRepository.js). A cast
+// is never edited after creation and never deleted by the user, so unlike
+// pushPendingCatches/pushPendingBait this never needs the "update existing
+// record" branch — every unsynced row is always a brand-new local_ one.
+// Pulled with the server's own hard cap (1000, see entities.ts) rather than
+// the 500 catches/bait use: casts accumulate far faster than catches (many
+// per catch, often several per minute), so the usual window undercounts
+// sooner.
+export async function pullRemoteRodCasts() {
+  try {
+    const remoteCasts = await base44.entities.RodCast.list("-created_date", 1000);
+    if (remoteCasts && remoteCasts.length > 0) {
+      await mergeRemoteRodCasts(remoteCasts);
+    }
+    return remoteCasts || [];
+  } catch (e) {
+    console.error("pullRemoteRodCasts error:", e);
+    return [];
+  }
+}
+
+export async function pushPendingRodCasts() {
+  const localCasts = await getAllRodCasts();
+  const unsynced = localCasts.filter(c => !c._synced);
+
+  for (const castItem of unsynced) {
+    try {
+      const { id, _synced, ...payload } = castItem;
+      const created = await base44.entities.RodCast.create(payload);
+      await saveRodCastLocal({ ...castItem, id: created.id, _synced: true });
+      await deleteRodCastLocal(castItem.id);
+    } catch (e) {
+      console.error(`Failed to sync cast ${castItem.id}:`, e);
+    }
+  }
+}
+
 export async function pushPendingDeletions() {
   const pending = await getPendingSync();
   for (const op of pending) {
@@ -159,6 +200,7 @@ export async function pushOnly() {
   try {
     await pushPendingCatches();
     await pushPendingBait();
+    await pushPendingRodCasts();
     await pushPendingDeletions();
   } catch (e) {
     console.error("pushOnly error:", e);
@@ -209,6 +251,7 @@ export async function syncAll() {
     await Promise.all([
       pushPendingCatches(),
       pushPendingBait(),
+      pushPendingRodCasts(),
       pushPendingDeletions(),
     ]);
 
@@ -228,6 +271,7 @@ export async function syncAll() {
     await Promise.all([
       pullRemoteCatches(),
       pullRemoteBait(),
+      pullRemoteRodCasts(),
     ]);
   } catch (e) {
     console.error("syncAll error:", e);

@@ -425,6 +425,33 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       );
     },
   },
+  "v3.108-rod-casts": {
+    label: "v3.108 — Отброяване на замятанията",
+    run: async () => {
+      // One row per press of "Старт" (src/components/RodTimer.jsx's
+      // handleStart) — see the matching RodCast entity comment in
+      // entities.generated.ts and schema.sql's own v3.108 reference copy.
+      // A separate table, not a column on catches, since a cast very often
+      // never produces a catch at all.
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS rod_casts (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          rod INTEGER CHECK (rod IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10')) DEFAULT 1,
+          date TEXT,
+          created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+      `);
+      await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_rod_casts_created_by ON rod_casts(created_by_id)`);
+      await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_rod_casts_date ON rod_casts(date)`);
+      // Same RLS posture as every other table (v3.28) — a harmless no-op
+      // for the app itself (see that migration's own comment), just keeps
+      // this brand-new table from being the one exception Supabase's
+      // auto-API can still see.
+      await sql.unsafe(`ALTER TABLE rod_casts ENABLE ROW LEVEL SECURITY`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -675,6 +702,13 @@ export async function handleAdminMigrationsRoute(
             AND table_name IN ('water_bodies', 'venues')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.108-rod-casts") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'rod_casts'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
       }
       out[id] = { label: m.label, applied };
     }

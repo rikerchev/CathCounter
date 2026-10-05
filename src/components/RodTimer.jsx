@@ -8,6 +8,7 @@ import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation } from "@/lib/geolocation";
 import { useToast } from "@/components/ui/use-toast";
 import * as sessionStore from "@/lib/sessionStore";
+import { logRodCast } from "@/lib/rodCastRepository";
 import { playBeeps, stopBeeps } from "@/lib/beep";
 import TackleSelect from "@/components/TackleSelect";
 
@@ -64,6 +65,11 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
       Notification.requestPermission();
     }
     sessionStore.startRodTimer(rodNumber, reminderMinutes);
+    // v3.108 — count this press toward the rod's/session's total casts,
+    // regardless of whether a fish ends up landed or the cast is cancelled
+    // (see rodCastRepository.js). Fire-and-forget: a slow/offline write
+    // here must never delay the timer actually starting.
+    logRodCast(rodNumber).catch(() => {});
     forceRender();
   };
 

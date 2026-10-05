@@ -992,3 +992,22 @@ ALTER TABLE venues ADD COLUMN IF NOT EXISTS logo_bg_color TEXT;
 -- body/venue keeps its prior look. Safe to re-run.
 ALTER TABLE water_bodies ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'));
 ALTER TABLE venues ADD COLUMN IF NOT EXISTS brochure_logo_size TEXT CHECK (brochure_logo_size IN ('normal', 'large', 'xlarge'));
+
+-- v3.108 — one row per press of "Старт" (src/components/RodTimer.jsx's
+-- handleStart), independent of whether that cast ever lands a fish or gets
+-- cancelled -- see entities.generated.ts's RodCast and src/lib/sessions.js's
+-- assignCastsToSessions() for how these get attributed back to a
+-- (catch-based) session in the Sessions.jsx stats. A separate table rather
+-- than a column on catches, since a cast very often never produces a catch
+-- at all. Safe to re-run.
+CREATE TABLE IF NOT EXISTS rod_casts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  rod INTEGER CHECK (rod IN ('1', '2', '3', '4', '5', '6', '7', '8', '9', '10')) DEFAULT 1,
+  date TEXT,
+  created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_rod_casts_created_by ON rod_casts(created_by_id);
+CREATE INDEX IF NOT EXISTS idx_rod_casts_date ON rod_casts(date);
+ALTER TABLE rod_casts ENABLE ROW LEVEL SECURITY;

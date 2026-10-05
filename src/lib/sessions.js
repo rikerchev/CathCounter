@@ -42,3 +42,43 @@ export function sessionNumbersByCatchId(catches) {
   });
   return map;
 }
+
+// v3.108 — attributes each rod-cast event (src/lib/rodCastRepository.js; one
+// row per press of "Старт", win or not) to the session of its
+// nearest-in-time catch, as long as that catch is within SESSION_GAP_MS —
+// the same gap sessions themselves are built from. There is no separate
+// stored "session" record (see this file's own header comment), so a cast
+// with no catch anywhere near it — an outing that caught nothing — isn't
+// part of any session under this app's catch-only session model, exactly
+// like such an outing produces no session card at all today; it's left out
+// rather than inventing a catch-less session for it.
+//
+// Returns a Map<sessionNumber (1-based, same numbering as
+// sessionNumbersByCatchId), RodCast[]>.
+export function assignCastsToSessions(catches, casts) {
+  const result = new Map();
+  if (!catches.length || !casts.length) return result;
+
+  const sessionByCatchId = sessionNumbersByCatchId(catches);
+  const catchTimes = catches.map((c) => ({ id: c.id, t: parseCatchDate(c).getTime() }));
+
+  for (const cast of casts) {
+    const t = new Date(cast.date).getTime();
+    if (isNaN(t)) continue;
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const ct of catchTimes) {
+      const d = Math.abs(ct.t - t);
+      if (d < nearestDist) {
+        nearestDist = d;
+        nearest = ct;
+      }
+    }
+    if (nearest && nearestDist <= SESSION_GAP_MS) {
+      const sessionNumber = sessionByCatchId.get(nearest.id);
+      if (!result.has(sessionNumber)) result.set(sessionNumber, []);
+      result.get(sessionNumber).push(cast);
+    }
+  }
+  return result;
+}
