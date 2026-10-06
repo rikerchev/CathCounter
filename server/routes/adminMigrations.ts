@@ -452,6 +452,22 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE rod_casts ENABLE ROW LEVEL SECURITY`);
     },
   },
+  "v3.109-rod-cast-session-start": {
+    label: "v3.109 — Отброяване на замятанията: нулиране след затваряне на сесия",
+    run: async () => {
+      // Fixes: closing a session and starting a new one at the same spot
+      // kept piling new casts onto the OLD (closed) session as long as its
+      // last catch was still within SESSION_GAP_MS — because
+      // assignCastsToSessions() (src/lib/sessions.js) only ever looked for
+      // the nearest catch in time, with no idea a session had been
+      // explicitly closed in between. session_start — the LIVE session's
+      // own start timestamp at the moment the cast was logged (see the
+      // matching RodCast column comment in entities.generated.ts) — gives
+      // it a hard lower bound: a cast can never attach to a catch that
+      // predates the live session it was actually cast in.
+      await sql.unsafe(`ALTER TABLE rod_casts ADD COLUMN IF NOT EXISTS session_start TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -707,6 +723,13 @@ export async function handleAdminMigrationsRoute(
         const rows = await sql<{ n: number }[]>`
           SELECT COUNT(*)::int AS n FROM information_schema.tables
           WHERE table_schema = 'public' AND table_name = 'rod_casts'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.109-rod-cast-session-start") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'rod_casts' AND column_name = 'session_start'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
       }

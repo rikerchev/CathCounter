@@ -1011,3 +1011,13 @@ CREATE TABLE IF NOT EXISTS rod_casts (
 CREATE INDEX IF NOT EXISTS idx_rod_casts_created_by ON rod_casts(created_by_id);
 CREATE INDEX IF NOT EXISTS idx_rod_casts_date ON rod_casts(date);
 ALTER TABLE rod_casts ENABLE ROW LEVEL SECURITY;
+
+-- v3.109 — fixes casts still piling onto an already-CLOSED session: the
+-- live session's own start timestamp (sessionStore.js's
+-- state.sessionStartTime) at the moment this cast was logged. Lets
+-- assignCastsToSessions() (src/lib/sessions.js) refuse to attribute a cast
+-- back to a catch from an earlier, already-closed live session even when
+-- that catch is still within SESSION_GAP_MS of it. NULL on every cast
+-- logged before this version, which keeps the old (unbounded) matching for
+-- those specific rows rather than dropping them. Safe to re-run.
+ALTER TABLE rod_casts ADD COLUMN IF NOT EXISTS session_start TEXT;

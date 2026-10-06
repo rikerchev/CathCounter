@@ -69,7 +69,13 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
     // regardless of whether a fish ends up landed or the cast is cancelled
     // (see rodCastRepository.js). Fire-and-forget: a slow/offline write
     // here must never delay the timer actually starting.
-    logRodCast(rodNumber).catch(() => {});
+    // v3.109 — tag it with the live session's own start time (just
+    // established by startRodTimer above if this is the first rod started
+    // since the last closeSession()), so a cast logged in a BRAND-NEW
+    // session can never later get folded back into a previous, already-
+    // closed one just because its last catch happens to still be within
+    // the usual 4-hour session-gap window.
+    logRodCast(rodNumber, sessionStore.getState().sessionStartTime).catch(() => {});
     forceRender();
   };
 

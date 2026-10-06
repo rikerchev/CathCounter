@@ -53,6 +53,19 @@ export function sessionNumbersByCatchId(catches) {
 // like such an outing produces no session card at all today; it's left out
 // rather than inventing a catch-less session for it.
 //
+// v3.109 — nearest-in-time alone had a real bug: closing a session and
+// starting a brand-new one at the same spot, then casting a few times
+// before catching anything, used to keep piling those new casts onto the
+// OLD session, because its last catch was still the nearest one in time
+// (often well within SESSION_GAP_MS) — the "session was explicitly closed"
+// boundary was invisible to a purely time-based nearest-match. A cast now
+// carries its own LIVE session's start time (session_start — see
+// rodCastRepository.js's logRodCast), so any catch that predates it is
+// excluded from the "nearest" search entirely, not just de-prioritized.
+// Casts logged before this fix has no session_start (older rows, left
+// NULL by the v3.109 migration) fall back to the old unbounded matching
+// rather than being dropped.
+//
 // Returns a Map<sessionNumber (1-based, same numbering as
 // sessionNumbersByCatchId), RodCast[]>.
 export function assignCastsToSessions(catches, casts) {
@@ -65,9 +78,14 @@ export function assignCastsToSessions(catches, casts) {
   for (const cast of casts) {
     const t = new Date(cast.date).getTime();
     if (isNaN(t)) continue;
+    const sessionStart = cast.session_start ? new Date(cast.session_start).getTime() : null;
+    const eligible = sessionStart != null && !isNaN(sessionStart)
+      ? catchTimes.filter((ct) => ct.t >= sessionStart)
+      : catchTimes;
+
     let nearest = null;
     let nearestDist = Infinity;
-    for (const ct of catchTimes) {
+    for (const ct of eligible) {
       const d = Math.abs(ct.t - t);
       if (d < nearestDist) {
         nearestDist = d;

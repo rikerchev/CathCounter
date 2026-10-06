@@ -487,6 +487,13 @@ export const ENTITIES: Record<string, EntityDef> = {
       // for how these get attributed back to a (catch-based) session.
       { name: "rod", type: "integer", required: true, enumValues: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
       { name: "date", type: "string", required: false },
+      // v3.109 — the LIVE session's own start timestamp (sessionStore.js's
+      // state.sessionStartTime) at the moment this cast was logged, not a
+      // historical-session number. Lets assignCastsToSessions() refuse to
+      // attribute a cast back to a catch from an earlier, already-closed
+      // live session even when that catch is still within SESSION_GAP_MS —
+      // see that function's own v3.109 comment for the bug this closes.
+      { name: "session_start", type: "string", required: false },
     ],
     rules: {
       read: { kind: "owner", field: "created_by_id" },

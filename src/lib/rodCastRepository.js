@@ -7,8 +7,22 @@
 import { getAllRodCasts, saveRodCastLocal } from "@/lib/localDb";
 import { pushOnly } from "@/lib/syncEngine";
 
-export async function logRodCast(rod) {
-  const saved = await saveRodCastLocal({ rod, date: new Date().toISOString(), _synced: false });
+// v3.109 — sessionStartTime is the LIVE session's own start timestamp
+// (sessionStore.js's state.sessionStartTime — set the moment the very
+// first rod is started, wiped back to null on closeSession()), passed in
+// by the caller (RodTimer.jsx, right after it calls
+// sessionStore.startRodTimer, which is what establishes it for a brand-new
+// session). Tagging the cast with it is what lets
+// sessions.js's assignCastsToSessions() refuse to attribute a cast back to
+// a catch from an earlier, already-closed session — see that function's
+// own comment for the bug this fixes.
+export async function logRodCast(rod, sessionStartTime) {
+  const saved = await saveRodCastLocal({
+    rod,
+    date: new Date().toISOString(),
+    session_start: sessionStartTime ? new Date(sessionStartTime).toISOString() : null,
+    _synced: false,
+  });
   // Push-only: fast, no full pull — the handler that calls this (RodTimer's
   // handleStart) must not wait on the network before the timer starts.
   pushOnly();
