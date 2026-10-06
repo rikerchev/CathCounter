@@ -66,6 +66,18 @@ export function sessionNumbersByCatchId(catches) {
 // NULL by the v3.109 migration) fall back to the old unbounded matching
 // rather than being dropped.
 //
+// v3.110 — v3.109 only bounded the search from below (no earlier catch),
+// which left the mirror-image bug: a cast whose OWN live session never
+// landed a fish — every press ending in "Отказ" — had no lower-bounded
+// catch of its own nearby either, so it kept finding the NEXT session's
+// first catch as "nearest" and leaked FORWARD into it instead. Each cast's
+// window is now bounded on both sides: from its own session_start up to
+// (but excluding) the next later session_start seen among these same
+// casts — i.e. the moment the NEXT live session began. A cast whose own
+// session never produced a catch simply matches nothing, which is correct:
+// exactly like that session already (and still) produces no session card
+// for it to belong to.
+//
 // Returns a Map<sessionNumber (1-based, same numbering as
 // sessionNumbersByCatchId), RodCast[]>.
 export function assignCastsToSessions(catches, casts) {
@@ -75,13 +87,31 @@ export function assignCastsToSessions(catches, casts) {
   const sessionByCatchId = sessionNumbersByCatchId(catches);
   const catchTimes = catches.map((c) => ({ id: c.id, t: parseCatchDate(c).getTime() }));
 
+  // Distinct, sorted live-session start boundaries seen across all casts —
+  // each one marks where a later live session began, so it's also the
+  // exclusive upper bound for every earlier session's own casts.
+  const sessionStarts = [...new Set(
+    casts
+      .map((c) => (c.session_start ? new Date(c.session_start).getTime() : null))
+      .filter((t) => t != null && !isNaN(t))
+  )].sort((a, b) => a - b);
+
+  function nextBoundaryAfter(t) {
+    for (const s of sessionStarts) {
+      if (s > t) return s;
+    }
+    return Infinity;
+  }
+
   for (const cast of casts) {
     const t = new Date(cast.date).getTime();
     if (isNaN(t)) continue;
     const sessionStart = cast.session_start ? new Date(cast.session_start).getTime() : null;
-    const eligible = sessionStart != null && !isNaN(sessionStart)
-      ? catchTimes.filter((ct) => ct.t >= sessionStart)
-      : catchTimes;
+    let eligible = catchTimes;
+    if (sessionStart != null && !isNaN(sessionStart)) {
+      const upperBound = nextBoundaryAfter(sessionStart);
+      eligible = catchTimes.filter((ct) => ct.t >= sessionStart && ct.t < upperBound);
+    }
 
     let nearest = null;
     let nearestDist = Infinity;
