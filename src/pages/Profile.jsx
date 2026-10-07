@@ -525,8 +525,8 @@ export default function Profile() {
             reminder minute, so a long reminder can beep for close to a
             minute straight — see batteryPrefs.js's own note) down to a
             single beep, regardless of how long the reminder was set to.
-            Off by default so nobody's reminder sound changes without them
-            choosing it. */}
+            v3.114 — now ON by default (see batteryPrefs.js's own note);
+            still a normal switch anyone can turn back off. */}
         <div className="flex items-center justify-between pt-1 border-t border-slate-50">
           <div className="pr-3">
             <p className="text-sm font-medium text-slate-700">{t("profile.singleBeepAlert")}</p>

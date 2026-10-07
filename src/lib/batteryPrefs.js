@@ -57,19 +57,28 @@ export function subscribeKeepScreenAwake(listener) {
 // part of a minute. That's real, measurable battery/energy cost (the audio
 // output stays active for the whole sequence — see beep.js's own note on
 // the audio clock deliberately running through a locked screen), and it
-// scales with the reminder length with no upper bound. Defaults OFF —
-// unlike keepScreenAwake above, this changes what the reminder actually
-// sounds like, not just a background battery optimization, so existing
-// users keep hearing exactly what they always have unless they opt in.
+// scales with the reminder length with no upper bound.
+//
+// v3.112 originally defaulted this OFF (unlike keepScreenAwake above),
+// reasoning that it changes what the reminder actually sounds like, not
+// just a background battery optimization, so nobody's sound would change
+// without opting in. v3.114 — per explicit user request, flipped the
+// default to ON: single beep is now what anyone who hasn't touched this
+// setting gets, same default-handling shape as getKeepScreenAwake() above
+// (localStorage null → true). Anyone who already explicitly chose a value
+// (on OR off) keeps that choice; this only changes the fallback for a
+// never-touched setting.
 const SINGLE_BEEP_ALERT_KEY = "catchcount_single_beep_alert";
 
 let singleBeepAlertListeners = new Set();
 
 export function getSingleBeepAlert() {
   try {
-    return localStorage.getItem(SINGLE_BEEP_ALERT_KEY) === "true";
+    const stored = localStorage.getItem(SINGLE_BEEP_ALERT_KEY);
+    if (stored === null) return true;
+    return stored === "true";
   } catch (e) {
-    return false;
+    return true;
   }
 }
 
