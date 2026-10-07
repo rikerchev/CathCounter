@@ -15,6 +15,7 @@ import AppLockPrompt from "@/components/AppLockPrompt";
 import { useBatteryPrompt } from "@/hooks/useBatteryPrompt";
 import BatteryOptimizationPrompt from "@/components/BatteryOptimizationPrompt";
 import { useKeepScreenAwakePref } from "@/hooks/useKeepScreenAwakePref";
+import { useSingleBeepAlertPref } from "@/hooks/useSingleBeepAlertPref";
 import { getAllPendingPhotos } from "@/lib/localDb";
 import { syncAll, onSyncChange, getOnlineStatus } from "@/lib/syncEngine";
 
@@ -45,6 +46,10 @@ export default function Profile() {
   // with an immediate, direct effect (gates the wake lock in
   // useRodTimerMonitor.js), not a dialog pointing at an OS setting.
   const [keepScreenAwake, setKeepScreenAwake] = useKeepScreenAwakePref();
+  // v3.112 — see useSingleBeepAlertPref.js / batteryPrefs.js. Shortens the
+  // reminder alarm itself (independent of the wake-lock toggle above) to a
+  // single beep instead of one per reminder minute.
+  const [singleBeepAlert, setSingleBeepAlert] = useSingleBeepAlertPref();
   const [upgrading, setUpgrading] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
   const [sendingPasswordEmail, setSendingPasswordEmail] = useState(false);
@@ -514,6 +519,20 @@ export default function Profile() {
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-100 p-3">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-700">{t("profile.manualLockWarning")}</p>
+        </div>
+        {/* v3.112 — independent of the wake-lock toggle above: this one
+            shortens the reminder ALARM ITSELF (normally one beep per
+            reminder minute, so a long reminder can beep for close to a
+            minute straight — see batteryPrefs.js's own note) down to a
+            single beep, regardless of how long the reminder was set to.
+            Off by default so nobody's reminder sound changes without them
+            choosing it. */}
+        <div className="flex items-center justify-between pt-1 border-t border-slate-50">
+          <div className="pr-3">
+            <p className="text-sm font-medium text-slate-700">{t("profile.singleBeepAlert")}</p>
+            <p className="text-xs text-slate-400">{t("profile.singleBeepAlertDesc")}</p>
+          </div>
+          <Switch checked={singleBeepAlert} onCheckedChange={setSingleBeepAlert} />
         </div>
       </div>
 

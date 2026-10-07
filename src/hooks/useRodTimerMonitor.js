@@ -4,6 +4,7 @@ import * as sessionStore from "@/lib/sessionStore";
 import { playBeeps, stopBeeps, scheduleBeeps, cancelScheduledBeeps } from "@/lib/beep";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { useKeepScreenAwakePref } from "@/hooks/useKeepScreenAwakePref";
+import { useSingleBeepAlertPref } from "@/hooks/useSingleBeepAlertPref";
 
 const ACTIVE_SESSION_PATH = "/active-session";
 
@@ -39,10 +40,12 @@ function showReminderNotification(title, options) {
 /**
  * useRodTimerMonitor — globally monitors all running rod timers.
  * When a rod's reminder expires, plays one beep per elapsed minute
- * (count = reminderMinutes). Uses the stored reminderBeepsPlayed flag
- * so extending the reminder time (setRodReminder resets it) lets
- * beeps fire again on the next expiry. Beeps are NOT cancelled
- * mid-sequence — they play out fully.
+ * (count = reminderMinutes) — or, with the v3.112 "Единичен сигнал"
+ * preference on (Профил → Икономия на енергия, see
+ * useSingleBeepAlertPref.js), always just one. Uses the stored
+ * reminderBeepsPlayed flag so extending the reminder time (setRodReminder
+ * resets it) lets beeps fire again on the next expiry. Beeps are NOT
+ * cancelled mid-sequence — they play out fully.
  *
  * Battery note: this hook is mounted in Layout, so it used to run a
  * 1-second poll on every single page of the app for as long as it was
@@ -114,6 +117,16 @@ export function useRodTimerMonitor() {
   const [keepScreenAwake] = useKeepScreenAwakePref();
   useWakeLock(anyRunning && onActiveSessionPage && keepScreenAwake);
 
+  // v3.112 — see batteryPrefs.js's own note: normally one beep per reminder
+  // minute, which can run for the better part of a minute on a long
+  // reminder. Read via a ref (not directly in check()/the effect below,
+  // which only runs once on mount) so toggling it in Profile.jsx takes
+  // effect on the very next tick without needing to re-run the whole
+  // effect or re-subscribe anything.
+  const [singleBeepAlert] = useSingleBeepAlertPref();
+  const singleBeepAlertRef = useRef(singleBeepAlert);
+  singleBeepAlertRef.current = singleBeepAlert;
+
   // rodId -> { oscillators, expiryMs } for reminders already handed off to
   // the audio clock. Kept in a ref (not state) since it's pure bookkeeping
   // that must survive every tick without causing a re-render.
@@ -153,7 +166,8 @@ export function useRodTimerMonitor() {
           const existing = scheduledRef.current[timer.rodId];
           if (!existing || Math.abs(existing.expiryMs - expiryMs) > 1500) {
             if (existing) cancelScheduledBeeps(existing.oscillators);
-            const oscillators = scheduleBeeps(expiryMs, timer.reminderMinutes, timer.beepDuration ?? 0.5);
+            const beepCount = singleBeepAlertRef.current ? 1 : timer.reminderMinutes;
+            const oscillators = scheduleBeeps(expiryMs, beepCount, timer.beepDuration ?? 0.5);
             scheduledRef.current[timer.rodId] = oscillators ? { oscillators, expiryMs } : null;
             if (!oscillators) delete scheduledRef.current[timer.rodId];
           }
@@ -182,7 +196,8 @@ export function useRodTimerMonitor() {
             const hadSchedule = !!scheduledRef.current[timer.rodId];
             unscheduleRod(timer.rodId);
             if (!hadSchedule) {
-              playBeeps(timer.reminderMinutes || 1, timer.beepDuration ?? 0.5);
+              const beepCount = singleBeepAlertRef.current ? 1 : (timer.reminderMinutes || 1);
+              playBeeps(beepCount, timer.beepDuration ?? 0.5);
             }
           }
         }

@@ -287,6 +287,8 @@ export const en = {
     "profile.keepScreenAwake": "Keep screen awake during a session",
     "profile.keepScreenAwakeDesc": "On by default — keeps the screen awake while a timer is running on Active Session, so you never miss the reminder even on phones that normally turn the screen off after inactivity. Turn this off only if you deliberately want to save battery — the reminder then relies solely on sound/vibration/notification with the screen off, which isn't guaranteed to fire on every phone.",
     "profile.manualLockWarning": "Note: even with this on, if you manually press your phone's own lock button (rather than letting it turn off on its own), the sound and notification when a timer expires may not fire.",
+    "profile.singleBeepAlert": "Single beep instead of pulses",
+    "profile.singleBeepAlertDesc": "Off by default — the expiry alert normally plays one beep per minute set on the reminder (e.g. 20 beeps for a 20-minute reminder), so it's heard more reliably. Turn this on to get a single short beep instead — saves battery, especially for longer reminders.",
     "profile.pendingPhotosTitle": "Photos waiting to upload",
     "profile.pendingPhotosUnknown": "Checking this device's local photo queue...",
     "profile.pendingPhotosNone": "No photos waiting — everything is uploaded.",

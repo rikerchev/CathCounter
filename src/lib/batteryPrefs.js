@@ -48,3 +48,41 @@ export function subscribeKeepScreenAwake(listener) {
   keepScreenAwakeListeners.add(listener);
   return () => keepScreenAwakeListeners.delete(listener);
 }
+
+// v3.112 — second battery-saving preference, same shape as the one above.
+// The reminder alarm (useRodTimerMonitor.js, beep.js) normally plays ONE
+// BEEP PER REMINDER MINUTE (count = timer.reminderMinutes) — a 20-minute
+// reminder beeps 20 times, spaced ~0.8s apart, so roughly 16-18 seconds of
+// continuous Web Audio output; a 60-minute reminder runs for the better
+// part of a minute. That's real, measurable battery/energy cost (the audio
+// output stays active for the whole sequence — see beep.js's own note on
+// the audio clock deliberately running through a locked screen), and it
+// scales with the reminder length with no upper bound. Defaults OFF —
+// unlike keepScreenAwake above, this changes what the reminder actually
+// sounds like, not just a background battery optimization, so existing
+// users keep hearing exactly what they always have unless they opt in.
+const SINGLE_BEEP_ALERT_KEY = "catchcount_single_beep_alert";
+
+let singleBeepAlertListeners = new Set();
+
+export function getSingleBeepAlert() {
+  try {
+    return localStorage.getItem(SINGLE_BEEP_ALERT_KEY) === "true";
+  } catch (e) {
+    return false;
+  }
+}
+
+export function setSingleBeepAlert(value) {
+  try {
+    localStorage.setItem(SINGLE_BEEP_ALERT_KEY, value ? "true" : "false");
+  } catch (e) {
+    console.error("setSingleBeepAlert error:", e);
+  }
+  singleBeepAlertListeners.forEach((l) => l(!!value));
+}
+
+export function subscribeSingleBeepAlert(listener) {
+  singleBeepAlertListeners.add(listener);
+  return () => singleBeepAlertListeners.delete(listener);
+}
