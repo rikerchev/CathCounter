@@ -67,8 +67,9 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
     sessionStore.startRodTimer(rodNumber, reminderMinutes);
     // v3.108 — count this press toward the rod's/session's total casts,
     // regardless of whether a fish ends up landed or the cast is cancelled
-    // (see rodCastRepository.js). Fire-and-forget: a slow/offline write
-    // here must never delay the timer actually starting.
+    // (see rodCastRepository.js). Fire-and-forget: a local write only (no
+    // network call here since v3.111 — see syncEngine.js's
+    // pushPendingRodCasts), so this must never delay the timer starting.
     // v3.109 — tag it with the live session's own start time (just
     // established by startRodTimer above if this is the first rod started
     // since the last closeSession()), so a cast logged in a BRAND-NEW

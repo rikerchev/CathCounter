@@ -5,7 +5,6 @@
 // pure append-only event, never edited or deleted once logged, so there is
 // no update/delete path here.
 import { getAllRodCasts, saveRodCastLocal } from "@/lib/localDb";
-import { pushOnly } from "@/lib/syncEngine";
 
 // v3.109 — sessionStartTime is the LIVE session's own start timestamp
 // (sessionStore.js's state.sessionStartTime — set the moment the very
@@ -16,17 +15,21 @@ import { pushOnly } from "@/lib/syncEngine";
 // sessions.js's assignCastsToSessions() refuse to attribute a cast back to
 // a catch from an earlier, already-closed session — see that function's
 // own comment for the bug this fixes.
+//
+// v3.111 — no longer triggers a sync here (used to call pushOnly() on
+// every press). Casts are low priority and can be dozens per session, so
+// pushing each one the instant it's logged was waking the radio for no
+// real benefit — see syncEngine.js's pushPendingRodCasts(), which now
+// defers all rod-cast pushing until the session is no longer active and
+// picks these up then instead (session close already triggers a
+// pushOnly()/syncAll() in ActiveSession.jsx).
 export async function logRodCast(rod, sessionStartTime) {
-  const saved = await saveRodCastLocal({
+  return saveRodCastLocal({
     rod,
     date: new Date().toISOString(),
     session_start: sessionStartTime ? new Date(sessionStartTime).toISOString() : null,
     _synced: false,
   });
-  // Push-only: fast, no full pull — the handler that calls this (RodTimer's
-  // handleStart) must not wait on the network before the timer starts.
-  pushOnly();
-  return saved;
 }
 
 export async function listRodCastsByUser(userId) {

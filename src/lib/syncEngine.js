@@ -17,6 +17,10 @@ import {
   deleteRodCastLocal,
   mergeRemoteRodCasts
 } from "@/lib/localDb";
+// v3.111 — only used to defer rod-cast pushing until a session is no longer
+// active (see pushPendingRodCasts below). sessionStore.js itself only
+// imports base44Client, so this doesn't create a cycle.
+import { isSessionActive } from "@/lib/sessionStore";
 
 let syncing = false;
 let pendingReRun = false;
@@ -152,7 +156,20 @@ export async function pullRemoteRodCasts() {
   }
 }
 
+// v3.111 — low priority: casts can be dozens per session (every "Старт"
+// press), far more frequent than catches, so pushing them the moment each
+// one is logged wakes the radio for no real benefit — nothing reads this
+// data mid-session anyway (Sessions.jsx is the historical view, not shown
+// while a session is live). Skipped entirely while a session is active, no
+// matter which caller triggered this (pushOnly()/syncAll() from a catch
+// save, the periodic visibility/focus sync, an "online" reconnect, app
+// startup) — not just the removed per-cast call in rodCastRepository.js.
+// sessionStore.closeSession() runs (and sets isSessionActive() back to
+// false) before ActiveSession.jsx's own post-close pushOnly()/syncAll()
+// call, so pending casts still go out right at session close, just never
+// mid-session.
 export async function pushPendingRodCasts() {
+  if (isSessionActive()) return;
   const localCasts = await getAllRodCasts();
   const unsynced = localCasts.filter(c => !c._synced);
 
