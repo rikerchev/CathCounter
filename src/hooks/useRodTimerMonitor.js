@@ -178,15 +178,23 @@ export function useRodTimerMonitor() {
         if (timer.reminderTriggered && !timer.reminderBeepsPlayed) {
           const newlyFired = sessionStore.markReminderTriggered(timer.rodId);
           if (newlyFired) {
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-
+            // v3.113 — vibration removed on request: navigator.vibrate()
+            // only fires on a direct user gesture on most modern mobile
+            // browsers (notably Android Chrome; iOS Safari never supported
+            // it at all), so calling it from this timer-driven callback was
+            // already silently doing nothing on most phones — just spending
+            // CPU on a call that never produced anything. Same reasoning for
+            // the `vibrate` pattern below: once handed to
+            // registration.showNotification(), the OS decides whether to
+            // honor it at all, and in practice it wasn't noticeably firing
+            // either. The beep (above, via the audio clock) and the system
+            // notification itself remain the actual alert.
             showReminderNotification("⏰ Време за презареждане!", {
               body: `Въдица ${timer.rodId}: таймерът изтече (${timer.reminderMinutes} мин).`,
               tag: `catchcount-rod-${timer.rodId}`,
               requireInteraction: true,
               icon: "/icon-192.png",
               badge: "/icon-192.png",
-              vibrate: [200, 100, 200, 100, 200],
             });
 
             // The audio-clock schedule above already produced this exact
