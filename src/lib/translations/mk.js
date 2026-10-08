@@ -735,7 +735,7 @@ export const mk = {
   "adv.uploadLogo": "Прикачи лого",
   "adv.logoUploaded": "Логото е прикачено",
   "adv.uploadError": "Грешка при прикачување",
-  "adv.logoSize": "Големина на лого",
+  "adv.logoSize": "Големина на лого во рекламниот банер",
   "adv.color": "Боја",
   "adv.targetCountries": "Целни земји",
   "adv.allCountries": "Сите достапни земји",

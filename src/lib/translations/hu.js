@@ -735,7 +735,7 @@ export const hu = {
   "adv.uploadLogo": "Logó feltöltése",
   "adv.logoUploaded": "Logó feltöltve",
   "adv.uploadError": "Feltöltési hiba",
-  "adv.logoSize": "Logó mérete",
+  "adv.logoSize": "Logó mérete a hirdetési bannerben",
   "adv.color": "Szín",
   "adv.targetCountries": "Célországok",
   "adv.allCountries": "Összes elérhető ország",

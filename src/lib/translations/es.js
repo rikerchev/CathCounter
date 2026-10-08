@@ -735,7 +735,7 @@ export const es = {
   "adv.uploadLogo": "Subir logo",
   "adv.logoUploaded": "Logo subido",
   "adv.uploadError": "Error al subir",
-  "adv.logoSize": "Tamaño del logo",
+  "adv.logoSize": "Tamaño del logo en el banner publicitario",
   "adv.color": "Color",
   "adv.targetCountries": "Países objetivo",
   "adv.allCountries": "Todos los países disponibles",

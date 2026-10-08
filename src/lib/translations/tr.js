@@ -735,7 +735,7 @@ export const tr = {
   "adv.uploadLogo": "Logo yükle",
   "adv.logoUploaded": "Logo yüklendi",
   "adv.uploadError": "Yükleme hatası",
-  "adv.logoSize": "Logo boyutu",
+  "adv.logoSize": "Reklam bannerındaki logo boyutu",
   "adv.color": "Renk",
   "adv.targetCountries": "Hedef ülkeler",
   "adv.allCountries": "Mevcut tüm ülkeler",

@@ -735,7 +735,7 @@ export const nl = {
   "adv.uploadLogo": "Logo uploaden",
   "adv.logoUploaded": "Logo geüpload",
   "adv.uploadError": "Fout bij uploaden",
-  "adv.logoSize": "Logogrootte",
+  "adv.logoSize": "Logogrootte in de advertentiebanner",
   "adv.color": "Kleur",
   "adv.targetCountries": "Doellanden",
   "adv.allCountries": "Alle beschikbare landen",

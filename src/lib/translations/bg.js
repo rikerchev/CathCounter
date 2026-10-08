@@ -903,7 +903,7 @@ export const bg = {
   "adv.uploadLogo": "Качи лого",
   "adv.logoUploaded": "Логото е качено",
   "adv.uploadError": "Грешка при качване",
-  "adv.logoSize": "Размер на логото",
+  "adv.logoSize": "Размер на логото в рекламния банер",
   "adv.color": "Цвят",
   "adv.targetCountries": "Държави за таргетиране",
   "adv.allCountries": "Всички възможни държави",

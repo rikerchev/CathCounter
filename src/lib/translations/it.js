@@ -735,7 +735,7 @@ export const it = {
   "adv.uploadLogo": "Carica logo",
   "adv.logoUploaded": "Logo caricato",
   "adv.uploadError": "Errore di caricamento",
-  "adv.logoSize": "Dimensione logo",
+  "adv.logoSize": "Dimensione del logo nel banner pubblicitario",
   "adv.color": "Colore",
   "adv.targetCountries": "Paesi target",
   "adv.allCountries": "Tutti i paesi disponibili",

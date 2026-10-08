@@ -735,7 +735,7 @@ export const sr = {
   "adv.uploadLogo": "Otpremi logo",
   "adv.logoUploaded": "Logo otpremljen",
   "adv.uploadError": "Greška pri otpremanju",
-  "adv.logoSize": "Veličina loga",
+  "adv.logoSize": "Veličina loga u reklamnom baneru",
   "adv.color": "Boja",
   "adv.targetCountries": "Ciljne zemlje",
   "adv.allCountries": "Sve dostupne zemlje",

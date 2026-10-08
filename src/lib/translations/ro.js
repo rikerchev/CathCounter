@@ -735,7 +735,7 @@ export const ro = {
   "adv.uploadLogo": "Încarcă logo",
   "adv.logoUploaded": "Logo încărcat",
   "adv.uploadError": "Eroare la încărcare",
-  "adv.logoSize": "Dimensiune logo",
+  "adv.logoSize": "Dimensiunea logo-ului în bannerul publicitar",
   "adv.color": "Culoare",
   "adv.targetCountries": "Țări țintă",
   "adv.allCountries": "Toate țările disponibile",

@@ -735,7 +735,7 @@ export const ru = {
   "adv.uploadLogo": "Загрузить логотип",
   "adv.logoUploaded": "Логотип загружен",
   "adv.uploadError": "Ошибка загрузки",
-  "adv.logoSize": "Размер логотипа",
+  "adv.logoSize": "Размер логотипа в рекламном баннере",
   "adv.color": "Цвет",
   "adv.targetCountries": "Целевые страны",
   "adv.allCountries": "Все доступные страны",

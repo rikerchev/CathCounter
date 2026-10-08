@@ -735,7 +735,7 @@ export const fr = {
   "adv.uploadLogo": "Téléverser le logo",
   "adv.logoUploaded": "Logo téléversé",
   "adv.uploadError": "Erreur de téléversement",
-  "adv.logoSize": "Taille du logo",
+  "adv.logoSize": "Taille du logo dans la bannière publicitaire",
   "adv.color": "Couleur",
   "adv.targetCountries": "Pays ciblés",
   "adv.allCountries": "Tous les pays disponibles",

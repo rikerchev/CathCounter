@@ -735,7 +735,7 @@ export const de = {
   "adv.uploadLogo": "Logo hochladen",
   "adv.logoUploaded": "Logo hochgeladen",
   "adv.uploadError": "Fehler beim Hochladen",
-  "adv.logoSize": "Logogröße",
+  "adv.logoSize": "Logogröße im Werbebanner",
   "adv.color": "Farbe",
   "adv.targetCountries": "Zielländer",
   "adv.allCountries": "Alle verfügbaren Länder",

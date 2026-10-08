@@ -735,7 +735,7 @@ export const cs = {
   "adv.uploadLogo": "Nahrát logo",
   "adv.logoUploaded": "Logo nahráno",
   "adv.uploadError": "Chyba při nahrávání",
-  "adv.logoSize": "Velikost loga",
+  "adv.logoSize": "Velikost loga v reklamním banneru",
   "adv.color": "Barva",
   "adv.targetCountries": "Cílové země",
   "adv.allCountries": "Všechny dostupné země",

@@ -735,7 +735,7 @@ export const pl = {
   "adv.uploadLogo": "Prześlij logo",
   "adv.logoUploaded": "Logo przesłane",
   "adv.uploadError": "Błąd przesyłania",
-  "adv.logoSize": "Rozmiar logo",
+  "adv.logoSize": "Rozmiar logo w banerze reklamowym",
   "adv.color": "Kolor",
   "adv.targetCountries": "Kraje docelowe",
   "adv.allCountries": "Wszystkie dostępne kraje",

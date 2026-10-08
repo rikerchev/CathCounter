@@ -907,7 +907,7 @@ export const en = {
   "adv.uploadLogo": "Upload logo",
   "adv.logoUploaded": "Logo uploaded",
   "adv.uploadError": "Upload error",
-  "adv.logoSize": "Logo size",
+  "adv.logoSize": "Logo size in the ad banner",
   "adv.color": "Color",
   "adv.targetCountries": "Target countries",
   "adv.allCountries": "All available countries",

@@ -735,7 +735,7 @@ export const uk = {
   "adv.uploadLogo": "Завантажити логотип",
   "adv.logoUploaded": "Логотип завантажено",
   "adv.uploadError": "Помилка завантаження",
-  "adv.logoSize": "Розмір логотипа",
+  "adv.logoSize": "Розмір логотипа в рекламному банері",
   "adv.color": "Колір",
   "adv.targetCountries": "Цільові країни",
   "adv.allCountries": "Усі доступні країни",
