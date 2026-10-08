@@ -361,7 +361,13 @@ export default function AdBannerItem({ ad, userCountry, eligibleMerchantKeys }) 
         </div>
       )}
       <div className="flex-1 min-w-0 text-center">
-        <p className={`${size.title} font-bold ${ad.text_class || "text-white"} truncate`}>
+        {/* v3.115 — was `truncate` (forces a single line + "..."), which cut
+            off a longer venue/merchant name on a narrow phone screen before
+            the user could read all of it. Now wraps onto up to 2 lines
+            instead (line-clamp-2 — only a name long enough to still overflow
+            THAT gets an ellipsis) — the banner row simply grows a little
+            taller for those names, since nothing here fixes its height. */}
+        <p className={`${size.title} font-bold ${ad.text_class || "text-white"} line-clamp-2 break-words`}>
           {displayTitle}
         </p>
         {displayDescription && (

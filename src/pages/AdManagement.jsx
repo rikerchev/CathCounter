@@ -214,7 +214,11 @@ function PreviewBanner({ ad, isPlaceholder, onEdit, t }) {
           </div>
         )}
         <div className="flex-1 min-w-0 text-center">
-          <p className={`${size.title} font-bold ${ad.text_class || "text-white"} truncate`}>{title}</p>
+          {/* v3.115 — matches AdBannerItem.jsx's live rendering: a long
+              name now wraps up to 2 lines here too, instead of this preview
+              showing it truncated to one line while the real banner (once
+              this same change landed there) would have wrapped it. */}
+          <p className={`${size.title} font-bold ${ad.text_class || "text-white"} line-clamp-2 break-words`}>{title}</p>
           {description && (
             <p className={`${size.desc} ${ad.text_class || "text-white"} opacity-90 truncate`}>{description}</p>
           )}
