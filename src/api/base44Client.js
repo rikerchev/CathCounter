@@ -9,6 +9,11 @@
 // URL needs to be configured at all. Set VITE_API_URL only if the API is
 // ever hosted on a different origin (e.g. the optional standalone
 // server/main.ts running elsewhere).
+
+// v3.117 — only used by auth.loginWithProvider below, to forward a pending
+// referral/merchant code into the Google OAuth redirect.
+import { getPendingReferralCode, getPendingMerchantCode } from "@/lib/referral";
+
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const TOKEN_KEY = "token";
 
@@ -197,6 +202,15 @@ export const base44 = {
     loginWithProvider: (provider, returnTo) => {
       if (provider !== "google") throw new Error(`Unsupported provider: ${provider}`);
       const params = new URLSearchParams({ returnTo: returnTo || "/" });
+      // v3.117 — carry any pending peer-invite (?ref=) or merchant-brochure
+      // (?merchant=) code into the OAuth round trip, same as Register.jsx's
+      // email/password payload does — see server/routes/auth.ts's google
+      // initiate/callback handlers (they bundle these into `state`, since a
+      // GET redirect has no request body) and resolveReferralLabel().
+      const refCode = getPendingReferralCode();
+      const merchantCode = getPendingMerchantCode();
+      if (refCode) params.set("ref", refCode);
+      if (merchantCode) params.set("merchant", merchantCode);
       window.location.href = `${API_BASE}/api/auth/google?${params.toString()}`;
     },
     register: (payload) => apiFetch("/api/auth/register", { method: "POST", body: payload }),

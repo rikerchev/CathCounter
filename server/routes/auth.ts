@@ -8,6 +8,7 @@ import { sendEmail } from "../lib/email.js";
 import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../lib/googleOAuth.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
+import { findRoleGroupId, DEFAULT_GROUP_KEY } from "../lib/roleGroups.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -91,10 +92,11 @@ async function trySendEmail(opts: Parameters<typeof sendEmail>[0]) {
   }
 }
 
-// v3.03 — shared by both notifyAdminsOfNewUser and (v3.05)
-// notifyAdminsOfPhoneAdded below. Queried fresh each time (not cached) so a
-// role change takes effect immediately, same reasoning as
-// getUserFromRequest. Best-effort only — never blocks the caller's real work.
+// v3.03 — used by notifyAdminsOfNewUser below (v3.117: used to also be
+// shared with notifyAdminsOfPhoneAdded, since removed — see that function's
+// replacement comment). Queried fresh each time (not cached) so a role
+// change takes effect immediately, same reasoning as getUserFromRequest.
+// Best-effort only — never blocks the caller's real work.
 async function notifyAdmins(subject: string, html: string): Promise<void> {
   try {
     const admins = await sql<{ email: string }[]>`
@@ -112,36 +114,71 @@ async function notifyAdmins(subject: string, html: string): Promise<void> {
 // admin account (via either `role` or `roles`, same check as isAdmin())
 // gets an email whenever someone new registers or signs in with Google for
 // the first time.
+//
+// v3.117 — the site owner asked to drop the SEPARATE "user added a phone
+// number" email (notifyAdminsOfPhoneAdded, removed below) — every new
+// account has to add one anyway (required at registration, or forced
+// through PhoneGate.jsx right after a first Google sign-in), so a second
+// email just for that was pure noise. What they actually wanted surfaced
+// here instead: `referredBy`, an optional ready-made line naming whose
+// invite link or merchant QR/brochure the new account came in through (see
+// resolveReferralLabel() below) — resolved once, at registration time, and
+// folded into this one single email rather than needing a second message
+// later.
 async function notifyAdminsOfNewUser(newUser: {
   email: string;
   full_name?: string | null;
   phone?: string | null;
+  referredBy?: string | null;
 }): Promise<void> {
   const who = newUser.full_name ? `${newUser.full_name} (${newUser.email})` : newUser.email;
   const phoneLine = newUser.phone ? `<p><b>Телефон:</b> ${newUser.phone}</p>` : "";
+  const referredByLine = newUser.referredBy ? `<p><b>Регистриран чрез:</b> ${newUser.referredBy}</p>` : "";
   await notifyAdmins(
     "Нов потребител в CatchCount",
-    `<p>Регистрира се нов потребител: <b>${who}</b>.</p>${phoneLine}`,
+    `<p>Регистрира се нов потребител: <b>${who}</b>.</p>${phoneLine}${referredByLine}`,
   );
 }
 
-// v3.05 — a Google sign-in has no phone of its own (see google/callback
-// below), and every account created before v3.03 has none either, so
-// notifyAdminsOfNewUser above never got a phone for those. PhoneGate.jsx now
-// requires every such account to supply one before using the rest of the
-// app, so this fires the moment that first happens (PUT /api/auth/me,
-// below) — the site owner's "send me the phone" request, closed for these
-// accounts too, not just the ones that had a phone at registration.
-async function notifyAdminsOfPhoneAdded(u: {
-  email: string;
-  full_name?: string | null;
-  phone: string;
-}): Promise<void> {
-  const who = u.full_name ? `${u.full_name} (${u.email})` : u.email;
-  await notifyAdmins(
-    "Потребител добави телефон в CatchCount",
-    `<p>Потребителят <b>${who}</b> въведе телефонен номер: <b>${u.phone}</b>.</p>`,
-  );
+// v3.117 — resolves a pending ?ref=<userId> (peer invite) or
+// ?merchant=<type:id> (printed brochure/QR) code into a human-readable
+// label for the SINGLE "new user" email above — a read-only lookup, not a
+// redemption: the real redemption (bonus-granting, "already used"/24h
+// checks) still happens entirely separately, via POST /api/referrals/redeem
+// or /api/merchant-referrals/redeem (src/lib/AuthContext.jsx, right after
+// login) — so this label can legitimately say "came in via X's invite" even
+// on the rare request where the real redemption later fails (e.g. the
+// invite turns out to already be used) — the person genuinely did follow
+// that link, which is exactly what the site owner asked to see. Returns
+// null when neither code is present or resolves to anything real, so the
+// caller just omits the line.
+async function resolveReferralLabel(opts: { ref?: string | null; merchant?: string | null }): Promise<string | null> {
+  const ref = opts.ref ? String(opts.ref).trim() : "";
+  const merchant = opts.merchant ? String(opts.merchant).trim() : "";
+  try {
+    if (ref) {
+      const rows = await sql<{ full_name: string | null; email: string }[]>`
+        SELECT full_name, email FROM users WHERE id = ${ref}
+      `;
+      if (rows.length) {
+        return `покана на ${rows[0].full_name || rows[0].email}`;
+      }
+    }
+    if (merchant) {
+      const [type, id] = merchant.split(":");
+      if (id && (type === "venue" || type === "water_body")) {
+        const rows = type === "venue"
+          ? await sql<{ name: string | null }[]>`SELECT name FROM venues WHERE id = ${id}`
+          : await sql<{ name: string | null }[]>`SELECT name FROM water_bodies WHERE id = ${id}`;
+        if (rows.length && rows[0].name) {
+          return `брошура/QR на ${rows[0].name}`;
+        }
+      }
+    }
+  } catch (e) {
+    console.error("resolveReferralLabel error:", e);
+  }
+  return null;
 }
 
 // v3.03 — insert a freshly registering account, tolerating either or both of
@@ -173,13 +210,14 @@ async function insertNewUser(opts: {
   phone: string;
   role: string;
   verified: boolean;
+  menu_group_id?: string | null;
 }): Promise<AuthUser> {
-  const { email, passwordHash, full_name, phone, role, verified } = opts;
+  const { email, passwordHash, full_name, phone, role, verified, menu_group_id = null } = opts;
   const roles = [role];
   try {
     const rows = await sql<AuthUser[]>`
-      INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified, terms_accepted_at)
-      VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified}, now())
+      INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified, terms_accepted_at, menu_group_id)
+      VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified}, now(), ${menu_group_id})
       RETURNING *
     `;
     return rows[0];
@@ -187,16 +225,16 @@ async function insertNewUser(opts: {
     if (e instanceof Error && /phone/.test(e.message)) {
       try {
         const rows = await sql<AuthUser[]>`
-          INSERT INTO users (email, password_hash, full_name, role, roles, email_verified, terms_accepted_at)
-          VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified}, now())
+          INSERT INTO users (email, password_hash, full_name, role, roles, email_verified, terms_accepted_at, menu_group_id)
+          VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified}, now(), ${menu_group_id})
           RETURNING *
         `;
         return rows[0];
       } catch (e2) {
         if (e2 instanceof Error && /terms_accepted_at/.test(e2.message)) {
           const rows = await sql<AuthUser[]>`
-            INSERT INTO users (email, password_hash, full_name, role, roles, email_verified)
-            VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified})
+            INSERT INTO users (email, password_hash, full_name, role, roles, email_verified, menu_group_id)
+            VALUES (${email}, ${passwordHash}, ${full_name}, ${role}, ${roles}, ${verified}, ${menu_group_id})
             RETURNING *
           `;
           return rows[0];
@@ -206,8 +244,8 @@ async function insertNewUser(opts: {
     }
     if (e instanceof Error && /terms_accepted_at/.test(e.message)) {
       const rows = await sql<AuthUser[]>`
-        INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified)
-        VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified})
+        INSERT INTO users (email, password_hash, full_name, phone, role, roles, email_verified, menu_group_id)
+        VALUES (${email}, ${passwordHash}, ${full_name}, ${phone}, ${role}, ${roles}, ${verified}, ${menu_group_id})
         RETURNING *
       `;
       return rows[0];
@@ -226,7 +264,15 @@ export async function handleAuthRoute(
 
   // ---- POST /api/auth/register { email, password, acceptedTerms, full_name, phone } ----
   if (action === "register" && req.method === "POST") {
-    const { email, password, acceptedTerms, full_name, phone } = await req.json();
+    // v3.117 — `ref`/`merchant`: the SAME pending ?ref=/?merchant= code
+    // Register.jsx already has sitting in sessionStorage (see
+    // src/lib/referral.js) at the moment this form is submitted, sent along
+    // here purely so the new-user email below can say who/what the account
+    // came in through. Optional and read-only here — see
+    // resolveReferralLabel()'s own comment for why this never touches
+    // actual redemption (that still happens straight after login, via
+    // src/lib/AuthContext.jsx).
+    const { email, password, acceptedTerms, full_name, phone, ref, merchant } = await req.json();
     if (!email || !password) return json({ error: "Missing email or password" }, 400);
     // v2.98 — the checkbox is required client-side too (Register.jsx), this
     // is the actual enforcement. A Google sign-in has no registration form
@@ -276,6 +322,13 @@ export async function handleAuthRoute(
     // one-time code emailed to them before they can log in (issueOtp +
     // trySendEmail + `return json({ success: true })` below, mirroring the
     // "existing unverified account" branch above it).
+    // v3.117 — every brand-new account starts in the shared "Потребители"
+    // system group instead of ungrouped (see server/lib/roleGroups.ts) —
+    // best-effort: findRoleGroupId() already returns null on its own if the
+    // migration creating that group hasn't been applied yet, which
+    // insertNewUser below treats exactly like "no group", same as before
+    // this existed.
+    const menuGroupId = await findRoleGroupId(DEFAULT_GROUP_KEY);
     const u = await insertNewUser({
       email,
       passwordHash,
@@ -283,10 +336,12 @@ export async function handleAuthRoute(
       phone: String(phone).trim(),
       role: first ? "admin" : "user",
       verified: first,
+      menu_group_id: menuGroupId,
     });
 
     // Best-effort, never blocks registration — see notifyAdminsOfNewUser.
-    void notifyAdminsOfNewUser({ email: u.email, full_name: u.full_name, phone: u.phone });
+    const referredBy = await resolveReferralLabel({ ref, merchant });
+    void notifyAdminsOfNewUser({ email: u.email, full_name: u.full_name, phone: u.phone, referredBy });
 
     if (first) {
       const token = signToken({ sub: u.id, email: u.email, role: u.role });
@@ -349,19 +404,47 @@ export async function handleAuthRoute(
     return json({ access_token: token, user: publicUser(u) });
   }
 
-  // ---- GET /api/auth/google?returnTo=... -> redirect to Google ----
+  // ---- GET /api/auth/google?returnTo=...&ref=...&merchant=... -> redirect to Google ----
+  // v3.117 — `ref`/`merchant` (optional): the same pending referral/merchant
+  // codes the email/password register handler above now accepts, carried
+  // through the OAuth round trip inside `state` (there's no request BODY on
+  // a GET redirect, and the client-side sessionStorage copy in
+  // src/lib/referral.js isn't readable from this server-side callback) —
+  // see src/api/base44Client.js's loginWithProvider() for where these are
+  // actually attached. Bundled as JSON rather than just appending more
+  // characters to the bare path `state` used to be, so the callback below
+  // can tell all three apart again after the trip through Google and back.
   if (action === "google" && !path[1] && req.method === "GET") {
     if (!(await isGoogleConfigured())) return json({ error: "Google login not configured" }, 501);
     const returnTo = url.searchParams.get("returnTo") || "/";
-    const state = encodeURIComponent(returnTo);
+    const ref = url.searchParams.get("ref") || null;
+    const merchant = url.searchParams.get("merchant") || null;
+    const state = encodeURIComponent(JSON.stringify({ returnTo, ref, merchant }));
     return redirect(await buildGoogleAuthUrl(state));
   }
 
   // ---- GET /api/auth/google/callback?code=...&state=... ----
   if (action === "google" && path[1] === "callback" && req.method === "GET") {
     const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state") || "/";
+    const rawState = url.searchParams.get("state") || "/";
     if (!code) return json({ error: "Missing code" }, 400);
+
+    // v3.117 — `rawState` is JSON (see the initiate handler just above) for
+    // every flow started after this version; falls back to treating it as
+    // a bare path for the rare flow already mid-flight exactly at deploy
+    // time (the old shape), so an in-progress sign-in never breaks over a
+    // code deploy landing between the two requests.
+    let returnTo = "/";
+    let ref: string | null = null;
+    let merchant: string | null = null;
+    try {
+      const decoded = JSON.parse(decodeURIComponent(rawState));
+      returnTo = decoded?.returnTo || "/";
+      ref = decoded?.ref || null;
+      merchant = decoded?.merchant || null;
+    } catch {
+      returnTo = decodeURIComponent(rawState);
+    }
 
     const profile = await exchangeGoogleCode(code);
     let rows = await sql<AuthUser[]>`SELECT * FROM users WHERE google_id = ${profile.sub}`;
@@ -375,13 +458,16 @@ export async function handleAuthRoute(
       } else {
         const first = await isFirstUser();
         const googleRole = first ? "admin" : "user";
+        // v3.117 — same starting system group as the email/password path
+        // (insertNewUser() above) — see server/lib/roleGroups.ts.
+        const menuGroupId = await findRoleGroupId(DEFAULT_GROUP_KEY);
         // v3.59 — see insertNewUser()'s own comment above: mirror the
         // starting role into roles[] here too, so a brand-new Google
         // sign-up gets the exact same treatment as one through the
         // email/password form just above.
         rows = await sql<AuthUser[]>`
-          INSERT INTO users (email, google_id, full_name, role, roles, email_verified)
-          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${googleRole}, ${[googleRole]}, TRUE)
+          INSERT INTO users (email, google_id, full_name, role, roles, email_verified, menu_group_id)
+          VALUES (${profile.email}, ${profile.sub}, ${profile.name ?? null}, ${googleRole}, ${[googleRole]}, TRUE, ${menuGroupId})
           RETURNING *
         `;
         // v3.03 — a Google sign-in has no registration form of its own to
@@ -390,7 +476,10 @@ export async function handleAuthRoute(
         // new account this way still counts as "a new user" for the site
         // owner's admin-notification request, same as the email/password
         // path above.
-        void notifyAdminsOfNewUser({ email: rows[0].email, full_name: rows[0].full_name, phone: null });
+        // v3.117 — `referredBy` resolved from the ref/merchant carried
+        // through `state` above — see resolveReferralLabel()'s own comment.
+        const referredBy = await resolveReferralLabel({ ref, merchant });
+        void notifyAdminsOfNewUser({ email: rows[0].email, full_name: rows[0].full_name, phone: null, referredBy });
       }
     }
     const u = rows[0];
@@ -399,7 +488,7 @@ export async function handleAuthRoute(
     // Full-page browser redirect back to the SPA; the frontend's base44Client
     // shim reads the token from the URL fragment and stores it (mirrors how
     // base44's own `access_token=` URL param + app-params.js bootstrap worked).
-    const dest = new URL(decodeURIComponent(state), env.PUBLIC_APP_URL);
+    const dest = new URL(returnTo, env.PUBLIC_APP_URL);
     dest.hash = `access_token=${token}`;
     return redirect(dest.toString());
   }
@@ -463,16 +552,15 @@ export async function handleAuthRoute(
     for (const k of allowed) if (k in patch) set[k] = patch[k];
     set.updated_at = new Date();
     const keys = Object.keys(set);
-    // v3.05 — captured before the UPDATE so we can tell "just added a phone
-    // for the first time" apart from "changed an existing phone" below.
-    const hadNoPhone = !user.phone;
+    // v3.117 — this used to also fire a separate "user added a phone number"
+    // admin email the first time `hadNoPhone` flipped to having one (see
+    // notifyAdminsOfPhoneAdded, removed — every new user has to set a phone
+    // anyway, so that second email was pure noise next to the one real
+    // "new user registered" email below).
     try {
       const rows = await sql<AuthUser[]>`
         UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
       `;
-      if (hadNoPhone && "phone" in set && rows[0].phone) {
-        void notifyAdminsOfPhoneAdded({ email: rows[0].email, full_name: rows[0].full_name, phone: rows[0].phone });
-      }
       return json(publicUser(rows[0]));
     } catch (e) {
       // v3.03 migration not applied yet — retry without "phone" rather than

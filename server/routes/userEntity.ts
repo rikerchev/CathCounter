@@ -1,7 +1,7 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
-import { ROLE_GROUP_KEYS, findRoleGroupId } from "../lib/roleGroups.js";
+import { ROLE_GROUP_KEYS, findRoleGroupId, DEFAULT_GROUP_KEY } from "../lib/roleGroups.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -110,19 +110,35 @@ export async function handleUserEntityRoute(
     // AdminTraders, AdminWaterBodies, AdminUsers' per-role toggle) goes
     // through this exact endpoint, so hooking it here once covers all of
     // them — current and future.
+    //
+    // v3.117 — "has no group of its own yet" now also covers an account
+    // still sitting in the default "user" system group (every new
+    // registration starts there — see insertNewUser()/the Google-callback
+    // insert in routes/auth.ts), not just a bare NULL. Without this, the
+    // very feature that gave every new account a starting group would have
+    // silently defeated this whole auto-promotion block: `before.menu_
+    // group_id` would never again be null for anyone, so nobody newly
+    // approved as a Рекламодател/Търговец would ever get moved into THAT
+    // role's own group automatically. An account in any OTHER, non-default
+    // group (an admin's own manual pick, or an earlier role's group) still
+    // correctly blocks this, exactly as before.
     if (Array.isArray(payload.roles) && !("menu_group_id" in body)) {
       const beforeRows = await sql<{ roles: string[] | null; role: string | null; menu_group_id: string | null }[]>`
         SELECT roles, role, menu_group_id FROM users WHERE id = ${sub}
       `;
       const before = beforeRows[0];
-      if (before && !before.menu_group_id) {
-        const beforeRoles = new Set(before.roles ?? []);
-        if (before.role) beforeRoles.add(before.role);
-        const incomingRoles = payload.roles as string[];
-        const newlyGranted = ROLE_GROUP_KEYS.find((r) => incomingRoles.includes(r) && !beforeRoles.has(r));
-        if (newlyGranted) {
-          const groupId = await findRoleGroupId(newlyGranted);
-          if (groupId) payload.menu_group_id = groupId;
+      if (before) {
+        const defaultUserGroupId = await findRoleGroupId(DEFAULT_GROUP_KEY);
+        const stillInDefaultGroup = !before.menu_group_id || before.menu_group_id === defaultUserGroupId;
+        if (stillInDefaultGroup) {
+          const beforeRoles = new Set(before.roles ?? []);
+          if (before.role) beforeRoles.add(before.role);
+          const incomingRoles = payload.roles as string[];
+          const newlyGranted = ROLE_GROUP_KEYS.find((r) => incomingRoles.includes(r) && !beforeRoles.has(r));
+          if (newlyGranted) {
+            const groupId = await findRoleGroupId(newlyGranted);
+            if (groupId) payload.menu_group_id = groupId;
+          }
         }
       }
     }

@@ -11,6 +11,12 @@ import GoogleIcon from "@/components/GoogleIcon";
 import { toast } from "@/components/ui/use-toast";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+// v3.117 — any pending peer-invite (?ref=) or merchant-brochure (?merchant=)
+// code sitting in sessionStorage (captured on first page load — see
+// AuthContext.jsx's app-wide capture calls), sent along with registration
+// purely so the admin's "new user" email can say who/what the account came
+// in through. Actual redemption is unrelated and still happens after login.
+import { getPendingReferralCode, getPendingMerchantCode } from "@/lib/referral";
 
 // v3.60 — this page (unlike Login.jsx) doesn't go through the translation
 // system at all — every string here is already hardcoded Bulgarian — so
@@ -58,6 +64,8 @@ export default function Register() {
         email, password, acceptedTerms,
         full_name: fullName.trim(),
         phone: phone.trim(),
+        ref: getPendingReferralCode(),
+        merchant: getPendingMerchantCode(),
       });
       if (result?.access_token) {
         // First account on a freshly set up database — created as admin

@@ -41,10 +41,33 @@ const BASELINE_MENU_ITEMS = BASELINE_PATHS.join(", ");
 export const ROLE_GROUP_KEYS = ["water_owner", "advertiser"] as const;
 export type RoleGroupKey = (typeof ROLE_GROUP_KEYS)[number];
 
+// v3.117 — a THIRD system group, "user" ("Потребители"): every brand-new
+// registration (see insertNewUser()/the Google-callback insert in
+// routes/auth.ts) is now assigned here at creation time, instead of
+// starting ungrouped (menu_group_id = NULL). Unlike water_owner/advertiser
+// above, this one is never reached through the "newly granted role" path in
+// routes/userEntity.ts — every account already "has" the implicit "user"
+// role from the moment it exists, there's no approval/grant event for it —
+// so it's deliberately kept OUT of ROLE_GROUP_KEYS (which that file's
+// newly-granted-role detection loops over) and is instead applied directly
+// at the two account-creation sites. Same starting menu list as the other
+// two (BASELINE_MENU_ITEMS) — so, like them, assigning it changes nothing
+// about what a new account can actually see; it only gives the admin one
+// shared group (Admin → Потребители → Групи) to manage every ordinary
+// user's menu access at once, instead of none at all.
+export const DEFAULT_GROUP_KEY = "user" as const;
+export type GroupKey = RoleGroupKey | typeof DEFAULT_GROUP_KEY;
+
 export const ROLE_GROUP_DEFAULTS: Record<
-  RoleGroupKey,
+  GroupKey,
   { name: string; description: string; menuItems: string }
 > = {
+  user: {
+    name: "Потребители",
+    description:
+      "Автоматична група за всеки нов регистриран потребител (v3.117). Стартира с точно същия достъп, който вече вижда всеки обикновен потребител — добавете или махнете менюта тук само за тази група, важи за всички наведнъж. Акаунт, повишен до Рекламодател или Търговец, автоматично напуска тази група и преминава в своята собствена.",
+    menuItems: BASELINE_MENU_ITEMS,
+  },
   water_owner: {
     name: "Търговци (собственици на водоеми)",
     description:
@@ -59,14 +82,15 @@ export const ROLE_GROUP_DEFAULTS: Record<
   },
 };
 
-// Looks up the system menu_groups row for this role (created by the
-// "v3.29-role-menu-groups" admin migration). If that migration hasn't been
-// applied yet on this database (role_key column doesn't exist), or the
-// lookup fails for any other reason, returns null so the caller just skips
-// auto-assignment instead of failing the request that's granting the role —
-// the same best-effort, never-block-the-real-action pattern as
+// Looks up the system menu_groups row for this role/group key (created by
+// the "v3.29-role-menu-groups" admin migration for water_owner/advertiser,
+// and "v3.117-default-user-group" for "user"). If the relevant migration
+// hasn't been applied yet on this database (role_key column doesn't exist),
+// or the lookup fails for any other reason, returns null so the caller just
+// skips auto-assignment instead of failing the request that's granting the
+// role — the same best-effort, never-block-the-real-action pattern as
 // withSafeColumns() in routes/userEntity.ts.
-export async function findRoleGroupId(roleKey: RoleGroupKey): Promise<string | null> {
+export async function findRoleGroupId(roleKey: GroupKey): Promise<string | null> {
   try {
     const rows = await sql<{ id: string }[]>`SELECT id FROM menu_groups WHERE role_key = ${roleKey}`;
     return rows[0]?.id ?? null;

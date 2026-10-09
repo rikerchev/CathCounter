@@ -1,7 +1,7 @@
 import { sql } from "../db.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
-import { ROLE_GROUP_DEFAULTS } from "../lib/roleGroups.js";
+import { ROLE_GROUP_DEFAULTS, ROLE_GROUP_KEYS } from "../lib/roleGroups.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -325,7 +325,17 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       // Seed the two system groups (see server/lib/roleGroups.ts for what
       // they start out with, and why). ON CONFLICT DO NOTHING: safe to
       // click again, never overwrites an admin's own edits to either group.
-      for (const [roleKey, def] of Object.entries(ROLE_GROUP_DEFAULTS)) {
+      //
+      // v3.117 — deliberately loops over ROLE_GROUP_KEYS here, NOT
+      // Object.entries(ROLE_GROUP_DEFAULTS): that object now also has a
+      // third "user" entry (see roleGroups.ts), but THIS migration's own
+      // ADD COLUMN above still only widens the CHECK constraint to
+      // ('water_owner', 'advertiser') — inserting role_key='user' here
+      // would violate it. The "user" group is seeded by its own
+      // "v3.117-default-user-group" migration below instead, which widens
+      // the constraint first.
+      for (const roleKey of ROLE_GROUP_KEYS) {
+        const def = ROLE_GROUP_DEFAULTS[roleKey];
         // role_key's unique index is PARTIAL (WHERE role_key IS NOT NULL,
         // since every ordinary admin-created group has role_key = NULL and
         // those must never conflict with each other). Postgres only infers
@@ -466,6 +476,52 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       // it a hard lower bound: a cast can never attach to a catch that
       // predates the live session it was actually cast in.
       await sql.unsafe(`ALTER TABLE rod_casts ADD COLUMN IF NOT EXISTS session_start TEXT`);
+    },
+  },
+  "v3.117-default-user-group": {
+    label: "v3.117 — Автоматична група „Потребители\" за нови регистрации",
+    run: async () => {
+      // v3.29's role_key column only allowed 'water_owner'/'advertiser' in
+      // its CHECK constraint — widen it to also allow 'user' before the
+      // INSERT below. The constraint's exact name is looked up dynamically
+      // (Postgres auto-names an inline-ADD-COLUMN CHECK, so hardcoding a
+      // guessed name here would be fragile) rather than assumed — safe to
+      // re-run, it just drops and recreates the same constraint each time.
+      await sql.unsafe(`
+        DO $$
+        DECLARE
+          con text;
+        BEGIN
+          SELECT conname INTO con
+          FROM pg_constraint
+          WHERE conrelid = 'menu_groups'::regclass
+            AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%role_key%';
+          IF con IS NOT NULL THEN
+            EXECUTE format('ALTER TABLE menu_groups DROP CONSTRAINT %I', con);
+          END IF;
+          EXECUTE 'ALTER TABLE menu_groups ADD CONSTRAINT menu_groups_role_key_check CHECK (role_key IN (''water_owner'', ''advertiser'', ''user''))';
+        END $$;
+      `);
+      // Seed the system "Потребители" group (see server/lib/roleGroups.ts's
+      // ROLE_GROUP_DEFAULTS.user for its starting name/description/menu
+      // list) — same ON CONFLICT DO NOTHING pattern as v3.29's own seeding
+      // above it, so clicking this again never overwrites an admin's own
+      // edits to the group once it exists.
+      //
+      // Deliberately NO backfill of existing accounts here (unlike v3.29's
+      // water_owner/advertiser backfill): the user's own request was to
+      // group every NEW registration going forward, not to retroactively
+      // move every already-existing plain account into a group it never
+      // had — that's a separate decision the admin can make later by hand
+      // if ever wanted (Admin → Потребители → Групи already lets a group
+      // be assigned to any existing account manually).
+      const def = ROLE_GROUP_DEFAULTS.user;
+      await sql`
+        INSERT INTO menu_groups (name, description, menu_items, status, role_key)
+        VALUES (${def.name}, ${def.description}, ${def.menuItems}, 'active', 'user')
+        ON CONFLICT (role_key) WHERE role_key IS NOT NULL DO NOTHING
+      `;
     },
   },
 };
@@ -732,6 +788,16 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'rod_casts' AND column_name = 'session_start'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.117-default-user-group") {
+        try {
+          const rows = await sql<{ n: number }[]>`
+            SELECT COUNT(*)::int AS n FROM menu_groups WHERE role_key = 'user'
+          `;
+          applied = (rows[0]?.n ?? 0) >= 1;
+        } catch {
+          applied = false; // role_key column doesn't exist yet
+        }
       }
       out[id] = { label: m.label, applied };
     }
