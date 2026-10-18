@@ -281,17 +281,6 @@ export async function syncAll() {
       console.error("pushPendingPhotos error:", e);
     }
 
-    // 2a. v3.119 — catches logged offline were saved with their coordinates
-    // as the location text; now that we're online, look up the real place
-    // name (same idea as the photo upload just above). Marks them unsynced so
-    // 2b below sends the corrected name.
-    try {
-      const { resolvePendingLocationNames } = await import("@/lib/locationNames");
-      await resolvePendingLocationNames();
-    } catch (e) {
-      console.error("resolvePendingLocationNames error:", e);
-    }
-
     // 2b. Push catches that got photo_url from photo uploads (pushOnly was blocked by syncing flag)
     await pushPendingCatches();
 
@@ -312,8 +301,25 @@ export async function syncAll() {
       // A syncAll() that gets superseded here also needs the retry to be a
       // real syncAll(), not a lighter pushOnly() that skips photos.
       syncAll();
+    } else {
+      resolveLocationNamesInBackground();
     }
   }
+}
+
+// v3.119/v3.120/v3.123 — catches logged offline carry only their coordinates
+// as the location text, and none carries a water body name until it has been
+// looked up. Done AFTER the sync has finished and never awaited by it: the
+// lookups are slow, third-party (Nominatim / Overpass) and can fail, and in
+// v3.120-v3.122 they ran inside syncAll() so a slow or failing lookup kept
+// the "Синхронизиране..." pill up and held every other sync back. Any catch
+// that gets a name is marked unsynced by locationNames.js, and pushed here.
+function resolveLocationNamesInBackground() {
+  if (!isOnline) return;
+  import("@/lib/locationNames")
+    .then(({ resolvePendingLocationNames }) => resolvePendingLocationNames())
+    .then((updated) => { if (updated > 0) pushOnly(); })
+    .catch((e) => console.error("resolvePendingLocationNames error:", e));
 }
 
 // v3.79 — safety net for the case the "online" event alone doesn't cover:

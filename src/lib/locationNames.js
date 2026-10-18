@@ -30,6 +30,27 @@ const LAST_USER_KEY = "catchcount_last_local_user_id";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// v3.123 — this runs in the BACKGROUND after a sync (see syncEngine.js); it
+// must never be able to hold anything up or hammer the lookup services:
+//  - one run at a time, at most one run every RUN_GAP_MS;
+//  - a hard time budget per run;
+//  - after a failed ("error") lookup, no further lookups for ERROR_BACKOFF_MS
+//    (offline, rate-limited, or the service is down — retrying immediately
+//    only makes it worse).
+const RUN_GAP_MS = 2 * 60 * 1000;
+const RUN_BUDGET_MS = 25 * 1000;
+const ERROR_BACKOFF_MS = 15 * 60 * 1000;
+const BACKOFF_KEY = "locationLookupBackoffUntil";
+let running = false;
+let lastRunAt = 0;
+
+function inBackoff() {
+  try { return Date.now() < Number(localStorage.getItem(BACKOFF_KEY) || 0); } catch { return false; }
+}
+function startBackoff() {
+  try { localStorage.setItem(BACKOFF_KEY, String(Date.now() + ERROR_BACKOFF_MS)); } catch { /* ignore */ }
+}
+
 function readEmptyMap() {
   try {
     const parsed = JSON.parse(localStorage.getItem(EMPTY_KEY) || "{}");
@@ -63,6 +84,10 @@ const needsWater = (c) => !(typeof c.water_name === "string" && c.water_name.tri
  * Returns how many catches were updated. Never throws.
  */
 export async function resolvePendingLocationNames() {
+  if (running || inBackoff() || Date.now() - lastRunAt < RUN_GAP_MS) return 0;
+  running = true;
+  lastRunAt = Date.now();
+  const startedAt = Date.now();
   try {
     const userId = currentUserId();
     const lang = currentLang();
@@ -106,13 +131,13 @@ export async function resolvePendingLocationNames() {
     let handled = 0;
     let offline = false;
     for (const [key, spot] of spots) {
-      if (handled >= MAX_SPOTS_PER_RUN || offline) break;
+      if (handled >= MAX_SPOTS_PER_RUN || offline || Date.now() - startedAt > RUN_BUDGET_MS) break;
       handled += 1;
       const found = {};
       if (spot.label) {
         if (requests++ > 0) await sleep(REQUEST_GAP_MS);
         const r = await lookupPlaceName(spot.coords.lat, spot.coords.lng, lang);
-        if (r.status === "error") { offline = true; break; }
+        if (r.status === "error") { offline = true; startBackoff(); break; }
         if (r.status === "ok") found.label = r.name; else emptyMap[`label:${key}`] = now;
       }
       if (spot.water) {
@@ -121,6 +146,7 @@ export async function resolvePendingLocationNames() {
         // Overpass being down must not block the place names found above.
         if (r.status === "ok") found.water = r.name;
         else if (r.status === "empty") emptyMap[`water:${key}`] = now;
+        else startBackoff(); // "error": stop asking for a while
       }
       results.set(key, found);
     }
@@ -153,5 +179,7 @@ export async function resolvePendingLocationNames() {
   } catch (e) {
     console.error("resolvePendingLocationNames error:", e);
     return 0;
+  } finally {
+    running = false;
   }
 }

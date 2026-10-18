@@ -79,6 +79,12 @@ self.addEventListener("fetch", (event) => {
   // it), never a stale cached JSON response.
   if (url.pathname.startsWith("/api/")) return;
 
+  // v3.123 — place-name lookups (Nominatim) are live third-party API calls,
+  // not static assets: never answer them from / through this cache logic.
+  // Before, a failed lookup came back as a fake "504 Offline and not cached"
+  // from the stale-while-revalidate branch below.
+  if (url.hostname === "nominatim.openstreetmap.org" || url.hostname.endsWith("overpass-api.de")) return;
+
   // Navigation requests: try the network first, fall back to the cached
   // shell so the app still opens offline.
   //

@@ -46,6 +46,37 @@ function sanitizePayload(entity: EntityDef, body: Record<string, unknown>) {
   return out;
 }
 
+// v3.123 — a column the code knows about (entities.generated.ts) but the
+// database does not have yet (a migration that hasn't been applied) would make
+// every INSERT/UPDATE that includes it fail with a 500 — in v3.120 that made
+// every catch carrying the new water_name/feeder2 fields impossible to sync
+// until the migration ran. Fields whose column doesn't exist yet are dropped
+// instead, so a deploy can never break saving; once the migration is applied
+// they start being stored (the column list is re-read every minute).
+const dbColumnsCache = new Map<string, { cols: Set<string>; at: number }>();
+async function stripMissingColumns(
+  table: string,
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  try {
+    let entry = dbColumnsCache.get(table);
+    if (!entry || Date.now() - entry.at > 60_000) {
+      const rows = await sql<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = ${table}
+      `;
+      entry = { cols: new Set(rows.map((r) => r.column_name)), at: Date.now() };
+      dbColumnsCache.set(table, entry);
+    }
+    if (entry.cols.size === 0) return payload;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(payload)) if (entry.cols.has(k)) out[k] = v;
+    return out;
+  } catch {
+    return payload;
+  }
+}
+
 async function fetchRow(table: string, id: string) {
   const rows = await sql`SELECT * FROM ${sql(table)} WHERE id = ${id}`;
   return rows[0] ?? null;
@@ -136,7 +167,7 @@ export async function handleEntitiesRoute(
   if (req.method === "POST" && !sub) {
     const body = await req.json().catch(() => ({}));
     if (!(await isAllowed(entity, "create", user, body))) return json({ error: "Forbidden" }, 403);
-    const payload = sanitizePayload(entity, body);
+    const payload = await stripMissingColumns(table, sanitizePayload(entity, body));
     payload.created_by_id = user?.id ?? null;
 
     const keys = Object.keys(payload);
@@ -154,7 +185,7 @@ export async function handleEntitiesRoute(
     if (!(await isAllowed(entity, "create", user))) return json({ error: "Forbidden" }, 403);
     const created = [];
     for (const rec of records) {
-      const payload = sanitizePayload(entity, rec);
+      const payload = await stripMissingColumns(table, sanitizePayload(entity, rec));
       payload.created_by_id = user?.id ?? null;
       const keys = Object.keys(payload);
       const rows = await sql`INSERT INTO ${sql(table)} ${sql(payload, ...keys)} RETURNING *`;
@@ -169,7 +200,7 @@ export async function handleEntitiesRoute(
     if (!existing) return json({ error: "Not found" }, 404);
     if (!(await isAllowed(entity, "update", user, existing))) return json({ error: "Forbidden" }, 403);
     const body = await req.json().catch(() => ({}));
-    const payload = sanitizePayload(entity, body);
+    const payload = await stripMissingColumns(table, sanitizePayload(entity, body));
     // v2.90 — catch_results (the weigh-in results a competition is ranked
     // on) must only ever be entered by an admin or the competition's own
     // organizer, never by the registrant who merely submitted the
@@ -218,7 +249,7 @@ export async function handleEntitiesRoute(
       const existing = await fetchRow(table, id);
       if (!existing) continue;
       if (!(await isAllowed(entity, "update", user, existing))) continue;
-      const payload = sanitizePayload(entity, rest);
+      const payload = await stripMissingColumns(table, sanitizePayload(entity, rest));
       // v2.90 — same catch_results carve-out as the single-record UPDATE
       // branch above (see its comment): bulk-update is currently only used
       // by the draw/reset flows (assigned_sector/assigned_box), but nothing

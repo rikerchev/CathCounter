@@ -16,10 +16,13 @@
 // coordinate-only catch locations with real names once the connection is back
 // — and to know whether a retry could ever help ("error") or not ("empty").
 export async function lookupPlaceName(latitude, longitude, lang) {
+  // v3.123 — a lookup that never answers must not hang whatever awaits it.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&namedetails=1&accept-language=${lang}`,
-      { headers: { Accept: "application/json" } }
+      { headers: { Accept: "application/json" }, signal: controller.signal }
     );
     if (!res.ok) return { status: "error" };
     const data = await res.json();
@@ -35,6 +38,8 @@ export async function lookupPlaceName(latitude, longitude, lang) {
     return name ? { status: "ok", name } : { status: "empty" };
   } catch {
     return { status: "error" };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -50,15 +55,15 @@ export async function lookupPlaceName(latitude, longitude, lang) {
 // { status: "empty" } (answered, no named water nearby) / { status: "error" }
 // (no answer — offline, timeout, overloaded server; worth retrying later).
 const WATER_SEARCH_RADIUS_M = 250;
-const OVERPASS_ENDPOINTS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-];
+// v3.123 — only overpass-api.de: the kumi.systems mirror sends no CORS headers,
+// so every browser request to it was blocked (and still cost time/console
+// errors on each attempt).
+const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter"];
 
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
   const query =
-    `[out:json][timeout:15];(` +
+    `[out:json][timeout:10];(` +
     `way(${around})["natural"="water"]["name"];` +
     `relation(${around})["natural"="water"]["name"];` +
     `way(${around})["landuse"="reservoir"]["name"];` +
@@ -68,7 +73,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 18000);
+    const timer = setTimeout(() => controller.abort(), 12000);
     try {
       const res = await fetch(endpoint, {
         method: "POST",
