@@ -19,7 +19,6 @@ import { listCatches, deleteCatch } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
 import { base44 } from "@/api/base44Client";
-import PlaceStats from "@/components/PlaceStats";
 import LocationPicker from "@/components/LocationPicker";
 import useApprovedWaterBodies from "@/hooks/useApprovedWaterBodies";
 import { buildPlaceIndex } from "@/lib/catchPlaces";
@@ -131,16 +130,6 @@ export default function Statistics() {
     () => buildPlaceIndex(catches, waterBodies, { place: t("stats.unnamedPlace"), spot: t("stats.unnamedSpot") }),
     [catches, waterBodies, t]
   );
-
-  // Everything except the place filter — PlaceStats lists every place, so it
-  // must not be narrowed by the place filter itself.
-  const filteredNoPlace = useMemo(() => {
-    let result = catches;
-    if (filterTemp) result = result.filter((c) => tempRange(c.air_temperature) === filterTemp);
-    if (filterWind) result = result.filter((c) => windCategory(c.wind_speed) === filterWind);
-    if (filterCloudiness) result = result.filter((c) => c.cloudiness === filterCloudiness);
-    return result;
-  }, [catches, filterTemp, filterWind, filterCloudiness]);
 
   const filteredCatches = useMemo(() => {
     let result = catches;
@@ -385,8 +374,6 @@ export default function Statistics() {
       ) : (
         <>
           <SmartRecommendations catches={filteredCatches} />
-
-          <PlaceStats catches={filteredNoPlace} index={placeIndex} onSelect={setFilterLocation} />
 
           {byMonth.length > 0 && (
             <ChartSection icon={BarChart3} title={t("stats.catchesByMonth")}>

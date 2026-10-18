@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
+import HierarchicalBack from './components/HierarchicalBack';
 import { LanguageProvider } from '@/lib/i18n';
 import SyncProvider from '@/components/SyncProvider';
 // Auth pages
@@ -172,6 +173,8 @@ function App() {
         <SyncProvider>
         <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
+          {/* v3.121 — device/browser back follows the menu hierarchy */}
+          <HierarchicalBack />
           <AuthenticatedApp />
         </Router>
         <Toaster />

@@ -122,12 +122,20 @@ const traderNavItems = [
   { to: "/trader-venues", labelKey: "nav.traderVenues", icon: Store, waterOwnerOnly: true },
 ];
 
-function NavContent({ onNavigate, menuOrder }) {
+function NavContent({ onNavigate, menuOrder, openGroup }) {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const [adMenuOpen, setAdMenuOpen] = useState(false);
-  const [traderMenuOpen, setTraderMenuOpen] = useState(false);
-  const [invMenuOpen, setInvMenuOpen] = useState(false);
+  // v3.121 — `openGroup` ("inventory" | "traders" | "ads") expands that submenu
+  // on arrival: that's where the back button leads from a page of the submenu
+  // (see src/lib/backNavigation.js).
+  const [adMenuOpen, setAdMenuOpen] = useState(openGroup === "ads");
+  const [traderMenuOpen, setTraderMenuOpen] = useState(openGroup === "traders");
+  const [invMenuOpen, setInvMenuOpen] = useState(openGroup === "inventory");
+  useEffect(() => {
+    if (openGroup === "ads") setAdMenuOpen(true);
+    if (openGroup === "traders") setTraderMenuOpen(true);
+    if (openGroup === "inventory") setInvMenuOpen(true);
+  }, [openGroup]);
   const [allowedPaths, setAllowedPaths] = useState([]);
 
   const isAdmin = hasRole(user, "admin");
@@ -289,6 +297,15 @@ function NavContent({ onNavigate, menuOrder }) {
 export default function Layout() {
   const { t } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
+  // v3.121 — set by the hierarchical back button (src/lib/backNavigation.js)
+  // when leaving a page that belongs to a submenu: the menu opens with that
+  // submenu expanded. Any other navigation closes the mobile menu.
+  const location = useLocation();
+  const openGroup = location.state?.openMenuGroup || null;
+  useEffect(() => {
+    const isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+    setMobileOpen(Boolean(openGroup) && isMobile);
+  }, [location.key, openGroup]);
   // v2.88 — admin-configurable menu order, fetched once here (not per
   // NavContent instance — there are two, desktop + mobile) and passed down.
   // Falls back to DEFAULT_MENU_ORDER (today's hand-authored order) until
@@ -337,7 +354,7 @@ export default function Layout() {
           <span className="font-bold text-slate-800 dark:text-foreground">{t("app.name")}</span>
         </Link>
         <div className="flex-1 overflow-y-auto">
-          <NavContent menuOrder={menuOrder} />
+          <NavContent menuOrder={menuOrder} openGroup={openGroup} />
         </div>
         <div className="px-3 py-3 border-t border-slate-100 dark:border-border flex items-center justify-between gap-2">
            <div className="flex items-center gap-2">
@@ -418,7 +435,7 @@ export default function Layout() {
               </button>
             </div>
             <div className="overflow-y-auto flex-1 min-h-0">
-              <NavContent onNavigate={() => setMobileOpen(false)} menuOrder={menuOrder} />
+              <NavContent onNavigate={() => setMobileOpen(false)} menuOrder={menuOrder} openGroup={openGroup} />
             </div>
             <div className="px-5 py-3 border-t border-slate-100 dark:border-border flex-shrink-0 flex items-center justify-between gap-2">
               <LanguageSelector />
