@@ -63,11 +63,11 @@ export default function SmartRecommendations({ catches }) {
 
   const recommendations = [
     { key: "distance", label: t("rod.distance"), icon: Gauge, color: "text-sky-600" },
-    { key: "feeder", label: t("rod.groundbait"), icon: Waves, color: "text-cyan-600" },
+    { key: "feeder", label: t("rod.groundbait1"), icon: Waves, color: "text-cyan-600" },
+    { key: "feeder2", label: t("rod.groundbait2"), icon: Waves, color: "text-sky-600" },
     { key: "bait", label: t("rod.bait"), icon: Tag, color: "text-amber-600" },
     { key: "hook_size", label: t("rod.hook"), icon: Anchor, color: "text-rose-600" },
     { key: "line", label: t("rod.line"), icon: Ruler, color: "text-violet-600" },
-    { key: "rod_model", label: t("rod.model"), icon: Fish, color: "text-emerald-600" },
   ];
 
   return (

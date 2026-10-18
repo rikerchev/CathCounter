@@ -524,6 +524,18 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       `;
     },
   },
+  "v3.120-catch-water-name": {
+    label: "v3.120 — Име на водоем и втора захранка към уловите",
+    run: async () => {
+      // Water body name (from OpenStreetMap) so Statistics can group catches
+      // by the water body itself, including state-owned ones that are never
+      // registered in water_bodies. See locationNames.js / catchPlaces.js.
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS water_name TEXT`);
+      // The rod's second groundbait ("Захранка 2") — until now it was only
+      // kept on the device (the server dropped the unknown field).
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -788,6 +800,14 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'rod_casts' AND column_name = 'session_start'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.120-catch-water-name") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'catches'
+            AND column_name IN ('water_name', 'feeder2')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 2;
       }
       if (id === "v3.117-default-user-group") {
         try {

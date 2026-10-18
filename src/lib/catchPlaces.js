@@ -7,26 +7,33 @@
 // 26.123456" — so one real fishing place showed up as many unrelated entries,
 // some of them meaningless numbers.
 //
-// A catch is assigned to a place like this:
-//   1. it has coordinates (latitude/longitude, or parsed from a coordinate-
-//      only label) and an approved water body lies within WATER_BODY_RADIUS_M
-//      → the place is that water body (its own name);
-//   2. otherwise it has coordinates → nearby catches (single-linkage, within
-//      CLUSTER_RADIUS_M) form one place, named after the most frequent word-
-//      group in their labels ("Виадукт Писанец" + "Писанец" + "Писанец —
-//      Ветово" → "Писанец");
-//   3. otherwise (no coordinates) a label that mentions an already known
-//      place joins it, else the label is a place of its own;
+// A catch is assigned to a place like this (v3.120 — grouping is around the
+// NAME OF THE WATER BODY, never the nearest settlement: a big state-owned
+// reservoir touches many villages, but the fishing happened at the reservoir):
+//   1. the catch carries `water_name` (looked up from OpenStreetMap by
+//      locationNames.js once online — works for ANY mapped water body,
+//      registered/approved in the app or not) → the place is that water;
+//   2. no water_name but coordinates: an unresolved catch within
+//      SAME_WATER_RADIUS_M of a catch that has one joins it; else an approved
+//      app water body within WATER_BODY_RADIUS_M; else nearby catches
+//      (single-linkage, CLUSTER_RADIUS_M) form one place named after the most
+//      frequent word-group in their labels;
+//   3. no coordinates: a label that mentions an already known place joins it,
+//      else the label is a place of its own;
 //   4. no coordinates and no label → no place (only shows under "all").
+// Water names are compared without type words/quotes ("Язовир „Ветово"",
+// "яз. Ветово" and "Ветово" are the same place), and an approved app water
+// body with the same name donates its official spelling.
 //
 // Every place has "spots" — the distinct original labels inside it — so the
-// picker can show "Писанец ▸ Виадукт Писанец / Ветово" as expandable
+// picker can show "Ветово ▸ Виадукт Писанец / Писанец" as expandable
 // sub-locations. Raw coordinates are NEVER used as a displayed name: an
 // unresolved spot is shown as `unnamedSpot` (supplied by the caller, i18n).
 
 import { distanceMeters } from "@/lib/geolocation";
 
 export const WATER_BODY_RADIUS_M = 1500;
+export const SAME_WATER_RADIUS_M = 300;
 export const CLUSTER_RADIUS_M = 1000;
 
 const COORD_LABEL_RE = /^\s*(-?\d{1,3}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
@@ -69,6 +76,23 @@ export function catchLabel(c) {
 const norm = (s) => String(s || "").trim().toLocaleLowerCase();
 const segmentsOf = (label) =>
   String(label).split("—").map((s) => s.trim()).filter(Boolean);
+
+const WATER_TYPE_WORDS = new Set([
+  "язовир", "яз", "яз.", "микроязовир", "езеро", "река", "р.", "канал", "бент", "водоем", "дига", "залив",
+  "lake", "reservoir", "river", "dam", "canal", "pond", "lac", "see", "lago", "jezero", "tó", "озеро", "водохранилище",
+]);
+
+/** Comparable form of a water name: no quotes, no type words, lower case. */
+export function normalizeWaterName(name) {
+  const cleaned = String(name || "")
+    .replace(/[„“”"«»'`‘’()]/g, " ")
+    .replace(/[,;:]/g, " ")
+    .trim()
+    .toLocaleLowerCase();
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  const kept = words.filter((w) => !WATER_TYPE_WORDS.has(w));
+  return (kept.length ? kept : words).join(" ");
+}
 
 function nearestWaterBody(coords, waterBodies) {
   let best = null;
@@ -131,15 +155,63 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     assignment.set(c, { placeKey, spotKey });
   };
 
-  // --- 1. coordinates + water body ---------------------------------------
+  // --- 1. the water body's own name -------------------------------------
+  // Official spellings from approved app water bodies.
+  const officialByNorm = new Map();
+  for (const wb of wbs) officialByNorm.set(normalizeWaterName(wb.name), wb.name);
+
+  // Water groups: normalized name → { names: Map(name → n), items: [catch] }
+  const waterGroups = new Map();
+  const resolvedSpots = new Map(); // ~110 m grid → water key (for step 2)
   const withCoords = [];
   const withoutCoords = [];
+  const unresolved = [];
   for (const c of catches) {
+    const wn = typeof c.water_name === "string" ? c.water_name.trim() : "";
     const coords = catchCoords(c);
-    if (!coords) { withoutCoords.push(c); continue; }
+    if (wn) {
+      const nk = normalizeWaterName(wn);
+      let g = waterGroups.get(nk);
+      if (!g) { g = { names: new Map(), items: [] }; waterGroups.set(nk, g); }
+      g.names.set(wn, (g.names.get(wn) || 0) + 1);
+      g.items.push(c);
+      if (coords) resolvedSpots.set(`${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}`, { nk, coords });
+    } else if (coords) {
+      unresolved.push({ c, coords });
+    } else {
+      withoutCoords.push(c);
+    }
+  }
+  const waterKey = (nk) => `w:${nk}`;
+  const displayOfWater = (nk) => {
+    if (officialByNorm.has(nk)) return officialByNorm.get(nk);
+    const g = waterGroups.get(nk);
+    let best = ""; let bestN = -1;
+    for (const [name, n] of g.names) if (n > bestN) { best = name; bestN = n; }
+    return best;
+  };
+  for (const [nk, g] of waterGroups) {
+    for (const c of g.items) addToPlace(c, waterKey(nk), displayOfWater(nk));
+  }
+
+  // --- 1b. coordinates only: join a nearby already-named water, else an
+  //         approved app water body, else fall through to clustering -------
+  const resolvedList = [...resolvedSpots.values()];
+  for (const item of unresolved) {
+    const { c, coords } = item;
+    let joined = null; let bestD = SAME_WATER_RADIUS_M;
+    for (const r of resolvedList) {
+      const d = distanceMeters(coords.lat, coords.lng, r.coords.lat, r.coords.lng);
+      if (d <= bestD) { bestD = d; joined = r.nk; }
+    }
+    if (joined) { addToPlace(c, waterKey(joined), displayOfWater(joined)); continue; }
     const wb = nearestWaterBody(coords, wbs);
-    if (wb) addToPlace(c, `wb:${wb.id}`, wb.name);
-    else withCoords.push({ c, coords });
+    if (wb) {
+      const nk = normalizeWaterName(wb.name);
+      addToPlace(c, waterKey(nk), waterGroups.has(nk) ? displayOfWater(nk) : wb.name);
+      continue;
+    }
+    withCoords.push(item);
   }
 
   // --- 2. remaining coordinates → proximity clusters (single linkage) ------
@@ -182,7 +254,12 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     const label = catchLabel(c);
     if (!label) { assignment.set(c, { placeKey: "", spotKey: "" }); continue; }
     const segs = segmentsOf(label);
-    const hit = segs.map((s) => knownByName.get(norm(s))).find(Boolean);
+    const hit = segs
+      .map((s) => {
+        const wk = waterKey(normalizeWaterName(s));
+        return placeInfo.has(wk) ? wk : knownByName.get(norm(s));
+      })
+      .find(Boolean);
     if (hit) { addToPlace(c, hit, placeInfo.get(hit).name); continue; }
     addToPlace(c, `l:${norm(label)}`, label);
   }
@@ -197,6 +274,7 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
   const placeKeyOf = (c) => assignment.get(c)?.placeKey || "";
+  const spotKeyOf = (c) => assignment.get(c)?.spotKey || "";
   const labelFor = (c) => {
     const a = assignment.get(c);
     return a && a.placeKey ? placeInfo.get(a.placeKey).name : "";
@@ -216,7 +294,7 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     return false;
   };
 
-  return { places, placeKeyOf, labelFor, matches };
+  return { places, placeKeyOf, spotKeyOf, labelFor, matches };
 }
 
 export const placeFilterValue = (placeKey) => `p:${placeKey}`;

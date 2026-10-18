@@ -143,11 +143,13 @@ CREATE TABLE catches (
   hook_size TEXT,
   line TEXT,
   feeder TEXT,
+  feeder2 TEXT,
   rig_details TEXT,
   distance TEXT,
   location TEXT,
   latitude DOUBLE PRECISION,
   longitude DOUBLE PRECISION,
+  water_name TEXT,
   duration INTEGER DEFAULT 0,
   weight DOUBLE PRECISION,
   photo_url TEXT,
@@ -1021,3 +1023,13 @@ ALTER TABLE rod_casts ENABLE ROW LEVEL SECURITY;
 -- logged before this version, which keeps the old (unbounded) matching for
 -- those specific rows rather than dropping them. Safe to re-run.
 ALTER TABLE rod_casts ADD COLUMN IF NOT EXISTS session_start TEXT;
+
+-- v3.120 — name of the water body (lake/reservoir/river/canal) a catch was
+-- made at, looked up from OpenStreetMap by the client once online (see
+-- src/lib/locationNames.js). Lets Statistics group catches by the water body
+-- itself rather than by the nearest settlement, for state-owned water bodies
+-- too (which are never registered/approved in water_bodies). Apply from
+-- Admin → Настройка на интеграциите → "v3.120".
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS water_name TEXT;
+-- v3.120 — second groundbait of the rod (catch.feeder2), for Statistics.
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT;

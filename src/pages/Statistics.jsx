@@ -18,7 +18,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { listCatches, deleteCatch } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
-import { hasRole } from "@/lib/roles";
+import { base44 } from "@/api/base44Client";
+import PlaceStats from "@/components/PlaceStats";
 import LocationPicker from "@/components/LocationPicker";
 import useApprovedWaterBodies from "@/hooks/useApprovedWaterBodies";
 import { buildPlaceIndex } from "@/lib/catchPlaces";
@@ -83,13 +84,29 @@ export default function Statistics() {
   const [filterCloudiness, setFilterCloudiness] = useState("");
   const { toast } = useToast();
   const waterBodies = useApprovedWaterBodies();
-  // v3.119 — the "all anglers" tab only ever shows something different for an
-  // admin (the server returns other people's catches to admins only), so for
-  // everybody else it was just a confusing duplicate of "my catches".
-  const isAdmin = hasRole(user, "admin");
+  // v3.120 — "Всички риболовци" is available to everybody: the other anglers'
+  // catches come from an anonymous feed (/api/community/catches: no user ids,
+  // notes or photos, coordinates rounded) instead of the owner-only Catch
+  // endpoint, which is why it used to work for admins only.
+  const [communityCatches, setCommunityCatches] = useState(null);
+  const [communityFailed, setCommunityFailed] = useState(false);
 
   // A place filter chosen under one scope may not exist under the other.
   useEffect(() => { setFilterLocation(""); }, [scope]);
+
+  // Load the other anglers' catches the first time "all" is opened.
+  useEffect(() => {
+    if (scope !== "all" || communityCatches !== null) return;
+    let cancelled = false;
+    setCommunityFailed(false);
+    base44.community.catches()
+      .then((rows) => {
+        if (cancelled) return;
+        setCommunityCatches((rows || []).map((r) => ({ ...r, created_date: r.created_at, _community: true })));
+      })
+      .catch(() => { if (!cancelled) setCommunityFailed(true); });
+    return () => { cancelled = true; };
+  }, [scope, communityCatches]);
 
   useEffect(() => {
     setLoading(true);
@@ -100,9 +117,13 @@ export default function Statistics() {
   }, [user?.id]);
 
   const catches = useMemo(() => {
-    if ((scope === "mine" || !isAdmin) && user) return allCatches.filter((c) => c.created_by_id === user.id);
-    return allCatches;
-  }, [allCatches, scope, user, isAdmin]);
+    // The user's own catches — including ones logged offline that have no
+    // created_by_id yet. (An admin's local store also holds other people's
+    // catches, so "own" is always filtered explicitly.)
+    const own = allCatches.filter((c) => !user || !c.created_by_id || c.created_by_id === user.id);
+    if (scope === "mine") return own;
+    return communityCatches ? [...own, ...communityCatches] : own;
+  }, [allCatches, scope, user, communityCatches]);
 
   // v3.119 — catches grouped into recognisable places (by water body, else by
   // proximity) with expandable sub-locations; see catchPlaces.js.
@@ -110,6 +131,16 @@ export default function Statistics() {
     () => buildPlaceIndex(catches, waterBodies, { place: t("stats.unnamedPlace"), spot: t("stats.unnamedSpot") }),
     [catches, waterBodies, t]
   );
+
+  // Everything except the place filter — PlaceStats lists every place, so it
+  // must not be narrowed by the place filter itself.
+  const filteredNoPlace = useMemo(() => {
+    let result = catches;
+    if (filterTemp) result = result.filter((c) => tempRange(c.air_temperature) === filterTemp);
+    if (filterWind) result = result.filter((c) => windCategory(c.wind_speed) === filterWind);
+    if (filterCloudiness) result = result.filter((c) => c.cloudiness === filterCloudiness);
+    return result;
+  }, [catches, filterTemp, filterWind, filterCloudiness]);
 
   const filteredCatches = useMemo(() => {
     let result = catches;
@@ -165,6 +196,8 @@ export default function Statistics() {
   const byHook = useMemo(() => groupBy(filteredCatches, (c) => c.hook_size).sort((a, b) => b.count - a.count), [filteredCatches]);
   const byLine = useMemo(() => groupBy(filteredCatches, (c) => c.line).sort((a, b) => b.count - a.count), [filteredCatches]);
   const byFeeder = useMemo(() => groupBy(filteredCatches, (c) => c.feeder).sort((a, b) => b.count - a.count), [filteredCatches]);
+  // v3.120 — the rod's second groundbait ("Захранка 2").
+  const byFeeder2 = useMemo(() => groupBy(filteredCatches, (c) => c.feeder2).sort((a, b) => b.count - a.count), [filteredCatches]);
 
   const byTemp = useMemo(() => {
     const map = {};
@@ -245,8 +278,7 @@ export default function Statistics() {
         )}
       </div>
 
-      {/* Scope toggle: my catches vs all anglers (admin only, v3.119) */}
-      {isAdmin && (
+      {/* Scope toggle: my catches vs all anglers */}
       <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-accent w-fit">
         <button
           onClick={() => setScope("mine")}
@@ -265,6 +297,11 @@ export default function Statistics() {
           <Users className="w-3.5 h-3.5" /> {t("stats.allUsers")}
         </button>
       </div>
+      {scope === "all" && (
+        <p className="-mt-3 text-xs text-slate-400">
+          {t("stats.allUsersHint")}
+          {communityFailed ? ` ${t("stats.communityOffline")}` : ""}
+        </p>
       )}
 
       {/* Filters */}
@@ -349,6 +386,8 @@ export default function Statistics() {
         <>
           <SmartRecommendations catches={filteredCatches} />
 
+          <PlaceStats catches={filteredNoPlace} index={placeIndex} onSelect={setFilterLocation} />
+
           {byMonth.length > 0 && (
             <ChartSection icon={BarChart3} title={t("stats.catchesByMonth")}>
               <StatsChart data={byMonth} color="#0891b2" />
@@ -400,8 +439,14 @@ export default function Statistics() {
           )}
 
           {byFeeder.length > 0 && (
-            <ChartSection icon={Waves} title={t("stats.byFeeder")}>
+            <ChartSection icon={Waves} title={t("rod.groundbait1")}>
               <StatsChart data={byFeeder} color="#ec4899" layout="vertical" height={Math.max(200, byFeeder.length * 36)} />
+            </ChartSection>
+          )}
+
+          {byFeeder2.length > 0 && (
+            <ChartSection icon={Waves} title={t("rod.groundbait2")}>
+              <StatsChart data={byFeeder2} color="#0ea5e9" layout="vertical" height={Math.max(200, byFeeder2.length * 36)} />
             </ChartSection>
           )}
 

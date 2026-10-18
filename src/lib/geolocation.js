@@ -38,6 +38,70 @@ export async function lookupPlaceName(latitude, longitude, lang) {
   }
 }
 
+// v3.120 — the name of the WATER BODY (lake, reservoir, river, canal) next to
+// a point, from OpenStreetMap via the Overpass API. Nominatim above only names
+// the water when the point is inside the water itself, and returns the
+// nearest *object* otherwise (a school, a viaduct, a village) — but a
+// fisherman stands on the bank. This looks for a named water feature within
+// WATER_SEARCH_RADIUS_M instead, so catches can be grouped by the water body
+// even for state-owned ones that were never registered in the app.
+//
+// Same three-way result as lookupPlaceName(): { status: "ok", name } /
+// { status: "empty" } (answered, no named water nearby) / { status: "error" }
+// (no answer — offline, timeout, overloaded server; worth retrying later).
+const WATER_SEARCH_RADIUS_M = 250;
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+];
+
+export async function lookupNearbyWater(latitude, longitude, lang) {
+  const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
+  const query =
+    `[out:json][timeout:15];(` +
+    `way(${around})["natural"="water"]["name"];` +
+    `relation(${around})["natural"="water"]["name"];` +
+    `way(${around})["landuse"="reservoir"]["name"];` +
+    `relation(${around})["landuse"="reservoir"]["name"];` +
+    `way(${around})["waterway"~"^(river|canal|stream)$"]["name"];` +
+    `);out tags center 20;`;
+
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 18000);
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
+      if (!res.ok) continue; // overloaded / rate limited — try the next mirror
+      const data = await res.json();
+      const elements = Array.isArray(data.elements) ? data.elements : [];
+      let best = null;
+      let bestScore = Infinity;
+      for (const el of elements) {
+        const tags = el.tags || {};
+        const name = (tags[`name:${lang}`] || tags.name || "").trim();
+        if (!name) continue;
+        // Still waters (lakes, reservoirs) before rivers; then the nearest.
+        const isArea = tags.natural === "water" || tags.landuse === "reservoir";
+        const c = el.center;
+        const dist = c ? distanceMeters(latitude, longitude, c.lat, c.lon) : 0;
+        const score = (isArea ? 0 : 1_000_000) + dist;
+        if (score < bestScore) { bestScore = score; best = name; }
+      }
+      return best ? { status: "ok", name: best } : { status: "empty" };
+    } catch {
+      // timeout / network error — try the next mirror, else report "error"
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return { status: "error" };
+}
+
 async function reverseGeocode(latitude, longitude, lang) {
   const result = await lookupPlaceName(latitude, longitude, lang);
   const name = result.status === "ok"

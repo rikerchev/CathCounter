@@ -232,6 +232,13 @@ export const base44 = {
     },
   },
 
+  // v3.120 — anonymous catches of the other anglers (no user ids, notes or
+  // photos) for the "Всички риболовци" statistics tab; see
+  // server/routes/community.ts.
+  community: {
+    catches: () => apiFetch("/api/community/catches"),
+  },
+
   functions: {
     invoke: (name, payload) => apiFetch(`/api/functions/${name}`, { method: "POST", body: payload }),
   },

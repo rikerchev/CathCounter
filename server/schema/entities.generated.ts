@@ -165,11 +165,17 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "hook_size", type: "string", required: false },
       { name: "line", type: "string", required: false },
       { name: "feeder", type: "string", required: false },
+      // v3.120 — the rod's second groundbait ("Захранка 2" in RodTimer.jsx);
+      // used by Statistics. Needs the v3.120 migration.
+      { name: "feeder2", type: "string", required: false },
       { name: "rig_details", type: "string", required: false },
       { name: "distance", type: "string", required: false },
       { name: "location", type: "string", required: false },
       { name: "latitude", type: "number", required: false },
       { name: "longitude", type: "number", required: false },
+      // v3.120 — water body (lake/reservoir/river) name from OpenStreetMap,
+      // resolved client-side once online; see schema.sql / locationNames.js.
+      { name: "water_name", type: "string", required: false },
       { name: "duration", type: "integer", required: false },
       { name: "weight", type: "number", required: false },
       { name: "photo_url", type: "string", required: false },
