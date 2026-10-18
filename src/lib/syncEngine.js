@@ -107,7 +107,21 @@ export async function pushPendingCatches() {
         await saveCatchLocal({ ...catchItem, _synced: true });
       }
     } catch (e) {
-      console.error(`Failed to sync catch ${catchItem.id}:`, e);
+      // v3.124 — the server has no such catch any more (deleted from another
+      // device, a database reset, ...). Pull never removes local rows that
+      // vanished remotely, so the local copy stays; trying to UPDATE it again
+      // on every sync could never succeed and just logged the same error
+      // forever. Mark it as synced (it stays visible locally, exactly as
+      // before the record was touched) instead of retrying a 404.
+      const gone = !String(catchItem.id).startsWith("local_") && (e?.status === 404 || /not found/i.test(String(e?.message || e)));
+      if (gone) {
+        try {
+          await saveCatchLocal({ ...catchItem, _synced: true });
+        } catch { /* ignore */ }
+        console.warn(`Catch ${catchItem.id} no longer exists on the server — left as local-only.`);
+      } else {
+        console.error(`Failed to sync catch ${catchItem.id}:`, e);
+      }
     }
   }
 }
