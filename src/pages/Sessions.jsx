@@ -12,6 +12,7 @@ import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { listCatchesByUser, deleteCatch } from "@/lib/catchRepository";
 import { listRodCastsByUser } from "@/lib/rodCastRepository";
+import { syncRodCasts } from "@/lib/syncEngine";
 import SessionCalendar from "@/components/SessionCalendar";
 
 import { parseCatchDate } from "@/lib/dateUtils";
@@ -99,7 +100,13 @@ function SessionCard({ session, sessionNumber, casts, t, expanded, onToggle, onD
 
   // v3.108 — total casts (every "Старт" press, win or not) for this
   // session, plus the same broken out per rod.
-  const totalCasts = (casts || []).length;
+  // v3.125 — the total over ALL rods = every landed fish + every empty cast.
+  // Every fish was a cast too, so the total can never be below the number of
+  // catches (a press of "Старт" that was not recorded / not yet synced from
+  // another device used to leave the count under the fish count). Sessions
+  // with no recorded casts at all (older ones) still show "—".
+  const loggedCasts = (casts || []).length;
+  const totalCasts = loggedCasts > 0 ? Math.max(loggedCasts, session.length) : 0;
   const castsByRod = {};
   for (const cast of casts || []) {
     castsByRod[cast.rod] = (castsByRod[cast.rod] || 0) + 1;
@@ -279,6 +286,16 @@ export default function Sessions() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // v3.125 — opening Sessions while online: first send this device's pending
+  // casts and fetch the other devices' ones, then redraw with the full count.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    syncRodCasts().then((done) => { if (done && !cancelled) load(); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleDeleteSession = async (session) => {
     if (!window.confirm(t("sessions.deleteConfirm"))) return;

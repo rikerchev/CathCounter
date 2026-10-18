@@ -23,6 +23,10 @@ import { getAllRodCasts, saveRodCastLocal } from "@/lib/localDb";
 // defers all rod-cast pushing until the session is no longer active and
 // picks these up then instead (session close already triggers a
 // pushOnly()/syncAll() in ActiveSession.jsx).
+//
+// v3.125 — no sync is triggered from here: casts are synced like photos (when
+// the connection comes back, and when Sessions is opened while online — see
+// syncEngine.js's syncRodCasts()).
 export async function logRodCast(rod, sessionStartTime) {
   return saveRodCastLocal({
     rod,
@@ -34,5 +38,15 @@ export async function logRodCast(rod, sessionStartTime) {
 
 export async function listRodCastsByUser(userId) {
   const casts = await getAllRodCasts();
-  return casts.filter(c => !userId || !c.created_by_id || c.created_by_id === userId);
+  const seen = new Set();
+  return casts
+    .filter(c => !userId || !c.created_by_id || c.created_by_id === userId)
+    // v3.125 — the same press (same rod, same millisecond) can exist twice if a
+    // push succeeded but its response was lost and the cast was sent again.
+    .filter(c => {
+      const key = `${c.rod}|${c.date}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }

@@ -17,10 +17,6 @@ import {
   deleteRodCastLocal,
   mergeRemoteRodCasts
 } from "@/lib/localDb";
-// v3.111 — only used to defer rod-cast pushing until a session is no longer
-// active (see pushPendingRodCasts below). sessionStore.js itself only
-// imports base44Client, so this doesn't create a cycle.
-import { isSessionActive } from "@/lib/sessionStore";
 
 let syncing = false;
 let pendingReRun = false;
@@ -170,32 +166,78 @@ export async function pullRemoteRodCasts() {
   }
 }
 
-// v3.111 — low priority: casts can be dozens per session (every "Старт"
-// press), far more frequent than catches, so pushing them the moment each
-// one is logged wakes the radio for no real benefit — nothing reads this
-// data mid-session anyway (Sessions.jsx is the historical view, not shown
-// while a session is live). Skipped entirely while a session is active, no
-// matter which caller triggered this (pushOnly()/syncAll() from a catch
-// save, the periodic visibility/focus sync, an "online" reconnect, app
-// startup) — not just the removed per-cast call in rodCastRepository.js.
-// sessionStore.closeSession() runs (and sets isSessionActive() back to
-// false) before ActiveSession.jsx's own post-close pushOnly()/syncAll()
-// call, so pending casts still go out right at session close, just never
-// mid-session.
-export async function pushPendingRodCasts() {
-  if (isSessionActive()) return;
-  const localCasts = await getAllRodCasts();
-  const unsynced = localCasts.filter(c => !c._synced);
+// v3.125 — casts are synced like photos, NOT after every press or catch:
+//  - when the connection comes back / the app is reopened (syncAll(), which
+//    the "online" event, startup and refocus already trigger);
+//  - when the user opens a page that shows cast statistics while online
+//    (syncRodCasts() below, called from Sessions.jsx).
+// v3.111 skipped the push for as long as a session was active, so a session
+// that was never explicitly closed — or one viewed on another device — kept
+// its casts only on the phone and the counts came out too low. Pending casts
+// go out together in batched bulk-create requests (never one per press); the
+// quick pushOnly() after a catch save deliberately leaves them alone.
+let pushingCasts = false;
+const CAST_BATCH = 50;
 
-  for (const castItem of unsynced) {
-    try {
-      const { id, _synced, ...payload } = castItem;
-      const created = await base44.entities.RodCast.create(payload);
-      await saveRodCastLocal({ ...castItem, id: created.id, _synced: true });
-      await deleteRodCastLocal(castItem.id);
-    } catch (e) {
-      console.error(`Failed to sync cast ${castItem.id}:`, e);
+export async function pushPendingRodCasts() {
+  if (pushingCasts || !isOnline) return;
+  pushingCasts = true;
+  try {
+    const localCasts = await getAllRodCasts();
+    const unsynced = localCasts
+      .filter(c => !c._synced)
+      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+    for (let i = 0; i < unsynced.length; i += CAST_BATCH) {
+      const batch = unsynced.slice(i, i + CAST_BATCH);
+      const payloads = batch.map(({ id, _synced, ...payload }) => payload);
+      let created = null;
+      try {
+        created = await base44.entities.RodCast.bulkCreate(payloads);
+        if (!Array.isArray(created) || created.length !== batch.length) created = null;
+      } catch (e) {
+        console.error("Failed to bulk-sync casts, retrying one by one:", e);
+      }
+      if (created) {
+        for (let k = 0; k < batch.length; k++) {
+          await saveRodCastLocal({ ...batch[k], id: created[k].id, _synced: true });
+          await deleteRodCastLocal(batch[k].id);
+        }
+        continue;
+      }
+      // Fallback: one at a time, so one bad row can't block the rest.
+      for (const castItem of batch) {
+        try {
+          const { id, _synced, ...payload } = castItem;
+          const one = await base44.entities.RodCast.create(payload);
+          await saveRodCastLocal({ ...castItem, id: one.id, _synced: true });
+          await deleteRodCastLocal(castItem.id);
+        } catch (e) {
+          console.error(`Failed to sync cast ${castItem.id}:`, e);
+        }
+      }
     }
+  } finally {
+    pushingCasts = false;
+  }
+}
+
+// v3.125 — push pending casts and pull the other devices' casts, on demand
+// (opening Sessions while online). Independent of the main sync lock: it only
+// touches the rod-cast store. Resolves to true when casts changed hands.
+let castSyncRunning = false;
+export async function syncRodCasts() {
+  if (!isOnline || castSyncRunning) return false;
+  castSyncRunning = true;
+  try {
+    await pushPendingRodCasts();
+    await pullRemoteRodCasts();
+    return true;
+  } catch (e) {
+    console.error("syncRodCasts error:", e);
+    return false;
+  } finally {
+    castSyncRunning = false;
   }
 }
 
@@ -231,7 +273,6 @@ export async function pushOnly() {
   try {
     await pushPendingCatches();
     await pushPendingBait();
-    await pushPendingRodCasts();
     await pushPendingDeletions();
   } catch (e) {
     console.error("pushOnly error:", e);

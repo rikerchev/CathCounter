@@ -6,6 +6,7 @@
 import { parseCatchDate } from "@/lib/dateUtils";
 
 export const SESSION_GAP_MS = 4 * 60 * 60 * 1000; // 4 hours
+const SESSION_START_TOLERANCE_MS = 60 * 1000;
 
 /**
  * Groups catches into sessions: sorts chronologically, starts a new session
@@ -110,7 +111,10 @@ export function assignCastsToSessions(catches, casts) {
     let eligible = catchTimes;
     if (sessionStart != null && !isNaN(sessionStart)) {
       const upperBound = nextBoundaryAfter(sessionStart);
-      eligible = catchTimes.filter((ct) => ct.t >= sessionStart && ct.t < upperBound);
+      // v3.125 — 1 minute of tolerance below: a catch's time can be stored
+      // without seconds, which could put the very first catch of a live
+      // session a few seconds BEFORE that session's start timestamp.
+      eligible = catchTimes.filter((ct) => ct.t >= sessionStart - SESSION_START_TOLERANCE_MS && ct.t < upperBound);
     }
 
     let nearest = null;
