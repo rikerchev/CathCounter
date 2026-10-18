@@ -10,10 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Fish, Waves, Tag, Anchor, Ruler, Lightbulb, MapPin, Thermometer, Cloud, Wind, Gauge } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
+import LocationPicker from "@/components/LocationPicker";
+import useApprovedWaterBodies from "@/hooks/useApprovedWaterBodies";
+import { buildPlaceIndex } from "@/lib/catchPlaces";
 
 export default function SmartRecommendations({ catches }) {
   const { t } = useLanguage();
-  const [filterLocation, setFilterLocation] = useState("all");
+  // v3.119 — "" = all places; otherwise a place/sub-location filter value
+  // from catchPlaces.js (was a raw location string).
+  const [filterLocation, setFilterLocation] = useState("");
   const [filterDistance, setFilterDistance] = useState("all");
   const [filterCloudiness, setFilterCloudiness] = useState("all");
   const [tempMin, setTempMin] = useState("");
@@ -21,10 +26,11 @@ export default function SmartRecommendations({ catches }) {
   const [windMin, setWindMin] = useState("");
   const [windMax, setWindMax] = useState("");
 
-  const locations = useMemo(() => {
-    const set = new Set(catches.map((c) => c.location).filter(Boolean));
-    return Array.from(set);
-  }, [catches]);
+  const waterBodies = useApprovedWaterBodies();
+  const placeIndex = useMemo(
+    () => buildPlaceIndex(catches, waterBodies, { place: t("stats.unnamedPlace"), spot: t("stats.unnamedSpot") }),
+    [catches, waterBodies, t]
+  );
 
   const distances = useMemo(() => {
     const set = new Set(catches.map((c) => c.distance).filter(Boolean));
@@ -33,7 +39,7 @@ export default function SmartRecommendations({ catches }) {
 
   const filtered = useMemo(() => {
     return catches.filter((c) => {
-      if (filterLocation !== "all" && c.location !== filterLocation) return false;
+      if (filterLocation && !placeIndex.matches(c, filterLocation)) return false;
       if (filterDistance !== "all" && c.distance !== filterDistance) return false;
       if (filterCloudiness !== "all" && c.cloudiness !== filterCloudiness) return false;
       if (tempMin && (c.air_temperature == null || c.air_temperature < parseFloat(tempMin))) return false;
@@ -42,7 +48,7 @@ export default function SmartRecommendations({ catches }) {
       if (windMax && (c.wind_speed == null || c.wind_speed > parseFloat(windMax))) return false;
       return true;
     });
-  }, [catches, filterLocation, filterDistance, filterCloudiness, tempMin, tempMax, windMin, windMax]);
+  }, [catches, placeIndex, filterLocation, filterDistance, filterCloudiness, tempMin, tempMax, windMin, windMax]);
 
   const topItem = (key) => {
     const map = {};
@@ -80,17 +86,14 @@ export default function SmartRecommendations({ catches }) {
             <Label className="text-xs text-slate-500 flex items-center gap-1">
               <MapPin className="w-3 h-3" /> {t("rod.location")}
             </Label>
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger className="h-9 text-sm min-h-[40px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">{t("tackle.all")}</SelectItem>
-                {locations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <LocationPicker
+              index={placeIndex}
+              value={filterLocation}
+              onChange={setFilterLocation}
+              placeholder={t("tackle.all")}
+              allLabel={t("tackle.all")}
+              triggerClassName="h-9 text-sm min-h-[40px]"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs text-slate-500 flex items-center gap-1">

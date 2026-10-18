@@ -4,12 +4,24 @@
  * below — the only thing that differs between them is how the fix itself
  * is obtained, not what happens to it afterwards.
  */
-async function reverseGeocode(latitude, longitude, lang) {
+// v3.119 — the actual Nominatim lookup, split out of reverseGeocode() so
+// callers can tell apart the three outcomes that used to all collapse into
+// "show raw coordinates":
+//   { status: "ok", name }  — a human-readable name was found
+//   { status: "empty" }     — Nominatim answered, but has no name for this spot
+//   { status: "error" }     — no answer at all (offline, timeout, rate limit)
+// reverseGeocode() below still behaves exactly as before for every existing
+// caller (it falls back to coordinates for both "empty" and "error"); the new
+// lookupPlaceName() export is used by locationNames.js to later replace
+// coordinate-only catch locations with real names once the connection is back
+// — and to know whether a retry could ever help ("error") or not ("empty").
+export async function lookupPlaceName(latitude, longitude, lang) {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&namedetails=1&accept-language=${lang}`,
       { headers: { Accept: "application/json" } }
     );
+    if (!res.ok) return { status: "error" };
     const data = await res.json();
     const a = data.address || {};
     // For fishing spots: use nearest named place as label, coordinates are primary
@@ -19,12 +31,19 @@ async function reverseGeocode(latitude, longitude, lang) {
     const labelParts = [waterName, placeName, region].filter(Boolean);
     const name = labelParts.length > 0
       ? labelParts.slice(0, 2).join(" — ")
-      : data.display_name?.split(",").slice(0, 2).join(", ") ||
-        `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-    return { name, latitude, longitude };
+      : data.display_name?.split(",").slice(0, 2).join(", ");
+    return name ? { status: "ok", name } : { status: "empty" };
   } catch {
-    return { name: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, latitude, longitude };
+    return { status: "error" };
   }
+}
+
+async function reverseGeocode(latitude, longitude, lang) {
+  const result = await lookupPlaceName(latitude, longitude, lang);
+  const name = result.status === "ok"
+    ? result.name
+    : `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+  return { name, latitude, longitude };
 }
 
 /**

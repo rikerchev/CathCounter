@@ -281,6 +281,17 @@ export async function syncAll() {
       console.error("pushPendingPhotos error:", e);
     }
 
+    // 2a. v3.119 — catches logged offline were saved with their coordinates
+    // as the location text; now that we're online, look up the real place
+    // name (same idea as the photo upload just above). Marks them unsynced so
+    // 2b below sends the corrected name.
+    try {
+      const { resolvePendingLocationNames } = await import("@/lib/locationNames");
+      await resolvePendingLocationNames();
+    } catch (e) {
+      console.error("resolvePendingLocationNames error:", e);
+    }
+
     // 2b. Push catches that got photo_url from photo uploads (pushOnly was blocked by syncing flag)
     await pushPendingCatches();
 

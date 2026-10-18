@@ -18,6 +18,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { listCatches, deleteCatch } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
+import { hasRole } from "@/lib/roles";
+import LocationPicker from "@/components/LocationPicker";
+import useApprovedWaterBodies from "@/hooks/useApprovedWaterBodies";
+import { buildPlaceIndex } from "@/lib/catchPlaces";
 
 const PIE_COLORS = ["#0891b2", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#3b82f6", "#ef4444", "#14b8a6"];
 const DAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
@@ -78,6 +82,14 @@ export default function Statistics() {
   const [filterWind, setFilterWind] = useState("");
   const [filterCloudiness, setFilterCloudiness] = useState("");
   const { toast } = useToast();
+  const waterBodies = useApprovedWaterBodies();
+  // v3.119 — the "all anglers" tab only ever shows something different for an
+  // admin (the server returns other people's catches to admins only), so for
+  // everybody else it was just a confusing duplicate of "my catches".
+  const isAdmin = hasRole(user, "admin");
+
+  // A place filter chosen under one scope may not exist under the other.
+  useEffect(() => { setFilterLocation(""); }, [scope]);
 
   useEffect(() => {
     setLoading(true);
@@ -88,23 +100,25 @@ export default function Statistics() {
   }, [user?.id]);
 
   const catches = useMemo(() => {
-    if (scope === "mine" && user) return allCatches.filter((c) => c.created_by_id === user.id);
+    if ((scope === "mine" || !isAdmin) && user) return allCatches.filter((c) => c.created_by_id === user.id);
     return allCatches;
-  }, [allCatches, scope, user]);
+  }, [allCatches, scope, user, isAdmin]);
 
-  const uniqueLocations = useMemo(() => {
-    const set = new Set(catches.map((c) => c.location).filter(Boolean));
-    return [...set].sort();
-  }, [catches]);
+  // v3.119 — catches grouped into recognisable places (by water body, else by
+  // proximity) with expandable sub-locations; see catchPlaces.js.
+  const placeIndex = useMemo(
+    () => buildPlaceIndex(catches, waterBodies, { place: t("stats.unnamedPlace"), spot: t("stats.unnamedSpot") }),
+    [catches, waterBodies, t]
+  );
 
   const filteredCatches = useMemo(() => {
     let result = catches;
-    if (filterLocation) result = result.filter((c) => c.location === filterLocation);
+    if (filterLocation) result = result.filter((c) => placeIndex.matches(c, filterLocation));
     if (filterTemp) result = result.filter((c) => tempRange(c.air_temperature) === filterTemp);
     if (filterWind) result = result.filter((c) => windCategory(c.wind_speed) === filterWind);
     if (filterCloudiness) result = result.filter((c) => c.cloudiness === filterCloudiness);
     return result;
-  }, [catches, filterLocation, filterTemp, filterWind, filterCloudiness]);
+  }, [catches, placeIndex, filterLocation, filterTemp, filterWind, filterCloudiness]);
 
   const hasFilters = filterLocation || filterTemp || filterWind || filterCloudiness;
 
@@ -146,7 +160,7 @@ export default function Statistics() {
     return DAYS.map((d) => ({ label: t(`stats.day.${d}`) || d, count: map[d] || 0 })).filter((d) => d.count > 0);
   }, [filteredCatches]);
 
-  const byLocation = useMemo(() => groupBy(filteredCatches, (c) => c.location).sort((a, b) => b.count - a.count).slice(0, 8), [filteredCatches]);
+  const byLocation = useMemo(() => groupBy(filteredCatches, (c) => placeIndex.labelFor(c)).sort((a, b) => b.count - a.count).slice(0, 8), [filteredCatches, placeIndex]);
   const byBait = useMemo(() => groupBy(filteredCatches, (c) => c.bait).sort((a, b) => b.count - a.count), [filteredCatches]);
   const byHook = useMemo(() => groupBy(filteredCatches, (c) => c.hook_size).sort((a, b) => b.count - a.count), [filteredCatches]);
   const byLine = useMemo(() => groupBy(filteredCatches, (c) => c.line).sort((a, b) => b.count - a.count), [filteredCatches]);
@@ -193,7 +207,7 @@ export default function Statistics() {
 
   const totalCatches = filteredCatches.length;
   const totalWeight = filteredCatches.reduce((s, c) => s + (c.weight || 0), 0);
-  const uniqueFilteredLocations = new Set(filteredCatches.map((c) => c.location).filter(Boolean)).size;
+  const uniqueFilteredLocations = new Set(filteredCatches.map((c) => placeIndex.placeKeyOf(c)).filter(Boolean)).size;
 
   const handleResetStats = async () => {
     if (!window.confirm(t("stats.resetConfirm"))) return;
@@ -231,7 +245,8 @@ export default function Statistics() {
         )}
       </div>
 
-      {/* Scope toggle: my catches vs all anglers */}
+      {/* Scope toggle: my catches vs all anglers (admin only, v3.119) */}
+      {isAdmin && (
       <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-accent w-fit">
         <button
           onClick={() => setScope("mine")}
@@ -250,6 +265,7 @@ export default function Statistics() {
           <Users className="w-3.5 h-3.5" /> {t("stats.allUsers")}
         </button>
       </div>
+      )}
 
       {/* Filters */}
       {catches.length > 0 && (
@@ -267,16 +283,13 @@ export default function Statistics() {
             )}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger className="h-9 text-sm">
-                <SelectValue placeholder={t("logCatch.location")} />
-              </SelectTrigger>
-              <SelectContent>
-                {uniqueLocations.map((loc) => (
-                  <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <LocationPicker
+              index={placeIndex}
+              value={filterLocation}
+              onChange={setFilterLocation}
+              placeholder={t("logCatch.location")}
+              allLabel={t("stats.allPlaces")}
+            />
             <Select value={filterTemp} onValueChange={setFilterTemp}>
               <SelectTrigger className="h-9 text-sm">
                 <SelectValue placeholder={t("logCatch.airTemp")} />

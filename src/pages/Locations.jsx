@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Loader2, MapPin, Fish, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
 import { listCatchesByUser } from "@/lib/catchRepository";
+import useApprovedWaterBodies from "@/hooks/useApprovedWaterBodies";
+import { buildPlaceIndex } from "@/lib/catchPlaces";
 
 const formatDuration = (s) => {
   if (!s && s !== 0) return "—";
@@ -19,6 +21,14 @@ export default function Locations() {
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const waterBodies = useApprovedWaterBodies();
+  // v3.119 — group by recognisable place (water body / nearby spots) instead
+  // of by raw location text, which could be bare coordinates or many
+  // different labels for the same place. See catchPlaces.js.
+  const placeIndex = useMemo(
+    () => buildPlaceIndex(catches, waterBodies, { place: t("stats.unnamedPlace"), spot: t("stats.unnamedSpot") }),
+    [catches, waterBodies, t]
+  );
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -36,14 +46,15 @@ export default function Locations() {
   const locations = (() => {
     const map = {};
     catches.forEach((c) => {
-      if (!c.location) return;
-      if (!map[c.location]) {
-        map[c.location] = { location: c.location, count: 0, weight: 0, duration: 0, catches: [] };
+      const key = placeIndex.placeKeyOf(c);
+      if (!key) return;
+      if (!map[key]) {
+        map[key] = { key, location: placeIndex.labelFor(c), count: 0, weight: 0, duration: 0, catches: [] };
       }
-      map[c.location].count += 1;
-      map[c.location].weight += c.weight || 0;
-      map[c.location].duration += c.duration || 0;
-      map[c.location].catches.push(c);
+      map[key].count += 1;
+      map[key].weight += c.weight || 0;
+      map[key].duration += c.duration || 0;
+      map[key].catches.push(c);
     });
     return Object.values(map).sort((a, b) => b.count - a.count);
   })();
@@ -70,7 +81,7 @@ export default function Locations() {
       ) : (
         <div className="space-y-2">
           {locations.map((loc) => (
-            <div key={loc.location} className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm">
+            <div key={loc.key} className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm">
               <div className="flex items-start gap-3">
                 <div className="w-10 h-10 rounded-xl bg-cyan-50 flex items-center justify-center flex-shrink-0">
                   <MapPin className="w-5 h-5 text-cyan-600" />
