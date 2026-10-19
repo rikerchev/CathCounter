@@ -12,6 +12,8 @@ import { useLanguage } from "@/lib/i18n";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { WifiOff } from "lucide-react";
 
+const PUBLIC_LANGS = ["bg", "cs", "de", "en", "es", "fr", "hu", "it", "mk", "nl", "pl", "ro", "ru", "sk", "sr", "tr", "uk"];
+
 // v3.34 — this used to hardcode every string in Bulgarian directly, instead
 // of going through the translation system (`t()`) like the rest of the app.
 // That's why the login screen never changed language even for a visitor
@@ -20,7 +22,11 @@ import { WifiOff } from "lucide-react";
 // page now actually honors, and src/lib/translations/bg.js's "login.*"
 // keys added alongside this change.
 export default function Login() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  // v3.129 — public pages exist in 17 languages (bg at the root, others under /<lang>/)
+  const publicLang = PUBLIC_LANGS.includes(lang) ? lang : "en";
+  const aboutHref = publicLang === "bg" ? "/ribolovno-prilozhenie" : `/${publicLang}/fishing-app`;
+  const installHref = publicLang === "bg" ? "/kak-da-instalirate" : `/${publicLang}/install`;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -79,8 +85,8 @@ export default function Login() {
           {/* v3.128 — plain <a> (full page load) to the public, crawlable
               pages; they are static HTML outside the React app. */}
           <span className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
-            <a href="/ribolovno-prilozhenie" className="text-muted-foreground hover:underline">{t("login.aboutApp")}</a>
-            <a href="/kak-da-instalirate" className="text-muted-foreground hover:underline">{t("login.howToInstall")}</a>
+            <a href={aboutHref} className="text-muted-foreground hover:underline">{t("login.aboutApp")}</a>
+            <a href={installHref} className="text-muted-foreground hover:underline">{t("login.howToInstall")}</a>
           </span>
         </>
       }
