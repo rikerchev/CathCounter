@@ -44,26 +44,29 @@ export async function lookupPlaceName(latitude, longitude, lang) {
   }
 }
 
-// v3.120 — the name of the WATER BODY (lake, reservoir, river, canal) next to
-// a point, from OpenStreetMap via the Overpass API. Nominatim above only names
+// v3.120 — the name of the WATER BODY (lake, reservoir, pond …) next to a
+// point, from OpenStreetMap via the Overpass API. Nominatim above only names
 // the water when the point is inside the water itself, and returns the
 // nearest *object* otherwise (a school, a viaduct, a village) — but a
 // fisherman stands on the bank. This looks for a named water feature within
 // WATER_SEARCH_RADIUS_M instead, so catches can be grouped by the water body
 // even for state-owned ones that were never registered in the app.
 //
-// Same three-way result as lookupPlaceName(): { status: "ok", name, kind } /
-// { status: "empty" } (answered, no named water nearby) / { status: "error" }
-// (no answer — offline, timeout, overloaded server; worth retrying later).
+// v3.126/v3.127 — one request answers everything the grouping needs:
+//   water       the nearest named STANDING water (язовир, езеро, рибарник,
+//               гьол, микроязовир, старо корито …) within reach, else null;
+//   river       the nearest named river/canal/stream within reach, else null;
+//   settlement  the nearest named city/town/village (OSM place nodes within
+//               SETTLEMENT_SEARCH_RADIUS_M), else null.
+// Catches are grouped by `water` when there is one, otherwise by the nearest
+// `settlement` — never by a river (Бели Лом is 200 km long, Дунав is the whole
+// northern border). For river fishing the location label gets the river and
+// the settlement added ("Бели лом — Дряново").
 //
-// v3.126 — `kind` tells a STANDING water ("water": язовир, езеро, рибарник,
-// гьол, микроязовир, старо корито …) from a flowing one ("river": река, канал,
-// поток). Catches are grouped by standing water only. A river is far too long
-// to be "a place" (Бели Лом is 200 km, Дунав is the whole northern border), so
-// for river fishing the caller keeps the catch's own place label and adds the
-// river + the settlement to it instead of grouping by the river. A standing
-// water within reach always wins over a river running next to it.
+// Result: { status: "ok", water, river, settlement } or { status: "error" }
+// (no answer — offline, timeout, overloaded server; worth retrying later).
 const WATER_SEARCH_RADIUS_M = 250;
+const SETTLEMENT_SEARCH_RADIUS_M = 10000;
 // v3.123 — only overpass-api.de: the kumi.systems mirror sends no CORS headers,
 // so every browser request to it was blocked (and still cost time/console
 // errors on each attempt).
@@ -73,6 +76,7 @@ const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "
 
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
+  const aroundPlaces = `around:${SETTLEMENT_SEARCH_RADIUS_M},${latitude},${longitude}`;
   const query =
     `[out:json][timeout:10];(` +
     `way(${around})["natural"="water"]["name"];` +
@@ -82,7 +86,8 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `relation(${around})["natural"="water"]["name"];` +
     `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `)->.r;` +
-    `.w out tags geom 40;.r out tags center 10;`;
+    `node(${aroundPlaces})["place"~"^(city|town|village)$"]["name"]->.p;` +
+    `.w out tags geom 40;.r out tags center 10;.p out tags;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     const controller = new AbortController();
@@ -94,15 +99,23 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         body: `data=${encodeURIComponent(query)}`,
         signal: controller.signal,
       });
-      if (!res.ok) continue; // overloaded / rate limited — try the next mirror
+      if (!res.ok) continue; // overloaded / rate limited
       const data = await res.json();
       const elements = Array.isArray(data.elements) ? data.elements : [];
-      let bestStill = null; let bestStillD = Infinity;
-      let bestRiver = null; let bestRiverD = Infinity;
+      let water = null; let waterD = Infinity;
+      let river = null; let riverD = Infinity;
+      let settlement = null; let settlementD = Infinity;
       for (const el of elements) {
         const tags = el.tags || {};
         const name = (tags[`name:${lang}`] || tags.name || "").trim();
         if (!name) continue;
+        if (el.type === "node" && tags.place) {
+          if (typeof el.lat === "number") {
+            const d = distanceMeters(latitude, longitude, el.lat, el.lon);
+            if (d < settlementD) { settlementD = d; settlement = name; }
+          }
+          continue;
+        }
         const flowing = !!tags.waterway || FLOWING_WATER_VALUES.has(tags.water);
         // distance: nearest vertex of the way (rivers are long, so their
         // "centre" says nothing), else the element's centre
@@ -115,14 +128,12 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         if (!Number.isFinite(dist) && el.center) dist = distanceMeters(latitude, longitude, el.center.lat, el.center.lon);
         if (!Number.isFinite(dist)) dist = 0;
         if (flowing) {
-          if (dist < bestRiverD) { bestRiverD = dist; bestRiver = name; }
-        } else if (dist < bestStillD) { bestStillD = dist; bestStill = name; }
+          if (dist < riverD) { riverD = dist; river = name; }
+        } else if (dist < waterD) { waterD = dist; water = name; }
       }
-      if (bestStill) return { status: "ok", name: bestStill, kind: "water" };
-      if (bestRiver) return { status: "ok", name: bestRiver, kind: "river" };
-      return { status: "empty" };
+      return { status: "ok", water, river, settlement };
     } catch {
-      // timeout / network error — try the next mirror, else report "error"
+      // timeout / network error — report "error" below
     } finally {
       clearTimeout(timer);
     }

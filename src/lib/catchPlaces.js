@@ -10,8 +10,9 @@
 // A catch is assigned to a place like this (v3.120 — grouping is around the
 // NAME OF THE WATER BODY, never the nearest settlement: a big state-owned
 // reservoir touches many villages, but the fishing happened at the reservoir):
-//   1. the catch carries `water_name` (a STANDING water only — язовир, езеро,
-//      рибарник, гьол — v3.126; rivers are never groups; looked up from OpenStreetMap by
+//   1. the catch carries `water_name` = its GROUP (v3.127: a named standing
+//      water — язовир, езеро, рибарник, гьол — if one is mapped near the spot,
+//      else the nearest settlement; rivers are never groups); looked up from OpenStreetMap by
 //      locationNames.js once online — works for ANY mapped water body,
 //      registered/approved in the app or not) → the place is that water;
 //   2. no water_name but coordinates: an unresolved catch within
