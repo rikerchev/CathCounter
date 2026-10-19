@@ -1,8 +1,8 @@
 {
   "routes": [
     { "src": "^/api/.*$", "dest": "/api/[...path].ts" },
-    { "src": "^/(ribolovno-prilozhenie|riboloven-dnevnik|statistika-na-ulovite|ribolov-bez-internet|vodoemi-i-sastezaniya|kak-da-instalirate)/?$", "dest": "/$1.html" },
-    { "src": "^/(cs|de|en|es|fr|hu|it|mk|nl|pl|ro|ru|sk|sr|tr|uk)/(fishing-app|fishing-diary|catch-statistics|offline-fishing-app|waters-and-competitions|install)/?$", "dest": "/$1/$2.html" },
+    { "src": "^/(ribolovno-prilozhenie|riboloven-dnevnik|statistika-na-ulovite|ribolov-bez-internet|vodoemi-i-sastezaniya|kak-da-instalirate|kontakti)/?$", "dest": "/$1.html" },
+    { "src": "^/(cs|de|en|es|fr|hu|it|mk|nl|pl|ro|ru|sk|sr|tr|uk)/(fishing-app|fishing-diary|catch-statistics|offline-fishing-app|waters-and-competitions|install|contact)/?$", "dest": "/$1/$2.html" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
