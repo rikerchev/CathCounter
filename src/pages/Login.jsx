@@ -76,6 +76,12 @@ export default function Login() {
           >
             {t("login.createAccount")}
           </Link>
+          {/* v3.128 — plain <a> (full page load) to the public, crawlable
+              pages; they are static HTML outside the React app. */}
+          <span className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+            <a href="/ribolovno-prilozhenie" className="text-muted-foreground hover:underline">{t("login.aboutApp")}</a>
+            <a href="/kak-da-instalirate" className="text-muted-foreground hover:underline">{t("login.howToInstall")}</a>
+          </span>
         </>
       }
     >

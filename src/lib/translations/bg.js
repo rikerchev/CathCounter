@@ -1393,6 +1393,8 @@ export const bg = {
     "login.submitting": "Влизане...",
     "login.noAccount": "Нямате профил?",
     "login.createAccount": "Създайте такъв",
+    "login.aboutApp": "За приложението",
+    "login.howToInstall": "Как да инсталирате",
     "login.invalidCredentials": "Невалиден имейл или парола",
 
     // v3.39 — AppLockPrompt.jsx: подканя потребителя да "закачи"

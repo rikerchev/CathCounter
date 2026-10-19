@@ -1390,6 +1390,8 @@ export const en = {
     "login.submitting": "Logging in...",
     "login.noAccount": "Don't have an account?",
     "login.createAccount": "Create one",
+    "login.aboutApp": "About the app",
+    "login.howToInstall": "How to install",
     "login.invalidCredentials": "Invalid email or password",
 
     // v3.39 — see bg.js's copy of these keys for why they exist.

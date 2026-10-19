@@ -1,6 +1,7 @@
 {
   "routes": [
     { "src": "^/api/.*$", "dest": "/api/[...path].ts" },
+    { "src": "^/(ribolovno-prilozhenie|riboloven-dnevnik|statistika-na-ulovite|ribolov-bez-internet|vodoemi-i-sastezaniya|kak-da-instalirate)/?$", "dest": "/$1.html" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],

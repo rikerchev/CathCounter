@@ -47,9 +47,39 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="CatchCount" />
-    <title>CatchCount</title>
+    <!-- v3.128 — search-engine basics for the (otherwise empty, JavaScript-only)
+         app shell: a real title/description, a canonical URL, social-share tags
+         and structured data. The crawlable public pages live in public/
+         (ribolovno-prilozhenie.html and friends, mapped to clean URLs in
+         vercel.json and listed in public/sitemap.xml). -->
+    <title>CatchCount — риболовен дневник и статистика на уловите</title>
+    <meta name="description" content="CatchCount е риболовно приложение за телефона: води дневник на уловите, записва мястото с GPS, показва статистика по стръв, захранка и водоем и работи и без интернет." />
+    <link rel="canonical" href="https://catchcount.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CatchCount" />
+    <meta property="og:locale" content="bg_BG" />
+    <meta property="og:title" content="CatchCount — риболовен дневник и статистика на уловите" />
+    <meta property="og:description" content="Води дневник на уловите, виж статистика по стръв, захранка и водоем. Работи и без интернет." />
+    <meta property="og:url" content="https://catchcount.app/" />
+    <meta property="og:image" content="https://catchcount.app/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebSite","name":"CatchCount","url":"https://catchcount.app/","inLanguage":"bg"}
+    </script>
   </head>
   <body class="notranslate">
+    <noscript>
+      <h1>CatchCount — риболовен дневник и статистика на уловите</h1>
+      <p>CatchCount е риболовно приложение за телефона: води дневник на уловите, записва мястото с GPS, показва статистика по стръв, захранка и водоем и работи и без интернет. За да го ползвате, включете JavaScript.</p>
+      <ul>
+        <li><a href="/ribolovno-prilozhenie">За приложението</a></li>
+        <li><a href="/riboloven-dnevnik">Риболовен дневник</a></li>
+        <li><a href="/statistika-na-ulovite">Статистика на уловите</a></li>
+        <li><a href="/ribolov-bez-internet">Работа без интернет</a></li>
+        <li><a href="/vodoemi-i-sastezaniya">Водоеми и състезания</a></li>
+        <li><a href="/kak-da-instalirate">Как да инсталирате</a></li>
+      </ul>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
