@@ -10,14 +10,16 @@
 // A catch is assigned to a place like this (v3.120 — grouping is around the
 // NAME OF THE WATER BODY, never the nearest settlement: a big state-owned
 // reservoir touches many villages, but the fishing happened at the reservoir):
-//   1. the catch carries `water_name` (looked up from OpenStreetMap by
+//   1. the catch carries `water_name` (a STANDING water only — язовир, езеро,
+//      рибарник, гьол — v3.126; rivers are never groups; looked up from OpenStreetMap by
 //      locationNames.js once online — works for ANY mapped water body,
 //      registered/approved in the app or not) → the place is that water;
 //   2. no water_name but coordinates: an unresolved catch within
 //      SAME_WATER_RADIUS_M of a catch that has one joins it; else an approved
 //      app water body within WATER_BODY_RADIUS_M; else nearby catches
 //      (single-linkage, CLUSTER_RADIUS_M) form one place named after the most
-//      frequent word-group in their labels;
+//      frequent label (v3.126: whole label, e.g. "река — село", and bounded
+//      clusters — a river is never a group);
 //   3. no coordinates: a label that mentions an already known place joins it,
 //      else the label is a place of its own;
 //   4. no coordinates and no label → no place (only shows under "all").
@@ -104,16 +106,13 @@ function nearestWaterBody(coords, waterBodies) {
   return best && bestDist <= WATER_BODY_RADIUS_M ? best : null;
 }
 
-// The most frequent " — "-separated word group over a set of labels. Ties go
-// to the one seen first. Returns "" when there are no labels.
-function dominantSegment(labels) {
+// v3.126 — the most frequent whole label (ties: the first seen).
+function dominantLabel(labels) {
   const counts = new Map();
   for (const label of labels) {
-    for (const seg of new Set(segmentsOf(label))) {
-      const k = norm(seg);
-      const cur = counts.get(k);
-      if (cur) cur.n += 1; else counts.set(k, { n: 1, text: seg });
-    }
+    const k = norm(label);
+    const cur = counts.get(k);
+    if (cur) cur.n += 1; else counts.set(k, { n: 1, text: label });
   }
   let best = null;
   for (const v of counts.values()) if (!best || v.n > best.n) best = v;
@@ -214,27 +213,26 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     withCoords.push(item);
   }
 
-  // --- 2. remaining coordinates → proximity clusters (single linkage) ------
-  const parent = withCoords.map((_, i) => i);
-  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
-  for (let i = 0; i < withCoords.length; i++) {
-    for (let j = i + 1; j < withCoords.length; j++) {
-      const a = withCoords[i].coords, b = withCoords[j].coords;
-      if (distanceMeters(a.lat, a.lng, b.lat, b.lng) <= CLUSTER_RADIUS_M) {
-        parent[find(i)] = find(j);
-      }
+  // --- 2. remaining coordinates → proximity clusters ------------------------
+  // v3.126 — these are the catches with no standing water around them (typically
+  // river fishing). They must NOT chain into one long strip along a river, so
+  // clusters are "leader" clusters: a catch joins the first cluster whose first
+  // catch is within CLUSTER_RADIUS_M, else it starts a new one (diameter stays
+  // bounded). A cluster is named after its most frequent FULL label, e.g.
+  // "Бели лом — Дряново" (river + settlement), never after the river alone.
+  const leaders = [];
+  for (const item of withCoords) {
+    let home = null;
+    for (const cl of leaders) {
+      const a = cl.items[0].coords;
+      if (distanceMeters(a.lat, a.lng, item.coords.lat, item.coords.lng) <= CLUSTER_RADIUS_M) { home = cl; break; }
     }
+    if (home) home.items.push(item); else leaders.push({ items: [item] });
   }
-  const clusters = new Map();
-  withCoords.forEach((item, i) => {
-    const root = find(i);
-    if (!clusters.has(root)) clusters.set(root, []);
-    clusters.get(root).push(item);
-  });
   const usedNames = new Map(); // normalized name → how many places already use it
   let unnamedCounter = 0;
-  for (const items of clusters.values()) {
-    const name = dominantSegment(items.map((x) => catchLabel(x.c)).filter(Boolean));
+  for (const { items } of leaders) {
+    const name = dominantLabel(items.map((x) => catchLabel(x.c)).filter(Boolean));
     let displayName = name;
     if (!displayName) {
       unnamedCounter += 1;

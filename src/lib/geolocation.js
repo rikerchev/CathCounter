@@ -35,7 +35,8 @@ export async function lookupPlaceName(latitude, longitude, lang) {
     const name = labelParts.length > 0
       ? labelParts.slice(0, 2).join(" — ")
       : data.display_name?.split(",").slice(0, 2).join(", ");
-    return name ? { status: "ok", name } : { status: "empty" };
+    // v3.126 — the settlement alone (used to label river fishing "река — село").
+    return name ? { status: "ok", name, place: placeName || "" } : { status: "empty" };
   } catch {
     return { status: "error" };
   } finally {
@@ -51,25 +52,37 @@ export async function lookupPlaceName(latitude, longitude, lang) {
 // WATER_SEARCH_RADIUS_M instead, so catches can be grouped by the water body
 // even for state-owned ones that were never registered in the app.
 //
-// Same three-way result as lookupPlaceName(): { status: "ok", name } /
+// Same three-way result as lookupPlaceName(): { status: "ok", name, kind } /
 // { status: "empty" } (answered, no named water nearby) / { status: "error" }
 // (no answer — offline, timeout, overloaded server; worth retrying later).
+//
+// v3.126 — `kind` tells a STANDING water ("water": язовир, езеро, рибарник,
+// гьол, микроязовир, старо корито …) from a flowing one ("river": река, канал,
+// поток). Catches are grouped by standing water only. A river is far too long
+// to be "a place" (Бели Лом is 200 km, Дунав is the whole northern border), so
+// for river fishing the caller keeps the catch's own place label and adds the
+// river + the settlement to it instead of grouping by the river. A standing
+// water within reach always wins over a river running next to it.
 const WATER_SEARCH_RADIUS_M = 250;
 // v3.123 — only overpass-api.de: the kumi.systems mirror sends no CORS headers,
 // so every browser request to it was blocked (and still cost time/console
 // errors on each attempt).
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter"];
+// natural=water + water=<one of these> is a river/canal drawn as an area.
+const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "ditch", "drain", "stream_pool"]);
 
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
   const query =
     `[out:json][timeout:10];(` +
     `way(${around})["natural"="water"]["name"];` +
-    `relation(${around})["natural"="water"]["name"];` +
-    `way(${around})["landuse"="reservoir"]["name"];` +
-    `relation(${around})["landuse"="reservoir"]["name"];` +
+    `way(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `way(${around})["waterway"~"^(river|canal|stream)$"]["name"];` +
-    `);out tags center 20;`;
+    `)->.w;(` +
+    `relation(${around})["natural"="water"]["name"];` +
+    `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
+    `)->.r;` +
+    `.w out tags geom 40;.r out tags center 10;`;
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
     const controller = new AbortController();
@@ -84,20 +97,30 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
       if (!res.ok) continue; // overloaded / rate limited — try the next mirror
       const data = await res.json();
       const elements = Array.isArray(data.elements) ? data.elements : [];
-      let best = null;
-      let bestScore = Infinity;
+      let bestStill = null; let bestStillD = Infinity;
+      let bestRiver = null; let bestRiverD = Infinity;
       for (const el of elements) {
         const tags = el.tags || {};
         const name = (tags[`name:${lang}`] || tags.name || "").trim();
         if (!name) continue;
-        // Still waters (lakes, reservoirs) before rivers; then the nearest.
-        const isArea = tags.natural === "water" || tags.landuse === "reservoir";
-        const c = el.center;
-        const dist = c ? distanceMeters(latitude, longitude, c.lat, c.lon) : 0;
-        const score = (isArea ? 0 : 1_000_000) + dist;
-        if (score < bestScore) { bestScore = score; best = name; }
+        const flowing = !!tags.waterway || FLOWING_WATER_VALUES.has(tags.water);
+        // distance: nearest vertex of the way (rivers are long, so their
+        // "centre" says nothing), else the element's centre
+        let dist = Infinity;
+        if (Array.isArray(el.geometry)) {
+          for (const p of el.geometry) {
+            if (p && typeof p.lat === "number") dist = Math.min(dist, distanceMeters(latitude, longitude, p.lat, p.lon));
+          }
+        }
+        if (!Number.isFinite(dist) && el.center) dist = distanceMeters(latitude, longitude, el.center.lat, el.center.lon);
+        if (!Number.isFinite(dist)) dist = 0;
+        if (flowing) {
+          if (dist < bestRiverD) { bestRiverD = dist; bestRiver = name; }
+        } else if (dist < bestStillD) { bestStillD = dist; bestStill = name; }
       }
-      return best ? { status: "ok", name: best } : { status: "empty" };
+      if (bestStill) return { status: "ok", name: bestStill, kind: "water" };
+      if (bestRiver) return { status: "ok", name: bestRiver, kind: "river" };
+      return { status: "empty" };
     } catch {
       // timeout / network error — try the next mirror, else report "error"
     } finally {

@@ -11,6 +11,14 @@
 // resolvePendingLocationNames(), which looks up the name and stores it on the
 // catch (marking the record unsynced so the very next pushPendingCatches()
 // sends the corrected values to the server).
+//
+// v3.126 — `water_name` is only ever a STANDING water (язовир, езеро,
+// рибарник, гьол …): that is what catches are grouped by. A river is never a
+// group (Бели Лом is 200 km long, Дунав is the whole northern border); for a
+// catch made at a river the location label becomes "река — населено място"
+// instead, and the catch keeps no water_name. Catches that got a water_name
+// from the earlier lookups (v3.120–v3.125, which also returned rivers) are
+// re-checked once per spot: a river name is removed again.
 
 import { getAllCatches, saveCatchLocal } from "@/lib/localDb";
 import { lookupPlaceName, lookupNearbyWater } from "@/lib/geolocation";
@@ -41,6 +49,10 @@ const RUN_GAP_MS = 2 * 60 * 1000;
 const RUN_BUDGET_MS = 25 * 1000;
 const ERROR_BACKOFF_MS = 15 * 60 * 1000;
 const BACKOFF_KEY = "locationLookupBackoffUntil";
+// v3.126 — spots whose water_name was (re)verified with the standing-water-only
+// lookup, and the river (+ settlement) found at river spots.
+const VERIFIED_KEY = "waterNameVerifiedV2";
+const RIVER_KEY = "locationRiverCacheV2";
 let running = false;
 let lastRunAt = 0;
 
@@ -62,6 +74,19 @@ function readEmptyMap() {
 function writeEmptyMap(map) {
   try { localStorage.setItem(EMPTY_KEY, JSON.stringify(map)); } catch { /* ignore */ }
 }
+
+function readJson(key, fallback) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return parsed && typeof parsed === "object" ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeJson(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+}
+const normName = (v) => String(v || "").trim().toLocaleLowerCase();
 
 // ~11 m grid: catches from the same swim share one lookup.
 const gridKey = (lat, lng) => `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -92,6 +117,8 @@ export async function resolvePendingLocationNames() {
     const userId = currentUserId();
     const lang = currentLang();
     const emptyMap = readEmptyMap();
+    const verified = new Set(readJson(VERIFIED_KEY, []));
+    const riverCache = readJson(RIVER_KEY, {});
     const now = Date.now();
     const isSkipped = (kind, key, retryMs) => {
       const at = emptyMap[`${kind}:${key}`];
@@ -111,7 +138,8 @@ export async function resolvePendingLocationNames() {
         coords,
         key,
         label: needsLabel(c) && !isSkipped("label", key, LABEL_EMPTY_RETRY_MS),
-        water: needsWater(c) && !isSkipped("water", key, WATER_EMPTY_RETRY_MS),
+        // a catch with a name from the old lookups is checked once more
+        water: (needsWater(c) || !verified.has(key)) && !isSkipped("water", key, WATER_EMPTY_RETRY_MS),
       };
     };
 
@@ -126,27 +154,61 @@ export async function resolvePendingLocationNames() {
     }
     if (spots.size === 0) return 0;
 
-    const results = new Map(); // grid key → { label?: string, water?: string }
+    const results = new Map(); // grid key → { label?, water?: string|null, river?, place? }
     let requests = 0;
     let handled = 0;
     let offline = false;
+    const labelHasName = (c, name) => normName(c.location).includes(normName(name));
     for (const [key, spot] of spots) {
-      if (handled >= MAX_SPOTS_PER_RUN || offline || Date.now() - startedAt > RUN_BUDGET_MS) break;
-      handled += 1;
+      if (offline || Date.now() - startedAt > RUN_BUDGET_MS) break;
+      const cachedRiver = spot.water ? riverCache[key] : null;
+      // spots answered from the cache cost no request and don't use up the quota
+      if (!cachedRiver && handled >= MAX_SPOTS_PER_RUN) break;
+      if (!cachedRiver) handled += 1;
       const found = {};
       if (spot.label) {
         if (requests++ > 0) await sleep(REQUEST_GAP_MS);
         const r = await lookupPlaceName(spot.coords.lat, spot.coords.lng, lang);
         if (r.status === "error") { offline = true; startBackoff(); break; }
-        if (r.status === "ok") found.label = r.name; else emptyMap[`label:${key}`] = now;
+        if (r.status === "ok") { found.label = r.name; found.place = r.place || ""; } else emptyMap[`label:${key}`] = now;
       }
       if (spot.water) {
-        if (requests++ > 0) await sleep(REQUEST_GAP_MS);
-        const r = await lookupNearbyWater(spot.coords.lat, spot.coords.lng, lang);
-        // Overpass being down must not block the place names found above.
-        if (r.status === "ok") found.water = r.name;
-        else if (r.status === "empty") emptyMap[`water:${key}`] = now;
-        else startBackoff(); // "error": stop asking for a while
+        if (cachedRiver) {
+          found.water = null;
+          found.river = cachedRiver.river;
+          found.place = cachedRiver.place || "";
+          found.placeReady = true;
+        } else {
+          if (requests++ > 0) await sleep(REQUEST_GAP_MS);
+          const r = await lookupNearbyWater(spot.coords.lat, spot.coords.lng, lang);
+          if (r.status === "ok" && r.kind === "river") {
+            found.water = null; found.river = r.name; verified.add(key);
+          } else if (r.status === "ok") {
+            found.water = r.name; verified.add(key);
+          } else if (r.status === "empty") {
+            found.water = null; verified.add(key); emptyMap[`water:${key}`] = now;
+          } else {
+            // "error": Overpass is down — leave names as they are, ask again later
+            startBackoff();
+          }
+        }
+        // river spot: the settlement is needed for the "река — населено място" label
+        if (found.river && !found.placeReady) {
+          const needsLabelFix = all.some((c) => {
+            const w = wanted(c);
+            return w && w.key === key && !labelHasName(c, found.river);
+          });
+          if (needsLabelFix && !found.place) {
+            if (requests++ > 0) await sleep(REQUEST_GAP_MS);
+            const p = await lookupPlaceName(spot.coords.lat, spot.coords.lng, lang);
+            if (p.status === "ok") found.place = p.place || "";
+            if (p.status === "error") { found.river = undefined; startBackoff(); }
+          }
+          if (found.river) {
+            found.placeReady = true;
+            riverCache[key] = { river: found.river, place: found.place || "" };
+          }
+        }
       }
       results.set(key, found);
     }
@@ -161,7 +223,19 @@ export async function resolvePendingLocationNames() {
       if (!found) continue;
       const patch = {};
       if (found.label && needsLabel(fresh)) patch.location = found.label;
-      if (found.water && needsWater(fresh)) patch.water_name = found.water;
+      if (typeof found.water === "string" && found.water && fresh.water_name !== found.water) {
+        patch.water_name = found.water;
+      } else if (found.water === null && !needsWater(fresh)) {
+        // not a standing water (a river, or nothing mapped): no water group
+        patch.water_name = "";
+      }
+      // river fishing: "река — населено място" in the location label (not a group)
+      if (found.river && found.placeReady) {
+        const current = patch.location ?? fresh.location;
+        if (!labelHasName({ location: current }, found.river)) {
+          patch.location = found.place ? `${found.river} — ${found.place}` : found.river;
+        }
+      }
       if (Object.keys(patch).length === 0) continue;
       await saveCatchLocal({
         ...fresh,
@@ -175,6 +249,8 @@ export async function resolvePendingLocationNames() {
     }
 
     writeEmptyMap(emptyMap);
+    writeJson(VERIFIED_KEY, [...verified]);
+    writeJson(RIVER_KEY, riverCache);
     return updated;
   } catch (e) {
     console.error("resolvePendingLocationNames error:", e);
