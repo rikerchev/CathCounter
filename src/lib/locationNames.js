@@ -54,7 +54,11 @@ const RUN_BUDGET_MS = 25 * 1000;
 const ERROR_BACKOFF_MS = 15 * 60 * 1000;
 const BACKOFF_KEY = "locationLookupBackoffUntil";
 // v3.127 — per-spot answer: grid key → { water, river, settlement }
-const SPOT_KEY = "locationSpotCacheV3";
+// v3.131 — V4: the "standing water" test got stricter (a river drawn as an
+// area named like the river is no longer a water body), so V3 answers that
+// named a standing water are asked again; the rest is carried over.
+const SPOT_KEY = "locationSpotCacheV4";
+const OLD_SPOT_KEY = "locationSpotCacheV3";
 let running = false;
 let lastRunAt = 0;
 
@@ -118,7 +122,15 @@ export async function resolvePendingLocationNames() {
     const userId = currentUserId();
     const lang = currentLang();
     const emptyMap = readEmptyMap();
-    const spotCache = readJson(SPOT_KEY, {});
+    let spotCache = readJson(SPOT_KEY, null);
+    if (!spotCache) {
+      spotCache = {};
+      const oldCache = readJson(OLD_SPOT_KEY, {});
+      for (const [k, v] of Object.entries(oldCache)) {
+        if (v && !v.water) spotCache[k] = v; // no standing water → answer unchanged
+      }
+      writeJson(SPOT_KEY, spotCache);
+    }
     const now = Date.now();
     const isSkipped = (kind, key, retryMs) => {
       const at = emptyMap[`${kind}:${key}`];

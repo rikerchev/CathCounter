@@ -73,6 +73,17 @@ const SETTLEMENT_SEARCH_RADIUS_M = 10000;
 const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter"];
 // natural=water + water=<one of these> is a river/canal drawn as an area.
 const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "ditch", "drain", "stream_pool"]);
+// v3.131 — telling a river drawn as an area from a real standing water.
+const RIVER_STRIP_EXTENT_M = 3000;
+const RIVER_NAME_RE = /^\s*(?:река|р\.|river|reka)\b/i;
+const STANDING_WORD_RE = /(?:язовир|яз\.|микроязовир|езеро|рибарник|гьол|блато|бент|дига|lake|reservoir|pond|dam)/i;
+// lower case, no quotes, no leading "река"/"р." — so "р. Бели Лом" = "Бели лом"
+const normalizeGeoName = (name) =>
+  String(name || "")
+    .replace(/[„“”"«»'`‘’()]/g, " ")
+    .replace(/^\s*(?:река|р\.|river)\s+/i, "")
+    .trim()
+    .toLocaleLowerCase();
 
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
@@ -81,7 +92,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `[out:json][timeout:10];(` +
     `way(${around})["natural"="water"]["name"];` +
     `way(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
-    `way(${around})["waterway"~"^(river|canal|stream)$"]["name"];` +
+    `way(${around})["waterway"~"^(river|canal|stream|riverbank)$"]["name"];` +
     `)->.w;(` +
     `relation(${around})["natural"="water"]["name"];` +
     `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
@@ -102,9 +113,10 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
       if (!res.ok) continue; // overloaded / rate limited
       const data = await res.json();
       const elements = Array.isArray(data.elements) ? data.elements : [];
-      let water = null; let waterD = Infinity;
       let river = null; let riverD = Infinity;
       let settlement = null; let settlementD = Infinity;
+      const standing = []; // { name, dist, extent } — decided below
+      const flowingNames = new Set();
       for (const el of elements) {
         const tags = el.tags || {};
         const name = (tags[`name:${lang}`] || tags.name || "").trim();
@@ -120,16 +132,44 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         // distance: nearest vertex of the way (rivers are long, so their
         // "centre" says nothing), else the element's centre
         let dist = Infinity;
+        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
         if (Array.isArray(el.geometry)) {
           for (const p of el.geometry) {
-            if (p && typeof p.lat === "number") dist = Math.min(dist, distanceMeters(latitude, longitude, p.lat, p.lon));
+            if (p && typeof p.lat === "number") {
+              dist = Math.min(dist, distanceMeters(latitude, longitude, p.lat, p.lon));
+              minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
+              minLng = Math.min(minLng, p.lon); maxLng = Math.max(maxLng, p.lon);
+            }
           }
         }
         if (!Number.isFinite(dist) && el.center) dist = distanceMeters(latitude, longitude, el.center.lat, el.center.lon);
         if (!Number.isFinite(dist)) dist = 0;
+        const extent = Number.isFinite(minLat) ? distanceMeters(minLat, minLng, maxLat, maxLng) : 0;
         if (flowing) {
+          flowingNames.add(normalizeGeoName(name));
           if (dist < riverD) { riverD = dist; river = name; }
-        } else if (dist < waterD) { waterD = dist; water = name; }
+        } else {
+          standing.push({ name, dist, extent });
+        }
+      }
+      // v3.131 — a river is often also drawn as a wide AREA tagged
+      // natural=water without water=river, which looked like a "standing
+      // water" named like the river (catches of a pond beside Бели Лом ended up
+      // in the group "Бели лом"). Such an area is a river when
+      //   - a river/stream line with the same name is in the answer, or
+      //   - its name starts with "река"/"р."/"river", or
+      //   - it is a long strip (> RIVER_STRIP_EXTENT_M) with no standing-water
+      //     word in its name while a river is nearby.
+      let water = null; let waterD = Infinity;
+      for (const w of standing) {
+        const nn = normalizeGeoName(w.name);
+        const asRiver =
+          flowingNames.has(nn) ||
+          RIVER_NAME_RE.test(w.name) ||
+          (w.extent > RIVER_STRIP_EXTENT_M && !STANDING_WORD_RE.test(w.name) && river);
+        if (asRiver) {
+          if (w.dist < riverD) { riverD = w.dist; river = w.name; }
+        } else if (w.dist < waterD) { waterD = w.dist; water = w.name; }
       }
       return { status: "ok", water, river, settlement };
     } catch {
