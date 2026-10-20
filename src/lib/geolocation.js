@@ -92,7 +92,13 @@ const WATER_SEARCH_RADIUS_M = 250;
 // v3.123 — only overpass-api.de: the kumi.systems mirror sends no CORS headers,
 // so every browser request to it was blocked (and still cost time/console
 // errors on each attempt).
-const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter"];
+// v3.133 — overpass-api.de often answers 502 when busy; a second public
+// instance (private.coffee, sends CORS headers) is tried after it. A mirror that
+// blocks the request just falls through to "error" like any other failure.
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+];
 // natural=water + water=<one of these> is a river/canal drawn as an area.
 const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "ditch", "drain", "stream_pool"]);
 // v3.131 — telling a river drawn as an area from a real standing water.
@@ -226,6 +232,12 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     }
    }
   }
+  // v3.133 — no Overpass instance answered. The spot still needs a group, so
+  // fall back to the settlement alone (Nominatim) and mark the answer
+  // PROVISIONAL: locationNames.js asks Overpass again later and replaces it
+  // when a standing water turns out to be mapped nearby.
+  const st = await lookupSettlement(latitude, longitude, lang);
+  if (st.ok && st.name) return { status: "ok", water: null, river: null, settlement: st.name, provisional: true };
   return { status: "error" };
 }
 

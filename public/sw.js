@@ -83,7 +83,7 @@ self.addEventListener("fetch", (event) => {
   // not static assets: never answer them from / through this cache logic.
   // Before, a failed lookup came back as a fake "504 Offline and not cached"
   // from the stale-while-revalidate branch below.
-  if (url.hostname === "nominatim.openstreetmap.org" || url.hostname.endsWith("overpass-api.de")) return;
+  if (url.hostname === "nominatim.openstreetmap.org" || url.hostname.endsWith("overpass-api.de") || url.hostname.endsWith("private.coffee")) return;
 
   // Navigation requests: try the network first, fall back to the cached
   // shell so the app still opens offline.

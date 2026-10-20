@@ -63,7 +63,10 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.133";
+const GENERATION = "3.134";
+// v3.134 — an answer with only the settlement (Overpass was down) is kept as
+// provisional and asked again after this long.
+const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
 const GENERATION_KEY = "locationLookupGeneration";
 function resetLookupStateOnce() {
   try {
@@ -168,7 +171,9 @@ export async function resolvePendingLocationNames() {
         key,
         label: needsLabel(c) && !isSkipped("label", key, LABEL_EMPTY_RETRY_MS),
         // the spot's water/river/settlement is asked once, then cached
-        water: !spotCache[key] && !isSkipped("water", key, WATER_EMPTY_RETRY_MS),
+        water:
+          (!spotCache[key] && !isSkipped("water", key, WATER_EMPTY_RETRY_MS)) ||
+          (!!spotCache[key]?.provisional && now - (spotCache[key].at || 0) > PROVISIONAL_RETRY_MS),
       };
     };
 
@@ -201,6 +206,7 @@ export async function resolvePendingLocationNames() {
         if (r.status === "ok") {
           if (r.water || r.river || r.settlement) {
             spotCache[key] = { water: r.water || null, river: r.river || null, settlement: r.settlement || null };
+            if (r.provisional) { spotCache[key].provisional = true; spotCache[key].at = now; }
             if (r.river) rememberRiverName(r.river); // so a stale river group can be recognised
 
           } else {
