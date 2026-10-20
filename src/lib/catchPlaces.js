@@ -97,6 +97,34 @@ export function normalizeWaterName(name) {
   return (kept.length ? kept : words).join(" ");
 }
 
+// v3.132 — names of RIVERS the lookups have come across (OpenStreetMap said
+// "this is a river"), kept in localStorage by locationNames.js. Catches saved
+// by v3.120–v3.125 still carry such a river as `water_name` (back then rivers
+// were groups); until the catch is re-resolved (needs the lookup service) it
+// must neither be grouped by it nor pull its neighbours into a "river" group.
+export const KNOWN_RIVERS_KEY = "knownRiverNames";
+const RIVER_PREFIX_RE = /^\s*(?:река|р\.|river)\s/i;
+
+export function readKnownRiverNames() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(KNOWN_RIVERS_KEY) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function rememberRiverName(name) {
+  const nk = normalizeWaterName(name);
+  if (!nk) return;
+  try {
+    const set = readKnownRiverNames();
+    if (set.has(nk)) return;
+    set.add(nk);
+    localStorage.setItem(KNOWN_RIVERS_KEY, JSON.stringify([...set]));
+  } catch { /* ignore */ }
+}
+
 function nearestWaterBody(coords, waterBodies) {
   let best = null;
   let bestDist = Infinity;
@@ -135,6 +163,9 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
   const unnamedPlace = unnamed.place || "—";
   const unnamedSpot = unnamed.spot || "—";
   const wbs = (waterBodies || []).filter((w) => isValidCoord(w.lat, w.lng));
+  const knownRivers = readKnownRiverNames();
+  // a stale river group name (see readKnownRiverNames) counts as "no water_name"
+  const isRiverName = (wn) => RIVER_PREFIX_RE.test(wn) || knownRivers.has(normalizeWaterName(wn));
 
   // catch id → { placeKey, spotKey }
   const assignment = new Map();
@@ -167,7 +198,8 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
   const withoutCoords = [];
   const unresolved = [];
   for (const c of catches) {
-    const wn = typeof c.water_name === "string" ? c.water_name.trim() : "";
+    let wn = typeof c.water_name === "string" ? c.water_name.trim() : "";
+    if (wn && isRiverName(wn)) wn = "";
     const coords = catchCoords(c);
     if (wn) {
       const nk = normalizeWaterName(wn);

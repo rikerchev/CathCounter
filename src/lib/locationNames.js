@@ -26,7 +26,7 @@
 
 import { getAllCatches, saveCatchLocal } from "@/lib/localDb";
 import { lookupPlaceName, lookupNearbyWater } from "@/lib/geolocation";
-import { catchCoords, isCoordinateLabel } from "@/lib/catchPlaces";
+import { catchCoords, isCoordinateLabel, rememberRiverName } from "@/lib/catchPlaces";
 
 // Nominatim/Overpass fair-use: at most about 1 request/second.
 const REQUEST_GAP_MS = 1100;
@@ -49,9 +49,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 //  - after a failed ("error") lookup, no further lookups for ERROR_BACKOFF_MS
 //    (offline, rate-limited, or the service is down — retrying immediately
 //    only makes it worse).
-const RUN_GAP_MS = 2 * 60 * 1000;
+const RUN_GAP_MS = 60 * 1000;
 const RUN_BUDGET_MS = 25 * 1000;
-const ERROR_BACKOFF_MS = 15 * 60 * 1000;
+const ERROR_BACKOFF_MS = 5 * 60 * 1000;
 const BACKOFF_KEY = "locationLookupBackoffUntil";
 // v3.127 — per-spot answer: grid key → { water, river, settlement }
 // v3.131 — V4: the "standing water" test got stricter (a river drawn as an
@@ -59,6 +59,22 @@ const BACKOFF_KEY = "locationLookupBackoffUntil";
 // named a standing water are asked again; the rest is carried over.
 const SPOT_KEY = "locationSpotCacheV4";
 const OLD_SPOT_KEY = "locationSpotCacheV3";
+// v3.132 — once per app generation the pause after earlier failures and the
+// "nothing mapped here" memory are forgotten: the lookup query changed (smaller
+// answer, longer timeout), so what failed or came back empty before is asked
+// again right away instead of waiting 15 minutes / a week.
+const GENERATION = "3.132";
+const GENERATION_KEY = "locationLookupGeneration";
+function resetLookupStateOnce() {
+  try {
+    if (localStorage.getItem(GENERATION_KEY) === GENERATION) return;
+    localStorage.removeItem(BACKOFF_KEY);
+    const empty = readEmptyMap();
+    for (const k of Object.keys(empty)) if (k.startsWith("water:")) delete empty[k];
+    writeEmptyMap(empty);
+    localStorage.setItem(GENERATION_KEY, GENERATION);
+  } catch { /* ignore */ }
+}
 let running = false;
 let lastRunAt = 0;
 
@@ -114,6 +130,7 @@ const needsLabel = (c) => {
  * Returns how many catches were updated. Never throws.
  */
 export async function resolvePendingLocationNames() {
+  resetLookupStateOnce();
   if (running || inBackoff() || Date.now() - lastRunAt < RUN_GAP_MS) return 0;
   running = true;
   lastRunAt = Date.now();
@@ -184,6 +201,8 @@ export async function resolvePendingLocationNames() {
         if (r.status === "ok") {
           if (r.water || r.river || r.settlement) {
             spotCache[key] = { water: r.water || null, river: r.river || null, settlement: r.settlement || null };
+            if (r.river) rememberRiverName(r.river); // so a stale river group can be recognised
+
           } else {
             emptyMap[`water:${key}`] = now; // nothing mapped around: retry in a week
           }

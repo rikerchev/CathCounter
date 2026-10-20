@@ -74,7 +74,9 @@ const OVERPASS_ENDPOINTS = ["https://overpass-api.de/api/interpreter"];
 // natural=water + water=<one of these> is a river/canal drawn as an area.
 const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "ditch", "drain", "stream_pool"]);
 // v3.131 — telling a river drawn as an area from a real standing water.
-const RIVER_STRIP_EXTENT_M = 3000;
+// geometry is clipped to ~1.2 km around the spot (see lookupNearbyWater), so a
+// strip reaching across most of that window is a river, not a pond.
+const RIVER_STRIP_EXTENT_M = 1000;
 const RIVER_NAME_RE = /^\s*(?:река|р\.|river|reka)\b/i;
 const STANDING_WORD_RE = /(?:язовир|яз\.|микроязовир|езеро|рибарник|гьол|блато|бент|дига|lake|reservoir|pond|dam)/i;
 // lower case, no quotes, no leading "река"/"р." — so "р. Бели Лом" = "Бели лом"
@@ -88,8 +90,14 @@ const normalizeGeoName = (name) =>
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
   const aroundPlaces = `around:${SETTLEMENT_SEARCH_RADIUS_M},${latitude},${longitude}`;
-  const query =
-    `[out:json][timeout:10];(` +
+  // v3.131 — only the part of a river's geometry near the spot is returned
+  // (geom(bbox)): a whole river way can be thousands of points, which made the
+  // answer slow/huge and the request time out → every lookup "failed".
+  const dLat = 0.005;
+  const dLng = 0.008;
+  const bbox = `${(latitude - dLat).toFixed(5)},${(longitude - dLng).toFixed(5)},${(latitude + dLat).toFixed(5)},${(longitude + dLng).toFixed(5)}`;
+  const buildQuery = (trimmed) =>
+    `[out:json][timeout:20];(` +
     `way(${around})["natural"="water"]["name"];` +
     `way(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `way(${around})["waterway"~"^(river|canal|stream|riverbank)$"]["name"];` +
@@ -98,11 +106,13 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `)->.r;` +
     `node(${aroundPlaces})["place"~"^(city|town|village)$"]["name"]->.p;` +
-    `.w out tags geom 40;.r out tags center 10;.p out tags;`;
+    `.w out tags ${trimmed ? `geom(${bbox})` : "geom"} 40;.r out tags center 10;.p out tags;`;
+  const queries = [buildQuery(true), buildQuery(false)]; // the 2nd only if the 1st is rejected (HTTP 400)
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
+   for (const query of queries) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12000);
+    const timer = setTimeout(() => controller.abort(), 18000);
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -110,8 +120,15 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         body: `data=${encodeURIComponent(query)}`,
         signal: controller.signal,
       });
-      if (!res.ok) continue; // overloaded / rate limited
+      if (res.status === 400) continue; // query rejected → try the plain variant
+      if (!res.ok) { console.warn("[overpass] HTTP", res.status); break; } // overloaded / rate limited — no point in retrying now
       const data = await res.json();
+      // Overpass answers 200 with a "remark" when it ran out of time/memory;
+      // that is NOT "nothing is mapped here" (it would be cached for a week).
+      if (data.remark && /runtime error|timed out|out of memory/i.test(String(data.remark))) {
+        console.warn("[overpass] remark:", data.remark);
+        break;
+      }
       const elements = Array.isArray(data.elements) ? data.elements : [];
       let river = null; let riverD = Infinity;
       let settlement = null; let settlementD = Infinity;
@@ -172,11 +189,13 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         } else if (w.dist < waterD) { waterD = w.dist; water = w.name; }
       }
       return { status: "ok", water, river, settlement };
-    } catch {
+    } catch (err) {
       // timeout / network error — report "error" below
+      console.warn("[overpass] request failed:", err && err.name ? err.name : err);
     } finally {
       clearTimeout(timer);
     }
+   }
   }
   return { status: "error" };
 }
