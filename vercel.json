@@ -3,6 +3,8 @@
     { "src": "^/api/.*$", "dest": "/api/[...path].ts" },
     { "src": "^/(ribolovno-prilozhenie|riboloven-dnevnik|statistika-na-ulovite|ribolov-bez-internet|vodoemi-i-sastezaniya|kak-da-instalirate|kontakti)/?$", "dest": "/$1.html" },
     { "src": "^/(cs|de|en|es|fr|hu|it|mk|nl|pl|ro|ru|sk|sr|tr|uk)/(fishing-app|fishing-diary|catch-statistics|offline-fishing-app|waters-and-competitions|install|contact)/?$", "dest": "/$1/$2.html" },
+    { "src": "^/sitemap\\.xml$", "headers": { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": "public, max-age=3600" }, "continue": true },
+    { "src": "^/robots\\.txt$", "headers": { "Content-Type": "text/plain; charset=utf-8" }, "continue": true },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
