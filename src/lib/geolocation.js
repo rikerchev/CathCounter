@@ -44,6 +44,29 @@ export async function lookupPlaceName(latitude, longitude, lang) {
   }
 }
 
+// v3.132 — the settlement a spot belongs to, from Nominatim (zoom 12 = the
+// village/town/city level, so a field between villages answers with the one
+// whose land it is). { ok: true, name } (name may be "") or { ok: false }.
+async function lookupSettlement(latitude, longitude, lang) {
+  await new Promise((r) => setTimeout(r, 1100)); // Nominatim: ~1 request/second
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=12&addressdetails=1&accept-language=${lang}`,
+      { headers: { Accept: "application/json" }, signal: controller.signal }
+    );
+    if (!res.ok) return { ok: false };
+    const data = await res.json();
+    const a = (data && data.address) || {};
+    return { ok: true, name: a.village || a.town || a.city || a.hamlet || "" };
+  } catch {
+    return { ok: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // v3.120 — the name of the WATER BODY (lake, reservoir, pond …) next to a
 // point, from OpenStreetMap via the Overpass API. Nominatim above only names
 // the water when the point is inside the water itself, and returns the
@@ -57,7 +80,7 @@ export async function lookupPlaceName(latitude, longitude, lang) {
 //               гьол, микроязовир, старо корито …) within reach, else null;
 //   river       the nearest named river/canal/stream within reach, else null;
 //   settlement  the nearest named city/town/village (OSM place nodes within
-//               SETTLEMENT_SEARCH_RADIUS_M), else null.
+//               zoom 12, v3.132: Nominatim), else null.
 // Catches are grouped by `water` when there is one, otherwise by the nearest
 // `settlement` — never by a river (Бели Лом is 200 km long, Дунав is the whole
 // northern border). For river fishing the location label gets the river and
@@ -66,7 +89,6 @@ export async function lookupPlaceName(latitude, longitude, lang) {
 // Result: { status: "ok", water, river, settlement } or { status: "error" }
 // (no answer — offline, timeout, overloaded server; worth retrying later).
 const WATER_SEARCH_RADIUS_M = 250;
-const SETTLEMENT_SEARCH_RADIUS_M = 10000;
 // v3.123 — only overpass-api.de: the kumi.systems mirror sends no CORS headers,
 // so every browser request to it was blocked (and still cost time/console
 // errors on each attempt).
@@ -89,15 +111,18 @@ const normalizeGeoName = (name) =>
 
 export async function lookupNearbyWater(latitude, longitude, lang) {
   const around = `around:${WATER_SEARCH_RADIUS_M},${latitude},${longitude}`;
-  const aroundPlaces = `around:${SETTLEMENT_SEARCH_RADIUS_M},${latitude},${longitude}`;
-  // v3.131 — only the part of a river's geometry near the spot is returned
-  // (geom(bbox)): a whole river way can be thousands of points, which made the
-  // answer slow/huge and the request time out → every lookup "failed".
+  // v3.132 — Overpass only answers the cheap part (named waters within 250 m).
+  // The 10 km "nearest village" search that used to ride along in the same
+  // query made overpass-api.de time out / answer 502 for every spot; the
+  // settlement now comes from Nominatim (lookupSettlement) and only when no
+  // standing water was found.
+  // The river's geometry is clipped to a window around the spot (geom(bbox)):
+  // a whole river way can be thousands of points.
   const dLat = 0.005;
   const dLng = 0.008;
   const bbox = `${(latitude - dLat).toFixed(5)},${(longitude - dLng).toFixed(5)},${(latitude + dLat).toFixed(5)},${(longitude + dLng).toFixed(5)}`;
   const buildQuery = (trimmed) =>
-    `[out:json][timeout:20];(` +
+    `[out:json][timeout:15];(` +
     `way(${around})["natural"="water"]["name"];` +
     `way(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `way(${around})["waterway"~"^(river|canal|stream|riverbank)$"]["name"];` +
@@ -105,14 +130,13 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `relation(${around})["natural"="water"]["name"];` +
     `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `)->.r;` +
-    `node(${aroundPlaces})["place"~"^(city|town|village)$"]["name"]->.p;` +
-    `.w out tags ${trimmed ? `geom(${bbox})` : "geom"} 40;.r out tags center 10;.p out tags;`;
+    `.w out tags ${trimmed ? `geom(${bbox})` : "geom"} 40;.r out tags center 10;`;
   const queries = [buildQuery(true), buildQuery(false)]; // the 2nd only if the 1st is rejected (HTTP 400)
 
   for (const endpoint of OVERPASS_ENDPOINTS) {
    for (const query of queries) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 18000);
+    const timer = setTimeout(() => controller.abort(), 16000);
     try {
       const res = await fetch(endpoint, {
         method: "POST",
@@ -187,6 +211,11 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         if (asRiver) {
           if (w.dist < riverD) { riverD = w.dist; river = w.name; }
         } else if (w.dist < waterD) { waterD = w.dist; water = w.name; }
+      }
+      if (!water && !settlement) {
+        const st = await lookupSettlement(latitude, longitude, lang);
+        if (!st.ok) return { status: "error" }; // grouping needs it → ask again later
+        settlement = st.name;
       }
       return { status: "ok", water, river, settlement };
     } catch (err) {

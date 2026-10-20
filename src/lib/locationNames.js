@@ -63,7 +63,7 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.132";
+const GENERATION = "3.133";
 const GENERATION_KEY = "locationLookupGeneration";
 function resetLookupStateOnce() {
   try {
