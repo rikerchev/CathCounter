@@ -125,6 +125,19 @@ export function rememberRiverName(name) {
   } catch { /* ignore */ }
 }
 
+// v3.138 — a sub-location that is just one word-group ("Бели Лом", a river
+// label left by older versions) says nothing on its own under the place it is
+// listed in; when it does not mention the place, the place is appended:
+// "Бели Лом" under "Писанец" → "Бели Лом — Писанец". Display only — the
+// filter still uses the original label.
+function spotDisplayName(label, placeName) {
+  const l = norm(label);
+  const p = norm(placeName);
+  if (!l || !p || label.includes("—")) return label;
+  if (l.includes(p) || p.includes(l)) return label;
+  return `${label} — ${placeName}`;
+}
+
 function nearestWaterBody(coords, waterBodies) {
   let best = null;
   let bestDist = Infinity;
@@ -182,7 +195,7 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     const p = ensurePlace(placeKey, placeName);
     p.count += 1;
     const s = p.spots.get(spotKey);
-    if (s) s.count += 1; else p.spots.set(spotKey, { key: spotKey, name: label || unnamedSpot, count: 1 });
+    if (s) s.count += 1; else p.spots.set(spotKey, { key: spotKey, name: label ? spotDisplayName(label, placeName) : unnamedSpot, count: 1 });
     assignment.set(c, { placeKey, spotKey });
   };
 
