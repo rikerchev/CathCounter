@@ -26,7 +26,7 @@
 
 import { getAllCatches, saveCatchLocal } from "@/lib/localDb";
 import { lookupPlaceName, lookupNearbyWater, distanceMeters } from "@/lib/geolocation";
-import { catchCoords, isCoordinateLabel, rememberRiverName } from "@/lib/catchPlaces";
+import { catchCoords, isCoordinateLabel, rememberRiverName, readKnownRiverNames, normalizeWaterName } from "@/lib/catchPlaces";
 
 // Nominatim/Overpass fair-use: at most about 1 request/second.
 const REQUEST_GAP_MS = 1100;
@@ -63,7 +63,7 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.136";
+const GENERATION = "3.137";
 // v3.134 — an answer with only the settlement (Overpass was down) is kept as
 // provisional and asked again after this long.
 const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
@@ -77,6 +77,7 @@ function answerFor(cache, key, coords) {
   if (cache[key]) return cache[key];
   let best = null; let bestD = Infinity;
   for (const [k, v] of Object.entries(cache)) {
+    if (!v || (!v.water && !v.settlement)) continue; // incomplete answers cover nothing
     const [la, ln] = k.split(",").map(Number);
     if (!Number.isFinite(la) || !Number.isFinite(ln)) continue;
     const d = distanceMeters(coords.lat, coords.lng, la, ln);
@@ -85,8 +86,13 @@ function answerFor(cache, key, coords) {
   }
   return best;
 }
+// v3.137 — also stale: an answer with NO group at all (no standing water and
+// no settlement — e.g. only a river): the settlement lookup failed or came back
+// empty at that time; asked again (at most every PROVISIONAL_RETRY_MS).
 function answerIsStale(ans, now) {
-  return !!ans && !!ans.provisional && now - (ans.at || 0) > PROVISIONAL_RETRY_MS;
+  if (!ans) return false;
+  const incomplete = !ans.water && !ans.settlement;
+  return (ans.provisional || incomplete) && now - (ans.at || 0) > PROVISIONAL_RETRY_MS;
 }
 
 function resetLookupStateOnce() {
@@ -236,7 +242,8 @@ export async function resolvePendingLocationNames() {
         if (r.status === "ok") {
           if (r.water || r.river || r.settlement) {
             spotCache[key] = { water: r.water || null, river: r.river || null, settlement: r.settlement || null };
-            if (r.provisional) { spotCache[key].provisional = true; spotCache[key].at = now; }
+            spotCache[key].at = now;
+            if (r.provisional) spotCache[key].provisional = true;
             if (r.river) rememberRiverName(r.river); // so a stale river group can be recognised
 
           } else {
@@ -251,6 +258,7 @@ export async function resolvePendingLocationNames() {
 
     // Bring every own catch in line with what is known about its spot.
     let updated = 0;
+    const knownRivers = readKnownRiverNames();
     // Re-read right before writing: the user may have edited a catch (or it
     // may have been synced) while the lookups above were running.
     for (const fresh of await getAllCatches()) {
@@ -269,10 +277,18 @@ export async function resolvePendingLocationNames() {
         // river fishing: "река — населено място" in the label
         if (!sp.water && sp.river) {
           const current = typeof (patch.location ?? fresh.location) === "string" ? (patch.location ?? fresh.location) : "";
+          const place = sp.settlement || lab?.place || "";
           if (!normName(current).includes(normName(sp.river))) {
-            const place = sp.settlement || lab?.place || "";
             patch.location = place ? `${sp.river} — ${place}` : sp.river;
+          } else if (place && normName(current) === normName(sp.river)) {
+            // v3.137 — earlier runs left just the river name (settlement not known yet)
+            patch.location = `${sp.river} — ${place}`;
           }
+        } else if (!sp.water && sp.settlement) {
+          // v3.137 — the answer lost the river (Overpass down) but the label is
+          // still just a river name left by an earlier run: add the settlement.
+          const current = typeof (patch.location ?? fresh.location) === "string" ? (patch.location ?? fresh.location).trim() : "";
+          if (current && knownRivers.has(normalizeWaterName(current))) patch.location = `${current} — ${sp.settlement}`;
         }
       }
       if (Object.keys(patch).length === 0) continue;

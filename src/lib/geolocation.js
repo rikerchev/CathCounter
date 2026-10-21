@@ -48,23 +48,29 @@ export async function lookupPlaceName(latitude, longitude, lang) {
 // village/town/city level, so a field between villages answers with the one
 // whose land it is). { ok: true, name } (name may be "") or { ok: false }.
 async function lookupSettlement(latitude, longitude, lang) {
-  await new Promise((r) => setTimeout(r, 1100)); // Nominatim: ~1 request/second
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10000);
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=12&addressdetails=1&accept-language=${lang}`,
-      { headers: { Accept: "application/json" }, signal: controller.signal }
-    );
-    if (!res.ok) return { ok: false };
-    const data = await res.json();
-    const a = (data && data.address) || {};
-    return { ok: true, name: a.village || a.town || a.city || a.hamlet || "" };
-  } catch {
-    return { ok: false };
-  } finally {
-    clearTimeout(timer);
+  // zoom 12 = village/town/city level; a spot in open country sometimes has no
+  // village there, so zoom 14 (adds hamlet/suburb/neighbourhood) is the 2nd try.
+  for (const zoom of [12, 14]) {
+    await new Promise((r) => setTimeout(r, 1100)); // Nominatim: ~1 request/second
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=${zoom}&addressdetails=1&accept-language=${lang}`,
+        { headers: { Accept: "application/json" }, signal: controller.signal }
+      );
+      if (!res.ok) return { ok: false };
+      const data = await res.json();
+      const a = (data && data.address) || {};
+      const name = a.village || a.town || a.city || a.hamlet || (zoom === 14 ? a.suburb || a.neighbourhood : "") || "";
+      if (name) return { ok: true, name };
+    } catch {
+      return { ok: false };
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return { ok: true, name: "" };
 }
 
 // v3.120 — the name of the WATER BODY (lake, reservoir, pond …) next to a
