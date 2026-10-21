@@ -111,12 +111,21 @@ export async function pushPendingCatches() {
       // before the record was touched) instead of retrying a 404.
       const gone = !String(catchItem.id).startsWith("local_") && (e?.status === 404 || /not found/i.test(String(e?.message || e)));
       if (gone) {
+        // v3.140 — the server has no such catch (deleted from another device, a
+        // database reset, ...) but this device still has it and shows it in the
+        // statistics: "All anglers" then differed between people. It is created
+        // again on the server (a new id) so every device sees the same catches.
         try {
-          // v3.136 — remembered, so later local edits (place names resolved
-          // in the background) don't try to push it again and log a 404.
-          await saveCatchLocal({ ...catchItem, _synced: true, _server_gone: true });
-        } catch { /* ignore */ }
-        console.warn(`Catch ${catchItem.id} no longer exists on the server — left as local-only.`);
+          const { id: _oldId, _synced: _s, _server_gone, _restore_failed, ...fresh } = catchItem;
+          const created = await base44.entities.Catch.create(fresh);
+          await markCatchSynced(catchItem.id, created.id, catchItem.updated_date);
+          console.info(`Catch ${catchItem.id} was missing on the server — uploaded again.`);
+        } catch {
+          try {
+            await saveCatchLocal({ ...catchItem, _synced: true, _server_gone: true });
+          } catch { /* ignore */ }
+          console.warn(`Catch ${catchItem.id} no longer exists on the server — left as local-only.`);
+        }
       } else {
         console.error(`Failed to sync catch ${catchItem.id}:`, e);
       }
@@ -299,6 +308,40 @@ export async function pushOnly() {
   }
 }
 
+// v3.140 — catches this device still has (and counts in the statistics) but the
+// server does not: upload them again. Runs after a successful full pull only,
+// i.e. the server list is complete (under the 500 limit) and not empty.
+const RESTORE_RETRY_MS = 24 * 60 * 60 * 1000;
+async function restoreMissingCatches(remote) {
+  try {
+    if (!Array.isArray(remote) || remote.length === 0 || remote.length >= 500) return;
+    const remoteIds = new Set(remote.map((r) => r.id));
+    let userId = "";
+    try { userId = localStorage.getItem("catchcount_last_local_user_id") || ""; } catch { /* ignore */ }
+    const now = Date.now();
+    const missing = (await getAllCatches())
+      .filter((c) =>
+        c._synced &&
+        !String(c.id).startsWith("local_") &&
+        !remoteIds.has(c.id) &&
+        (!userId || !c.created_by_id || c.created_by_id === userId) &&
+        !(c._restore_failed && now - c._restore_failed < RESTORE_RETRY_MS))
+      .slice(0, 25);
+    for (const c of missing) {
+      try {
+        const { id, _synced, _server_gone, _restore_failed, ...payload } = c;
+        const created = await base44.entities.Catch.create(payload);
+        await markCatchSynced(c.id, created.id, c.updated_date);
+      } catch (e) {
+        try { await saveCatchLocal({ ...c, _restore_failed: now }); } catch { /* ignore */ }
+        console.warn(`Catch ${c.id} could not be uploaded again:`, e?.message || e);
+      }
+    }
+  } catch (e) {
+    console.error("restoreMissingCatches error:", e);
+  }
+}
+
 export async function syncAll() {
   if (syncing || !isOnline) {
     // v3.79 — previously this just silently returned with no retry at all,
@@ -342,11 +385,13 @@ export async function syncAll() {
     await pushPendingCatches();
 
     // 3. Pull remote updates — also independent, also parallel
-    await Promise.all([
+    const [remoteCatchList] = await Promise.all([
       pullRemoteCatches(),
       pullRemoteBait(),
       pullRemoteRodCasts(),
     ]);
+    // v3.140 — put back what only this device still has
+    await restoreMissingCatches(remoteCatchList);
   } catch (e) {
     console.error("syncAll error:", e);
   } finally {
