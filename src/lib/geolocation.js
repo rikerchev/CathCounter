@@ -95,6 +95,10 @@ const WATER_SEARCH_RADIUS_M = 250;
 // v3.133 — overpass-api.de often answers 502 when busy; a second public
 // instance (private.coffee, sends CORS headers) is tried after it. A mirror that
 // blocks the request just falls through to "error" like any other failure.
+// v3.135 — after every instance failed, don't even try for a while: each
+// attempt costs up to 16 s, and a run has dozens of spots to go through.
+const OVERPASS_DOWN_MS = 10 * 60 * 1000;
+let overpassDownUntil = 0;
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
@@ -139,7 +143,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `.w out tags ${trimmed ? `geom(${bbox})` : "geom"} 40;.r out tags center 10;`;
   const queries = [buildQuery(true), buildQuery(false)]; // the 2nd only if the 1st is rejected (HTTP 400)
 
-  for (const endpoint of OVERPASS_ENDPOINTS) {
+  for (const endpoint of Date.now() < overpassDownUntil ? [] : OVERPASS_ENDPOINTS) {
    for (const query of queries) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 16000);
@@ -236,6 +240,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
   // fall back to the settlement alone (Nominatim) and mark the answer
   // PROVISIONAL: locationNames.js asks Overpass again later and replaces it
   // when a standing water turns out to be mapped nearby.
+  overpassDownUntil = Date.now() + OVERPASS_DOWN_MS;
   const st = await lookupSettlement(latitude, longitude, lang);
   if (st.ok && st.name) return { status: "ok", water: null, river: null, settlement: st.name, provisional: true };
   return { status: "error" };

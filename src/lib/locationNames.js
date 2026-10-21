@@ -25,13 +25,13 @@
 // in line with it from that answer (no further requests).
 
 import { getAllCatches, saveCatchLocal } from "@/lib/localDb";
-import { lookupPlaceName, lookupNearbyWater } from "@/lib/geolocation";
+import { lookupPlaceName, lookupNearbyWater, distanceMeters } from "@/lib/geolocation";
 import { catchCoords, isCoordinateLabel, rememberRiverName } from "@/lib/catchPlaces";
 
 // Nominatim/Overpass fair-use: at most about 1 request/second.
 const REQUEST_GAP_MS = 1100;
 // Distinct spots handled per sync run — the rest is picked up by the next one.
-const MAX_SPOTS_PER_RUN = 8;
+const MAX_SPOTS_PER_RUN = 12;
 // A spot the service had no answer for ("empty") isn't asked again for a
 // while: a missing place name is retried after a day, a missing water body
 // (a spot simply nowhere near a mapped water) after a week.
@@ -63,11 +63,32 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.134";
+const GENERATION = "3.135";
 // v3.134 — an answer with only the settlement (Overpass was down) is kept as
 // provisional and asked again after this long.
 const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
 const GENERATION_KEY = "locationLookupGeneration";
+// v3.135 — a spot is a ~11 m grid cell, so one swim = dozens of "spots". An
+// answer is reused by every spot near it (a real answer covers 100 m, a
+// settlement-only one 500 m) instead of one lookup per cell.
+const NEIGHBOR_REAL_M = 100;
+const NEIGHBOR_PROVISIONAL_M = 500;
+function answerFor(cache, key, coords) {
+  if (cache[key]) return cache[key];
+  let best = null; let bestD = Infinity;
+  for (const [k, v] of Object.entries(cache)) {
+    const [la, ln] = k.split(",").map(Number);
+    if (!Number.isFinite(la) || !Number.isFinite(ln)) continue;
+    const d = distanceMeters(coords.lat, coords.lng, la, ln);
+    const lim = v && v.provisional ? NEIGHBOR_PROVISIONAL_M : NEIGHBOR_REAL_M;
+    if (d <= lim && d < bestD) { best = v; bestD = d; }
+  }
+  return best;
+}
+function answerIsStale(ans, now) {
+  return !!ans && !!ans.provisional && now - (ans.at || 0) > PROVISIONAL_RETRY_MS;
+}
+
 function resetLookupStateOnce() {
   try {
     if (localStorage.getItem(GENERATION_KEY) === GENERATION) return;
@@ -171,9 +192,10 @@ export async function resolvePendingLocationNames() {
         key,
         label: needsLabel(c) && !isSkipped("label", key, LABEL_EMPTY_RETRY_MS),
         // the spot's water/river/settlement is asked once, then cached
-        water:
-          (!spotCache[key] && !isSkipped("water", key, WATER_EMPTY_RETRY_MS)) ||
-          (!!spotCache[key]?.provisional && now - (spotCache[key].at || 0) > PROVISIONAL_RETRY_MS),
+        water: (() => {
+          const ans = answerFor(spotCache, key, coords);
+          return (!ans && !isSkipped("water", key, WATER_EMPTY_RETRY_MS)) || answerIsStale(ans, now);
+        })(),
       };
     };
 
@@ -191,8 +213,16 @@ export async function resolvePendingLocationNames() {
     let requests = 0;
     let handled = 0;
     let offline = false;
+    let stoppedEarly = false;
     for (const [key, spot] of spots) {
-      if (offline || handled >= MAX_SPOTS_PER_RUN || Date.now() - startedAt > RUN_BUDGET_MS) break;
+      if (offline) break;
+      if (handled >= MAX_SPOTS_PER_RUN || Date.now() - startedAt > RUN_BUDGET_MS) { stoppedEarly = true; break; }
+      if (spot.water) {
+        // an answer found earlier in this very run may already cover this spot
+        const ans = answerFor(spotCache, key, spot.coords);
+        if (ans && !answerIsStale(ans, now)) spot.water = false;
+      }
+      if (!spot.label && !spot.water) continue;
       handled += 1;
       if (spot.label) {
         if (requests++ > 0) await sleep(REQUEST_GAP_MS);
@@ -230,7 +260,7 @@ export async function resolvePendingLocationNames() {
       const lab = labels.get(w.key);
       if (lab && needsLabel(fresh)) patch.location = lab.name;
 
-      const sp = spotCache[w.key];
+      const sp = answerFor(spotCache, w.key, w.coords);
       if (sp) {
         // grouping: standing water, else the nearest settlement (never a river)
         const group = sp.water || sp.settlement || "";
@@ -259,6 +289,10 @@ export async function resolvePendingLocationNames() {
 
     writeEmptyMap(emptyMap);
     writeJson(SPOT_KEY, spotCache);
+    // more spots are waiting (a run only does a few): carry on shortly
+    if (!offline && stoppedEarly) {
+      setTimeout(() => { resolvePendingLocationNames(); }, RUN_GAP_MS + 2000);
+    }
     return updated;
   } catch (e) {
     console.error("resolvePendingLocationNames error:", e);
