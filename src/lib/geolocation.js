@@ -164,10 +164,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
       const data = await res.json();
       // Overpass answers 200 with a "remark" when it ran out of time/memory;
       // that is NOT "nothing is mapped here" (it would be cached for a week).
-      if (data.remark && /runtime error|timed out|out of memory/i.test(String(data.remark))) {
-        console.warn("[overpass] remark:", data.remark);
-        break;
-      }
+      if (data.remark && /runtime error|timed out|out of memory/i.test(String(data.remark))) break;
       const elements = Array.isArray(data.elements) ? data.elements : [];
       let river = null; let riverD = Infinity;
       let settlement = null; let settlementD = Infinity;
@@ -231,7 +228,6 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
       return { status: "ok", water, river, settlement };
     } catch (err) {
       // timeout / network error — report "error" below
-      console.warn("[overpass] request failed:", err && err.name ? err.name : err);
     } finally {
       clearTimeout(timer);
     }
