@@ -104,14 +104,21 @@ export function normalizeWaterName(name) {
 // must neither be grouped by it nor pull its neighbours into a "river" group.
 export const KNOWN_RIVERS_KEY = "knownRiverNames";
 const RIVER_PREFIX_RE = /^\s*(?:река|р\.|river)\s/i;
+// v3.139 — rivers that are known from the start (checked against OpenStreetMap:
+// waterway=river). A river is never a place to group by or to show as a
+// sub-location; the learned list below grows from the lookups.
+const SEED_RIVERS = [
+  "Бели Лом", "Черни Лом", "Русенски Лом", "Дунав", "Янтра", "Искър", "Осъм",
+  "Огоста", "Марица", "Тунджа", "Арда", "Струма", "Места", "Камчия", "Росица",
+];
 
 export function readKnownRiverNames() {
+  const set = new Set(SEED_RIVERS.map((r) => normalizeWaterName(r)));
   try {
     const parsed = JSON.parse(localStorage.getItem(KNOWN_RIVERS_KEY) || "[]");
-    return new Set(Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : []);
-  } catch {
-    return new Set();
-  }
+    if (Array.isArray(parsed)) for (const x of parsed) if (typeof x === "string") set.add(x);
+  } catch { /* ignore */ }
+  return set;
 }
 
 export function rememberRiverName(name) {
@@ -130,10 +137,16 @@ export function rememberRiverName(name) {
 // listed in; when it does not mention the place, the place is appended:
 // "Бели Лом" under "Писанец" → "Бели Лом — Писанец". Display only — the
 // filter still uses the original label.
-function spotDisplayName(label, placeName) {
+function spotDisplayName(label, placeName, rivers) {
   const l = norm(label);
   const p = norm(placeName);
-  if (!l || !p || label.includes("—")) return label;
+  if (!l || !p) return label;
+  // v3.139 — a river is not a sub-location: "Бели Лом" → the place itself,
+  // "Бели Лом — Писанец" → "Писанец"
+  const segs = segmentsOf(label);
+  const kept = segs.filter((x) => !rivers.has(normalizeWaterName(x)));
+  if (kept.length < segs.length) return kept.length ? kept.join(" — ") : placeName;
+  if (label.includes("—")) return label;
   if (l.includes(p) || p.includes(l)) return label;
   return `${label} — ${placeName}`;
 }
@@ -195,7 +208,7 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
     const p = ensurePlace(placeKey, placeName);
     p.count += 1;
     const s = p.spots.get(spotKey);
-    if (s) s.count += 1; else p.spots.set(spotKey, { key: spotKey, name: label ? spotDisplayName(label, placeName) : unnamedSpot, count: 1 });
+    if (s) s.count += 1; else p.spots.set(spotKey, { key: spotKey, name: label ? spotDisplayName(label, placeName, knownRivers) : unnamedSpot, count: 1 });
     assignment.set(c, { placeKey, spotKey });
   };
 
@@ -278,7 +291,9 @@ export function buildPlaceIndex(catches, waterBodies = [], unnamed = {}) {
   const usedNames = new Map(); // normalized name → how many places already use it
   let unnamedCounter = 0;
   for (const { items } of leaders) {
-    const name = dominantLabel(items.map((x) => catchLabel(x.c)).filter(Boolean));
+    const name = dominantLabel(
+      items.map((x) => segmentsOf(catchLabel(x.c)).filter((seg) => !knownRivers.has(normalizeWaterName(seg))).join(" — ")).filter(Boolean)
+    );
     let displayName = name;
     if (!displayName) {
       unnamedCounter += 1;

@@ -63,7 +63,7 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.137";
+const GENERATION = "3.139";
 // v3.134 — an answer with only the settlement (Overpass was down) is kept as
 // provisional and asked again after this long.
 const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
@@ -178,6 +178,10 @@ export async function resolvePendingLocationNames() {
       }
       writeJson(SPOT_KEY, spotCache);
     }
+    // rivers named by any earlier answer are rivers (see catchPlaces.readKnownRiverNames)
+    for (const v of Object.values({ ...readJson(OLD_SPOT_KEY, {}), ...spotCache })) {
+      if (v && v.river) rememberRiverName(v.river);
+    }
     const now = Date.now();
     const isSkipped = (kind, key, retryMs) => {
       const at = emptyMap[`${kind}:${key}`];
@@ -274,21 +278,18 @@ export async function resolvePendingLocationNames() {
         const group = sp.water || sp.settlement || "";
         if (group && fresh.water_name !== group) patch.water_name = group;
         else if (!group && fresh.water_name) patch.water_name = "";
-        // river fishing: "река — населено място" in the label
-        if (!sp.water && sp.river) {
-          const current = typeof (patch.location ?? fresh.location) === "string" ? (patch.location ?? fresh.location) : "";
-          const place = sp.settlement || lab?.place || "";
-          if (!normName(current).includes(normName(sp.river))) {
-            patch.location = place ? `${sp.river} — ${place}` : sp.river;
-          } else if (place && normName(current) === normName(sp.river)) {
-            // v3.137 — earlier runs left just the river name (settlement not known yet)
-            patch.location = `${sp.river} — ${place}`;
+        // v3.139 — NO river in the label any more (the v3.126 "река — населено
+        // място" rule is gone): a river is not a place. A river left in a label by
+        // that rule is taken out again — "Бели Лом — Писанец" → "Писанец", a label
+        // that was only the river → the settlement.
+        const current = typeof (patch.location ?? fresh.location) === "string" ? (patch.location ?? fresh.location).trim() : "";
+        if (current && !isCoordinateLabel(current)) {
+          const segs = current.split("—").map((x) => x.trim()).filter(Boolean);
+          const kept = segs.filter((x) => !knownRivers.has(normalizeWaterName(x)));
+          if (kept.length < segs.length) {
+            const fixed = kept.length ? kept.join(" — ") : (sp.settlement || "");
+            if (fixed && fixed !== current) patch.location = fixed;
           }
-        } else if (!sp.water && sp.settlement) {
-          // v3.137 — the answer lost the river (Overpass down) but the label is
-          // still just a river name left by an earlier run: add the settlement.
-          const current = typeof (patch.location ?? fresh.location) === "string" ? (patch.location ?? fresh.location).trim() : "";
-          if (current && knownRivers.has(normalizeWaterName(current))) patch.location = `${current} — ${sp.settlement}`;
         }
       }
       if (Object.keys(patch).length === 0) continue;
