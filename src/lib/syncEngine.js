@@ -112,7 +112,9 @@ export async function pushPendingCatches() {
       const gone = !String(catchItem.id).startsWith("local_") && (e?.status === 404 || /not found/i.test(String(e?.message || e)));
       if (gone) {
         try {
-          await saveCatchLocal({ ...catchItem, _synced: true });
+          // v3.136 — remembered, so later local edits (place names resolved
+          // in the background) don't try to push it again and log a 404.
+          await saveCatchLocal({ ...catchItem, _synced: true, _server_gone: true });
         } catch { /* ignore */ }
         console.warn(`Catch ${catchItem.id} no longer exists on the server — left as local-only.`);
       } else {

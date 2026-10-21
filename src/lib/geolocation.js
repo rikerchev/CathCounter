@@ -106,9 +106,8 @@ const OVERPASS_ENDPOINTS = [
 // natural=water + water=<one of these> is a river/canal drawn as an area.
 const FLOWING_WATER_VALUES = new Set(["river", "canal", "stream", "riverbank", "ditch", "drain", "stream_pool"]);
 // v3.131 — telling a river drawn as an area from a real standing water.
-// geometry is clipped to ~1.2 km around the spot (see lookupNearbyWater), so a
-// strip reaching across most of that window is a river, not a pond.
-const RIVER_STRIP_EXTENT_M = 1000;
+// a long thin area (bounding box > 3 km) without a standing-water word is a river.
+const RIVER_STRIP_EXTENT_M = 3000;
 const RIVER_NAME_RE = /^\s*(?:река|р\.|river|reka)\b/i;
 const STANDING_WORD_RE = /(?:язовир|яз\.|микроязовир|езеро|рибарник|гьол|блато|бент|дига|lake|reservoir|pond|dam)/i;
 // lower case, no quotes, no leading "река"/"р." — so "р. Бели Лом" = "Бели лом"
@@ -126,12 +125,12 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
   // query made overpass-api.de time out / answer 502 for every spot; the
   // settlement now comes from Nominatim (lookupSettlement) and only when no
   // standing water was found.
-  // The river's geometry is clipped to a window around the spot (geom(bbox)):
-  // a whole river way can be thousands of points.
-  const dLat = 0.005;
-  const dLng = 0.008;
-  const bbox = `${(latitude - dLat).toFixed(5)},${(longitude - dLng).toFixed(5)},${(latitude + dLat).toFixed(5)},${(longitude + dLng).toFixed(5)}`;
-  const buildQuery = (trimmed) =>
+  // v3.136 — no geometry at all (a river way is thousands of points: it made
+  // overpass-api.de time out / answer 502). The 250 m "around" filter already
+  // proves the river is there; only its name is needed. "bb" returns just the
+  // bounding box of each way (cheap, and gives its extent for telling a river
+  // strip from a pond); the plain "center" query is the proven fallback.
+  const buildQuery = (geo) =>
     `[out:json][timeout:15];(` +
     `way(${around})["natural"="water"]["name"];` +
     `way(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
@@ -140,8 +139,8 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `relation(${around})["natural"="water"]["name"];` +
     `relation(${around})["landuse"~"^(reservoir|basin|aquaculture)$"]["name"];` +
     `)->.r;` +
-    `.w out tags ${trimmed ? `geom(${bbox})` : "geom"} 40;.r out tags center 10;`;
-  const queries = [buildQuery(true), buildQuery(false)]; // the 2nd only if the 1st is rejected (HTTP 400)
+    `.w out tags ${geo} 40;.r out tags center 10;`;
+  const queries = [buildQuery("bb"), buildQuery("center")]; // the 2nd only if the 1st is rejected (HTTP 400)
 
   for (const endpoint of Date.now() < overpassDownUntil ? [] : OVERPASS_ENDPOINTS) {
    for (const query of queries) {
@@ -183,19 +182,15 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         // distance: nearest vertex of the way (rivers are long, so their
         // "centre" says nothing), else the element's centre
         let dist = Infinity;
-        let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
-        if (Array.isArray(el.geometry)) {
-          for (const p of el.geometry) {
-            if (p && typeof p.lat === "number") {
-              dist = Math.min(dist, distanceMeters(latitude, longitude, p.lat, p.lon));
-              minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
-              minLng = Math.min(minLng, p.lon); maxLng = Math.max(maxLng, p.lon);
-            }
-          }
+        let extent = 0;
+        if (el.bounds && typeof el.bounds.minlat === "number") {
+          const bd = el.bounds;
+          dist = distanceMeters(latitude, longitude, (bd.minlat + bd.maxlat) / 2, (bd.minlon + bd.maxlon) / 2);
+          extent = distanceMeters(bd.minlat, bd.minlon, bd.maxlat, bd.maxlon);
+        } else if (el.center) {
+          dist = distanceMeters(latitude, longitude, el.center.lat, el.center.lon);
         }
-        if (!Number.isFinite(dist) && el.center) dist = distanceMeters(latitude, longitude, el.center.lat, el.center.lon);
         if (!Number.isFinite(dist)) dist = 0;
-        const extent = Number.isFinite(minLat) ? distanceMeters(minLat, minLng, maxLat, maxLng) : 0;
         if (flowing) {
           flowingNames.add(normalizeGeoName(name));
           if (dist < riverD) { riverD = dist; river = name; }

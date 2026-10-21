@@ -63,7 +63,7 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 // "nothing mapped here" memory are forgotten: the lookup query changed (smaller
 // answer, longer timeout), so what failed or came back empty before is asked
 // again right away instead of waiting 15 minutes / a week.
-const GENERATION = "3.135";
+const GENERATION = "3.136";
 // v3.134 — an answer with only the settlement (Overpass was down) is kept as
 // provisional and asked again after this long.
 const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
@@ -282,7 +282,8 @@ export async function resolvePendingLocationNames() {
         // keep the exact coordinates for the record when only the label had them
         latitude: fresh.latitude ?? w.coords.lat,
         longitude: fresh.longitude ?? w.coords.lng,
-        _synced: false,
+        // a catch the server no longer has stays local-only (no useless PUT/404)
+        _synced: fresh._server_gone ? true : false,
       });
       updated += 1;
     }
