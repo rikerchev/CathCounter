@@ -478,6 +478,13 @@ export const ro = {
   "wb.reservationFieldsRequired": "Completează numele, ora sosirii, data și locul.",
   "wb.reservationDayOutside": "Data este în afara perioadei.",
   "wb.reservationBoxMissing": "Acest loc nu există în această perioadă.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "De la",
+  "wb.periodTo": "Până la",
+  "wb.periodClear": "Șterge",
+  "wb.pastHidden": "Perioade trecute: {count} (ascunse). Alege De la/Până la pentru a le vedea.",
+  "wb.noCurrentPeriods": "Nicio perioadă curentă sau viitoare.",
+  "wb.noPeriodsInRange": "Nicio perioadă în intervalul selectat.",
   "wb.deletePeriod": "Șterge",
   "wb.confirmDeletePeriod": "Sigur doriți să ștergeți această perioadă de rezervare? Această acțiune nu poate fi anulată.",
   "wb.periodDeleted": "Perioada a fost ștearsă",

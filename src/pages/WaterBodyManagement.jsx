@@ -429,6 +429,10 @@ export default function WaterBodyManagement() {
   // availability id (keyed by SectorAvailability.id, default = list).
   const [deletingAvailId, setDeletingAvailId] = useState("");
   const [calendarView, setCalendarView] = useState({});
+  // v3.143 — past reservation periods are hidden by default; setting a
+  // From/To range here shows every period overlapping it (past included).
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
   const [showSectorForm, setShowSectorForm] = useState(false);
   const [sectorFor, setSectorFor] = useState(null);
   // v3.142 — editing an already declared reservation period (the same dialog
@@ -2014,11 +2018,46 @@ export default function WaterBodyManagement() {
 
               {(() => {
                 const wbSectAvail = sectAvailFor(wb.id);
+                // v3.143 — local calendar "today" (toISOString would be UTC
+                // and flip the day a few hours early/late in Bulgaria).
+                const nowD = new Date();
+                const todayIso = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, "0")}-${String(nowD.getDate()).padStart(2, "0")}`;
+                const periodEnd = (x) => x.end_date || x.date;
+                const filterOn = !!(periodFrom || periodTo);
+                const pastCount = wbSectAvail.filter((x) => periodEnd(x) < todayIso).length;
+                const visibleAvail = filterOn
+                  ? wbSectAvail.filter((x) => (!periodFrom || periodEnd(x) >= periodFrom) && (!periodTo || x.date <= periodTo))
+                  : wbSectAvail.filter((x) => periodEnd(x) >= todayIso);
                 return wbSectAvail.length === 0 ? (
                   <p className="text-xs text-slate-400">{t("wb.noOpenSectors")}</p>
                 ) : (
                   <div className="space-y-2">
-                    {wbSectAvail.map((a) => {
+                    {(pastCount > 0 || filterOn) && (
+                      <div className="rounded-xl border border-slate-200 dark:border-border p-2 space-y-1.5">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div>
+                            <Label className="text-[11px] text-slate-500">{t("wb.periodFrom")}</Label>
+                            <Input type="date" value={periodFrom} max={periodTo || undefined} onChange={(e) => setPeriodFrom(e.target.value)} className="min-h-[36px] h-9 text-xs w-[9.5rem]" />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-slate-500">{t("wb.periodTo")}</Label>
+                            <Input type="date" value={periodTo} min={periodFrom || undefined} onChange={(e) => setPeriodTo(e.target.value)} className="min-h-[36px] h-9 text-xs w-[9.5rem]" />
+                          </div>
+                          {filterOn && (
+                            <Button type="button" variant="outline" size="sm" className="min-h-[36px] text-xs" onClick={() => { setPeriodFrom(""); setPeriodTo(""); }}>
+                              <X className="w-3.5 h-3.5 mr-1" />{t("wb.periodClear")}
+                            </Button>
+                          )}
+                        </div>
+                        {!filterOn && pastCount > 0 && (
+                          <p className="text-[11px] text-slate-400">{t("wb.pastHidden").replace("{count}", pastCount)}</p>
+                        )}
+                      </div>
+                    )}
+                    {visibleAvail.length === 0 && (
+                      <p className="text-xs text-slate-400">{filterOn ? t("wb.noPeriodsInRange") : t("wb.noCurrentPeriods")}</p>
+                    )}
+                    {visibleAvail.map((a) => {
                       const sRes = sectResFor(a.id);
                       // v3.14 — was formatDate (always appended a bogus
                       // hour:minute — see formatDateOnly's own comment

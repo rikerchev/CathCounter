@@ -478,6 +478,13 @@ export const es = {
   "wb.reservationFieldsRequired": "Rellene nombre, hora de llegada, fecha y puesto.",
   "wb.reservationDayOutside": "La fecha está fuera del periodo.",
   "wb.reservationBoxMissing": "Ese puesto no existe en este periodo.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Desde",
+  "wb.periodTo": "Hasta",
+  "wb.periodClear": "Borrar",
+  "wb.pastHidden": "Periodos pasados: {count} (ocultos). Elige Desde/Hasta para verlos.",
+  "wb.noCurrentPeriods": "No hay periodos actuales ni futuros.",
+  "wb.noPeriodsInRange": "No hay periodos en el rango seleccionado.",
   "wb.deletePeriod": "Eliminar",
   "wb.confirmDeletePeriod": "¿Seguro que desea eliminar este período de reservas? Esta acción no se puede deshacer.",
   "wb.periodDeleted": "El período ha sido eliminado",

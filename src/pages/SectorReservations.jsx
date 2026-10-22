@@ -134,10 +134,17 @@ export default function SectorReservations() {
     return Math.max(...perDayFree);
   }
 
+  // v3.143 — a running multi-day period is still listed, but its already
+  // passed days are not bookable: start the date picker at today.
+  function localToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
   function openReserve(avail, wb) {
     setReserveFor({ avail, wb });
     setSectorLabel("");
-    setResDate(avail.date);
+    setResDate(avail.date > localToday() ? avail.date : localToday() > (avail.end_date || avail.date) ? avail.date : localToday());
     setName(user?.full_name || "");
     // v3.10 — auto-filled from the account's own phone (same precedent as
     // Competitions.jsx's own registration form), not left blank — the
@@ -167,7 +174,7 @@ export default function SectorReservations() {
       toast({ title: t("sr.invalidSector"), description: t("sr.selectSectorRange"), variant: "destructive" });
       return;
     }
-    if (!resDate || resDate < avail.date || resDate > (avail.end_date || avail.date)) {
+    if (!resDate || resDate < avail.date || resDate < localToday() || resDate > (avail.end_date || avail.date)) {
       toast({ title: t("sr.invalidSector"), description: t("sr.selectDateRange"), variant: "destructive" });
       return;
     }
@@ -257,8 +264,11 @@ export default function SectorReservations() {
     );
   }
 
-  const today = new Date().toISOString().slice(0, 10);
-  const openAvail = availabilities.filter((a) => a.status === "open" && a.date >= today);
+  // v3.143 — local calendar day, and a multi-day period that is still
+  // running (end_date >= today) stays bookable even though it started earlier.
+  const nowD = new Date();
+  const today = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, "0")}-${String(nowD.getDate()).padStart(2, "0")}`;
+  const openAvail = availabilities.filter((a) => a.status === "open" && (a.end_date || a.date) >= today);
   const filteredWb = wbFilter ? waterBodies.filter((w) => w.id === wbFilter) : waterBodies;
 
   return (
@@ -434,7 +444,7 @@ export default function SectorReservations() {
                   <Input
                     type="date"
                     value={resDate}
-                    min={reserveFor.avail.date}
+                    min={reserveFor.avail.date > localToday() ? reserveFor.avail.date : localToday()}
                     max={reserveFor.avail.end_date}
                     onChange={(e) => changeResDate(e.target.value)}
                     className="min-h-[44px]"

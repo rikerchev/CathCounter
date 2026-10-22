@@ -478,6 +478,13 @@ export const tr = {
   "wb.reservationFieldsRequired": "Ad, varış saati, tarih ve yeri doldurun.",
   "wb.reservationDayOutside": "Tarih dönemin dışında.",
   "wb.reservationBoxMissing": "Bu yer bu dönemde mevcut değil.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Başlangıç",
+  "wb.periodTo": "Bitiş",
+  "wb.periodClear": "Temizle",
+  "wb.pastHidden": "Geçmiş dönemler: {count} (gizli). Göstermek için Başlangıç/Bitiş seçin.",
+  "wb.noCurrentPeriods": "Güncel veya gelecek dönem yok.",
+  "wb.noPeriodsInRange": "Seçilen aralıkta dönem yok.",
   "wb.deletePeriod": "Sil",
   "wb.confirmDeletePeriod": "Bu rezervasyon dönemini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
   "wb.periodDeleted": "Dönem silindi",

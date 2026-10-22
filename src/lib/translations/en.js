@@ -619,6 +619,13 @@ export const en = {
     "wb.reservationFieldsRequired": "Fill in name, arrival time, date and box.",
     "wb.reservationDayOutside": "The date is outside the period.",
     "wb.reservationBoxMissing": "That box does not exist in this period.",
+    // v3.143 — past periods hidden by default + period filter
+    "wb.periodFrom": "From",
+    "wb.periodTo": "To",
+    "wb.periodClear": "Clear",
+    "wb.pastHidden": "Past periods: {count} (hidden). Set From/To to show them.",
+    "wb.noCurrentPeriods": "No current or upcoming periods.",
+    "wb.noPeriodsInRange": "No periods in the selected range.",
     "wb.deletePeriod": "Delete",
     "wb.confirmDeletePeriod": "Are you sure you want to delete this reservation period? This action cannot be undone.",
     "wb.periodDeleted": "Period deleted",

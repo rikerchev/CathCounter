@@ -478,6 +478,13 @@ export const cs = {
   "wb.reservationFieldsRequired": "Vyplňte jméno, čas příjezdu, datum a místo.",
   "wb.reservationDayOutside": "Datum je mimo období.",
   "wb.reservationBoxMissing": "Toto místo v tomto období neexistuje.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Od",
+  "wb.periodTo": "Do",
+  "wb.periodClear": "Vymazat",
+  "wb.pastHidden": "Minulá období: {count} (skrytá). Zadejte Od/Do pro zobrazení.",
+  "wb.noCurrentPeriods": "Žádná aktuální ani budoucí období.",
+  "wb.noPeriodsInRange": "V zadaném rozmezí nejsou žádná období.",
   "wb.deletePeriod": "Smazat",
   "wb.confirmDeletePeriod": "Opravdu chcete smazat toto rezervační období? Tuto akci nelze vrátit zpět.",
   "wb.periodDeleted": "Období bylo smazáno",

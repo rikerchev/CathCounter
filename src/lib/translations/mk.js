@@ -478,6 +478,13 @@ export const mk = {
   "wb.reservationFieldsRequired": "Пополнете име, време на пристигнување, датум и место.",
   "wb.reservationDayOutside": "Датумот е надвор од периодот.",
   "wb.reservationBoxMissing": "Ова место не постои во овој период.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Од",
+  "wb.periodTo": "До",
+  "wb.periodClear": "Исчисти",
+  "wb.pastHidden": "Изминати периоди: {count} (скриени). Избери Од/До за да ги видиш.",
+  "wb.noCurrentPeriods": "Нема тековни или идни периоди.",
+  "wb.noPeriodsInRange": "Нема периоди во избраниот интервал.",
   "wb.deletePeriod": "Избриши",
   "wb.confirmDeletePeriod": "Дали сте сигурни дека сакате да го избришете овој период за резервации? Дејството не може да се врати.",
   "wb.periodDeleted": "Периодот е избришан",

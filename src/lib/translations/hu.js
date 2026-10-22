@@ -478,6 +478,13 @@ export const hu = {
   "wb.reservationFieldsRequired": "Töltse ki a nevet, az érkezési időt, a dátumot és a helyet.",
   "wb.reservationDayOutside": "A dátum az időszakon kívül esik.",
   "wb.reservationBoxMissing": "Ez a hely nem létezik ebben az időszakban.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Ettől",
+  "wb.periodTo": "Eddig",
+  "wb.periodClear": "Törlés",
+  "wb.pastHidden": "Elmúlt időszakok: {count} (rejtve). Állítsd be az Ettől/Eddig mezőt a megjelenítéshez.",
+  "wb.noCurrentPeriods": "Nincs jelenlegi vagy közelgő időszak.",
+  "wb.noPeriodsInRange": "Nincs időszak a kiválasztott tartományban.",
   "wb.deletePeriod": "Törlés",
   "wb.confirmDeletePeriod": "Biztosan törli ezt a foglalási időszakot? Ez a művelet nem vonható vissza.",
   "wb.periodDeleted": "Az időszak törölve",

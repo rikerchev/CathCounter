@@ -478,6 +478,13 @@ export const uk = {
   "wb.reservationFieldsRequired": "Заповніть ім'я, час прибуття, дату та місце.",
   "wb.reservationDayOutside": "Дата поза періодом.",
   "wb.reservationBoxMissing": "Цього місця немає в цьому періоді.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Від",
+  "wb.periodTo": "До",
+  "wb.periodClear": "Скинути",
+  "wb.pastHidden": "Минулі періоди: {count} (приховані). Вкажіть Від/До, щоб показати їх.",
+  "wb.noCurrentPeriods": "Немає поточних або майбутніх періодів.",
+  "wb.noPeriodsInRange": "Немає періодів у вибраному діапазоні.",
   "wb.deletePeriod": "Видалити",
   "wb.confirmDeletePeriod": "Ви впевнені, що хочете видалити цей період бронювання? Цю дію не можна скасувати.",
   "wb.periodDeleted": "Період видалено",

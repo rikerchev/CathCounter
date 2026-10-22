@@ -478,6 +478,13 @@ export const nl = {
   "wb.reservationFieldsRequired": "Vul naam, aankomsttijd, datum en plek in.",
   "wb.reservationDayOutside": "De datum valt buiten de periode.",
   "wb.reservationBoxMissing": "Deze plek bestaat niet in deze periode.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Van",
+  "wb.periodTo": "Tot",
+  "wb.periodClear": "Wissen",
+  "wb.pastHidden": "Verlopen periodes: {count} (verborgen). Kies Van/Tot om ze te tonen.",
+  "wb.noCurrentPeriods": "Geen huidige of toekomstige periodes.",
+  "wb.noPeriodsInRange": "Geen periodes in het gekozen bereik.",
   "wb.deletePeriod": "Verwijderen",
   "wb.confirmDeletePeriod": "Weet u zeker dat u deze reserveringsperiode wilt verwijderen? Deze actie kan niet ongedaan worden gemaakt.",
   "wb.periodDeleted": "Periode verwijderd",

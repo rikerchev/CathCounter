@@ -478,6 +478,13 @@ export const de = {
   "wb.reservationFieldsRequired": "Name, Ankunftszeit, Datum und Platz ausfüllen.",
   "wb.reservationDayOutside": "Das Datum liegt außerhalb des Zeitraums.",
   "wb.reservationBoxMissing": "Dieser Platz existiert in diesem Zeitraum nicht.",
+  // v3.143 — past periods hidden by default + period filter
+  "wb.periodFrom": "Von",
+  "wb.periodTo": "Bis",
+  "wb.periodClear": "Zurücksetzen",
+  "wb.pastHidden": "Vergangene Zeiträume: {count} (ausgeblendet). Von/Bis wählen, um sie anzuzeigen.",
+  "wb.noCurrentPeriods": "Keine aktuellen oder kommenden Zeiträume.",
+  "wb.noPeriodsInRange": "Keine Zeiträume im gewählten Bereich.",
   "wb.deletePeriod": "Löschen",
   "wb.confirmDeletePeriod": "Möchten Sie diesen Reservierungszeitraum wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
   "wb.periodDeleted": "Zeitraum wurde gelöscht",
