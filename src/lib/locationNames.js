@@ -66,7 +66,7 @@ const OLD_SPOT_KEY = "locationSpotCacheV3";
 const GENERATION = "3.139";
 // v3.134 — an answer with only the settlement (Overpass was down) is kept as
 // provisional and asked again after this long.
-const PROVISIONAL_RETRY_MS = 30 * 60 * 1000;
+const PROVISIONAL_RETRY_MS = 24 * 60 * 60 * 1000;
 const GENERATION_KEY = "locationLookupGeneration";
 // v3.135 — a spot is a ~11 m grid cell, so one swim = dozens of "spots". An
 // answer is reused by every spot near it (a real answer covers 100 m, a

@@ -13,6 +13,7 @@ import BrochureContactDialog from "@/components/BrochureContactDialog";
 import {
   parseSectorsConfig, stringifySectorsConfig, totalBoxes, allBoxes, drawBoxes, NOT_ENOUGH_BOXES,
 } from "@/lib/competitionSectors";
+import { boxLabelsFor, sectorGroupsFor, stringifyBoxLabels } from "@/lib/sectorLabels";
 import ZoomableImage from "@/components/ZoomableImage";
 import {
   parseCatchResults, stringifyCatchResults, totalCatchWeight, roundSectorPoints, rankByPenaltyAndWeight,
@@ -430,6 +431,13 @@ export default function WaterBodyManagement() {
   const [calendarView, setCalendarView] = useState({});
   const [showSectorForm, setShowSectorForm] = useState(false);
   const [sectorFor, setSectorFor] = useState(null);
+  // v3.142 — editing an already declared reservation period (the same dialog
+  // as declaring one; null = a new period) and a made reservation (the water
+  // body owner can correct name/phone/arrival, day and box).
+  const [editingAvail, setEditingAvail] = useState(null);
+  const [editRes, setEditRes] = useState(null); // { r: reservation, a: its period }
+  const [editResForm, setEditResForm] = useState({ name: "", phone: "", arrival: "", date: "", box: "" });
+  const [savingRes, setSavingRes] = useState(false);
   // v3.04 — was a flat box count + flat label list; now the same named
   // {name, boxCount, boxes} sector-row shape the competition form already
   // uses (see EMPTY_SECTOR_ROW/compForm.sectors above), so a water body's
@@ -721,6 +729,7 @@ export default function WaterBodyManagement() {
   }
 
   function openSectorForm(wb) {
+    setEditingAvail(null);
     setSectorFor(wb);
     // v3.06 — was always reset to a blank 10-box default every time; now
     // pre-fills from the water body's own last-used layout
@@ -861,6 +870,127 @@ export default function WaterBodyManagement() {
       await load();
     } catch (e) {
       toast({ title: t("wb.errorCreating"), description: e.message, variant: "destructive" });
+    }
+  }
+
+  // v3.142 — edit a declared period: dates, number/labels of boxes (sectors),
+  // fee per person, working hours. A change is refused when it would orphan an
+  // existing reservation (its day outside the new dates, or its box missing
+  // from the new list) — the owner first changes/moves that reservation.
+  function openEditAvail(a, wb) {
+    setEditingAvail(a);
+    setSectorFor(wb);
+    setSectorForm({
+      date: a.date || "",
+      end_date: a.end_date || "",
+      fee_per_person: a.fee_per_person ? String(a.fee_per_person) : "",
+      working_hours: a.working_hours || "",
+      sectors: sectorGroupsFor(a).map((g) => ({
+        name: g.name || "",
+        boxCount: String((g.boxes || []).length),
+        boxes: [...(g.boxes || [])],
+      })),
+    });
+    setShowSectorForm(true);
+  }
+
+  async function saveSectorAvailability(e) {
+    e.preventDefault();
+    if (!editingAvail) return;
+    const total = totalBoxes(sectorForm.sectors);
+    if (total < 1) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.needAtLeastOneBox"), variant: "destructive" });
+      return;
+    }
+    const cfg = stringifySectorsConfig(sectorForm.sectors);
+    const flat = sectorForm.sectors.flatMap((s) => (s.boxes || []).map((b, i) => String(b ?? "").trim() || String(i + 1)));
+    const patch = {
+      date: sectorForm.date,
+      end_date: sectorForm.end_date || sectorForm.date,
+      total_sectors: total,
+      fee_per_person: sectorForm.fee_per_person ? Number(sectorForm.fee_per_person) : 0,
+      sectors_config: cfg,
+      // unnamed boxes are kept as a flat label list (named sectors live in sectors_config)
+      box_labels: cfg ? "" : stringifyBoxLabels(flat),
+      working_hours: sectorForm.working_hours || "",
+    };
+    if (patch.end_date < patch.date) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.periodEndBeforeStart"), variant: "destructive" });
+      return;
+    }
+    const active = sectResFor(editingAvail.id);
+    const outside = active.filter((r) => r.date < patch.date || r.date > patch.end_date);
+    if (outside.length > 0) {
+      toast({ title: t("wb.errorSaving"), description: `${t("wb.periodConflictDates")}: ${[...new Set(outside.map((r) => formatDateOnly(r.date, lang)))].join(", ")}`, variant: "destructive" });
+      return;
+    }
+    const labels = new Set(boxLabelsFor({ ...editingAvail, ...patch }));
+    const missing = [...new Set(active.filter((r) => !labels.has(String(r.sector_number))).map((r) => String(r.sector_number)))];
+    if (missing.length > 0) {
+      toast({ title: t("wb.errorSaving"), description: `${t("wb.periodConflictBoxes")}: ${missing.join(", ")}`, variant: "destructive" });
+      return;
+    }
+    try {
+      await base44.entities.SectorAvailability.update(editingAvail.id, patch);
+      toast({ title: t("wb.periodUpdated") });
+      setShowSectorForm(false);
+      setEditingAvail(null);
+      await load();
+    } catch (err) {
+      toast({ title: t("wb.errorSaving"), description: err.message, variant: "destructive" });
+    }
+  }
+
+  // v3.142 — the water body owner corrects a made reservation: name, phone,
+  // approximate arrival time, day (inside the period) and box (free that day).
+  function openEditRes(r, a) {
+    setEditRes({ r, a });
+    setEditResForm({
+      name: r.reserved_by_name || "",
+      phone: r.reserved_by_phone || "",
+      arrival: r.arrival_time || "",
+      date: r.date || a.date || "",
+      box: String(r.sector_number ?? ""),
+    });
+  }
+
+  async function saveReservation(e) {
+    e.preventDefault();
+    if (!editRes) return;
+    const { r, a } = editRes;
+    const f = editResForm;
+    if (!f.name.trim() || !f.arrival.trim() || !f.date || !f.box) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.reservationFieldsRequired"), variant: "destructive" });
+      return;
+    }
+    if (f.date < a.date || f.date > (a.end_date || a.date)) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.reservationDayOutside"), variant: "destructive" });
+      return;
+    }
+    if (!boxLabelsFor(a).includes(f.box)) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.reservationBoxMissing"), variant: "destructive" });
+      return;
+    }
+    if (sectResFor(a.id).some((x) => x.id !== r.id && x.date === f.date && String(x.sector_number) === f.box)) {
+      toast({ title: t("wb.errorSaving"), description: t("wb.boxTakenThatDay"), variant: "destructive" });
+      return;
+    }
+    setSavingRes(true);
+    try {
+      await base44.entities.SectorReservation.update(r.id, {
+        reserved_by_name: f.name.trim(),
+        reserved_by_phone: f.phone.trim(),
+        arrival_time: f.arrival.trim(),
+        date: f.date,
+        sector_number: f.box,
+      });
+      toast({ title: t("wb.reservationUpdated") });
+      setEditRes(null);
+      await load();
+    } catch (err) {
+      toast({ title: t("wb.errorSaving"), description: err.message, variant: "destructive" });
+    } finally {
+      setSavingRes(false);
     }
   }
 
@@ -1965,8 +2095,11 @@ export default function WaterBodyManagement() {
                                   mistaken for a cancelled reservation when
                                   the customer simply plans to come later. */}
                               {sRes.map((r) => (
-                                <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400">
+                                <span key={r.id} className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 inline-flex items-center gap-1">
                                   {isMultiDay ? `${formatDateOnly(r.date, lang)} · ` : ""}{t("wb.sector")}.{r.sector_number} — {r.reserved_by_name}{r.reserved_by_phone ? ` · ${r.reserved_by_phone}` : ""}{r.arrival_time ? ` · 🕐 ${r.arrival_time}` : ""}{r.payment_status === "paid" ? " ✓" : " ⏳"}
+                                  <button type="button" onClick={() => openEditRes(r, a)} title={t("wb.edit")} className="ml-0.5 p-0.5 rounded hover:bg-cyan-200 dark:hover:bg-cyan-800/40">
+                                    <Pencil className="w-3 h-3" />
+                                  </button>
                                 </span>
                               ))}
                             </div>
@@ -1975,6 +2108,9 @@ export default function WaterBodyManagement() {
                             <AvailabilityCalendar avail={a} reservations={sRes} t={t} lang={lang} />
                           )}
                           <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <Button variant="outline" size="sm" onClick={() => openEditAvail(a, wb)} className="min-h-[36px] text-xs">
+                              <Pencil className="w-3.5 h-3.5 mr-1" /> {t("wb.edit")}
+                            </Button>
                             {a.status === "open" && (
                               <Button variant="outline" size="sm" onClick={() => closeSectorAvailability(a)} className="min-h-[36px] text-xs">
                                 {t("wb.closeReservations")}
@@ -2176,9 +2312,9 @@ export default function WaterBodyManagement() {
       <Dialog open={showSectorForm} onOpenChange={setShowSectorForm}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t("wb.sectorsForReservation")} — {sectorFor?.name}</DialogTitle>
+            <DialogTitle>{editingAvail ? `${t("wb.editPeriod")} — ` : `${t("wb.sectorsForReservation")} — `}{sectorFor?.name}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={createSectorAvailability} className="space-y-3">
+          <form onSubmit={editingAvail ? saveSectorAvailability : createSectorAvailability} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label>{t("wb.startDate")} *</Label>
@@ -2321,9 +2457,76 @@ export default function WaterBodyManagement() {
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowSectorForm(false)} className="min-h-[44px]">{t("wb.cancel")}</Button>
-              <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{t("wb.openBtn")}</Button>
+              <Button type="submit" className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">{editingAvail ? t("wb.saveChanges") : t("wb.openBtn")}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* v3.142 — the water body owner edits a made reservation. */}
+      <Dialog open={!!editRes} onOpenChange={(o) => { if (!o) setEditRes(null); }}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("wb.editReservation")}</DialogTitle>
+          </DialogHeader>
+          {editRes && (() => {
+            const a = editRes.a;
+            const labels = boxLabelsFor(a);
+            const takenOn = new Set(
+              sectResFor(a.id)
+                .filter((x) => x.id !== editRes.r.id && x.date === editResForm.date)
+                .map((x) => String(x.sector_number))
+            );
+            return (
+              <form onSubmit={saveReservation} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label>{t("wb.resName")} *</Label>
+                  <Input value={editResForm.name} onChange={(e) => setEditResForm((f) => ({ ...f, name: e.target.value }))} required className="min-h-[44px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("wb.resPhone")}</Label>
+                  <Input type="tel" value={editResForm.phone} onChange={(e) => setEditResForm((f) => ({ ...f, phone: e.target.value }))} className="min-h-[44px]" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{t("wb.resArrival")} *</Label>
+                  <Input value={editResForm.arrival} onChange={(e) => setEditResForm((f) => ({ ...f, arrival: e.target.value }))} required className="min-h-[44px]" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>{t("wb.resDate")} *</Label>
+                    <Input
+                      type="date"
+                      value={editResForm.date}
+                      min={a.date}
+                      max={a.end_date || a.date}
+                      onChange={(e) => setEditResForm((f) => ({ ...f, date: e.target.value }))}
+                      required
+                      className="min-h-[44px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>{t("wb.resBox")} *</Label>
+                    <Select value={editResForm.box} onValueChange={(v) => setEditResForm((f) => ({ ...f, box: v }))}>
+                      <SelectTrigger className="min-h-[44px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {labels.map((b) => (
+                          <SelectItem key={b} value={b} disabled={takenOn.has(b)}>
+                            {b}{takenOn.has(b) ? ` (${t("wb.taken")})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setEditRes(null)} className="min-h-[44px]">{t("wb.cancel")}</Button>
+                  <Button type="submit" disabled={savingRes} className="bg-cyan-600 hover:bg-cyan-700 min-h-[44px]">
+                    {savingRes ? <Loader2 className="w-4 h-4 animate-spin" /> : t("wb.saveChanges")}
+                  </Button>
+                </DialogFooter>
+              </form>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

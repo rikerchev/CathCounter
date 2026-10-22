@@ -103,8 +103,20 @@ const WATER_SEARCH_RADIUS_M = 250;
 // blocks the request just falls through to "error" like any other failure.
 // v3.135 — after every instance failed, don't even try for a while: each
 // attempt costs up to 16 s, and a run has dozens of spots to go through.
-const OVERPASS_DOWN_MS = 10 * 60 * 1000;
+// v3.141 — kept in localStorage too, so a page reload doesn't start a new
+// round of failing requests (each one shows up as a red line in the console).
+const OVERPASS_DOWN_MS = 30 * 60 * 1000;
+const OVERPASS_DOWN_KEY = "overpassDownUntil";
 let overpassDownUntil = 0;
+const overpassIsDown = () => {
+  let stored = 0;
+  try { stored = Number(localStorage.getItem(OVERPASS_DOWN_KEY) || 0); } catch { /* ignore */ }
+  return Date.now() < Math.max(overpassDownUntil, stored);
+};
+const markOverpassDown = () => {
+  overpassDownUntil = Date.now() + OVERPASS_DOWN_MS;
+  try { localStorage.setItem(OVERPASS_DOWN_KEY, String(overpassDownUntil)); } catch { /* ignore */ }
+};
 const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
@@ -148,7 +160,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
     `.w out tags ${geo} 40;.r out tags center 10;`;
   const queries = [buildQuery("bb"), buildQuery("center")]; // the 2nd only if the 1st is rejected (HTTP 400)
 
-  for (const endpoint of Date.now() < overpassDownUntil ? [] : OVERPASS_ENDPOINTS) {
+  for (const endpoint of overpassIsDown() ? [] : OVERPASS_ENDPOINTS) {
    for (const query of queries) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 16000);
@@ -160,7 +172,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
         signal: controller.signal,
       });
       if (res.status === 400) continue; // query rejected → try the plain variant
-      if (!res.ok) { console.warn("[overpass] HTTP", res.status); break; } // overloaded / rate limited — no point in retrying now
+      if (!res.ok) break; // overloaded / rate limited — no point in retrying now
       const data = await res.json();
       // Overpass answers 200 with a "remark" when it ran out of time/memory;
       // that is NOT "nothing is mapped here" (it would be cached for a week).
@@ -237,7 +249,7 @@ export async function lookupNearbyWater(latitude, longitude, lang) {
   // fall back to the settlement alone (Nominatim) and mark the answer
   // PROVISIONAL: locationNames.js asks Overpass again later and replaces it
   // when a standing water turns out to be mapped nearby.
-  overpassDownUntil = Date.now() + OVERPASS_DOWN_MS;
+  markOverpassDown();
   const st = await lookupSettlement(latitude, longitude, lang);
   if (st.ok && st.name) return { status: "ok", water: null, river: null, settlement: st.name, provisional: true };
   return { status: "error" };
