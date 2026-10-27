@@ -9,10 +9,29 @@ let state = loadState();
 const listeners = new Set();
 
 // --- Cloud sync (cross-device session resume) ---
+//
+// v3.144 — rewritten after two devices on one account showed wrong timer
+// hours and lost the second rod. Root causes:
+//  1. For an admin account the server's list() returns EVERY user's
+//     SessionSync rows; the old code took "the first active row" of the 10
+//     newest, i.e. possibly ANOTHER user's session (foreign timers, a single
+//     rod) — and then even wrote back into that row.
+//  2. list("-updated_date") never sorted by update time (the column is
+//     updated_at), and rows have no updated_date, so the "only merge if newer"
+//     check never fired: every poll replaced the local state wholesale, also
+//     discarding local changes not pushed yet.
+//  3. A device that had not seen the cloud row yet created a second row, and
+//     an idle device pushed its empty default state over the live one.
+// Now: only the caller's own rows are used (filtered by created_by_id), one
+// row per account is reused, an idle device never writes, and a poll never
+// overwrites local changes that are still waiting to be pushed.
 let cloudSessionId = null;
 let cloudSyncTimer = null;
 let crossDevicePollTimer = null;
 let lastCloudUpdateDate = null;
+// A push failed (offline etc.) — retried from the next poll, and until it
+// succeeds no remote state may overwrite ours.
+let unpushed = false;
 
 function getDeviceId() {
   try {
@@ -27,40 +46,74 @@ function getDeviceId() {
   }
 }
 
+function rowStamp(r) {
+  return String((r && (r.updated_at || r.updated_date || r.created_at)) || "");
+}
+
+// The caller's OWN session rows, newest update first. null = not signed in /
+// request failed (the caller then does nothing).
+async function fetchMyRows() {
+  const me = await base44.auth.me().catch(() => null);
+  if (!me || !me.id) return null;
+  const rows = await base44.entities.SessionSync.list("-updated_at", 100);
+  return (rows || [])
+    .filter((r) => r.created_by_id === me.id)
+    .sort((a, b) => (rowStamp(a) < rowStamp(b) ? 1 : rowStamp(a) > rowStamp(b) ? -1 : 0));
+}
+
+async function pushStateToCloud() {
+  const body = {
+    session_data: JSON.stringify(state),
+    is_active: true,
+    device_id: getDeviceId(),
+  };
+  if (cloudSessionId) {
+    try {
+      return await base44.entities.SessionSync.update(cloudSessionId, body);
+    } catch (e) {
+      if (e && e.status !== 404 && e.status !== 403) throw e;
+      cloudSessionId = null; // row gone — look it up again below
+    }
+  }
+  const rows = await fetchMyRows();
+  if (rows === null) return null; // not signed in
+  const existing = rows.find((r) => r.is_active) || rows[0];
+  if (existing) {
+    cloudSessionId = existing.id;
+    return base44.entities.SessionSync.update(existing.id, body);
+  }
+  const created = await base44.entities.SessionSync.create(body);
+  cloudSessionId = created.id;
+  return created;
+}
+
 function syncToCloud() {
   if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(async () => {
+    cloudSyncTimer = null;
+    // An idle device (no running session) has nothing to mirror; writing its
+    // empty default state would wipe the live session of the other device.
+    // Closing a session is handled by closeCloudSession().
+    if (state.sessionStartTime == null) {
+      unpushed = false;
+      return;
+    }
     try {
-      const authed = await base44.auth.isAuthenticated();
-      if (!authed) return;
-      const data = JSON.stringify(state);
-      const isActive = state.sessionStartTime != null;
-      if (cloudSessionId) {
-        await base44.entities.SessionSync.update(cloudSessionId, {
-          session_data: data,
-          is_active: isActive,
-          device_id: getDeviceId(),
-        });
-      } else {
-        const created = await base44.entities.SessionSync.create({
-          session_data: data,
-          is_active: isActive,
-          device_id: getDeviceId(),
-        });
-        cloudSessionId = created.id;
-      }
+      const saved = await pushStateToCloud();
+      if (saved && rowStamp(saved)) lastCloudUpdateDate = rowStamp(saved);
+      unpushed = false;
     } catch {
-      // Silently fail — cloud sync is best-effort
+      // best-effort; retried from the next poll
+      unpushed = true;
     }
   }, 3000);
 }
 
 export async function checkCloudSession() {
   try {
-    const authed = await base44.auth.isAuthenticated();
-    if (!authed) return null;
-    const sessions = await base44.entities.SessionSync.list("-updated_date", 10);
-    const active = (sessions || []).find(s => s.is_active);
+    const rows = await fetchMyRows();
+    if (!rows) return null;
+    const active = rows.find((s) => s.is_active);
     if (active) {
       cloudSessionId = active.id;
       // Don't prompt if it's the same device
@@ -76,10 +129,11 @@ export async function checkCloudSession() {
 export async function resumeFromCloud(cloudSession) {
   try {
     const data = JSON.parse(cloudSession.session_data);
+    if (!isValidState(data)) return false;
     state = data;
+    lastCloudUpdateDate = rowStamp(cloudSession) || lastCloudUpdateDate;
     persist();
     cloudSessionId = cloudSession.id;
-    syncToCloud();
     return true;
   } catch {
     return false;
@@ -87,40 +141,59 @@ export async function resumeFromCloud(cloudSession) {
 }
 
 export async function closeCloudSession() {
-  if (cloudSessionId) {
-    try {
-      await base44.entities.SessionSync.update(cloudSessionId, { is_active: false });
-    } catch {
-      // Silently fail
-    }
+  // The closed session must never be pushed again by a pending timer.
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
   }
-  stopCrossDeviceSync();
+  unpushed = false;
+  try {
+    const rows = await fetchMyRows();
+    // Deactivate every one of this account's active rows (older duplicates
+    // from before v3.144 included), so no stale row can come back as "the
+    // active session" on another device.
+    const ids = new Set((rows || []).filter((r) => r.is_active).map((r) => r.id));
+    if (cloudSessionId) ids.add(cloudSessionId);
+    await Promise.all(
+      [...ids].map((id) =>
+        base44.entities.SessionSync.update(id, { is_active: false, device_id: getDeviceId() }).catch(() => {})
+      )
+    );
+  } catch {
+    // Silently fail
+  }
+  // The poll keeps running while the page is open (it is stopped when
+  // ActiveSession unmounts) so a session started on the other device shows up.
+}
+
+function isValidState(d) {
+  return !!d && typeof d === "object" && Array.isArray(d.rods) && d.rods.length > 0
+    && d.rodTimers && typeof d.rodTimers === "object" && d.sessionStartTime != null;
 }
 
 // --- Continuous cross-device sync ---
-// Polls the cloud session every CROSS_DEVICE_POLL_MS for changes from other
-// devices. When a change is detected (different device, newer
-// updated_date), merges it locally.
+// Polls the account's own cloud session every CROSS_DEVICE_POLL_MS for changes
+// from other devices. When a newer change from a different device is found,
+// it is merged locally (and the timers/rods shown there are mirrored here).
 //
-// v3.47 — was 10s (a plain constant inlined below the interval call). This
-// poll runs for as long as ActiveSession.jsx is mounted — in practice, for
-// most of a multi-hour fishing session, since that's the page an angler
-// actually watches. Its ENTIRE purpose is detecting the same account
-// active on a second device at the same time, which the vast majority of
-// sessions never involve at all — yet every session paid its battery/data
-// cost every 10 seconds regardless. 30s still detects a cross-device
-// handoff promptly enough for a human to notice and act on, at a third of
-// the network wake-ups.
-const CROSS_DEVICE_POLL_MS = 30000;
+// v3.47 — was 10s; 30s. v3.144 — 15s while the page is visible: the whole
+// point of this poll is the two-device mirror, and 30s made a started timer
+// show up on the other device far too late. Hidden/locked pages still skip
+// the request entirely (see startCrossDeviceSync).
+const CROSS_DEVICE_POLL_MS = 15000;
 function mergeCloudState(cloudSession) {
   try {
-    const data = JSON.parse(cloudSession.session_data);
+    // Never replace local changes that are still waiting to be pushed.
+    if (cloudSyncTimer || unpushed) return false;
     // Only accept if from a different device
     if (cloudSession.device_id === getDeviceId()) return false;
     // Only accept if newer than what we last saw
-    if (lastCloudUpdateDate && cloudSession.updated_date <= lastCloudUpdateDate) return false;
+    const stamp = rowStamp(cloudSession);
+    if (lastCloudUpdateDate && stamp <= lastCloudUpdateDate) return false;
+    const data = JSON.parse(cloudSession.session_data);
+    if (!isValidState(data)) return false;
 
-    lastCloudUpdateDate = cloudSession.updated_date;
+    lastCloudUpdateDate = stamp;
     state = data;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     listeners.forEach((l) => l());
@@ -132,11 +205,12 @@ function mergeCloudState(cloudSession) {
 
 async function pollCrossDeviceOnce() {
   try {
-    const authed = await base44.auth.isAuthenticated();
-    if (!authed) return;
-    // Find our cloud session or the active one
-    const sessions = await base44.entities.SessionSync.list("-updated_date", 10);
-    const active = (sessions || []).find(s => s.is_active);
+    // A failed push is retried here first; merging waits until it succeeded.
+    if (unpushed && !cloudSyncTimer) syncToCloud();
+    if (cloudSyncTimer || unpushed) return;
+    const rows = await fetchMyRows();
+    if (!rows) return;
+    const active = rows.find((s) => s.is_active);
     if (!active) return;
     // Keep track of cloud session ID
     cloudSessionId = active.id;

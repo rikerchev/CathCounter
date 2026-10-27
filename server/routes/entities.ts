@@ -92,6 +92,12 @@ function parseSort(sortParam: string | null): { column: string; dir: "ASC" | "DE
   return { column, dir: desc ? "DESC" : "ASC" };
 }
 
+// v3.144 — entities whose list/filter is limited to the caller's own rows even
+// for an admin. SessionSync holds each account's live fishing session (timers,
+// rods); the app takes "the active row" from the list, so an admin's list used
+// to contain other users' sessions and could load one of them as its own.
+const ALWAYS_OWNER_SCOPED = new Set(["SessionSync"]);
+
 export async function handleEntitiesRoute(
   req: Request,
   path: string[], // e.g. ["Catch"] or ["Catch", "abc-123"] or ["Catch", "filter"]
@@ -121,7 +127,7 @@ export async function handleEntitiesRoute(
 
     let whereClause = sql``;
     const rule = entity.rules.read;
-    if (!isAdmin(user) && rule.kind === "owner") {
+    if (rule.kind === "owner" && (!isAdmin(user) || ALWAYS_OWNER_SCOPED.has(entityName))) {
       whereClause = sql`WHERE ${sql(rule.field)} = ${user?.id ?? "___none___"}`;
     }
 
@@ -146,7 +152,7 @@ export async function handleEntitiesRoute(
     // Apply ownership scoping first, then in-memory filter for simplicity —
     // entity tables here are small (per-user fishing logs, not analytics-scale).
     const rule = entity.rules.read;
-    if (!isAdmin(user) && rule.kind === "owner") {
+    if (rule.kind === "owner" && (!isAdmin(user) || ALWAYS_OWNER_SCOPED.has(entityName))) {
       rows = rows.filter((r: Record<string, unknown>) => r[rule.field] === user?.id);
     }
     rows = rows.filter((r: Record<string, unknown>) =>
