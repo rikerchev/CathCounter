@@ -8,7 +8,9 @@ import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
 import { listBait } from "@/lib/baitRepository";
-import { saveCatch, updateCatchLocation } from "@/lib/catchRepository";
+import { saveCatch, updateCatchLocation, listCatchesByUser } from "@/lib/catchRepository";
+import { parseCatchDate } from "@/lib/dateUtils";
+import { useAuth } from "@/lib/AuthContext";
 import { getAllCatches, getAllPendingPhotos } from "@/lib/localDb";
 import { uploadAllPendingPhotos } from "@/lib/pendingPhotos";
 import { pushOnly, getOnlineStatus } from "@/lib/syncEngine";
@@ -39,6 +41,7 @@ const SAME_SPOT_THRESHOLD_M = 50;
 export default function ActiveSession() {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [sessionElapsed, setSessionElapsed] = useState(sessionStore.getSessionElapsed());
   const [sessionActive, setSessionActive] = useState(sessionStore.isSessionActive());
@@ -49,6 +52,31 @@ export default function ActiveSession() {
   const [locatingAll, setLocatingAll] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
   const [mixedGroundbaits, setMixedGroundbaits] = useState(sessionStore.getMixedGroundbaits());
+  // v3.145 — per-rod fish count / total weight of the live session, shown on
+  // the rod banner: { [rodNumber]: { count, weight } }.
+  const [rodStats, setRodStats] = useState({});
+  const refreshRodStats = useCallback(async () => {
+    const start = sessionStore.getState().sessionStartTime;
+    if (!start) {
+      setRodStats({});
+      return;
+    }
+    try {
+      const all = await listCatchesByUser(user?.id);
+      const out = {};
+      for (const c of all) {
+        if (c.rod == null) continue;
+        // 60 s tolerance: a catch time can be stored without seconds.
+        if (parseCatchDate(c).getTime() < start - 60000) continue;
+        const r = out[c.rod] || (out[c.rod] = { count: 0, weight: 0 });
+        r.count += 1;
+        r.weight += Number(c.weight) || 0;
+      }
+      setRodStats(out);
+    } catch {
+      // non-blocking
+    }
+  }, [user?.id]);
   const autoLocationRef = useRef(false);
   const sessionLocation = rods.map((r) => r.config?.location).filter(Boolean)[0] || null;
   const appLock = useAppLockPrompt();
@@ -116,8 +144,14 @@ export default function ActiveSession() {
       setSessionElapsed(sessionStore.getSessionElapsed());
       setSessionActive(sessionStore.isSessionActive());
       setMixedGroundbaits(sessionStore.getMixedGroundbaits());
+      refreshRodStats();
     });
-  }, []);
+  }, [refreshRodStats]);
+
+  // v3.145 — initial load, and again whenever the session starts/ends.
+  useEffect(() => {
+    refreshRodStats();
+  }, [refreshRodStats, sessionActive]);
 
   // Auto-set water body name from coordinates when session becomes active
   useEffect(() => {
@@ -300,6 +334,7 @@ export default function ActiveSession() {
     try {
       const created = await saveCatch(data);
       sessionStore.recordCatchTime();
+      refreshRodStats();
       toast({ title: `${t("saveCatch.catchLogged")} — ${formatDuration(data.duration || 0)}` });
 
       // Fetch GPS location in the background and update if different.
@@ -416,6 +451,7 @@ export default function ActiveSession() {
             mixedGroundbaits={mixedGroundbaits}
             onRemoveRod={() => removeRod(rod.id)}
             canRemove={rods.length > 1}
+            stats={rodStats[rod.id]}
           />
         ))}
       </div>

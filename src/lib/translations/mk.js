@@ -92,6 +92,8 @@ export const mk = {
   "session.mixedGroundbait": "Измешана храна",
   "session.groundbaitMixer": "Мешач на храна",
   "rod.rod": "Стап",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Риби и приближна вкупна тежина за овој стап во сесијата",
   "rod.timing": "Тајмер",
   "rod.fishOn": "Рибата е на — мерам борба",
   "rod.readyToCast": "Спремен за фрлање",

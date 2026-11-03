@@ -92,6 +92,8 @@ export const es = {
   "session.mixedGroundbait": "Cebo mezclado",
   "session.groundbaitMixer": "Mezclador de cebo",
   "rod.rod": "Caña",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Peces y peso total aproximado de esta caña en la sesión",
   "rod.timing": "Cronómetro",
   "rod.fishOn": "Pez picado — cronometrando pelea",
   "rod.readyToCast": "Listo para lanzar",

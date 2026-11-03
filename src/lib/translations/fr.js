@@ -92,6 +92,8 @@ export const fr = {
   "session.mixedGroundbait": "Amorce mélangée",
   "session.groundbaitMixer": "Mélangeur d'amorce",
   "rod.rod": "Canne",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Poissons et poids total approximatif pour cette canne dans la session",
   "rod.timing": "Chrono",
   "rod.fishOn": "Poisson au bout — chronométrage du combat",
   "rod.readyToCast": "Prêt à lancer",

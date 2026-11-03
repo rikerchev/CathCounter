@@ -92,6 +92,8 @@ export const uk = {
   "session.mixedGroundbait": "Змішана прикормка",
   "session.groundbaitMixer": "Змішувач прикормки",
   "rod.rod": "Вудилище",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Риба та приблизна загальна вага для цього вудилища в сесії",
   "rod.timing": "Таймер",
   "rod.fishOn": "Покльовка — виважування",
   "rod.readyToCast": "Готовий до закидання",

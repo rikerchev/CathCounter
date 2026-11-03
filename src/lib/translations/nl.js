@@ -92,6 +92,8 @@ export const nl = {
   "session.mixedGroundbait": "Gemengd voer",
   "session.groundbaitMixer": "Voermenger",
   "rod.rod": "Hengel",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Vissen en geschat totaalgewicht voor deze hengel in de sessie",
   "rod.timing": "Timer",
   "rod.fishOn": "Vis aan de haak — gevecht timing",
   "rod.readyToCast": "Klaar om te werpen",

@@ -92,6 +92,8 @@ export const tr = {
   "session.mixedGroundbait": "Karışık yem",
   "session.groundbaitMixer": "Yem karıştırıcı",
   "rod.rod": "Kamış",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Bu kamış için oturumdaki balıklar ve yaklaşık toplam ağırlık",
   "rod.timing": "Zamanlayıcı",
   "rod.fishOn": "Balık üstünde — mücadeleyi ölçüyorum",
   "rod.readyToCast": "Atışa hazır",

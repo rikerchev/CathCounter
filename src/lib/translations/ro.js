@@ -92,6 +92,8 @@ export const ro = {
   "session.mixedGroundbait": "Nadă amestecată",
   "session.groundbaitMixer": "Amestecător nadă",
   "rod.rod": "Undiță",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Pești și greutatea totală aproximativă pentru această undiță în sesiune",
   "rod.timing": "Cronometru",
   "rod.fishOn": "Pește prins — cronometrez lupta",
   "rod.readyToCast": "Gata de aruncare",

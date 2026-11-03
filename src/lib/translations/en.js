@@ -98,6 +98,8 @@ export const en = {
     "session.groundbaitMixer": "Groundbait Mixer",
 
     "rod.rod": "Rod",
+    // v3.145 — rod banner fish count / weight
+    "rod.catchStats": "Fish and approximate total weight for this rod in the session",
     "rod.timing": "Timing",
     "rod.fishOn": "Fish on — timing the fight",
     "rod.readyToCast": "Ready to cast",

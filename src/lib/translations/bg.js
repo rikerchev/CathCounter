@@ -98,6 +98,8 @@ export const bg = {
     "session.groundbaitMixer": "Смесител на захранка",
 
     "rod.rod": "Въдица",
+    // v3.145 — rod banner fish count / weight
+    "rod.catchStats": "Риби и приблизително общо тегло за тази въдица в сесията",
     "rod.timing": "Брои",
     "rod.fishOn": "Рибата кълва — броим",
     "rod.readyToCast": "Готов за хвърляне",

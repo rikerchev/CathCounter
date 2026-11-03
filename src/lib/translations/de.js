@@ -92,6 +92,8 @@ export const de = {
   "session.mixedGroundbait": "Gemischtes Futter",
   "session.groundbaitMixer": "Futter-Mischer",
   "rod.rod": "Rute",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Fische und ungefähres Gesamtgewicht für diese Rute in der Sitzung",
   "rod.timing": "Timer",
   "rod.fishOn": "Fisch dran — Drillzeit läuft",
   "rod.readyToCast": "Bereit zum Werfen",

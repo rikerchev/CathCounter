@@ -92,6 +92,8 @@ export const sr = {
   "session.mixedGroundbait": "Мешана храна",
   "session.groundbaitMixer": "Мешач хране",
   "rod.rod": "Štap",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Ribe i približna ukupna težina za ovaj štap u sesiji",
   "rod.timing": "Tajmer",
   "rod.fishOn": "Riba je na — merim borbu",
   "rod.readyToCast": "Spreman za bacanje",

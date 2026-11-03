@@ -92,6 +92,8 @@ export const it = {
   "session.mixedGroundbait": "Pastura mista",
   "session.groundbaitMixer": "Miscelatore pastura",
   "rod.rod": "Canna",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Pesci e peso totale approssimativo per questa canna nella sessione",
   "rod.timing": "Timer",
   "rod.fishOn": "Pesce agganciato — cronometro lotta",
   "rod.readyToCast": "Pronto al lancio",

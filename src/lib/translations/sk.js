@@ -92,6 +92,8 @@ export const sk = {
   "session.mixedGroundbait": "Zmiešaná návnada",
   "session.groundbaitMixer": "Miešačka návnady",
   "rod.rod": "Prút",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Ryby a približná celková hmotnosť pre tento prút v relácii",
   "rod.timing": "Časovač",
   "rod.fishOn": "Ryba na — časovanie súboja",
   "rod.readyToCast": "Pripravený na nadhodenie",

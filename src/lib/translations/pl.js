@@ -92,6 +92,8 @@ export const pl = {
   "session.mixedGroundbait": "Wymieszana zanęta",
   "session.groundbaitMixer": "Mieszadło zanęty",
   "rod.rod": "Wędka",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Ryby i przybliżona łączna waga dla tej wędki w sesji",
   "rod.timing": "Stoper",
   "rod.fishOn": "Ryba na haku — holowanie",
   "rod.readyToCast": "Gotowy do rzutu",

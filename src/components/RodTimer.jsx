@@ -23,7 +23,7 @@ const ROD_COLORS = [
   { bar: "bg-cyan-500", text: "text-cyan-600", nameKey: "rod.colorCyan" },
 ];
 
-export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish, tackle, mixedGroundbaits, onRemoveRod, canRemove }) {
+export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish, tackle, mixedGroundbaits, onRemoveRod, canRemove, stats }) {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -166,9 +166,20 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
       className={`rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden ${reminderTriggered ? "ring-4 ring-amber-400 animate-pulse cursor-pointer" : ""}`}
       onClick={reminderTriggered ? handleDismissBeep : undefined}
     >
-      <div className={`${bar} px-4 py-2 flex items-center justify-between`}>
+      <div className={`${bar} px-4 py-2 flex flex-wrap items-center justify-between gap-y-1`}>
         <span className="font-bold text-white flex items-center gap-1.5">
           <Fish className="w-4 h-4" /> {t("rod.rod")} {rodNumber}
+          {/* v3.145 — fish count and approximate total weight logged for
+              this rod in the live session (weight is whatever the angler
+              entered per catch, so it is shown with a "~"). */}
+          {stats && stats.count > 0 && (
+            <span
+              title={t("rod.catchStats")}
+              className="ml-1 flex items-center gap-1 text-xs font-medium bg-white/25 px-2 py-0.5 rounded-full whitespace-nowrap"
+            >
+              {stats.count}{stats.weight > 0 ? ` · ~${stats.weight.toFixed(1)} kg` : ""}
+            </span>
+          )}
         </span>
         <div className="flex items-center gap-2">
           {isRunning && (

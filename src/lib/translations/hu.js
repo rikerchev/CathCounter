@@ -92,6 +92,8 @@ export const hu = {
   "session.mixedGroundbait": "Keverve etetőanyag",
   "session.groundbaitMixer": "Etetőanyag keverő",
   "rod.rod": "Bot",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Halak és hozzávetőleges összsúly ennél a botnál a munkamenetben",
   "rod.timing": "Időmérés",
   "rod.fishOn": "Pisztráng — küzdelem időzítve",
   "rod.readyToCast": "Készen az övetésre",

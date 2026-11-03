@@ -92,6 +92,8 @@ export const ru = {
   "session.mixedGroundbait": "Смешанная прикормка",
   "session.groundbaitMixer": "Смеситель прикормки",
   "rod.rod": "Удилище",
+  // v3.145 — rod banner fish count / weight
+  "rod.catchStats": "Рыба и приблизительный общий вес для этого удилища в сессии",
   "rod.timing": "Таймер",
   "rod.fishOn": "Поклёвка — вываживание",
   "rod.readyToCast": "Готов к забросу",
