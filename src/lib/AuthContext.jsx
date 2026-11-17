@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { getPendingReferralCode, clearPendingReferralCode, getPendingMerchantCode, clearPendingMerchantCode } from '@/lib/referral';
 import { clearAllLocalData } from '@/lib/localDb';
@@ -12,6 +12,59 @@ import { clearAllLocalData } from '@/lib/localDb';
 // mismatch — a different account logging in here — can be caught before
 // that account's pages ever load the stale local data.
 const LAST_LOCAL_USER_KEY = 'catchcount_last_local_user_id';
+
+// v3.148 — the last successfully loaded user, kept together with a fingerprint
+// of the token it was loaded with. A failed /api/auth/me (timeout, dropped
+// connection, a cold server) used to be treated as "not signed in" and sent an
+// already signed-in person to the login page until they refreshed. Now the app
+// opens straight away with this copy and refreshes it in the background; only
+// a real 401/403 signs the user out. The copy is used only while the stored
+// token is the very one it belongs to.
+const CACHED_USER_KEY = 'catchcount_cached_user';
+
+function tokenFingerprint() {
+  try {
+    const tok = localStorage.getItem('token');
+    return tok ? tok.slice(-24) : null;
+  } catch {
+    return null;
+  }
+}
+
+function readCachedUser() {
+  try {
+    const fp = tokenFingerprint();
+    if (!fp) return null;
+    const saved = JSON.parse(localStorage.getItem(CACHED_USER_KEY) || 'null');
+    return saved && saved.fp === fp && saved.user && saved.user.id ? saved.user : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedUser(user) {
+  try {
+    const fp = tokenFingerprint();
+    if (fp && user && user.id) localStorage.setItem(CACHED_USER_KEY, JSON.stringify({ fp, user }));
+  } catch {
+    // ignore
+  }
+}
+
+function clearCachedUser() {
+  try {
+    localStorage.removeItem(CACHED_USER_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// Background re-checks after a transient failure (seconds): 5, 15, 40, 90.
+const AUTH_RETRY_DELAYS_MS = [5000, 15000, 40000, 90000];
+
+function isDefiniteRejection(error) {
+  return !!error && (error.status === 401 || error.status === 403);
+}
 
 // Wipes the local IndexedDB store only if a DIFFERENT account was the last
 // one signed in on this device (never for the same account signing back
@@ -105,42 +158,132 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  const checkUserAuth = useCallback(async () => {
-    setIsLoadingAuth(true);
+  const retryTimerRef = useRef(null);
+  const retryAttemptRef = useRef(0);
+
+  // Fresh user from the server → state + cached copy. Runs (and completes)
+  // guardLocalDataForUser BEFORE the user is exposed, so no page — including
+  // SyncProvider's own background sync — can read the local IndexedDB store
+  // until it's confirmed to belong to this account (or has just been wiped
+  // because it didn't). See its own comment above.
+  const applyUser = useCallback(async (currentUser, first) => {
+    await guardLocalDataForUser(currentUser.id);
+    writeCachedUser(currentUser);
+    setUser(currentUser);
+    setIsAuthenticated(true);
     setAuthError(null);
-    try {
-      const currentUser = await base44.auth.me();
-      // Runs (and completes) BEFORE isLoadingAuth flips to false, so no page
-      // — including SyncProvider's own background sync — can read the local
-      // IndexedDB store until it's confirmed to belong to this account (or
-      // has just been wiped because it didn't). See its own comment above.
-      await guardLocalDataForUser(currentUser.id);
-      setUser(currentUser);
-      setIsAuthenticated(true);
+    if (first) {
       tryRedeemPendingReferral(setUser);
       tryRedeemPendingMerchant(setUser);
+    }
+  }, []);
+
+  const signedOut = useCallback((error) => {
+    clearCachedUser();
+    setUser(null);
+    setIsAuthenticated(false);
+    if (isDefiniteRejection(error)) {
+      setAuthError({ type: 'auth_required', message: 'Authentication required' });
+    }
+  }, []);
+
+  const cancelRetry = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
+  // One background check after a transient failure; on another transient
+  // failure the next one is scheduled (see AUTH_RETRY_DELAYS_MS).
+  const backgroundCheck = useCallback(async () => {
+    cancelRetry();
+    try {
+      await applyUser(await base44.auth.me(), false);
+      retryAttemptRef.current = 0;
     } catch (error) {
-      setUser(null);
-      setIsAuthenticated(false);
-      if (error.status === 401 || error.status === 403) {
-        setAuthError({ type: 'auth_required', message: 'Authentication required' });
+      if (isDefiniteRejection(error)) {
+        signedOut(error);
+        return;
       }
+      const attempt = retryAttemptRef.current++;
+      if (attempt < AUTH_RETRY_DELAYS_MS.length) {
+        retryTimerRef.current = setTimeout(backgroundCheck, AUTH_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }, [applyUser, signedOut, cancelRetry]);
+
+  // useCache: only for the very first check when the app opens. Later calls
+  // (after accepting the terms, saving the phone, ...) need the server's
+  // current user, never the saved copy.
+  const checkUserAuth = useCallback(async (opts) => {
+    cancelRetry();
+    retryAttemptRef.current = 0;
+    setAuthError(null);
+
+    // Signed in before on this device, same token: open at once with the saved
+    // user and confirm in the background.
+    const cached = opts && opts.useCache ? readCachedUser() : null;
+    if (cached) {
+      try {
+        await guardLocalDataForUser(cached.id);
+      } catch {
+        // ignore
+      }
+      setUser(cached);
+      setIsAuthenticated(true);
+      setIsLoadingAuth(false);
+      setAuthChecked(true);
+      try {
+        await applyUser(await base44.auth.me(), true);
+      } catch (error) {
+        if (isDefiniteRejection(error)) signedOut(error);
+        else {
+          const attempt = retryAttemptRef.current++;
+          retryTimerRef.current = setTimeout(backgroundCheck, AUTH_RETRY_DELAYS_MS[attempt]);
+        }
+      }
+      return;
+    }
+
+    setIsLoadingAuth(true);
+    try {
+      await applyUser(await base44.auth.me(), true);
+    } catch (error) {
+      signedOut(error);
     } finally {
       setIsLoadingAuth(false);
       setAuthChecked(true);
     }
-  }, []);
+  }, [applyUser, signedOut, cancelRetry, backgroundCheck]);
+
+  // Back online / app brought to the front while a background check is still
+  // pending: ask again now instead of waiting for the timer.
+  useEffect(() => {
+    const recheck = () => {
+      if (retryTimerRef.current && !document.hidden) backgroundCheck();
+    };
+    window.addEventListener('online', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      window.removeEventListener('online', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+      cancelRetry();
+    };
+  }, [backgroundCheck, cancelRetry]);
 
   useEffect(() => {
-    checkUserAuth();
+    checkUserAuth({ useCache: true });
   }, [checkUserAuth]);
 
   const logout = (shouldRedirect = true) => {
+    cancelRetry();
     setUser(null);
     setIsAuthenticated(false);
     setAuthChecked(false);
 
     localStorage.removeItem('token');
+    clearCachedUser();
     localStorage.removeItem('base44_access_token'); // stale key from the old client, harmless to clear
 
     if (shouldRedirect) {

@@ -58,7 +58,35 @@ function setToken(token) {
 // like it hung for a very long time.
 const REQUEST_TIMEOUT_MS = 12000;
 
-async function apiFetch(path, { method = "GET", body, headers, raw, timeoutMs } = {}) {
+// v3.148 — read requests (GET and the read-only POST .../filter) are retried
+// on a transient failure: a timeout, a dropped connection, a 500/502/503/504
+// from a cold serverless instance or a database connection busy with the other
+// startup requests. Without this a single slow answer left /api/auth/me
+// "failed" (=> the login page was shown to an already signed-in user) and
+// pages such as Users/Statistics silently empty until a manual refresh. Writes
+// are never retried (they could be applied twice). Not retried while the
+// browser says it is offline. A timeout is retried once, other failures twice.
+const RETRY_DELAYS_MS = [1000, 2500];
+
+async function apiFetch(path, opts = {}) {
+  const method = opts.method || "GET";
+  const canRetry = opts.retry ?? (method === "GET" || /\/filter$/.test(path));
+  let attempt = 0;
+  for (;;) {
+    try {
+      return await apiFetchOnce(path, opts);
+    } catch (e) {
+      const timedOut = e && e.message === "Request timed out";
+      const transient = e && (e.isNetworkError || e.status === 500 || e.status === 502 || e.status === 503 || e.status === 504);
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const maxAttempts = timedOut ? 1 : RETRY_DELAYS_MS.length;
+      if (!canRetry || !transient || offline || attempt >= maxAttempts) throw e;
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt++]));
+    }
+  }
+}
+
+async function apiFetchOnce(path, { method = "GET", body, headers, raw, timeoutMs } = {}) {
   const token = getToken();
   const finalHeaders = { ...headers };
   let finalBody = body;

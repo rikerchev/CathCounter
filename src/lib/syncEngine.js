@@ -392,6 +392,13 @@ export async function syncAll() {
     ]);
     // v3.140 — put back what only this device still has
     await restoreMissingCatches(remoteCatchList);
+    // v3.148 — tell the open page the local store may have changed: the pages
+    // read IndexedDB once when they open, i.e. often BEFORE this background
+    // sync (6 s after start, on every focus) had delivered the newest data,
+    // and stayed stale until a manual refresh. See hooks/useSyncVersion.js.
+    try {
+      window.dispatchEvent(new Event("catchcount:data-synced"));
+    } catch { /* ignore */ }
   } catch (e) {
     console.error("syncAll error:", e);
   } finally {

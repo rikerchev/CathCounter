@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
+import useSyncVersion from "@/hooks/useSyncVersion";
 import { listCatchesByUser, deleteCatch } from "@/lib/catchRepository";
 import { listRodCastsByUser } from "@/lib/rodCastRepository";
 import { syncRodCasts } from "@/lib/syncEngine";
@@ -253,6 +254,7 @@ function TopItem({ label, value }) {
 export default function Sessions() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const syncVersion = useSyncVersion();
   const [sessions, setSessions] = useState([]);
   const [casts, setCasts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -274,7 +276,7 @@ export default function Sessions() {
     } finally {
       setLoading(false);
     }
-  }, [toast, t, user]);
+  }, [toast, t, user, syncVersion]);
 
   // v3.108 — { sessionNumber -> RodCast[] }, keyed the same way
   // sessionNumber is computed below (sessions.indexOf(session) + 1).

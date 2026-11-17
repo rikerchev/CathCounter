@@ -15,6 +15,7 @@ import AdBanner from "@/components/AdBanner";
 import { useLanguage } from "@/lib/i18n";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/AuthContext";
+import useSyncVersion from "@/hooks/useSyncVersion";
 import { listCatches, deleteCatch } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
@@ -73,6 +74,7 @@ function ChartSection({ icon: Icon, title, children }) {
 export default function Statistics() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const syncVersion = useSyncVersion();
   const [allCatches, setAllCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [resetting, setResetting] = useState(false);
@@ -107,13 +109,29 @@ export default function Statistics() {
     return () => { cancelled = true; };
   }, [scope, communityCatches]);
 
+  // v3.148 — re-read the local store after every background sync (it may have
+  // brought newer catches since the page opened) without a loading flash.
   useEffect(() => {
-    setLoading(true);
+    if (syncVersion === 0) setLoading(true);
     listCatches()
       .then(setAllCatches)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user?.id]);
+  }, [user?.id, syncVersion]);
+
+  // ... and refresh the other anglers' feed in place when it is already shown.
+  useEffect(() => {
+    if (syncVersion === 0 || scope !== "all") return;
+    let cancelled = false;
+    base44.community.catches()
+      .then((rows) => {
+        if (cancelled) return;
+        setCommunityCatches((rows || []).map((r) => ({ ...r, created_date: r.created_at, _community: true })));
+        setCommunityFailed(false);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [syncVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const catches = useMemo(() => {
     // The user's own catches — including ones logged offline that have no

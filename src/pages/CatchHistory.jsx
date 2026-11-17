@@ -5,6 +5,7 @@ import Thumbnail from "@/components/Thumbnail";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
+import useSyncVersion from "@/hooks/useSyncVersion";
 import { listCatchesByUser } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { translateSpecies } from "@/lib/speciesUtils";
@@ -19,6 +20,7 @@ const formatDuration = (s) => {
 export default function CatchHistory() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const syncVersion = useSyncVersion();
   const [catches, setCatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -32,7 +34,7 @@ export default function CatchHistory() {
     } finally {
       setLoading(false);
     }
-  }, [toast, t, user]);
+  }, [toast, t, user, syncVersion]);
 
   useEffect(() => {
     load();
