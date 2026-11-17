@@ -6,32 +6,41 @@ const STORAGE_KEY = "catchcount_session";
 const DEVICE_ID_KEY = "catchcount_device_id";
 
 let state = loadState();
+// When the stored state last really changed (before this page load).
+const loadedUpdatedAt = Number(state && state.updatedAt) || 0;
 const listeners = new Set();
 
 // --- Cloud sync (cross-device session resume) ---
 //
-// v3.144 — rewritten after two devices on one account showed wrong timer
-// hours and lost the second rod. Root causes:
-//  1. For an admin account the server's list() returns EVERY user's
-//     SessionSync rows; the old code took "the first active row" of the 10
-//     newest, i.e. possibly ANOTHER user's session (foreign timers, a single
-//     rod) — and then even wrote back into that row.
-//  2. list("-updated_date") never sorted by update time (the column is
-//     updated_at), and rows have no updated_date, so the "only merge if newer"
-//     check never fired: every poll replaced the local state wholesale, also
-//     discarding local changes not pushed yet.
-//  3. A device that had not seen the cloud row yet created a second row, and
-//     an idle device pushed its empty default state over the live one.
-// Now: only the caller's own rows are used (filtered by created_by_id), one
-// row per account is reused, an idle device never writes, and a poll never
-// overwrites local changes that are still waiting to be pushed.
+// v3.144 — only the caller's OWN SessionSync rows are used (for an admin the
+// server used to list every user's rows), one row per account is reused, an
+// idle device never writes, and a poll never overwrites local changes that are
+// still waiting to be pushed.
+//
+// v3.147 — a device that had been left with a STALE running session (timers
+// started hours/days ago, never closed) overwrote the live session of the other
+// device the moment anything on it called persist() (e.g. an expired reminder
+// being marked as fired) — the live timers then "escalated" to the stale ones.
+// Now:
+//  * every real change stamps state.updatedAt; the cloud row carries it;
+//  * before a device may write, it reconciles with the cloud once (stale local
+//    session -> the newer remote one is adopted, a session closed on another
+//    device is closed here too);
+//  * every write first checks the cloud row and yields to a newer remote
+//    version instead of overwriting it;
+//  * closing a session only deactivates the cloud row of THAT session, and a
+//    stale local session is never auto-closed before the reconcile has run.
 let cloudSessionId = null;
 let cloudSyncTimer = null;
 let crossDevicePollTimer = null;
 let lastCloudUpdateDate = null;
-// A push failed (offline etc.) — retried from the next poll, and until it
-// succeeds no remote state may overwrite ours.
+// A push failed or was postponed (offline, not reconciled yet) — retried from
+// the next poll; until it succeeds no remote state may overwrite ours.
 let unpushed = false;
+let reconciled = false; // the first comparison with the cloud succeeded
+let reconcileSettled = false; // the first attempt finished (success or not)
+let reconcilePromise = null;
+const PENDING_CLOSE_KEY = "catchcount_pending_close";
 
 function getDeviceId() {
   try {
@@ -50,6 +59,29 @@ function rowStamp(r) {
   return String((r && (r.updated_at || r.updated_date || r.created_at)) || "");
 }
 
+function parseData(row) {
+  try {
+    return JSON.parse(row.session_data);
+  } catch {
+    return null;
+  }
+}
+
+// When this cloud version was last changed, in ms: the writing device's own
+// stamp (state.updatedAt), else the row's server time.
+function rowMs(row, data) {
+  return Number(data && data.updatedAt) || Date.parse(rowStamp(row)) || 0;
+}
+
+function isValidState(d) {
+  return !!d && typeof d === "object" && Array.isArray(d.rods) && d.rods.length > 0
+    && d.rodTimers && typeof d.rodTimers === "object" && d.sessionStartTime != null;
+}
+
+function notify() {
+  listeners.forEach((l) => l());
+}
+
 // The caller's OWN session rows, newest update first. null = not signed in /
 // request failed (the caller then does nothing).
 async function fetchMyRows() {
@@ -61,28 +93,140 @@ async function fetchMyRows() {
     .sort((a, b) => (rowStamp(a) < rowStamp(b) ? 1 : rowStamp(a) > rowStamp(b) ? -1 : 0));
 }
 
+function adoptRemote(row, data) {
+  state = data;
+  cloudSessionId = row.id;
+  lastCloudUpdateDate = rowStamp(row) || lastCloudUpdateDate;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+  notify();
+}
+
+function resetLocalSession() {
+  state = emptyState();
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+  notify();
+}
+
+// Compares ONE cloud row with the local state. Returns "adopted" (the remote
+// session replaced the local one), "closed" (the same session was closed on
+// another device, so it is closed here too) or "keep" (local stays; a later
+// push overwrites the remote version). localMs = when the local state last
+// really changed.
+function evaluateRemote(row, localMs) {
+  if (!row || row.device_id === getDeviceId()) return "keep";
+  const data = parseData(row);
+  if (!data) return "keep";
+  if (row.is_active) {
+    if (!isValidState(data)) return "keep";
+    if (state.sessionStartTime == null || rowMs(row, data) > localMs) {
+      adoptRemote(row, data);
+      return "adopted";
+    }
+    // Local is newer: remember this remote version as seen.
+    lastCloudUpdateDate = rowStamp(row) || lastCloudUpdateDate;
+    return "keep";
+  }
+  if (state.sessionStartTime != null && data.sessionStartTime === state.sessionStartTime) {
+    resetLocalSession();
+    return "closed";
+  }
+  return "keep";
+}
+
+// Closed on another device (inactive row of the very same session)?
+function findClosedRow(rows) {
+  if (state.sessionStartTime == null) return null;
+  return rows.find(
+    (r) => !r.is_active && r.device_id !== getDeviceId() &&
+      (parseData(r) || {}).sessionStartTime === state.sessionStartTime
+  ) || null;
+}
+
+async function retryPendingClose() {
+  let start = null;
+  try {
+    start = localStorage.getItem(PENDING_CLOSE_KEY);
+  } catch {
+    // ignore
+  }
+  if (!start) return;
+  await closeCloudSession(Number(start) || null, true);
+}
+
+// First comparison with the cloud (see the v3.147 note above). Resolves to
+// true when the remote session replaced the local one.
+export function reconcileFromCloud() {
+  if (reconciled) return Promise.resolve(false);
+  if (reconcilePromise) return reconcilePromise;
+  reconcilePromise = (async () => {
+    let adopted = false;
+    try {
+      await retryPendingClose();
+      const rows = await fetchMyRows();
+      if (rows) {
+        const active = rows.find((r) => r.is_active);
+        if (active) {
+          cloudSessionId = active.id;
+          // loadedUpdatedAt = when the local state last changed BEFORE this
+          // page load: automatic persists made since then must not make a
+          // stale session look "newer" than the live one.
+          adopted = evaluateRemote(active, loadedUpdatedAt) === "adopted";
+        } else {
+          const closed = findClosedRow(rows);
+          if (closed) evaluateRemote(closed, 0);
+        }
+        reconciled = true;
+        if (adopted) unpushed = false;
+        else if (unpushed && !cloudSyncTimer) syncToCloud();
+      }
+    } catch {
+      // retried later
+    }
+    reconcileSettled = true;
+    reconcilePromise = null;
+    return adopted;
+  })();
+  return reconcilePromise;
+}
+
 async function pushStateToCloud() {
-  const body = {
+  const body = () => ({
     session_data: JSON.stringify(state),
     is_active: true,
     device_id: getDeviceId(),
-  };
+  });
   if (cloudSessionId) {
+    let row = null;
     try {
-      return await base44.entities.SessionSync.update(cloudSessionId, body);
+      row = await base44.entities.SessionSync.get(cloudSessionId);
     } catch (e) {
       if (e && e.status !== 404 && e.status !== 403) throw e;
       cloudSessionId = null; // row gone — look it up again below
     }
+    if (row) {
+      // Never overwrite a newer remote version (or a session closed there).
+      if (evaluateRemote(row, state.updatedAt || 0) !== "keep") return "conflict";
+      return base44.entities.SessionSync.update(cloudSessionId, body());
+    }
   }
   const rows = await fetchMyRows();
   if (rows === null) return null; // not signed in
-  const existing = rows.find((r) => r.is_active) || rows[0];
+  const active = rows.find((r) => r.is_active);
+  if (active && evaluateRemote(active, state.updatedAt || 0) !== "keep") return "conflict";
+  const existing = active || rows[0];
   if (existing) {
     cloudSessionId = existing.id;
-    return base44.entities.SessionSync.update(existing.id, body);
+    return base44.entities.SessionSync.update(existing.id, body());
   }
-  const created = await base44.entities.SessionSync.create(body);
+  const created = await base44.entities.SessionSync.create(body());
   cloudSessionId = created.id;
   return created;
 }
@@ -98,9 +242,16 @@ function syncToCloud() {
       unpushed = false;
       return;
     }
+    // Not compared with the cloud yet: a stale local session must not be
+    // written over the live one. Postpone; reconcile() pushes afterwards.
+    if (!reconciled) {
+      unpushed = true;
+      reconcileFromCloud();
+      return;
+    }
     try {
       const saved = await pushStateToCloud();
-      if (saved && rowStamp(saved)) lastCloudUpdateDate = rowStamp(saved);
+      if (saved && saved !== "conflict" && rowStamp(saved)) lastCloudUpdateDate = rowStamp(saved);
       unpushed = false;
     } catch {
       // best-effort; retried from the next poll
@@ -130,18 +281,16 @@ export async function resumeFromCloud(cloudSession) {
   try {
     const data = JSON.parse(cloudSession.session_data);
     if (!isValidState(data)) return false;
-    state = data;
-    lastCloudUpdateDate = rowStamp(cloudSession) || lastCloudUpdateDate;
-    persist();
-    cloudSessionId = cloudSession.id;
+    adoptRemote(cloudSession, data);
     return true;
   } catch {
     return false;
   }
 }
 
-export async function closeCloudSession() {
-  // The closed session must never be pushed again by a pending timer.
+// Deactivates the cloud row(s) of the session that was just closed — NOT the
+// live session of another device (closedStart = that session's start time).
+export async function closeCloudSession(closedStart, isRetry) {
   if (cloudSyncTimer) {
     clearTimeout(cloudSyncTimer);
     cloudSyncTimer = null;
@@ -149,75 +298,90 @@ export async function closeCloudSession() {
   unpushed = false;
   try {
     const rows = await fetchMyRows();
-    // Deactivate every one of this account's active rows (older duplicates
-    // from before v3.144 included), so no stale row can come back as "the
-    // active session" on another device.
-    const ids = new Set((rows || []).filter((r) => r.is_active).map((r) => r.id));
-    if (cloudSessionId) ids.add(cloudSessionId);
+    if (rows === null) throw new Error("not signed in");
+    const ids = [];
+    for (const r of rows) {
+      if (!r.is_active) continue;
+      const d = parseData(r);
+      if (closedStart == null || !d || d.sessionStartTime == null || d.sessionStartTime === closedStart) ids.push(r.id);
+    }
     await Promise.all(
-      [...ids].map((id) =>
-        base44.entities.SessionSync.update(id, { is_active: false, device_id: getDeviceId() }).catch(() => {})
-      )
+      ids.map((id) => base44.entities.SessionSync.update(id, { is_active: false, device_id: getDeviceId() }))
     );
+    try {
+      localStorage.removeItem(PENDING_CLOSE_KEY);
+    } catch {
+      // ignore
+    }
   } catch {
-    // Silently fail
+    // Offline/failed: remember it, so the other device (or this one, after a
+    // reload) is not handed the closed session again; retried by reconcile.
+    if (!isRetry && closedStart != null) {
+      try {
+        localStorage.setItem(PENDING_CLOSE_KEY, String(closedStart));
+      } catch {
+        // ignore
+      }
+    }
   }
   // The poll keeps running while the page is open (it is stopped when
   // ActiveSession unmounts) so a session started on the other device shows up.
 }
 
-function isValidState(d) {
-  return !!d && typeof d === "object" && Array.isArray(d.rods) && d.rods.length > 0
-    && d.rodTimers && typeof d.rodTimers === "object" && d.sessionStartTime != null;
-}
-
 // --- Continuous cross-device sync ---
 // Polls the account's own cloud session every CROSS_DEVICE_POLL_MS for changes
-// from other devices. When a newer change from a different device is found,
-// it is merged locally (and the timers/rods shown there are mirrored here).
+// from other devices (a newer version is adopted, a session closed there is
+// closed here), so timers/rods are mirrored.
 //
 // v3.47 — was 10s; 30s. v3.144 — 15s while the page is visible: the whole
-// point of this poll is the two-device mirror, and 30s made a started timer
-// show up on the other device far too late. Hidden/locked pages still skip
-// the request entirely (see startCrossDeviceSync).
+// point of this poll is the two-device mirror. Hidden/locked pages skip the
+// request entirely (see startCrossDeviceSync).
 const CROSS_DEVICE_POLL_MS = 15000;
-function mergeCloudState(cloudSession) {
-  try {
-    // Never replace local changes that are still waiting to be pushed.
-    if (cloudSyncTimer || unpushed) return false;
-    // Only accept if from a different device
-    if (cloudSession.device_id === getDeviceId()) return false;
-    // Only accept if newer than what we last saw
-    const stamp = rowStamp(cloudSession);
-    if (lastCloudUpdateDate && stamp <= lastCloudUpdateDate) return false;
-    const data = JSON.parse(cloudSession.session_data);
-    if (!isValidState(data)) return false;
-
-    lastCloudUpdateDate = stamp;
-    state = data;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    listeners.forEach((l) => l());
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 async function pollCrossDeviceOnce() {
   try {
+    if (!reconciled) {
+      await reconcileFromCloud();
+      return;
+    }
     // A failed push is retried here first; merging waits until it succeeded.
     if (unpushed && !cloudSyncTimer) syncToCloud();
     if (cloudSyncTimer || unpushed) return;
+    await retryPendingClose();
     const rows = await fetchMyRows();
     if (!rows) return;
-    const active = rows.find((s) => s.is_active);
-    if (!active) return;
-    // Keep track of cloud session ID
-    cloudSessionId = active.id;
-    mergeCloudState(active);
+    // Local changes made while the request was running win this round.
+    if (cloudSyncTimer || unpushed) return;
+    const active = rows.find((r) => r.is_active);
+    if (active) {
+      cloudSessionId = active.id;
+      evaluateRemote(active, state.updatedAt || 0);
+      return;
+    }
+    const closed = findClosedRow(rows);
+    if (closed) evaluateRemote(closed, 0);
   } catch {
     // Silently fail — cross-device sync is best-effort
   }
+}
+
+// Immediate check (page opened): reconcile first, then one poll.
+export function syncNow() {
+  return pollCrossDeviceOnce();
+}
+
+// A running session found in storage may be stale (left over from an earlier
+// trip, or already replaced on another device): compare it with the cloud soon
+// after start-up, before anything can write it over the live one.
+if (typeof window !== "undefined" && state.sessionStartTime != null) {
+  [1000, 5000, 15000, 45000, 90000].forEach((ms) =>
+    setTimeout(() => {
+      if (!reconciled) reconcileFromCloud();
+    }, ms)
+  );
+  window.addEventListener("online", () => {
+    if (!reconciled) reconcileFromCloud();
+  });
 }
 
 let crossDeviceVisibilityHandler = null;
@@ -253,13 +417,7 @@ export function stopCrossDeviceSync() {
   }
 }
 
-function loadState() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch {
-    // ignore
-  }
+function emptyState() {
   return {
     sessionStartTime: null,
     rods: [{ id: 1, config: {} }],
@@ -268,10 +426,24 @@ function loadState() {
     lastCatchTime: null,
     lastCatchLocation: null, // { name, lat, lng } — the last precise GPS fix
     // confirmed for a catch this session (see recordCatchLocation below).
+    updatedAt: Date.now(), // v3.147 — last real change, ms (cross-device compare)
   };
 }
 
-function persist() {
+function loadState() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch {
+    // ignore
+  }
+  return emptyState();
+}
+
+function persist(touch = true) {
+  // v3.147 — only real changes stamp the state (automatic ones, e.g. marking a
+  // reminder as fired, must not make an old state look newer than a live one).
+  if (touch) state.updatedAt = Date.now();
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
@@ -309,6 +481,7 @@ export function isSessionActive() {
 }
 
 export function closeSession(endTime) {
+  const closedStart = state.sessionStartTime;
   let duration = 0;
   const end = endTime || Date.now();
   if (state.sessionStartTime) {
@@ -321,7 +494,7 @@ export function closeSession(endTime) {
   state.lastCatchTime = null;
   state.lastCatchLocation = null;
   persist();
-  closeCloudSession();
+  closeCloudSession(closedStart);
   return duration;
 }
 
@@ -354,6 +527,9 @@ export function recordCatchLocation(name, lat, lng) {
 
 export function checkAutoClose() {
   if (!state.sessionStartTime) return { shouldClose: false, endTime: null };
+  // v3.147 — a stored session may be stale and about to be replaced by the live
+  // one from the cloud: never auto-close before that comparison has run.
+  if (!reconcileSettled) return { shouldClose: false, endTime: null };
   const referenceTime = state.lastCatchTime || state.sessionStartTime;
   if (Date.now() - referenceTime >= TEN_HOURS_MS) {
     return { shouldClose: true, endTime: referenceTime };
@@ -457,7 +633,7 @@ export function markReminderTriggered(rodId) {
   const timer = getOrCreateTimer(rodId);
   if (timer.reminderTriggered) return false;
   timer.reminderTriggered = true;
-  persist();
+  persist(false);
   return true;
 }
 

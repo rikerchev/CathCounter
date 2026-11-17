@@ -97,21 +97,20 @@ export default function ActiveSession() {
     // the (stable-identity) appLock object.
   }, [sessionActive]);
 
-  // Cross-device session resume: check for active cloud session on mount
+  // Cross-device session resume (v3.147): compare with the cloud once on mount —
+  // a stale or empty local session is replaced by the live one from the other
+  // device without a prompt (the poll did that after 30 s anyway), a session
+  // closed there is closed here. Then one immediate poll.
   useEffect(() => {
-    if (sessionStore.isSessionActive()) return;
-    sessionStore.checkCloudSession().then((cloudSession) => {
-      if (!cloudSession) return;
-      if (window.confirm(t("session.resumeQuestion"))) {
-        sessionStore.resumeFromCloud(cloudSession).then((ok) => {
-          if (ok) {
-            setRods(sessionStore.getRods());
-            setSessionElapsed(sessionStore.getSessionElapsed());
-            setSessionActive(sessionStore.isSessionActive());
-            setMixedGroundbaits(sessionStore.getMixedGroundbaits());
-            toast({ title: t("session.cloudSessionFound") });
-          }
-        });
+    sessionStore.reconcileFromCloud().then((adopted) => {
+      if (adopted) {
+        setRods(sessionStore.getRods());
+        setSessionElapsed(sessionStore.getSessionElapsed());
+        setSessionActive(sessionStore.isSessionActive());
+        setMixedGroundbaits(sessionStore.getMixedGroundbaits());
+        toast({ title: t("session.cloudSessionFound") });
+      } else {
+        sessionStore.syncNow();
       }
     });
   }, []);
