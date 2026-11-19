@@ -627,13 +627,44 @@ function drawContactText(ctx, contactText, maxWidth = CONTACT_MAX_WIDTH) {
 // failure. Used only for the venue/water-body's own uploaded logo: it's an
 // optional, best-effort addition to the brochure/poster, and a missing or
 // broken logo_url must never break the rest of the download.
+//
+// v3.149 — a logo whose URL points to ANOTHER origin (e.g. uploaded while the
+// app was still served from catch-counter.vercel.app, so the stored link is an
+// absolute address of another domain) made the canvas "tainted" and the whole
+// download failed with "Tainted canvases may not be exported". Now: (1) a link
+// to this app's own /api/... on an older/alias domain is turned into a
+// same-origin path; (2) any other cross-origin image is requested with CORS
+// (crossOrigin = "anonymous") — if the host does not allow it the image simply
+// fails to load and the brochure is made without the logo, instead of failing.
+const APP_HOST_RE = /(^|\.)catchcount\.app$|^catch-counter[\w-]*\.vercel\.app$/i;
+
+function toUsableLogoSrc(src) {
+  try {
+    if (/^(data|blob):/i.test(src)) return { src, cors: false };
+    const u = new URL(src, window.location.origin);
+    if (u.origin === window.location.origin) return { src: u.pathname + u.search, cors: false };
+    // Uploaded logos are stored as an ABSOLUTE link built from the server's
+    // PUBLIC_API_URL / request host (server/routes/catchPhotos.ts), which may be
+    // another domain than the one the app is opened from today — the same file
+    // is always served by this origin too.
+    if (u.pathname.startsWith("/api/catch-photos/") || (APP_HOST_RE.test(u.hostname) && u.pathname.startsWith("/api/"))) {
+      return { src: u.pathname + u.search, cors: false };
+    }
+    return { src: u.toString(), cors: true };
+  } catch {
+    return { src, cors: false };
+  }
+}
+
 function loadImageSafe(src) {
   if (!src) return Promise.resolve(null);
+  const { src: finalSrc, cors } = toUsableLogoSrc(src);
   return new Promise((resolve) => {
     const img = new Image();
+    if (cors) img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
     img.onerror = () => resolve(null);
-    img.src = src;
+    img.src = finalSrc;
   });
 }
 
