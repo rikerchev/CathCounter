@@ -82,6 +82,19 @@ function notify() {
   listeners.forEach((l) => l());
 }
 
+// v3.150 — a session nobody has touched for 10 h (no catch, or no start) is dead:
+// checkAutoClose() would close it at once. A cloud copy like that is never
+// adopted — an older app version still open on another device (its JS keeps
+// running until the page/PWA is reloaded) keeps writing its stale session back
+// into the cloud row, and adopting it brought the old timers (e.g. 272 h) back
+// on every device again and again.
+const STALE_SESSION_MS = 10 * 60 * 60 * 1000;
+function isStaleSessionData(d) {
+  if (!d || d.sessionStartTime == null) return false;
+  const ref = d.lastCatchTime || d.sessionStartTime;
+  return Date.now() - ref >= STALE_SESSION_MS;
+}
+
 // The caller's OWN session rows, newest update first. null = not signed in /
 // request failed (the caller then does nothing).
 async function fetchMyRows() {
@@ -126,6 +139,7 @@ function evaluateRemote(row, localMs) {
   if (!data) return "keep";
   if (row.is_active) {
     if (!isValidState(data)) return "keep";
+    if (isStaleSessionData(data)) return "keep";
     if (state.sessionStartTime == null || rowMs(row, data) > localMs) {
       adoptRemote(row, data);
       return "adopted";
@@ -355,7 +369,16 @@ async function pollCrossDeviceOnce() {
     const active = rows.find((r) => r.is_active);
     if (active) {
       cloudSessionId = active.id;
-      evaluateRemote(active, state.updatedAt || 0);
+      const result = evaluateRemote(active, state.updatedAt || 0);
+      // Another device (typically an older app version still open there) wrote
+      // an OLDER or stale session over this live one: put ours back.
+      if (result === "keep" && state.sessionStartTime != null && active.device_id !== getDeviceId()) {
+        const data = parseData(active);
+        if (!data || isStaleSessionData(data) || rowMs(active, data) < (state.updatedAt || 0) - 2000) {
+          unpushed = true;
+          syncToCloud();
+        }
+      }
       return;
     }
     const closed = findClosedRow(rows);

@@ -98,6 +98,44 @@ function parseSort(sortParam: string | null): { column: string; dir: "ASC" | "DE
 // to contain other users' sessions and could load one of them as its own.
 const ALWAYS_OWNER_SCOPED = new Set(["SessionSync"]);
 
+// v3.150 — a fishing session nobody has touched for 10 h (no catch recorded,
+// and it started more than 10 h ago) is dead: the app closes it by itself at
+// that point. An OLDER app version that is still open somewhere (its JS only
+// updates on reload) keeps writing its stale local session into the account's
+// SessionSync row, and every other device then loaded it again (e.g. a 272 h
+// timer). Enforced here so it also protects against clients that were never
+// updated: such a write is ignored, and a stale row that is already stored is
+// deactivated the next time it is read.
+const SESSION_DEAD_MS = 10 * 60 * 60 * 1000;
+
+function isDeadSessionData(sessionData: unknown): boolean {
+  if (typeof sessionData !== "string") return false;
+  try {
+    const d = JSON.parse(sessionData);
+    if (!d || d.sessionStartTime == null) return false;
+    const ref = Number(d.lastCatchTime) || Number(d.sessionStartTime);
+    return !!ref && Date.now() - ref >= SESSION_DEAD_MS;
+  } catch {
+    return false;
+  }
+}
+
+// Deactivates (and reports as inactive) every active SessionSync row whose
+// stored session is dead.
+async function deactivateDeadSessions(rows: Record<string, any>[]): Promise<Record<string, any>[]> {
+  for (const r of rows) {
+    if (r.is_active && isDeadSessionData(r.session_data)) {
+      try {
+        await sql`UPDATE session_syncs SET is_active = false WHERE id = ${r.id}`;
+        r.is_active = false;
+      } catch {
+        // best-effort
+      }
+    }
+  }
+  return rows;
+}
+
 export async function handleEntitiesRoute(
   req: Request,
   path: string[], // e.g. ["Catch"] or ["Catch", "abc-123"] or ["Catch", "filter"]
@@ -139,6 +177,7 @@ export async function handleEntitiesRoute(
     } else {
       rows = await sql`SELECT * FROM ${sql(table)} ${whereClause} ORDER BY created_at DESC LIMIT ${limit}`;
     }
+    if (entityName === "SessionSync") await deactivateDeadSessions(rows as unknown as Record<string, any>[]);
     return json(rows);
   }
 
@@ -155,6 +194,7 @@ export async function handleEntitiesRoute(
     if (rule.kind === "owner" && (!isAdmin(user) || ALWAYS_OWNER_SCOPED.has(entityName))) {
       rows = rows.filter((r: Record<string, unknown>) => r[rule.field] === user?.id);
     }
+    if (entityName === "SessionSync") await deactivateDeadSessions(rows as unknown as Record<string, any>[]);
     rows = rows.filter((r: Record<string, unknown>) =>
       Object.entries(criteria).every(([k, v]) => r[k] === v)
     );
@@ -166,6 +206,7 @@ export async function handleEntitiesRoute(
     const row = await fetchRow(table, sub);
     if (!row) return json({ error: "Not found" }, 404);
     if (!(await isAllowed(entity, "read", user, row))) return json({ error: "Forbidden" }, 403);
+    if (entityName === "SessionSync") await deactivateDeadSessions([row as unknown as Record<string, any>]);
     return json(row);
   }
 
@@ -175,6 +216,8 @@ export async function handleEntitiesRoute(
     if (!(await isAllowed(entity, "create", user, body))) return json({ error: "Forbidden" }, 403);
     const payload = await stripMissingColumns(table, sanitizePayload(entity, body));
     payload.created_by_id = user?.id ?? null;
+    // v3.150 — a dead (10 h+ untouched) session is stored as closed, never live.
+    if (entityName === "SessionSync" && isDeadSessionData(payload.session_data)) payload.is_active = false;
 
     const keys = Object.keys(payload);
     const rows = await sql`
@@ -223,6 +266,14 @@ export async function handleEntitiesRoute(
       if (compRows[0]?.created_by_id !== user?.id) {
         delete payload.catch_results;
       }
+    }
+    // v3.150 — ignore a write that would (re)store a dead session as the live
+    // one (an old app version pushing its stale local state); if the stored
+    // row is itself such a leftover, close it.
+    if (entityName === "SessionSync" && payload.is_active !== false && isDeadSessionData(payload.session_data)) {
+      const stored = existing as unknown as Record<string, any>;
+      await deactivateDeadSessions([stored]);
+      return json(stored);
     }
     payload.updated_at = new Date();
     const keys = Object.keys(payload);
