@@ -199,6 +199,9 @@ async function uploadFile(file) {
     raw: true,
     body: file,
     headers: { "Content-Type": file.type || "application/octet-stream" },
+    // v3.151 — a photo is far bigger than the usual JSON request: on a weak
+    // mobile connection 12 s was often not enough and the upload kept failing.
+    timeoutMs: 60000,
   });
   return { file_url: data.file_url };
 }

@@ -376,7 +376,7 @@ export async function syncAll() {
     try {
       const { uploadAllPendingPhotos, syncUnlinkedPhotos } = await import("@/lib/pendingPhotos");
       await syncUnlinkedPhotos();
-      await uploadAllPendingPhotos();
+      await uploadAllPendingPhotos({ push: false });
     } catch (e) {
       console.error("pushPendingPhotos error:", e);
     }

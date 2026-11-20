@@ -62,9 +62,22 @@ export async function uploadPhotoToCloud(file) {
   return file_url;
 }
 
+// v3.151 — a photo whose status is "uploading" was being sent when the page was
+// closed / the browser killed / the phone locked: nothing ever set it back, and
+// both uploadPendingPhoto() and uploadAllPendingPhotos() skip "uploading" ones,
+// so it stayed on the device forever (the catch then had no photo on the server
+// or on the other devices) although the connection was fine afterwards. An
+// "uploading" record older than this is treated as interrupted and retried; at
+// start-up every such record is reset at once (see the bottom of the file).
+const UPLOADING_STALE_MS = 2 * 60 * 1000;
+function isActiveUpload(item) {
+  if (!item || item.status !== "uploading") return false;
+  return Date.now() - (item.uploading_since || 0) < UPLOADING_STALE_MS;
+}
+
 // Upload a single pending photo and update the linked catch
 export async function uploadPendingPhoto(item) {
-  if (!item || item.status === "uploading") return null;
+  if (!item || isActiveUpload(item)) return null;
 
   // If already uploaded to cloud, just link to catch
   if (item.cloud_url) {
@@ -86,7 +99,7 @@ export async function uploadPendingPhoto(item) {
     return item.cloud_url;
   }
 
-  await updatePendingPhoto(item.id, { status: "uploading" });
+  await updatePendingPhoto(item.id, { status: "uploading", uploading_since: Date.now() });
   try {
     const { file_url } = await base44.integrations.Core.UploadPublicFile({ file: item.blob });
     await updatePendingPhoto(item.id, { cloud_url: file_url });
@@ -108,12 +121,27 @@ export async function uploadPendingPhoto(item) {
   }
 }
 
-// Upload all pending photos (called when online or manually)
-export async function uploadAllPendingPhotos() {
+// Upload all pending photos (called when online or manually).
+// v3.151 — a photo that got linked to its catch marks the local catch as
+// changed (photo_url); this used to be sent only by the NEXT full sync (next
+// focus/app start), so right after closing a session the server could lack the
+// photo links for a long time. Now the changed catches are pushed right away
+// (push: false only for syncAll(), which pushes them itself).
+export async function uploadAllPendingPhotos({ push = true } = {}) {
   const all = await getAllPendingPhotos();
+  let linkedAny = false;
   for (const item of all) {
-    if (item.status !== "uploading") {
-      await uploadPendingPhoto(item);
+    if (!isActiveUpload(item)) {
+      const result = await uploadPendingPhoto(item);
+      if (result && item.catch_id) linkedAny = true;
+    }
+  }
+  if (linkedAny && push) {
+    try {
+      const { pushOnly } = await import("@/lib/syncEngine");
+      pushOnly();
+    } catch {
+      // the next full sync pushes them
     }
   }
 }
@@ -167,8 +195,22 @@ export async function cleanupOrphanedPendingPhotos() {
   }
 }
 
+// v3.151 — right after the page loads no upload of THIS page can be running, so
+// whatever is still marked "uploading" was interrupted: make it retryable now.
+async function resetInterruptedUploads() {
+  try {
+    const all = await getAllPendingPhotos();
+    for (const item of all) {
+      if (item.status === "uploading") await updatePendingPhoto(item.id, { status: "pending", uploading_since: null });
+    }
+  } catch {
+    // best-effort
+  }
+}
+
 // Auto-upload when back online
 if (typeof window !== "undefined") {
+  resetInterruptedUploads();
   window.addEventListener("online", () => {
     setTimeout(() => uploadAllPendingPhotos(), 1000);
   });
