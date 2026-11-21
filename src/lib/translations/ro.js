@@ -1078,6 +1078,7 @@ export const ro = {
     "nav.approvedTraders": "Comercianți aprobați",
     "rod.feeder": "Coșuleț feeder",
     "rod.selectFeeder": "Selectează coșulețul",
+    "rod.noFeeder": "— Fără coșuleț —",
     "wb.participants": "Participanți",
     "wb.noParticipantsYet": "Încă nu sunt participanți înregistrați.",
     "wb.participantName": "Nume",

@@ -1078,6 +1078,7 @@ export const sr = {
     "nav.approvedTraders": "Odobreni trgovci",
     "rod.feeder": "Hranilica",
     "rod.selectFeeder": "Izaberi hranilicu",
+    "rod.noFeeder": "— Bez hranilice —",
     "wb.participants": "Učesnici",
     "wb.noParticipantsYet": "Još uvek nema prijavljenih učesnika.",
     "wb.participantName": "Ime",

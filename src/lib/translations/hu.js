@@ -1078,6 +1078,7 @@ export const hu = {
     "nav.approvedTraders": "Jóváhagyott kereskedők",
     "rod.feeder": "Etetőkosár",
     "rod.selectFeeder": "Etetőkosár kiválasztása",
+    "rod.noFeeder": "— Nincs etetőkosár —",
     "wb.participants": "Résztvevők",
     "wb.noParticipantsYet": "Még nincsenek regisztrált résztvevők.",
     "wb.participantName": "Név",

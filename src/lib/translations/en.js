@@ -319,6 +319,7 @@ export const en = {
     "rod.selectOther": "Select other",
     "rod.feeder": "Feeder",
     "rod.selectFeeder": "Select feeder",
+    "rod.noFeeder": "— No feeder —",
 
     "weather.airTemp": "Air Temp (°C)",
     "weather.cloudiness": "Cloudiness",

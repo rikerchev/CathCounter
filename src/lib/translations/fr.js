@@ -1078,6 +1078,7 @@ export const fr = {
     "nav.approvedTraders": "Commerçants approuvés",
     "rod.feeder": "Feeder",
     "rod.selectFeeder": "Sélectionner le feeder",
+    "rod.noFeeder": "— Sans feeder —",
     "wb.participants": "Participants",
     "wb.noParticipantsYet": "Aucun participant inscrit pour le moment.",
     "wb.participantName": "Nom",

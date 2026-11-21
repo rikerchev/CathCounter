@@ -536,6 +536,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
     },
   },
+  "v3.155-catch-feeder-basket": {
+    label: "v3.155 — Хранилка в таймера на въдицата (catches.feeder_basket)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder_basket TEXT`);
+    },
+  },
   "v3.154-bait-feeder-category": {
     label: "v3.154 — Категория „Хранилка“ в Инвентар",
     run: async () => {
@@ -832,6 +838,14 @@ export async function handleAdminMigrationsRoute(
             AND column_name IN ('water_name', 'feeder2')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.155-catch-feeder-basket") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'catches'
+            AND column_name = 'feeder_basket'
+        `;
+        applied = (rows[0]?.n ?? 0) >= 1;
       }
       if (id === "v3.154-bait-feeder-category") {
         try {

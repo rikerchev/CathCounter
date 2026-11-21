@@ -1078,6 +1078,7 @@ export const pl = {
     "nav.approvedTraders": "Zatwierdzeni sprzedawcy",
     "rod.feeder": "Koszyczek feederowy",
     "rod.selectFeeder": "Wybierz koszyczek",
+    "rod.noFeeder": "— Bez koszyczka —",
     "wb.participants": "Uczestnicy",
     "wb.noParticipantsYet": "Nie zarejestrowano jeszcze żadnych uczestników.",
     "wb.participantName": "Imię i nazwisko",

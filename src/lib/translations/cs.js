@@ -1078,6 +1078,7 @@ export const cs = {
     "nav.approvedTraders": "Schválení obchodníci",
     "rod.feeder": "Krmítko",
     "rod.selectFeeder": "Vyberte krmítko",
+    "rod.noFeeder": "— Bez krmítka —",
     "wb.participants": "Účastníci",
     "wb.noParticipantsYet": "Zatím nejsou registrováni žádní účastníci.",
     "wb.participantName": "Jméno",

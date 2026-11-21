@@ -144,6 +144,7 @@ CREATE TABLE catches (
   line TEXT,
   feeder TEXT,
   feeder2 TEXT,
+  feeder_basket TEXT,
   rig_details TEXT,
   distance TEXT,
   location TEXT,
@@ -1033,3 +1034,6 @@ ALTER TABLE rod_casts ADD COLUMN IF NOT EXISTS session_start TEXT;
 ALTER TABLE catches ADD COLUMN IF NOT EXISTS water_name TEXT;
 -- v3.120 — second groundbait of the rod (catch.feeder2), for Statistics.
 ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT;
+
+-- v3.155 — feeder basket (хранилка) chosen in the rod timer (catch.feeder_basket).
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder_basket TEXT;

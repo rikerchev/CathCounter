@@ -168,6 +168,7 @@ export const ENTITIES: Record<string, EntityDef> = {
       // v3.120 — the rod's second groundbait ("Захранка 2" in RodTimer.jsx);
       // used by Statistics. Needs the v3.120 migration.
       { name: "feeder2", type: "string", required: false },
+      { name: "feeder_basket", type: "string", required: false },
       { name: "rig_details", type: "string", required: false },
       { name: "distance", type: "string", required: false },
       { name: "location", type: "string", required: false },

@@ -1078,6 +1078,7 @@ export const uk = {
     "nav.approvedTraders": "Затверджені продавці",
     "rod.feeder": "Годівниця",
     "rod.selectFeeder": "Вибрати годівницю",
+    "rod.noFeeder": "— Без годівниці —",
     "wb.participants": "Учасники",
     "wb.noParticipantsYet": "Поки що немає зареєстрованих учасників.",
     "wb.participantName": "Ім'я",

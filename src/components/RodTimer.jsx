@@ -160,6 +160,7 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
   const hooks = (tackle || []).filter((it) => it.category === "hook");
   const lines = (tackle || []).filter((it) => it.category === "line");
   const others = (tackle || []).filter((it) => it.category === "other");
+  const feederBaskets = (tackle || []).filter((it) => it.category === "feeder");
 
   return (
     <div
@@ -419,6 +420,17 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
                   onChange={(v) => onConfigChange({ ...config, line: v })}
                 />
               </div>
+
+              {/* Feeder basket (хранилка) */}
+              <TackleSelect
+                icon={Waves}
+                label={t("rod.feeder")}
+                placeholder={t("rod.selectFeeder")}
+                clearLabel={t("rod.noFeeder")}
+                items={feederBaskets}
+                value={config.feeder_basket}
+                onChange={(v) => onConfigChange({ ...config, feeder_basket: v })}
+              />
 
               {/* Other */}
               <TackleSelect

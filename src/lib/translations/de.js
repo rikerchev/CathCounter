@@ -1078,6 +1078,7 @@ export const de = {
     "nav.approvedTraders": "Genehmigte Händler",
     "rod.feeder": "Futterkorb",
     "rod.selectFeeder": "Futterkorb auswählen",
+    "rod.noFeeder": "— Kein Futterkorb —",
     "wb.participants": "Teilnehmer",
     "wb.noParticipantsYet": "Noch keine Teilnehmer registriert.",
     "wb.participantName": "Name",

@@ -1078,6 +1078,7 @@ export const it = {
     "nav.approvedTraders": "Commercianti approvati",
     "rod.feeder": "Pasturatore",
     "rod.selectFeeder": "Seleziona pasturatore",
+    "rod.noFeeder": "— Nessun pasturatore —",
     "wb.participants": "Partecipanti",
     "wb.noParticipantsYet": "Nessun partecipante ancora iscritto.",
     "wb.participantName": "Nome",

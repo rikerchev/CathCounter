@@ -1078,6 +1078,7 @@ export const nl = {
     "nav.approvedTraders": "Goedgekeurde handelaren",
     "rod.feeder": "Voerkorf",
     "rod.selectFeeder": "Voerkorf selecteren",
+    "rod.noFeeder": "— Geen voerkorf —",
     "wb.participants": "Deelnemers",
     "wb.noParticipantsYet": "Nog geen deelnemers geregistreerd.",
     "wb.participantName": "Naam",

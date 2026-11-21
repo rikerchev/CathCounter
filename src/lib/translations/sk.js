@@ -1078,6 +1078,7 @@ export const sk = {
     "nav.approvedTraders": "Schválení obchodníci",
     "rod.feeder": "Kŕmidlo",
     "rod.selectFeeder": "Vyberte kŕmidlo",
+    "rod.noFeeder": "— Bez kŕmidla —",
     "wb.participants": "Účastníci",
     "wb.noParticipantsYet": "Zatiaľ nie sú registrovaní žiadni účastníci.",
     "wb.participantName": "Meno",

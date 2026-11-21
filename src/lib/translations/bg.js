@@ -274,6 +274,7 @@ export const bg = {
     "rod.selectOther": "Избери друго",
     "rod.feeder": "Хранилка",
     "rod.selectFeeder": "Избери хранилка",
+    "rod.noFeeder": "— Без хранилка —",
 
     "weather.airTemp": "Възд. Темп. (°C)",
     "weather.cloudiness": "Облачност",

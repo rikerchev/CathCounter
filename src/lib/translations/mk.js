@@ -1078,6 +1078,7 @@ export const mk = {
     "nav.approvedTraders": "Одобрени трговци",
     "rod.feeder": "Хранилка",
     "rod.selectFeeder": "Избери хранилка",
+    "rod.noFeeder": "— Без хранилка —",
     "wb.participants": "Учесници",
     "wb.noParticipantsYet": "Сè уште нема пријавени учесници.",
     "wb.participantName": "Име",

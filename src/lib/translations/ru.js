@@ -1078,6 +1078,7 @@ export const ru = {
     "nav.approvedTraders": "Одобренные продавцы",
     "rod.feeder": "Кормушка",
     "rod.selectFeeder": "Выбрать кормушку",
+    "rod.noFeeder": "— Без кормушки —",
     "wb.participants": "Участники",
     "wb.noParticipantsYet": "Пока нет зарегистрированных участников.",
     "wb.participantName": "Имя",

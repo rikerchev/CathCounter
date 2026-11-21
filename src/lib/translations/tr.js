@@ -1078,6 +1078,7 @@ export const tr = {
     "nav.approvedTraders": "Onaylı Satıcılar",
     "rod.feeder": "Besleyici (Feeder)",
     "rod.selectFeeder": "Besleyici seç",
+    "rod.noFeeder": "— Besleyici yok —",
     "wb.participants": "Katılımcılar",
     "wb.noParticipantsYet": "Henüz kayıtlı katılımcı yok.",
     "wb.participantName": "Ad",
