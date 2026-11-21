@@ -251,6 +251,7 @@ export const hu = {
   "tackle.cat.bait": "Csali",
   "tackle.cat.hook": "Horog",
   "tackle.cat.line": "Zsinór",
+  "tackle.cat.feeder": "Etetőkosár",
   "tackle.cat.other": "Egyéb",
   "tackle.all": "Összes",
   "tackle.empty": "A felszerelésed üres",

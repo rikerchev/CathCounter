@@ -224,6 +224,7 @@ export const bg = {
     "tackle.cat.bait": "Стръв",
     "tackle.cat.hook": "Кука",
     "tackle.cat.line": "Повод/влакно",
+    "tackle.cat.feeder": "Хранилка",
     "tackle.cat.other": "Друго",
     "tackle.all": "Всички",
     "tackle.empty": "Инвентарът е празен",

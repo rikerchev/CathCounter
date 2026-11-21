@@ -251,6 +251,7 @@ export const cs = {
   "tackle.cat.bait": "Nástraha",
   "tackle.cat.hook": "Háček",
   "tackle.cat.line": "Vlasec / návazec",
+  "tackle.cat.feeder": "Krmítko",
   "tackle.cat.other": "Ostatní",
   "tackle.all": "Vše",
   "tackle.empty": "Vaše krabice je prázdná",

@@ -251,6 +251,7 @@ export const pl = {
   "tackle.cat.bait": "Przynęta",
   "tackle.cat.hook": "Haczyk",
   "tackle.cat.line": "Żyłka / Przypon",
+  "tackle.cat.feeder": "Koszyk zanętowy",
   "tackle.cat.other": "Inne",
   "tackle.all": "Wszystkie",
   "tackle.empty": "Twoja pudełko jest puste",

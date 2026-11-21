@@ -90,7 +90,7 @@ export default function BaitInventory() {
   };
 
   const filtered = filter === "all" ? items : items.filter((it) => (it.category || "bait") === filter);
-  const categories = ["rod", "groundbait", "bait", "hook", "line", "other"];
+  const categories = ["rod", "groundbait", "bait", "hook", "line", "feeder", "other"];
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">

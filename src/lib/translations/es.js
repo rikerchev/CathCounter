@@ -251,6 +251,7 @@ export const es = {
   "tackle.cat.bait": "Cebo",
   "tackle.cat.hook": "Anzuelo",
   "tackle.cat.line": "Línea / Bajo de línea",
+  "tackle.cat.feeder": "Comedero",
   "tackle.cat.other": "Otro",
   "tackle.all": "Todo",
   "tackle.empty": "Tu caja está vacía",

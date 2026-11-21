@@ -251,6 +251,7 @@ export const ro = {
   "tackle.cat.bait": "Momeală",
   "tackle.cat.hook": "Cârlig",
   "tackle.cat.line": "Forță / Fir",
+  "tackle.cat.feeder": "Momitor",
   "tackle.cat.other": "Altele",
   "tackle.all": "Toate",
   "tackle.empty": "Cutia de pescuit e goală",

@@ -49,7 +49,6 @@ import SectorReservations from './pages/SectorReservations';
 import AdminDataExport from './pages/AdminDataExport';
 import BaseItems from './pages/BaseItems';
 import UserInventoryPage from './pages/UserInventoryPage';
-import FeederInventory from './pages/FeederInventory';
 import AdminTranslations from './pages/AdminTranslations';
 import ContactUs from './pages/ContactUs';
 import Terms from './pages/Terms';
@@ -153,7 +152,6 @@ const AuthenticatedApp = () => {
           <Route path="/admin-data-export" element={<AdminDataExport />} />
           <Route path="/inventory/base-items" element={<BaseItems />} />
           <Route path="/inventory/my-inventory" element={<UserInventoryPage />} />
-          <Route path="/inventory/feeders" element={<FeederInventory />} />
           <Route path="/admin-translations" element={<AdminTranslations />} />
           <Route path="/contact-us" element={<ContactUs />} />
         </Route>

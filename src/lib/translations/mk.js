@@ -251,6 +251,7 @@ export const mk = {
   "tackle.cat.bait": "Мама",
   "tackle.cat.hook": "Удица",
   "tackle.cat.line": "Најлон / Предвес",
+  "tackle.cat.feeder": "Хранилка",
   "tackle.cat.other": "Друго",
   "tackle.all": "Сè",
   "tackle.empty": "Вашата кутија е празна",

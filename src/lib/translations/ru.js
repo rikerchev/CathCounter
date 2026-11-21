@@ -251,6 +251,7 @@ export const ru = {
   "tackle.cat.bait": "Наживка",
   "tackle.cat.hook": "Крючок",
   "tackle.cat.line": "Леска / Поводок",
+  "tackle.cat.feeder": "Кормушка",
   "tackle.cat.other": "Другое",
   "tackle.all": "Все",
   "tackle.empty": "Ваша коробка пуста",

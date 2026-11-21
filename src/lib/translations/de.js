@@ -251,6 +251,7 @@ export const de = {
   "tackle.cat.bait": "Köder",
   "tackle.cat.hook": "Haken",
   "tackle.cat.line": "Schnur / Vorfach",
+  "tackle.cat.feeder": "Futterkorb",
   "tackle.cat.other": "Sonstiges",
   "tackle.all": "Alle",
   "tackle.empty": "Ihre Box ist leer",

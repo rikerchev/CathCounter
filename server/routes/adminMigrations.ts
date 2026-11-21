@@ -536,6 +536,30 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
     },
   },
+  "v3.154-bait-feeder-category": {
+    label: "v3.154 — Категория „Хранилка“ в Инвентар",
+    run: async () => {
+      // baits.category only allowed rod/groundbait/bait/hook/line/other — widen
+      // the CHECK constraint to also allow 'feeder'. The constraint's name is
+      // looked up (it was auto-named), safe to re-run.
+      await sql.unsafe(`
+        DO $$
+        DECLARE
+          con text;
+        BEGIN
+          SELECT conname INTO con
+          FROM pg_constraint
+          WHERE conrelid = 'baits'::regclass
+            AND contype = 'c'
+            AND pg_get_constraintdef(oid) ILIKE '%category%';
+          IF con IS NOT NULL THEN
+            EXECUTE format('ALTER TABLE baits DROP CONSTRAINT %I', con);
+          END IF;
+          EXECUTE 'ALTER TABLE baits ADD CONSTRAINT baits_category_check CHECK (category IN (''rod'', ''groundbait'', ''bait'', ''hook'', ''line'', ''feeder'', ''other''))';
+        END $$;
+      `);
+    },
+  },
 };
 
 // Every public-schema table, kept as one list so the v3.28 migration's
@@ -808,6 +832,18 @@ export async function handleAdminMigrationsRoute(
             AND column_name IN ('water_name', 'feeder2')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.154-bait-feeder-category") {
+        try {
+          const rows = await sql<{ n: number }[]>`
+            SELECT COUNT(*)::int AS n FROM pg_constraint
+            WHERE conrelid = 'baits'::regclass AND contype = 'c'
+              AND pg_get_constraintdef(oid) ILIKE '%feeder%'
+          `;
+          applied = (rows[0]?.n ?? 0) >= 1;
+        } catch {
+          applied = false;
+        }
       }
       if (id === "v3.117-default-user-group") {
         try {

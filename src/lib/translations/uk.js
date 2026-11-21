@@ -251,6 +251,7 @@ export const uk = {
   "tackle.cat.bait": "Наживка",
   "tackle.cat.hook": "Гачок",
   "tackle.cat.line": "Волосінь / Поводок",
+  "tackle.cat.feeder": "Годівниця",
   "tackle.cat.other": "Інше",
   "tackle.all": "Всі",
   "tackle.empty": "Ваша коробка порожня",

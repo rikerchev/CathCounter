@@ -251,6 +251,7 @@ export const sr = {
   "tackle.cat.bait": "Mama",
   "tackle.cat.hook": "Udica",
   "tackle.cat.line": "Najlon / Predveza",
+  "tackle.cat.feeder": "Hranilica",
   "tackle.cat.other": "Ostalo",
   "tackle.all": "Sve",
   "tackle.empty": "Vaša kutija je prazna",

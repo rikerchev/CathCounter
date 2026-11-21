@@ -269,6 +269,7 @@ export const en = {
     "tackle.cat.bait": "Bait",
     "tackle.cat.hook": "Hook",
     "tackle.cat.line": "Leader / Line",
+    "tackle.cat.feeder": "Feeder",
     "tackle.cat.other": "Other",
     "tackle.all": "All",
     "tackle.empty": "Your tackle box is empty",

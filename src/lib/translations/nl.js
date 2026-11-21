@@ -251,6 +251,7 @@ export const nl = {
   "tackle.cat.bait": "Aas",
   "tackle.cat.hook": "Haak",
   "tackle.cat.line": "Lijn / Voorslag",
+  "tackle.cat.feeder": "Voerkorf",
   "tackle.cat.other": "Overig",
   "tackle.all": "Alle",
   "tackle.empty": "Uw doos is leeg",

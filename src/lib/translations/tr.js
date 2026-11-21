@@ -251,6 +251,7 @@ export const tr = {
   "tackle.cat.bait": "Yem",
   "tackle.cat.hook": "Kanca",
   "tackle.cat.line": "Misina / Lider",
+  "tackle.cat.feeder": "Yemlik",
   "tackle.cat.other": "Diğer",
   "tackle.all": "Tümü",
   "tackle.empty": "Kutunuz boş",

@@ -126,7 +126,7 @@ export const ENTITIES: Record<string, EntityDef> = {
     table: "baits",
     columns: [
       { name: "name", type: "string", required: true },
-      { name: "category", type: "enum", required: false, enumValues: ["rod", "groundbait", "bait", "hook", "line", "other"] },
+      { name: "category", type: "enum", required: false, enumValues: ["rod", "groundbait", "bait", "hook", "line", "feeder", "other"] },
     ],
     rules: {
       read: { kind: "owner", field: "created_by_id" },

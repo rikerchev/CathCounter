@@ -112,7 +112,7 @@ CREATE INDEX idx_app_languages_created_by ON app_languages(created_by_id);
 CREATE TABLE baits (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT,
-  category TEXT CHECK (category IN ('rod', 'groundbait', 'bait', 'hook', 'line', 'other')) DEFAULT 'bait',
+  category TEXT CHECK (category IN ('rod', 'groundbait', 'bait', 'hook', 'line', 'feeder', 'other')) DEFAULT 'bait',
   created_by_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
