@@ -278,6 +278,12 @@ export const en = {
     "tackle.couldNotAdd": "Could not add item",
     "tackle.couldNotUpdate": "Could not update item",
     "tackle.couldNotRemove": "Could not remove item",
+    "tackle.inUseTitle": "Item is used in catches",
+    "tackle.inUseText": "{name} is saved in {count} catches. Pick another item to replace it in those catches before deleting it.",
+    "tackle.inUseNoAlt": "There is no other item in this category to replace it with. Add one first.",
+    "tackle.replaceWith": "Replace with…",
+    "tackle.replaceAndDelete": "Replace and delete",
+    "tackle.renamedInCatches": "Name also updated in {count} catches",
 
     "profile.title": "Profile Settings",
     "profile.subtitle": "Manage your account and preferences",

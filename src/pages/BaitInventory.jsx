@@ -13,6 +13,8 @@ import { Plus, Trash2, Pencil, Check, X, Boxes, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { listBait, saveBait, deleteBait } from "@/lib/baitRepository";
+import { findCatchesUsing, replaceInCatches } from "@/lib/tackleUsage";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 export default function BaitInventory() {
   const { t } = useLanguage();
@@ -24,6 +26,9 @@ export default function BaitInventory() {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editCategory, setEditCategory] = useState("bait");
+  const [deleteInfo, setDeleteInfo] = useState(null); // { item, count, alternatives }
+  const [replacementId, setReplacementId] = useState("");
+  const [busy, setBusy] = useState(false);
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -66,7 +71,10 @@ export default function BaitInventory() {
   const saveEdit = async (item) => {
     if (!editName.trim()) return;
     try {
-      await saveBait({ ...item, name: editName.trim(), category: editCategory });
+      // _synced:false — an edited item must be pushed again. Without it
+      // saveBaitLocal kept the old _synced:true, the edit never reached the
+      // server and the next pull overwrote the new name with the old one.
+      await saveBait({ ...item, name: editName.trim(), category: editCategory, _synced: false });
       setItems((prev) =>
         prev
           .map((b) =>
@@ -75,17 +83,80 @@ export default function BaitInventory() {
           .sort((a, b) => a.name.localeCompare(b.name))
       );
       setEditingId(null);
+
+      // v3.157 — catches store tackle by name, so a rename must be applied to
+      // them too. Skipped if the category changed, or if another item with the
+      // old name+category is still there (a duplicate — the catches still
+      // point to a name that exists).
+      const oldCat = item.category || "bait";
+      const newName = editName.trim();
+      const duplicateRemains = items.some(
+        (b) => b.id !== item.id && (b.category || "bait") === oldCat && b.name === item.name
+      );
+      if (newName !== item.name && editCategory === oldCat && !duplicateRemains) {
+        try {
+          const n = await replaceInCatches(item.name, newName, oldCat);
+          if (n > 0) {
+            toast({ title: t("tackle.renamedInCatches").replace("{count}", String(n)) });
+          }
+        } catch (e) {
+          console.error("Failed to apply inventory rename to catches:", e);
+        }
+      }
     } catch {
       toast({ title: t("tackle.couldNotUpdate"), variant: "destructive" });
     }
   };
 
-  const removeItem = async (item) => {
+  const doDelete = async (item) => {
     try {
       await deleteBait(item.id);
       setItems((prev) => prev.filter((b) => b.id !== item.id));
     } catch {
       toast({ title: t("tackle.couldNotRemove"), variant: "destructive" });
+    }
+  };
+
+  // v3.157 — an item used by catches can't just disappear: ask for a
+  // replacement of the same category and rewrite those catches first. If a
+  // duplicate with the same name+category remains, nothing is orphaned.
+  const removeItem = async (item) => {
+    const cat = item.category || "bait";
+    const duplicateRemains = items.some(
+      (b) => b.id !== item.id && (b.category || "bait") === cat && b.name === item.name
+    );
+    if (!duplicateRemains) {
+      let used = [];
+      try {
+        used = await findCatchesUsing(item.name, cat);
+      } catch {
+        used = [];
+      }
+      if (used.length > 0) {
+        const alternatives = items.filter(
+          (b) => b.id !== item.id && (b.category || "bait") === cat && b.name !== item.name
+        );
+        setReplacementId("");
+        setDeleteInfo({ item, count: used.length, alternatives });
+        return;
+      }
+    }
+    await doDelete(item);
+  };
+
+  const confirmReplaceAndDelete = async () => {
+    if (!deleteInfo) return;
+    const replacement = deleteInfo.alternatives.find((b) => b.id === replacementId);
+    if (!replacement) return;
+    setBusy(true);
+    try {
+      await replaceInCatches(deleteInfo.item.name, replacement.name, deleteInfo.item.category || "bait");
+      await doDelete(deleteInfo.item);
+      setDeleteInfo(null);
+    } catch {
+      toast({ title: t("tackle.couldNotRemove"), variant: "destructive" });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -212,6 +283,53 @@ export default function BaitInventory() {
           ))}
         </div>
       )}
+
+      <Dialog open={!!deleteInfo} onOpenChange={(open) => { if (!open && !busy) setDeleteInfo(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("tackle.inUseTitle")}</DialogTitle>
+          </DialogHeader>
+          {deleteInfo && (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                {t("tackle.inUseText")
+                  .replace("{name}", deleteInfo.item.name)
+                  .replace("{count}", String(deleteInfo.count))}
+              </p>
+              {deleteInfo.alternatives.length === 0 ? (
+                <p className="text-sm text-amber-600">{t("tackle.inUseNoAlt")}</p>
+              ) : (
+                <Select value={replacementId} onValueChange={setReplacementId}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder={t("tackle.replaceWith")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {deleteInfo.alternatives.map((alt) => (
+                      <SelectItem key={alt.id} value={alt.id}>
+                        {alt.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteInfo(null)} disabled={busy}>
+              {t("common.cancel")}
+            </Button>
+            {deleteInfo && deleteInfo.alternatives.length > 0 && (
+              <Button
+                className="bg-rose-600 hover:bg-rose-700"
+                disabled={!replacementId || busy}
+                onClick={confirmReplaceAndDelete}
+              >
+                {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : t("tackle.replaceAndDelete")}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

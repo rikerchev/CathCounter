@@ -233,6 +233,12 @@ export const bg = {
     "tackle.couldNotAdd": "Грешка при добавяне",
     "tackle.couldNotUpdate": "Грешка при обновяване",
     "tackle.couldNotRemove": "Грешка при премахване",
+    "tackle.inUseTitle": "Елементът се използва в улови",
+    "tackle.inUseText": "{name} е записан в {count} улова. Изберете друг елемент, който да го замени в тези улови, преди да го изтриете.",
+    "tackle.inUseNoAlt": "В тази категория няма друг елемент за замяна. Първо добавете такъв.",
+    "tackle.replaceWith": "Заменете с…",
+    "tackle.replaceAndDelete": "Замени и изтрий",
+    "tackle.renamedInCatches": "Името е обновено и в {count} улова",
 
     "profile.title": "Настройки на профила",
     "profile.subtitle": "Управлявайте акаунта и предпочитанията",
