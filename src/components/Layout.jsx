@@ -60,6 +60,8 @@ const navItems = [
   { to: "/inventory/base-items", labelKey: "nav.baseItems", icon: Package, group: "inventory" },
   { to: "/inventory/my-inventory", labelKey: "nav.manualItems", icon: ClipboardList, group: "inventory" },
   { to: "/bait-inventory", labelKey: "nav.tackleInventory", icon: Boxes, group: "inventory" },
+  // v3.153 — TEST group, administrators only (see pages/FeederInventory.jsx)
+  { to: "/inventory/feeders", label: "Хранилка (тест)", icon: Waves, group: "inventory", adminOnly: true },
   // v2.71 — public "Търговски обекти" browse page (contact/website/logo of
   // active venues) — distinct from the "Търговски обекти" item inside the
   // Търговци dropdown below, which is the owner/admin's OWN management

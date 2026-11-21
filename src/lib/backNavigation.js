@@ -16,6 +16,7 @@
 const SUBMENU_OF = {
   "/inventory/base-items": "inventory",
   "/inventory/my-inventory": "inventory",
+  "/inventory/feeders": "inventory",
   "/bait-inventory": "inventory",
   "/water-body-management": "traders",
   "/trader-venues": "traders",
