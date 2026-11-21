@@ -597,9 +597,21 @@ export function updateRodConfig(rodId, config) {
   persist();
 }
 
+// v3.158 — a new rod takes the LOWEST free number (rods 1 and 3 open → the
+// next one is 2), not max+1, so closing a rod frees its number for reuse.
+function lowestFreeRodId(rods) {
+  const used = new Set(rods.map((r) => r.id));
+  let id = 1;
+  while (used.has(id)) id++;
+  return id;
+}
+
+function insertRod(rods) {
+  return [...rods, { id: lowestFreeRodId(rods), config: {} }].sort((a, b) => a.id - b.id);
+}
+
 export function addRod() {
-  const maxId = state.rods.reduce((max, r) => Math.max(max, r.id), 0);
-  state.rods = [...state.rods, { id: maxId + 1, config: {} }];
+  state.rods = insertRod(state.rods);
   persist();
 }
 
@@ -657,8 +669,7 @@ export function setCompetitionRodCount(n) {
   const count = Math.max(1, Math.min(MAX_COMPETITION_RODS, Number(n) || 1));
   let rods = state.rods;
   while (rods.length < count) {
-    const maxId = rods.reduce((max, r) => Math.max(max, r.id), 0);
-    rods = [...rods, { id: maxId + 1, config: {} }];
+    rods = insertRod(rods);
   }
   while (rods.length > count) {
     const removed = rods[rods.length - 1];
