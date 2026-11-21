@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import RodTimer from "@/components/RodTimer";
+import CompetitionPanel from "@/components/CompetitionPanel";
 import SaveCatchDialog from "@/components/SaveCatchDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves } from "lucide-react";
+import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch, updateCatchLocation, listCatchesByUser } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
+import { resolveTimes } from "@/lib/competition";
 import { useAuth } from "@/lib/AuthContext";
 import { getAllCatches, getAllPendingPhotos } from "@/lib/localDb";
 import { uploadAllPendingPhotos } from "@/lib/pendingPhotos";
@@ -52,11 +54,16 @@ export default function ActiveSession() {
   const [locatingAll, setLocatingAll] = useState(false);
   const [mixerOpen, setMixerOpen] = useState(false);
   const [mixedGroundbaits, setMixedGroundbaits] = useState(sessionStore.getMixedGroundbaits());
+  // v3.158 — "Състезание" mode (see CompetitionPanel / lib/competition.js).
+  const [competition, setCompetition] = useState(sessionStore.getCompetition());
   // v3.145 — per-rod fish count / total weight of the live session, shown on
   // the rod banner: { [rodNumber]: { count, weight } }.
   const [rodStats, setRodStats] = useState({});
   const refreshRodStats = useCallback(async () => {
-    const start = sessionStore.getState().sessionStartTime;
+    // v3.158 — in competition mode only catches since the race start count.
+    const comp = sessionStore.getCompetition();
+    const compStart = comp.enabled ? resolveTimes(comp).start : null;
+    const start = compStart || sessionStore.getState().sessionStartTime;
     if (!start) {
       setRodStats({});
       return;
@@ -108,6 +115,7 @@ export default function ActiveSession() {
         setSessionElapsed(sessionStore.getSessionElapsed());
         setSessionActive(sessionStore.isSessionActive());
         setMixedGroundbaits(sessionStore.getMixedGroundbaits());
+        setCompetition(sessionStore.getCompetition());
         toast({ title: t("session.cloudSessionFound") });
       } else {
         sessionStore.syncNow();
@@ -143,6 +151,7 @@ export default function ActiveSession() {
       setSessionElapsed(sessionStore.getSessionElapsed());
       setSessionActive(sessionStore.isSessionActive());
       setMixedGroundbaits(sessionStore.getMixedGroundbaits());
+      setCompetition(sessionStore.getCompetition());
       refreshRodStats();
     });
   }, [refreshRodStats]);
@@ -398,11 +407,34 @@ export default function ActiveSession() {
         </div>
       </div>
 
+      {/* v3.158 — competition mode switch */}
+      <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-100 shadow-sm cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={competition.enabled}
+          onChange={(e) => {
+            if (!e.target.checked && competition.enabled && !window.confirm(t("sesscomp.disableConfirm"))) return;
+            sessionStore.setCompetitionEnabled(e.target.checked);
+            setRods(sessionStore.getRods());
+            setCompetition(sessionStore.getCompetition());
+          }}
+          className="w-4 h-4 accent-cyan-600"
+        />
+        <Trophy className="w-4 h-4 text-amber-500" />
+        <span className="text-sm font-medium text-slate-700">{t("sesscomp.title")}</span>
+      </label>
+
+      {competition.enabled && (
+        <CompetitionPanel competition={competition} rods={rods} rodStats={rodStats} />
+      )}
+
       {/* Session controls */}
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" onClick={addRod} className="text-xs min-h-[40px] px-2">
-          <Plus className="w-3.5 h-3.5 mr-1" /> {t("session.addRod")}
-        </Button>
+        {!competition.enabled && (
+          <Button variant="outline" onClick={addRod} className="text-xs min-h-[40px] px-2">
+            <Plus className="w-3.5 h-3.5 mr-1" /> {t("session.addRod")}
+          </Button>
+        )}
         <Button variant="outline" onClick={() => setMixerOpen(true)} className="text-xs min-h-[40px] px-2">
           <Waves className="w-3.5 h-3.5 mr-1" /> {t("rod.groundbait")}
         </Button>
@@ -435,11 +467,15 @@ export default function ActiveSession() {
       )}
 
       {/* Rods */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {rods.map((rod) => (
+      <div className={`grid grid-cols-1 ${competition.enabled ? "" : "sm:grid-cols-2"} gap-3`}>
+        {(competition.enabled
+          ? rods.filter((r) => r.id === (rods.find((x) => x.id === competition.activeRodId) || rods[0]).id)
+          : rods
+        ).map((rod) => (
           <RodTimer
             key={rod.id}
             rodNumber={rod.id}
+            name={rod.name}
             config={rod.config}
             onConfigChange={(config) => {
               sessionStore.updateRodConfig(rod.id, config);
@@ -449,7 +485,7 @@ export default function ActiveSession() {
             tackle={tackle}
             mixedGroundbaits={mixedGroundbaits}
             onRemoveRod={() => removeRod(rod.id)}
-            canRemove={rods.length > 1}
+            canRemove={rods.length > 1 && !competition.enabled}
             stats={rodStats[rod.id]}
           />
         ))}

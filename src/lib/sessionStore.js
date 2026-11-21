@@ -1,6 +1,7 @@
 // Global session store: persists timer state across navigation.
 // Uses timestamps so timers keep running even when the component unmounts.
 import { base44 } from "@/api/base44Client";
+import { defaultCompetition, pickBaseDay, MAX_COMPETITION_RODS } from "@/lib/competition";
 
 const STORAGE_KEY = "catchcount_session";
 const DEVICE_ID_KEY = "catchcount_device_id";
@@ -449,6 +450,7 @@ function emptyState() {
     lastCatchTime: null,
     lastCatchLocation: null, // { name, lat, lng } — the last precise GPS fix
     // confirmed for a catch this session (see recordCatchLocation below).
+    competition: defaultCompetition(), // v3.158 — "Състезание" mode
     updatedAt: Date.now(), // v3.147 — last real change, ms (cross-device compare)
   };
 }
@@ -516,6 +518,7 @@ export function closeSession(endTime) {
   state.mixedGroundbaits = [];
   state.lastCatchTime = null;
   state.lastCatchLocation = null;
+  state.competition = defaultCompetition();
   persist();
   closeCloudSession(closedStart);
   return duration;
@@ -604,6 +607,70 @@ export function removeRod(rodId) {
   if (state.rods.length <= 1) return;
   delete state.rodTimers[rodId];
   state.rods = state.rods.filter((r) => r.id !== rodId);
+  persist();
+}
+
+export function setRodName(rodId, name) {
+  state.rods = state.rods.map((r) => (r.id === rodId ? { ...r, name: name || "" } : r));
+  persist();
+}
+
+// --- Competition mode (v3.158) ---
+// Kept in the session state, so it is mirrored across devices together with
+// the running session (the cloud row only exists once the session started).
+
+export function getCompetition() {
+  return state.competition || defaultCompetition();
+}
+
+export function setCompetitionEnabled(on) {
+  if (on) {
+    state.competition = {
+      ...defaultCompetition(),
+      enabled: true,
+      activeRodId: state.rods[0] ? state.rods[0].id : 1,
+    };
+  } else {
+    state.competition = defaultCompetition();
+  }
+  persist();
+}
+
+export function setCompetitionTime(key, hm) {
+  const cur = getCompetition();
+  const next = { ...cur, hm: { ...cur.hm, [key]: hm || "" } };
+  const anySet = Object.values(next.hm).some(Boolean);
+  if (!anySet) next.baseDay = null;
+  else if (!next.baseDay) next.baseDay = pickBaseDay(hm);
+  state.competition = next;
+  persist();
+}
+
+export function setCompetitionActiveRod(rodId) {
+  state.competition = { ...getCompetition(), activeRodId: rodId };
+  persist();
+}
+
+// Brings the number of rods to n (1..MAX_COMPETITION_RODS): new rods are added
+// at the end, surplus ones are removed from the end.
+export function setCompetitionRodCount(n) {
+  const count = Math.max(1, Math.min(MAX_COMPETITION_RODS, Number(n) || 1));
+  let rods = state.rods;
+  while (rods.length < count) {
+    const maxId = rods.reduce((max, r) => Math.max(max, r.id), 0);
+    rods = [...rods, { id: maxId + 1, config: {} }];
+  }
+  while (rods.length > count) {
+    const removed = rods[rods.length - 1];
+    if (state.rodTimers[removed.id] && state.rodTimers[removed.id].isRunning) break; // never drop a rod with a fish on
+    delete state.rodTimers[removed.id];
+    rods = rods.slice(0, -1);
+  }
+  state.rods = rods;
+  const cur = getCompetition();
+  if (!rods.some((r) => r.id === cur.activeRodId)) {
+    state.competition = { ...cur, activeRodId: rods[0].id };
+  }
   persist();
 }
 

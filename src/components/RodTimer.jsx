@@ -11,19 +11,11 @@ import * as sessionStore from "@/lib/sessionStore";
 import { logRodCast } from "@/lib/rodCastRepository";
 import { playBeeps, stopBeeps } from "@/lib/beep";
 import TackleSelect from "@/components/TackleSelect";
+import { ROD_COLORS } from "@/lib/rodColors";
 
 const BEEP_DURATIONS = [0.4, 0.8, 1.2, 1.6];
 
-const ROD_COLORS = [
-  { bar: "bg-blue-500", text: "text-blue-600", nameKey: "rod.colorBlue" },
-  { bar: "bg-rose-500", text: "text-rose-600", nameKey: "rod.colorRed" },
-  { bar: "bg-emerald-500", text: "text-emerald-600", nameKey: "rod.colorGreen" },
-  { bar: "bg-amber-500", text: "text-amber-600", nameKey: "rod.colorOrange" },
-  { bar: "bg-violet-500", text: "text-violet-600", nameKey: "rod.colorPurple" },
-  { bar: "bg-cyan-500", text: "text-cyan-600", nameKey: "rod.colorCyan" },
-];
-
-export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish, tackle, mixedGroundbaits, onRemoveRod, canRemove, stats }) {
+export default function RodTimer({ rodNumber, name, config, onConfigChange, onLandFish, tackle, mixedGroundbaits, onRemoveRod, canRemove, stats }) {
   const { t, lang } = useLanguage();
   const { toast } = useToast();
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -169,7 +161,7 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
     >
       <div className={`${bar} px-4 py-2 flex flex-wrap items-center justify-between gap-y-1`}>
         <span className="font-bold text-white flex items-center gap-1.5">
-          <Fish className="w-4 h-4" /> {t("rod.rod")} {rodNumber}
+          <Fish className="w-4 h-4" /> {name || `${t("rod.rod")} ${rodNumber}`}
           {/* v3.145 — fish count and approximate total weight logged for
               this rod in the live session (weight is whatever the angler
               entered per catch, so it is shown with a "~"). */}
