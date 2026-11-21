@@ -432,6 +432,7 @@ export const en = {
     "rod.groundbait1": "Groundbait 1",
     "rod.groundbait2": "Groundbait 2",
     "rod.groundbait2Placeholder": "Second groundbait...",
+    "rod.noGroundbait2": "— No second groundbait —",
 
     "rod.colorBlue": "Blue",
     "rod.colorRed": "Red",

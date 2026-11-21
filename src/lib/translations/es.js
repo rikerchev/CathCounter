@@ -400,6 +400,7 @@ export const es = {
   "rod.groundbait1": "Cebado 1",
   "rod.groundbait2": "Cebado 2",
   "rod.groundbait2Placeholder": "Segundo cebado...",
+  "rod.noGroundbait2": "— Sin segundo cebado —",
   "rod.colorBlue": "Azul",
   "rod.colorRed": "Rojo",
   "rod.colorGreen": "Verde",

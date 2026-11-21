@@ -419,6 +419,7 @@ export const bg = {
     "rod.groundbait1": "Захранка 1",
     "rod.groundbait2": "Захранка 2",
     "rod.groundbait2Placeholder": "Втора захранка...",
+    "rod.noGroundbait2": "— Без втора захранка —",
 
     "rod.colorBlue": "Син",
     "rod.colorRed": "Червен",

@@ -400,6 +400,7 @@ export const nl = {
   "rod.groundbait1": "Voer 1",
   "rod.groundbait2": "Voer 2",
   "rod.groundbait2Placeholder": "Tweede voer...",
+  "rod.noGroundbait2": "— Geen tweede voer —",
   "rod.colorBlue": "Blauw",
   "rod.colorRed": "Rood",
   "rod.colorGreen": "Groen",

@@ -400,6 +400,7 @@ export const ru = {
   "rod.groundbait1": "Прикормка 1",
   "rod.groundbait2": "Прикормка 2",
   "rod.groundbait2Placeholder": "Вторая прикормка...",
+  "rod.noGroundbait2": "— Без второй прикормки —",
   "rod.colorBlue": "Синий",
   "rod.colorRed": "Красный",
   "rod.colorGreen": "Зелёный",

@@ -400,6 +400,7 @@ export const de = {
   "rod.groundbait1": "Futter 1",
   "rod.groundbait2": "Futter 2",
   "rod.groundbait2Placeholder": "Zweites Futter...",
+  "rod.noGroundbait2": "— Kein zweites Futter —",
   "rod.colorBlue": "Blau",
   "rod.colorRed": "Rot",
   "rod.colorGreen": "Grün",

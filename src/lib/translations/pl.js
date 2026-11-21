@@ -400,6 +400,7 @@ export const pl = {
   "rod.groundbait1": "Zanęta 1",
   "rod.groundbait2": "Zanęta 2",
   "rod.groundbait2Placeholder": "Druga zanęta...",
+  "rod.noGroundbait2": "— Bez drugiej zanęty —",
   "rod.colorBlue": "Niebieski",
   "rod.colorRed": "Czerwony",
   "rod.colorGreen": "Zielony",

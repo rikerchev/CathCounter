@@ -400,6 +400,7 @@ export const hu = {
   "rod.groundbait1": "Etetőanyag 1",
   "rod.groundbait2": "Etetőanyag 2",
   "rod.groundbait2Placeholder": "Második etetőanyag...",
+  "rod.noGroundbait2": "— Nincs második etetőanyag —",
   "rod.colorBlue": "Kék",
   "rod.colorRed": "Piros",
   "rod.colorGreen": "Zöld",

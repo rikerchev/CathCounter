@@ -400,6 +400,7 @@ export const tr = {
   "rod.groundbait1": "Yem 1",
   "rod.groundbait2": "Yem 2",
   "rod.groundbait2Placeholder": "İkinci yem...",
+  "rod.noGroundbait2": "— İkinci yem yok —",
   "rod.colorBlue": "Mavi",
   "rod.colorRed": "Kırmızı",
   "rod.colorGreen": "Yeşil",

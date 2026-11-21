@@ -400,6 +400,7 @@ export const fr = {
   "rod.groundbait1": "Amorce 1",
   "rod.groundbait2": "Amorce 2",
   "rod.groundbait2Placeholder": "Deuxième amorce...",
+  "rod.noGroundbait2": "— Sans deuxième amorce —",
   "rod.colorBlue": "Bleu",
   "rod.colorRed": "Rouge",
   "rod.colorGreen": "Vert",

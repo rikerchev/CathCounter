@@ -400,6 +400,7 @@ export const it = {
   "rod.groundbait1": "Pastura 1",
   "rod.groundbait2": "Pastura 2",
   "rod.groundbait2Placeholder": "Seconda pastura...",
+  "rod.noGroundbait2": "— Nessuna seconda pastura —",
   "rod.colorBlue": "Blu",
   "rod.colorRed": "Rosso",
   "rod.colorGreen": "Verde",

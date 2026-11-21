@@ -400,6 +400,7 @@ export const mk = {
   "rod.groundbait1": "Храна 1",
   "rod.groundbait2": "Храна 2",
   "rod.groundbait2Placeholder": "Втора храна...",
+  "rod.noGroundbait2": "— Без втора храна —",
   "rod.colorBlue": "Сина",
   "rod.colorRed": "Црвена",
   "rod.colorGreen": "Зелена",

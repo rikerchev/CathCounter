@@ -400,6 +400,7 @@ export const sr = {
   "rod.groundbait1": "Hrana 1",
   "rod.groundbait2": "Hrana 2",
   "rod.groundbait2Placeholder": "Druga hrana...",
+  "rod.noGroundbait2": "— Bez druge hrane —",
   "rod.colorBlue": "Plava",
   "rod.colorRed": "Crvena",
   "rod.colorGreen": "Zelena",

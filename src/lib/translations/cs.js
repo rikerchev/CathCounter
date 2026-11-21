@@ -400,6 +400,7 @@ export const cs = {
   "rod.groundbait1": "Krmení 1",
   "rod.groundbait2": "Krmení 2",
   "rod.groundbait2Placeholder": "Druhé krmení...",
+  "rod.noGroundbait2": "— Bez druhého krmení —",
   "rod.colorBlue": "Modrá",
   "rod.colorRed": "Červená",
   "rod.colorGreen": "Zelená",

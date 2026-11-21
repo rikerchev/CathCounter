@@ -371,6 +371,7 @@ export default function RodTimer({ rodNumber, config, onConfigChange, onLandFish
               icon={Waves}
               label={t("rod.groundbait2")}
               placeholder={t("rod.groundbait2Placeholder")}
+              clearLabel={t("rod.noGroundbait2")}
               items={[...groundbaits, ...mixedNames.map((n) => ({ id: n, name: n }))]}
               value={config.feeder2}
               onChange={(v) => onConfigChange({ ...config, feeder2: v })}

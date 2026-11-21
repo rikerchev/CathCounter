@@ -400,6 +400,7 @@ export const ro = {
   "rod.groundbait1": "Nadă 1",
   "rod.groundbait2": "Nadă 2",
   "rod.groundbait2Placeholder": "A doua nadă...",
+  "rod.noGroundbait2": "— Fără a doua nadă —",
   "rod.colorBlue": "Albastru",
   "rod.colorRed": "Roșu",
   "rod.colorGreen": "Verde",
