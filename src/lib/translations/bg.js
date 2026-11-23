@@ -19,6 +19,7 @@ export const bg = {
     "nav.myWaterBodies": "Моите водоеми",
     "nav.reservations": "Резервации",
     "nav.adminUsers": "Управление на потребители",
+    "nav.adminTraffic": "Посещаемост на сайта",
     "nav.adminSetup": "Настройка на интеграциите",
     "nav.adminTraders": "Търговци",
     "nav.approvedTraders": "Одобрени търговци",

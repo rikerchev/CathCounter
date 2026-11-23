@@ -18,6 +18,7 @@ export const de = {
   "nav.myWaterBodies": "Meine Gewässer",
   "nav.reservations": "Reservierungen",
   "nav.adminUsers": "Benutzerverwaltung",
+  "nav.adminTraffic": "Website-Besucher",
   "nav.adminSetup": "Integrationen einrichten",
   "nav.approveWaterBodies": "Gewässer genehmigen",
   "nav.roleRequests": "Rollenanfragen",

@@ -18,6 +18,7 @@ export const ru = {
   "nav.myWaterBodies": "Мои водоёмы",
   "nav.reservations": "Бронирования",
   "nav.adminUsers": "Управление пользователями",
+  "nav.adminTraffic": "Посещаемость сайта",
   "nav.adminSetup": "Настройка интеграций",
   "nav.approveWaterBodies": "Одобрение водоёмов",
   "nav.roleRequests": "Заявки на роли",

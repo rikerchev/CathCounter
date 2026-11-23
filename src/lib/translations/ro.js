@@ -18,6 +18,7 @@ export const ro = {
   "nav.myWaterBodies": "Bazinele mele",
   "nav.reservations": "Rezervări",
   "nav.adminUsers": "Gestionare utilizatori",
+  "nav.adminTraffic": "Vizite pe site",
   "nav.adminSetup": "Configurare integrări",
   "nav.approveWaterBodies": "Aprobare bazine",
   "nav.roleRequests": "Cereri roluri",

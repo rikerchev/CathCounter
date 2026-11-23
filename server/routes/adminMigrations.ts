@@ -536,6 +536,25 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
     },
   },
+  "v3.164-page-views": {
+    label: "v3.164 — Посещаемост на публичните страници (page_views)",
+    run: async () => {
+      await sql.unsafe(`
+        CREATE TABLE IF NOT EXISTS page_views (
+          id BIGSERIAL PRIMARY KEY,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          path TEXT NOT NULL,
+          lang TEXT NOT NULL DEFAULT 'bg',
+          ref_host TEXT NOT NULL DEFAULT '',
+          country TEXT NOT NULL DEFAULT '',
+          device TEXT NOT NULL DEFAULT 'desktop',
+          visitor_hash TEXT NOT NULL
+        )
+      `);
+      await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views (created_at)`);
+      await sql.unsafe(`ALTER TABLE page_views ENABLE ROW LEVEL SECURITY`);
+    },
+  },
   "v3.163-user-last-login": {
     label: "v3.163 — Последен вход на потребителя (users.last_login_at / last_seen_at)",
     run: async () => {
@@ -851,6 +870,13 @@ export async function handleAdminMigrationsRoute(
             AND column_name IN ('water_name', 'feeder2')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.164-page-views") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'page_views'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v3.163-user-last-login") {
         const rows = await sql<{ n: number }[]>`

@@ -18,6 +18,7 @@ export const nl = {
   "nav.myWaterBodies": "Mijn wateren",
   "nav.reservations": "Reserveringen",
   "nav.adminUsers": "Gebruikersbeheer",
+  "nav.adminTraffic": "Sitebezoeken",
   "nav.adminSetup": "Integraties instellen",
   "nav.approveWaterBodies": "Wateren goedkeuren",
   "nav.roleRequests": "Rolverzoeken",

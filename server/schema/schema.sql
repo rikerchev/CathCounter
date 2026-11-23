@@ -1049,3 +1049,19 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT;
 -- the server too (server/lib/userActivity.ts); this is the same statement.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+
+-- v3.164 — visit statistics of the public pages (Admin → Посещаемост на сайта).
+-- No personal data: path, language folder, referrer host, country, device class
+-- and a per-day hash (see server/routes/analytics.ts). Also created on first use.
+CREATE TABLE IF NOT EXISTS page_views (
+  id BIGSERIAL PRIMARY KEY,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  path TEXT NOT NULL,
+  lang TEXT NOT NULL DEFAULT 'bg',
+  ref_host TEXT NOT NULL DEFAULT '',
+  country TEXT NOT NULL DEFAULT '',
+  device TEXT NOT NULL DEFAULT 'desktop',
+  visitor_hash TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views (created_at);
+ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;

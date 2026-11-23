@@ -18,6 +18,7 @@ export const tr = {
   "nav.myWaterBodies": "Sularım",
   "nav.reservations": "Rezervasyonlar",
   "nav.adminUsers": "Kullanıcı yönetimi",
+  "nav.adminTraffic": "Site ziyaretleri",
   "nav.adminSetup": "Entegrasyon Ayarları",
   "nav.approveWaterBodies": "Suları onayla",
   "nav.roleRequests": "Rol talepleri",

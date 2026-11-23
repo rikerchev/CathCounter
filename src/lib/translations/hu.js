@@ -18,6 +18,7 @@ export const hu = {
   "nav.myWaterBodies": "Vizeim",
   "nav.reservations": "Foglalások",
   "nav.adminUsers": "Felhasználókezelés",
+  "nav.adminTraffic": "Oldallátogatottság",
   "nav.adminSetup": "Integrációk beállítása",
   "nav.approveWaterBodies": "Vizek jóváhagyása",
   "nav.roleRequests": "Szerepkérelmek",

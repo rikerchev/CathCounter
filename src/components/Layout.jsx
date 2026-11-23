@@ -72,6 +72,8 @@ const navItems = [
   { to: "/competitions", labelKey: "nav.competitions", icon: Medal },
   { to: "/sector-reservations", labelKey: "nav.reservations", icon: CalendarCheck },
   { to: "/admin-users", labelKey: "nav.adminUsers", icon: ShieldCheck, adminOnly: true },
+  // v3.164 — own statistics of the public marketing pages.
+  { to: "/admin-traffic", labelKey: "nav.adminTraffic", icon: BarChart3, adminOnly: true },
   { to: "/admin-setup", labelKey: "nav.adminSetup", icon: Settings, adminOnly: true },
   // v2.77 — replaces the old water-body-only approval screen: one merged
   // pending queue for water bodies + commercial venues, plus bonus ad-time,

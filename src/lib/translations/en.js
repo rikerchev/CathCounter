@@ -19,6 +19,7 @@ export const en = {
     "nav.myWaterBodies": "My Water Bodies",
     "nav.reservations": "Reservations",
     "nav.adminUsers": "User Management",
+    "nav.adminTraffic": "Site Traffic",
     "nav.adminSetup": "Integrations Setup",
     "nav.adminTraders": "Traders",
     "nav.approvedTraders": "Approved Traders",

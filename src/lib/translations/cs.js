@@ -18,6 +18,7 @@ export const cs = {
   "nav.myWaterBodies": "Moje vodní plochy",
   "nav.reservations": "Rezervace",
   "nav.adminUsers": "Správa uživatelů",
+  "nav.adminTraffic": "Návštěvnost webu",
   "nav.adminSetup": "Nastavení integrací",
   "nav.approveWaterBodies": "Schválit vodní plochy",
   "nav.roleRequests": "Žádosti rolí",

@@ -34,7 +34,7 @@ const APP_PAGES = new Set([
   "/edit-catch", "/statistics", "/locations", "/personal-best", "/profile",
   "/commercial-venues", "/water-bodies", "/water-body-request", "/merchant-request",
   "/competitions", "/sector-reservations", "/contact-us",
-  "/admin-users", "/admin-setup", "/admin-traders", "/admin-role-requests",
+  "/admin-users", "/admin-traffic", "/admin-setup", "/admin-traders", "/admin-role-requests",
   "/admin-data-export", "/admin-translations",
   ...Object.keys(SUBMENU_OF),
 ]);

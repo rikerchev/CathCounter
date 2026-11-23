@@ -24,6 +24,7 @@ export const ALL_MENU_ITEMS = [
   { path: "/admin-ad-slots", labelKey: "nav.adSlots" },
   { path: "/admin-ad-requests", labelKey: "nav.adRequests" },
   { path: "/admin-users", labelKey: "nav.adminUsers" },
+  { path: "/admin-traffic", labelKey: "nav.adminTraffic" },
   { path: "/admin-setup", labelKey: "nav.adminSetup" },
   { path: "/admin-traders", labelKey: "nav.adminTraders" },
   { path: "/admin-role-requests", labelKey: "nav.roleRequests" },

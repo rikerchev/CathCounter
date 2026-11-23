@@ -33,6 +33,7 @@ import Profile from './pages/Profile';
 import Advertise from './pages/Advertise';
 import CustomAds from './pages/CustomAds';
 import AdminUsers from './pages/AdminUsers';
+import AdminTraffic from './pages/AdminTraffic';
 import AdminSetup from './pages/AdminSetup';
 import WaterBodies from './pages/WaterBodies';
 import MerchantRequest from './pages/MerchantRequest';
@@ -133,6 +134,7 @@ const AuthenticatedApp = () => {
           <Route path="/advertise" element={<Advertise />} />
           <Route path="/custom-ads" element={<CustomAds />} />
           <Route path="/admin-users" element={<AdminUsers />} />
+          <Route path="/admin-traffic" element={<AdminTraffic />} />
           <Route path="/admin-setup" element={<AdminSetup />} />
           <Route path="/water-bodies" element={<WaterBodies />} />
           <Route path="/commercial-venues" element={<CommercialVenues />} />

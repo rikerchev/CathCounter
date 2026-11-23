@@ -18,6 +18,7 @@ export const uk = {
   "nav.myWaterBodies": "Мої водойми",
   "nav.reservations": "Бронювання",
   "nav.adminUsers": "Управління користувачами",
+  "nav.adminTraffic": "Відвідуваність сайту",
   "nav.adminSetup": "Налаштування інтеграцій",
   "nav.approveWaterBodies": "Затвердження водойм",
   "nav.roleRequests": "Запити на ролі",

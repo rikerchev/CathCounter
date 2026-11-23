@@ -18,6 +18,7 @@ import { handleMerchantReferralsRoute } from "./routes/merchantReferrals.js";
 import { handleContactRoute } from "./routes/contact.js";
 import { handleAdRenewalsCron } from "./routes/adRenewals.js";
 import { handleCommunityRoute } from "./routes/community.js";
+import { handleAnalyticsRoute } from "./routes/analytics.js";
 
 // The actual API logic, as a plain Web-standard (Request) -> Response
 // handler. Deliberately has no opinion about HOW it's served — main.ts wraps
@@ -92,6 +93,9 @@ async function route(req: Request): Promise<Response> {
     }
     if (segments[1] === "contact") {
       return await handleContactRoute(req, segments.slice(2), user);
+    }
+    if (segments[1] === "analytics") {
+      return await handleAnalyticsRoute(req, segments.slice(2), user);
     }
     if (segments[1] === "community") {
       return await handleCommunityRoute(req, segments.slice(2), user);

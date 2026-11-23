@@ -18,6 +18,7 @@ export const sr = {
   "nav.myWaterBodies": "Moje vode",
   "nav.reservations": "Rezervacije",
   "nav.adminUsers": "Upravljanje korisnicima",
+  "nav.adminTraffic": "Посећеност сајта",
   "nav.adminSetup": "Podešavanje integracija",
   "nav.approveWaterBodies": "Odobrenje voda",
   "nav.roleRequests": "Zahtevi za uloge",

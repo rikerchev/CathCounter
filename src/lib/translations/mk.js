@@ -18,6 +18,7 @@ export const mk = {
   "nav.myWaterBodies": "Мои водоеми",
   "nav.reservations": "Резервации",
   "nav.adminUsers": "Управување корисници",
+  "nav.adminTraffic": "Посетеност на сајтот",
   "nav.adminSetup": "Поставување интеграции",
   "nav.approveWaterBodies": "Одобрување водоеми",
   "nav.roleRequests": "Барања за улоги",

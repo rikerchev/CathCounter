@@ -270,6 +270,11 @@ export const base44 = {
     catches: () => apiFetch("/api/community/catches"),
   },
 
+  // v3.164 — admin-only statistics of the public pages (server/routes/analytics.ts).
+  analytics: {
+    summary: (days) => apiFetch(`/api/analytics/summary?days=${days}`),
+  },
+
   functions: {
     invoke: (name, payload) => apiFetch(`/api/functions/${name}`, { method: "POST", body: payload }),
   },
