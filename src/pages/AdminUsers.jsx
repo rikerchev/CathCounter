@@ -20,7 +20,6 @@ import { groupCatchesIntoSessions } from "@/lib/sessions";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { exportWithHints } from "@/lib/excelUtils";
 import { getLanguageNativeName } from "@/lib/languages";
-import { getLanguageForCountry } from "@/lib/countryLanguage";
 
 const ALL_ROLES = ["admin", "water_owner", "advertiser"];
 
@@ -132,16 +131,14 @@ export default function AdminUsers() {
   }
 
   // v3.160 — the app language a user last used (users.language, saved by the
-  // app itself — see hooks/useLanguageSync.js). Accounts that haven't opened
-  // the app since then have none yet: fall back to the language of their
-  // country (marked as a guess).
+  // app itself — see hooks/useLanguageSync.js). v3.161: an account that hasn't
+  // opened the app since then has none recorded yet — it counts as English
+  // (the default language), marked as such (isDefault).
   function userLanguageInfo(u) {
     if (u.language) {
-      return { code: u.language, label: getLanguageNativeName(u.language), guessed: false };
+      return { code: u.language, label: getLanguageNativeName(u.language), isDefault: false };
     }
-    const guess = getLanguageForCountry(u.country);
-    if (guess) return { code: guess, label: getLanguageNativeName(guess), guessed: true };
-    return null;
+    return { code: "en", label: getLanguageNativeName("en"), isDefault: true };
   }
 
   async function handleExportActivity() {
@@ -154,7 +151,7 @@ export default function AdminUsers() {
           email: u.email,
           full_name: u.full_name || "",
           language: (userLanguageInfo(u) || {}).code || "",
-          language_guessed: userLanguageInfo(u)?.guessed ? "Да" : "",
+          language_default: userLanguageInfo(u).isDefault ? "Да" : "",
           role: ROLE_LABELS[u.role] || u.role || "user",
           session_count: stats.sessionCount,
           catch_count: stats.catchCount,
@@ -168,7 +165,7 @@ export default function AdminUsers() {
             { key: "email", label: "Имейл" },
             { key: "full_name", label: "Име" },
             { key: "language", label: "Език" },
-            { key: "language_guessed", label: "Езикът е по държава" },
+            { key: "language_default", label: "Език по подразбиране (не е записан)" },
             { key: "role", label: "Роля" },
             { key: "session_count", label: "Сесии" },
             { key: "catch_count", label: "Улови" },
@@ -473,23 +470,19 @@ export default function AdminUsers() {
                           <p className="text-xs text-slate-400 truncate">{u.phone}</p>
                         )}
                         {/* v3.160 — the app language this user uses (for
-                            marketing / reminder e-mails). Italic with "~" =
-                            not saved yet, guessed from the country. */}
+                            marketing / reminder e-mails). Italic "по
+                            подразбиране" = nothing recorded yet → English. */}
                         {(() => {
                           const info = userLanguageInfo(u);
                           return (
                             <p
                               className="text-xs text-slate-400 truncate"
-                              title={info?.guessed ? "Езикът още не е записан — предполага се по държавата" : "Език на приложението"}
+                              title={info.isDefault ? "Езикът още не е записан — английски по подразбиране" : "Език на приложението"}
                             >
                               Език:{" "}
-                              {info ? (
-                                <span className={info.guessed ? "italic" : "text-slate-600 dark:text-foreground font-medium"}>
-                                  {info.guessed ? "~" : ""}{info.label} ({info.code})
-                                </span>
-                              ) : (
-                                "—"
-                              )}
+                              <span className={info.isDefault ? "italic" : "text-slate-600 dark:text-foreground font-medium"}>
+                                {info.label} ({info.code}){info.isDefault ? " · по подразбиране" : ""}
+                              </span>
                             </p>
                           );
                         })()}
