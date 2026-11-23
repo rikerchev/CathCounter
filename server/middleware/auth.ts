@@ -20,6 +20,10 @@ export interface AuthUser {
   // v2.68 — QR referral system: null until the account has ever earned
   // referral-based ad-free premium; see routes/referrals.ts.
   premium_until: string | null;
+  // v3.160 — the app language the user last used (see routes/auth.ts PUT /me and
+  // src/hooks/useLanguageSync.js); for marketing / reminder e-mails. null until
+  // the account has opened the app on v3.160+ (or while the migration is pending).
+  language: string | null;
   // v2.98 — null until the account has accepted the Terms & Conditions at
   // least once; App.jsx blocks the whole app behind TermsGate.jsx until this
   // is set. See routes/auth.ts's "accept-terms" action.
@@ -46,7 +50,7 @@ const BASE_USER_COLUMNS = [
 // probed independently below (rather than falling back to ALL-or-nothing)
 // so e.g. a pending v3.03 (phone) migration doesn't also blank out an
 // already-applied v2.98 (terms_accepted_at) for every request in that gap.
-const OPTIONAL_USER_COLUMNS = ["premium_until", "terms_accepted_at", "phone"] as const;
+const OPTIONAL_USER_COLUMNS = ["premium_until", "terms_accepted_at", "phone", "language"] as const;
 type OptionalUserColumn = (typeof OPTIONAL_USER_COLUMNS)[number];
 
 function defaultForMissing(col: OptionalUserColumn): string | null {

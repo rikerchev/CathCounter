@@ -30,6 +30,9 @@ const SAFE_COLUMNS_FULL = `
   id, email, full_name, phone, role, roles, country, menu_group_id,
   email_verified, created_at, updated_at, premium_until
 `;
+// v3.160 — users.language (the app language the user last used), for
+// marketing / reminder e-mails. Same try-newest-first fallback as premium_until.
+const SAFE_COLUMNS_LANG = SAFE_COLUMNS_FULL.trim() + ", language";
 const SAFE_COLUMNS_BASE = `
   id, email, full_name, phone, role, roles, country, menu_group_id,
   email_verified, created_at, updated_at
@@ -40,10 +43,17 @@ const SAFE_COLUMNS_BASE = `
 // with the pre-v2.68 column list instead of 500ing the whole page.
 async function withSafeColumns<T>(run: (columns: string) => Promise<T>): Promise<T> {
   try {
-    return await run(SAFE_COLUMNS_FULL);
+    return await run(SAFE_COLUMNS_LANG);
   } catch (e) {
-    if (e instanceof Error && /premium_until/.test(e.message)) {
-      return await run(SAFE_COLUMNS_BASE);
+    if (e instanceof Error && /language|premium_until/.test(e.message)) {
+      try {
+        return await run(SAFE_COLUMNS_FULL);
+      } catch (e2) {
+        if (e2 instanceof Error && /premium_until/.test(e2.message)) {
+          return await run(SAFE_COLUMNS_BASE);
+        }
+        throw e2;
+      }
     }
     throw e;
   }

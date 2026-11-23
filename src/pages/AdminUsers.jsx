@@ -19,6 +19,8 @@ import MenuGroupDialog from "@/components/MenuGroupDialog";
 import { groupCatchesIntoSessions } from "@/lib/sessions";
 import { parseCatchDate } from "@/lib/dateUtils";
 import { exportWithHints } from "@/lib/excelUtils";
+import { getLanguageNativeName } from "@/lib/languages";
+import { getLanguageForCountry } from "@/lib/countryLanguage";
 
 const ALL_ROLES = ["admin", "water_owner", "advertiser"];
 
@@ -129,6 +131,19 @@ export default function AdminUsers() {
     return { sessionCount, catchCount: filtered.length };
   }
 
+  // v3.160 — the app language a user last used (users.language, saved by the
+  // app itself — see hooks/useLanguageSync.js). Accounts that haven't opened
+  // the app since then have none yet: fall back to the language of their
+  // country (marked as a guess).
+  function userLanguageInfo(u) {
+    if (u.language) {
+      return { code: u.language, label: getLanguageNativeName(u.language), guessed: false };
+    }
+    const guess = getLanguageForCountry(u.country);
+    if (guess) return { code: guess, label: getLanguageNativeName(guess), guessed: true };
+    return null;
+  }
+
   async function handleExportActivity() {
     if (!catchesByUser) return;
     setExportingActivity(true);
@@ -138,6 +153,8 @@ export default function AdminUsers() {
         return {
           email: u.email,
           full_name: u.full_name || "",
+          language: (userLanguageInfo(u) || {}).code || "",
+          language_guessed: userLanguageInfo(u)?.guessed ? "Да" : "",
           role: ROLE_LABELS[u.role] || u.role || "user",
           session_count: stats.sessionCount,
           catch_count: stats.catchCount,
@@ -150,6 +167,8 @@ export default function AdminUsers() {
           columns: [
             { key: "email", label: "Имейл" },
             { key: "full_name", label: "Име" },
+            { key: "language", label: "Език" },
+            { key: "language_guessed", label: "Езикът е по държава" },
             { key: "role", label: "Роля" },
             { key: "session_count", label: "Сесии" },
             { key: "catch_count", label: "Улови" },
@@ -453,6 +472,27 @@ export default function AdminUsers() {
                         {u.phone && (
                           <p className="text-xs text-slate-400 truncate">{u.phone}</p>
                         )}
+                        {/* v3.160 — the app language this user uses (for
+                            marketing / reminder e-mails). Italic with "~" =
+                            not saved yet, guessed from the country. */}
+                        {(() => {
+                          const info = userLanguageInfo(u);
+                          return (
+                            <p
+                              className="text-xs text-slate-400 truncate"
+                              title={info?.guessed ? "Езикът още не е записан — предполага се по държавата" : "Език на приложението"}
+                            >
+                              Език:{" "}
+                              {info ? (
+                                <span className={info.guessed ? "italic" : "text-slate-600 dark:text-foreground font-medium"}>
+                                  {info.guessed ? "~" : ""}{info.label} ({info.code})
+                                </span>
+                              ) : (
+                                "—"
+                              )}
+                            </p>
+                          );
+                        })()}
                         {/* v3.51 — who referred this user in (peer invite
                             or merchant QR/brochure) and when, if anyone —
                             see loadReferralSources()/referredViaLabel()

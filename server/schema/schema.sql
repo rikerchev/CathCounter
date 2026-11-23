@@ -1037,3 +1037,9 @@ ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT;
 
 -- v3.155 — feeder basket (хранилка) chosen in the rod timer (catch.feeder_basket).
 ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder_basket TEXT;
+
+-- v3.160 — the app language each user last used (updated by the app on login /
+-- language change), shown in Admin → Управление на потребители and used to
+-- pick the language of marketing / reminder e-mails. Apply from Admin →
+-- Настройка на интеграциите → "v3.160".
+ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT;

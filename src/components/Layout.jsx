@@ -46,6 +46,7 @@ import { APP_VERSION } from "@/lib/version";
 import { hasRole, hasAnyRole } from "@/lib/roles";
 import { useRodTimerMonitor } from "@/hooks/useRodTimerMonitor";
 import { useCompetitionAlerts } from "@/hooks/useCompetitionAlerts";
+import { useLanguageSync } from "@/hooks/useLanguageSync";
 import { ALL_MENU_ITEMS, parseMenuItems, isMenuItemAllowed } from "@/lib/menuItems";
 import { DEFAULT_MENU_ORDER, normalizeMenuOrder, applyOrder } from "@/lib/menuOrder";
 
@@ -315,6 +316,7 @@ export default function Layout() {
   const [menuOrder, setMenuOrder] = useState(DEFAULT_MENU_ORDER);
   useRodTimerMonitor();
   useCompetitionAlerts();
+  useLanguageSync();
 
   useEffect(() => {
     let cancelled = false;

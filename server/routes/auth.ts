@@ -547,9 +547,17 @@ export async function handleAuthRoute(
     // v3.03 — "phone" added so a Google-OAuth account (no phone from Google)
     // or anyone who skipped/needs to change it can fill it in later from
     // Profile.jsx, not just at registration time.
-    const allowed = ["full_name", "phone", "country", "menu_group_id"] as const;
+    // v3.160 — "language": the app language the user is currently using, kept
+    // for marketing / reminder e-mails (shown in Admin → Управление на
+    // потребители). Sent by src/hooks/useLanguageSync.js.
+    const allowed = ["full_name", "phone", "country", "menu_group_id", "language"] as const;
     const set: Record<string, unknown> = {};
     for (const k of allowed) if (k in patch) set[k] = patch[k];
+    if ("language" in set) {
+      const lang = typeof set.language === "string" ? set.language.trim().toLowerCase() : "";
+      if (/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(lang)) set.language = lang;
+      else delete set.language;
+    }
     set.updated_at = new Date();
     const keys = Object.keys(set);
     // v3.117 — this used to also fire a separate "user added a phone number"
@@ -563,6 +571,15 @@ export async function handleAuthRoute(
       `;
       return json(publicUser(rows[0]));
     } catch (e) {
+      // v3.160 migration not applied yet — drop only the language.
+      if (e instanceof Error && /language/.test(e.message) && "language" in set) {
+        const { language: _language, ...rest } = set;
+        const restKeys = Object.keys(rest);
+        const rows = await sql<AuthUser[]>`
+          UPDATE users SET ${sql(rest, ...restKeys)} WHERE id = ${user.id} RETURNING *
+        `;
+        return json(publicUser(rows[0]));
+      }
       // v3.03 migration not applied yet — retry without "phone" rather than
       // failing the whole update just because one optional field can't be
       // saved yet (see adminMigrations.ts).
