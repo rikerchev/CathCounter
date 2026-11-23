@@ -26,35 +26,28 @@ function json(body: unknown, status = 200): Response {
 // fallback tier) since a deployment this far past v3.05 can safely assume
 // that migration has already run — the app would already be broken
 // elsewhere (PhoneGate) if it hadn't.
-const SAFE_COLUMNS_FULL = `
-  id, email, full_name, phone, role, roles, country, menu_group_id,
-  email_verified, created_at, updated_at, premium_until
-`;
-// v3.160 — users.language (the app language the user last used), for
-// marketing / reminder e-mails. Same try-newest-first fallback as premium_until.
-const SAFE_COLUMNS_LANG = SAFE_COLUMNS_FULL.trim() + ", language";
-const SAFE_COLUMNS_BASE = `
-  id, email, full_name, phone, role, roles, country, menu_group_id,
-  email_verified, created_at, updated_at
-`;
+// Columns that are added by later migrations (premium_until v2.68, language
+// v3.160, last_login_at / last_seen_at v3.163). Whichever is missing yet is
+// dropped from the select (Postgres names one missing column per error) and the
+// rest is still returned, instead of 500ing the whole page.
+const BASE_COLUMNS = [
+  "id", "email", "full_name", "phone", "role", "roles", "country", "menu_group_id",
+  "email_verified", "created_at", "updated_at",
+];
+const OPTIONAL_COLUMNS = ["premium_until", "language", "last_login_at", "last_seen_at"];
 
-// Runs `run` with the full (premium_until-included) column list; if that
-// fails specifically because the column doesn't exist yet, retries once
-// with the pre-v2.68 column list instead of 500ing the whole page.
-async function withSafeColumns<T>(run: (columns: string) => Promise<T>): Promise<T> {
+async function withSafeColumns<T>(
+  run: (columns: string) => Promise<T>,
+  skip: string[] = [],
+): Promise<T> {
+  const columns = [...BASE_COLUMNS, ...OPTIONAL_COLUMNS.filter((c) => !skip.includes(c))].join(", ");
   try {
-    return await run(SAFE_COLUMNS_LANG);
+    return await run(columns);
   } catch (e) {
-    if (e instanceof Error && /language|premium_until/.test(e.message)) {
-      try {
-        return await run(SAFE_COLUMNS_FULL);
-      } catch (e2) {
-        if (e2 instanceof Error && /premium_until/.test(e2.message)) {
-          return await run(SAFE_COLUMNS_BASE);
-        }
-        throw e2;
-      }
-    }
+    const missing = OPTIONAL_COLUMNS.find(
+      (c) => !skip.includes(c) && e instanceof Error && new RegExp(c).test(e.message),
+    );
+    if (missing) return withSafeColumns(run, [...skip, missing]);
     throw e;
   }
 }

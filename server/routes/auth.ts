@@ -9,6 +9,7 @@ import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../l
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
 import { findRoleGroupId, DEFAULT_GROUP_KEY } from "../lib/roleGroups.js";
+import { recordLogin, touchLastSeen } from "../lib/userActivity.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -344,6 +345,7 @@ export async function handleAuthRoute(
     void notifyAdminsOfNewUser({ email: u.email, full_name: u.full_name, phone: u.phone, referredBy });
 
     if (first) {
+      await recordLogin(u.id);
       const token = signToken({ sub: u.id, email: u.email, role: u.role });
       return json({ access_token: token, user: publicUser(u) });
     }
@@ -386,6 +388,7 @@ export async function handleAuthRoute(
       UPDATE users SET email_verified = TRUE WHERE email = ${email} RETURNING *
     `;
     const u = userRows[0];
+    await recordLogin(u.id);
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
     return json({ access_token: token });
   }
@@ -400,6 +403,7 @@ export async function handleAuthRoute(
     if (!u || !u.password_hash || !(await verifyPassword(password, u.password_hash))) {
       return json({ error: "Грешен имейл или парола" }, 401);
     }
+    await recordLogin(u.id);
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
     return json({ access_token: token, user: publicUser(u) });
   }
@@ -483,6 +487,7 @@ export async function handleAuthRoute(
       }
     }
     const u = rows[0];
+    await recordLogin(u.id);
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
 
     // Full-page browser redirect back to the SPA; the frontend's base44Client
@@ -537,6 +542,8 @@ export async function handleAuthRoute(
   // ---- GET /api/auth/me ----
   if (action === "me" && req.method === "GET") {
     if (!user) return json({ error: "Not authenticated" }, 401);
+    // v3.163 — "last seen" for Admin → Управление на потребители (throttled).
+    await touchLastSeen(user.id);
     return json(publicUser(user));
   }
 

@@ -536,6 +536,13 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
     },
   },
+  "v3.163-user-last-login": {
+    label: "v3.163 — Последен вход на потребителя (users.last_login_at / last_seen_at)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ`);
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`);
+    },
+  },
   "v3.160-user-language": {
     label: "v3.160 — Език на потребителя (users.language)",
     run: async () => {
@@ -842,6 +849,14 @@ export async function handleAdminMigrationsRoute(
           SELECT COUNT(*)::int AS n FROM information_schema.columns
           WHERE table_schema = 'public' AND table_name = 'catches'
             AND column_name IN ('water_name', 'feeder2')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.163-user-last-login") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'users'
+            AND column_name IN ('last_login_at', 'last_seen_at')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
       }

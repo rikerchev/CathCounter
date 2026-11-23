@@ -141,6 +141,20 @@ export default function AdminUsers() {
     return { code: "en", label: getLanguageNativeName("en"), isDefault: true };
   }
 
+  // v3.163 — "23.11.2026 14:05 (днес / вчера / преди N дни)"; "—" when unknown.
+  function formatWhen(value) {
+    if (!value) return "—";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "—";
+    const text = d.toLocaleString("bg-BG", {
+      day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+    });
+    const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+    const days = Math.round((startOf(new Date()) - startOf(d)) / 86400000);
+    const rel = days <= 0 ? "днес" : days === 1 ? "вчера" : `преди ${days} дни`;
+    return `${text} (${rel})`;
+  }
+
   async function handleExportActivity() {
     if (!catchesByUser) return;
     setExportingActivity(true);
@@ -152,6 +166,9 @@ export default function AdminUsers() {
           full_name: u.full_name || "",
           language: (userLanguageInfo(u) || {}).code || "",
           language_default: userLanguageInfo(u).isDefault ? "Да" : "",
+          last_seen: u.last_seen_at ? new Date(u.last_seen_at).toLocaleString("bg-BG") : "",
+          last_login: u.last_login_at ? new Date(u.last_login_at).toLocaleString("bg-BG") : "",
+          registered: u.created_at ? new Date(u.created_at).toLocaleDateString("bg-BG") : "",
           role: ROLE_LABELS[u.role] || u.role || "user",
           session_count: stats.sessionCount,
           catch_count: stats.catchCount,
@@ -166,6 +183,9 @@ export default function AdminUsers() {
             { key: "full_name", label: "Име" },
             { key: "language", label: "Език" },
             { key: "language_default", label: "Език по подразбиране (не е записан)" },
+            { key: "last_seen", label: "Последно в приложението" },
+            { key: "last_login", label: "Последен вход" },
+            { key: "registered", label: "Регистриран" },
             { key: "role", label: "Роля" },
             { key: "session_count", label: "Сесии" },
             { key: "catch_count", label: "Улови" },
@@ -486,6 +506,15 @@ export default function AdminUsers() {
                             </p>
                           );
                         })()}
+                        {/* v3.163 — last time the app was opened / last sign-in
+                            (planning of reminder e-mails). "—" = no data yet:
+                            filled in the next time the user opens the app. */}
+                        <p className="text-xs text-slate-400 truncate" title="Последно отваряне на приложението">
+                          Последно активен: <span className="text-slate-600 dark:text-foreground">{formatWhen(u.last_seen_at)}</span>
+                        </p>
+                        <p className="text-xs text-slate-400 truncate" title="Последно влизане с парола / код / Google">
+                          Последен вход: <span className="text-slate-600 dark:text-foreground">{formatWhen(u.last_login_at)}</span>
+                        </p>
                         {/* v3.51 — who referred this user in (peer invite
                             or merchant QR/brochure) and when, if anyone —
                             see loadReferralSources()/referredViaLabel()

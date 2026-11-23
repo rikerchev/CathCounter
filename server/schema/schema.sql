@@ -1043,3 +1043,9 @@ ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder_basket TEXT;
 -- pick the language of marketing / reminder e-mails. Apply from Admin →
 -- Настройка на интеграциите → "v3.160".
 ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT;
+
+-- v3.163 — when a user last signed in / last opened the app, shown in Admin →
+-- Управление на потребители (planning of reminder e-mails). Added on demand by
+-- the server too (server/lib/userActivity.ts); this is the same statement.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
