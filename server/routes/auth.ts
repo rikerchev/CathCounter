@@ -571,8 +571,21 @@ export async function handleAuthRoute(
       `;
       return json(publicUser(rows[0]));
     } catch (e) {
-      // v3.160 migration not applied yet — drop only the language.
+      // v3.160 migration not applied yet. v3.162 — instead of silently dropping
+      // the language (nothing then ever showed up in Admin → Управление на
+      // потребители until an admin remembered to click the migration), add the
+      // column right here (the same harmless statement the migration runs) and
+      // retry. Only if that is not possible, drop the language and save the rest.
       if (e instanceof Error && /language/.test(e.message) && "language" in set) {
+        try {
+          await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT`);
+          const rows = await sql<AuthUser[]>`
+            UPDATE users SET ${sql(set, ...keys)} WHERE id = ${user.id} RETURNING *
+          `;
+          return json(publicUser(rows[0]));
+        } catch (e2) {
+          console.error("users.language could not be added/saved:", e2);
+        }
         const { language: _language, ...rest } = set;
         const restKeys = Object.keys(rest);
         const rows = await sql<AuthUser[]>`
