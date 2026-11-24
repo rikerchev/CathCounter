@@ -153,6 +153,11 @@ export default function Profile() {
   // Competitions.jsx's handleRegister/setRegPhone).
   const [phone, setPhone] = useState("");
   const [savingPhone, setSavingPhone] = useState(false);
+  // v3.165 — "Известия за състезания": e-mails/notices when a water body or
+  // merchant organizes a new competition. On by default (users agree to it in
+  // the Terms); stored on the account (users.notify_competitions).
+  const [notifyCompetitions, setNotifyCompetitions] = useState(true);
+  const [savingNotifyComp, setSavingNotifyComp] = useState(false);
   const [defaultLocations, setDefaultLocations] = useState(loadLocations);
   const [newLocation, setNewLocation] = useState("");
   const [myRoleRequests, setMyRoleRequests] = useState([]);
@@ -173,6 +178,7 @@ export default function Profile() {
       setUser(u);
       setFullName(u.full_name || "");
       setPhone(u.phone || "");
+      setNotifyCompetitions(u.notify_competitions !== false);
     } catch {
       // non-blocking
     }
@@ -242,6 +248,22 @@ export default function Profile() {
     }
   };
 
+  const toggleNotifyCompetitions = async (checked) => {
+    const previous = notifyCompetitions;
+    setNotifyCompetitions(checked);
+    setSavingNotifyComp(true);
+    try {
+      await base44.auth.updateMe({ notify_competitions: checked });
+      setUser((u) => ({ ...u, notify_competitions: checked }));
+      toast({ title: t("profile.compNotificationsSaved") });
+    } catch {
+      setNotifyCompetitions(previous);
+      toast({ title: t("profile.couldNotUpdate"), variant: "destructive" });
+    } finally {
+      setSavingNotifyComp(false);
+    }
+  };
+
   const addLocation = (e) => {
     e.preventDefault();
     if (!newLocation.trim()) return;
@@ -286,6 +308,22 @@ export default function Profile() {
         <Button onClick={savePhone} disabled={savingPhone} className="bg-cyan-600 hover:bg-cyan-700 w-full">
           {savingPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : t("profile.savePhone")}
         </Button>
+      </div>
+
+      {/* v3.165 — new-competition announcements (e-mail + in-app notice). */}
+      <div className="rounded-2xl bg-white border border-slate-100 p-4 shadow-sm space-y-3">
+        <div className="flex items-center gap-2">
+          <Bell className="w-4 h-4 text-cyan-600" />
+          <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{t("profile.compNotifications")}</h2>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">{t("profile.compNotificationsDesc")}</p>
+          <Switch
+            checked={notifyCompetitions}
+            onCheckedChange={toggleNotifyCompetitions}
+            disabled={savingNotifyComp}
+          />
+        </div>
       </div>
 
       {/* Default fishing locations */}

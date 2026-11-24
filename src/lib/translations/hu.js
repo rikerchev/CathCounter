@@ -485,6 +485,8 @@ export const hu = {
   "wb.needAtLeastOneBox": "Legalább egy helyet hozzá kell adnia.",
   "wb.reservationsClosed": "Foglalások lezárva",
   "wb.competitionCreated": "Verseny létrehozva",
+  "wb.notifyAllUsers": "A vízterület országában élő felhasználók értesítése",
+  "wb.notifyAllUsersHint": "Csak az azonos országból származó (vagy annak nyelvét használó) felhasználók kapnak e-mailt és alkalmazáson belüli értesítést, a saját nyelvükön. Más országok felhasználóit és azokat, akik kikapcsolták a versenyértesítéseket, nem értesítjük.",
   "wb.registrationClosed": "Regisztráció lezárva",
   "wb.markedTransferred": "Megjelölve átutaltként",
   "wb.ibanCopied": "IBAN másolva",
@@ -1055,7 +1057,7 @@ export const hu = {
     "am.allPagesHint": "Ezek a bannerek/helyek tartalék megjelenésként jelennek meg minden olyan oldalon, amelynek nincs saját hirdetése ezen a pozíción.",
     "am.fallbackTag": "(tartalék — minden oldal)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Utolsó frissítés: 2026. szeptember 17.",
+    "terms.lastUpdated": "Utolsó frissítés: 2026. november 24.",
     "terms.s1.title": "1. Az alkalmazásról",
     "terms.s1.p1": "A CatchCount („Horgásznapló”) egy mobil webalkalmazás (PWA) horgásznapló vezetésére, vízterek felfedezésére és horgászversenyeken való részvételre, elérhető a catchcount.app4.you címen. Jelen Általános Szerződési Feltételek szabályozzák az Alkalmazás regisztrált felhasználók általi használatát.",
     "terms.s2.title": "2. Adatok önkéntes megosztása",
@@ -1081,6 +1083,8 @@ export const hu = {
     "terms.s11.p1": "Jelen Általános Szerződési Feltételekre a Bolgár Köztársaság joga és az alkalmazandó európai uniós jog (beleértve az általános adatvédelmi rendeletet — GDPR) az irányadó.",
     "terms.s12.title": "12. Kapcsolat",
     "terms.s12.p1": "Jelen Általános Szerződési Feltételekkel vagy személyes adatokkal kapcsolatos kérdések esetén kérjük, használja az Alkalmazás menüjében található „Kapcsolat” űrlapot.",
+    "terms.s13.title": "13. Versenyértesítések",
+    "terms.s13.p1": "A regisztrációval hozzájárul, hogy e-mailben és az alkalmazáson belüli értesítésben tájékoztassuk az Ön országában szervezett versenyekről — amikor egy vízterület tulajdonosa vagy egy kereskedő új versenyt hirdet meg. Az értesítéseket az Ön által használt alkalmazásnyelven küldjük. Ezeket az értesítéseket bármikor kikapcsolhatja, akár az ilyen e-mailekben található leiratkozási hivatkozással, akár a Profil → Versenyértesítések menüben. A leiratkozás nem érinti a fiókjával vagy a jelentkezett versenyekkel kapcsolatos szolgáltatási üzeneteket.",
     "nav.terms": "Általános Szerződési Feltételek",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Kapcsolat",
@@ -1315,6 +1319,9 @@ export const hu = {
     "profile.yourPhone": "Az Ön telefonszáma",
     "profile.savePhone": "Telefon mentése",
     "profile.phoneUpdated": "A telefon frissítve",
+    "profile.compNotifications": "Versenyértesítések",
+    "profile.compNotificationsDesc": "Kapjon e-mailt és értesítést, amikor az Ön országában egy vízterület vagy kereskedő új versenyt szervez.",
+    "profile.compNotificationsSaved": "A beállítás mentve",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Kereskedők ebben a bannerben",
     "ca.merchantsHint": "Csatoljon egy vagy több jóváhagyott kereskedőt ehhez a bannerhez — ekkor automatikusan azok logóját és nevét jeleníti meg a fent manuálisan megadott cím/logó/link helyett.",

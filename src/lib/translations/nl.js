@@ -485,6 +485,8 @@ export const nl = {
   "wb.needAtLeastOneBox": "U moet minstens één plek toevoegen.",
   "wb.reservationsClosed": "Reserveringen gesloten",
   "wb.competitionCreated": "Wedstrijd aangemaakt",
+  "wb.notifyAllUsers": "Gebruikers in het land van het viswater informeren",
+  "wb.notifyAllUsersHint": "Alleen gebruikers uit hetzelfde land (of die de taal ervan gebruiken) krijgen een e-mail en een melding in de app, in hun eigen taal. Gebruikers uit andere landen en gebruikers die wedstrijdmeldingen hebben uitgezet, worden niet gewaarschuwd.",
   "wb.registrationClosed": "Inschrijving gesloten",
   "wb.markedTransferred": "Gemarkeerd als overgemaakt",
   "wb.ibanCopied": "IBAN gekopieerd",
@@ -1055,7 +1057,7 @@ export const nl = {
     "am.allPagesHint": "Deze banners/plekken worden als reserve getoond op elke pagina zonder eigen advertentie op die positie.",
     "am.fallbackTag": "(reserve — alle pagina's)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Laatst bijgewerkt: 17 september 2026",
+    "terms.lastUpdated": "Laatst bijgewerkt: 24 november 2026",
     "terms.s1.title": "1. Over de applicatie",
     "terms.s1.p1": "CatchCount (\"Visdagboek\") is een mobiele webapplicatie (PWA) voor het bijhouden van een visdagboek, het ontdekken van viswateren en het deelnemen aan viswedstrijden, beschikbaar op catchcount.app4.you. Deze algemene voorwaarden regelen het gebruik van de Applicatie door haar geregistreerde gebruikers.",
     "terms.s2.title": "2. Vrijwillig delen van gegevens",
@@ -1081,6 +1083,8 @@ export const nl = {
     "terms.s11.p1": "Deze algemene voorwaarden worden beheerst door het recht van de Republiek Bulgarije en het toepasselijke recht van de Europese Unie (met inbegrip van de Algemene Verordening Gegevensbescherming — AVG/GDPR).",
     "terms.s12.title": "12. Contact",
     "terms.s12.p1": "Voor vragen over deze algemene voorwaarden of over persoonsgegevens, gebruik het formulier \"Contact\" in het menu van de Applicatie.",
+    "terms.s13.title": "13. Wedstrijdmeldingen",
+    "terms.s13.p1": "Door je te registreren ga je ermee akkoord e-mails en meldingen in de app te ontvangen over wedstrijden die in jouw land worden georganiseerd — wanneer een eigenaar van een viswater of een handelaar een nieuwe wedstrijd aankondigt. De meldingen worden verstuurd in de app-taal die je gebruikt. Je kunt deze meldingen op elk moment uitzetten, via de afmeldlink in elke zo'n e-mail of via Profiel → Wedstrijdmeldingen. Afmelden heeft geen invloed op servicemeldingen over je account of over wedstrijden waarvoor je je hebt ingeschreven.",
     "nav.terms": "Algemene Voorwaarden",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Contact",
@@ -1315,6 +1319,9 @@ export const nl = {
     "profile.yourPhone": "Uw telefoonnummer",
     "profile.savePhone": "Telefoon opslaan",
     "profile.phoneUpdated": "Telefoon bijgewerkt",
+    "profile.compNotifications": "Wedstrijdmeldingen",
+    "profile.compNotificationsDesc": "Ontvang e-mails en meldingen wanneer een viswater of handelaar in jouw land een nieuwe wedstrijd organiseert.",
+    "profile.compNotificationsSaved": "Instelling opgeslagen",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Handelaren in deze banner",
     "ca.merchantsHint": "Koppel een of meer goedgekeurde handelaren aan deze banner — deze toont dan automatisch hun logo en naam in plaats van de hierboven handmatig ingevoerde titel/logo/link.",

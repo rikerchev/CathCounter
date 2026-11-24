@@ -536,6 +536,18 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS feeder2 TEXT`);
     },
   },
+  "v3.166-user-last-country": {
+    label: "v3.166 — Държава на потребителя по IP (users.last_country)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT`);
+    },
+  },
+  "v3.165-notify-competitions": {
+    label: "v3.165 — Известия за състезания (users.notify_competitions)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_competitions BOOLEAN NOT NULL DEFAULT TRUE`);
+    },
+  },
   "v3.164-page-views": {
     label: "v3.164 — Посещаемост на публичните страници (page_views)",
     run: async () => {
@@ -870,6 +882,20 @@ export async function handleAdminMigrationsRoute(
             AND column_name IN ('water_name', 'feeder2')
         `;
         applied = (rows[0]?.n ?? 0) >= 2;
+      }
+      if (id === "v3.166-user-last-country") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'last_country'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.165-notify-competitions") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'notify_competitions'
+        `;
+        applied = (rows[0]?.n ?? 0) > 0;
       }
       if (id === "v3.164-page-views") {
         const rows = await sql<{ n: number }[]>`

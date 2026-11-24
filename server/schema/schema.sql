@@ -1065,3 +1065,13 @@ CREATE TABLE IF NOT EXISTS page_views (
 );
 CREATE INDEX IF NOT EXISTS idx_page_views_created_at ON page_views (created_at);
 ALTER TABLE page_views ENABLE ROW LEVEL SECURITY;
+
+-- v3.165 — users may switch the new-competition announcements off (Профил →
+-- Известия за състезания or the unsubscribe link in the e-mail). Also added on demand
+-- by the server (server/lib/competitionNotify.ts); this is the same statement.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_competitions BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- v3.166 — country (ISO code from the host geo header, never the IP) of the last
+-- app start; used to send new-competition announcements only to the organizer's
+-- country. Also added on demand by the server (server/lib/competitionNotify.ts).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT;

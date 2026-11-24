@@ -485,6 +485,8 @@ export const de = {
   "wb.needAtLeastOneBox": "Sie müssen mindestens eine Box hinzufügen.",
   "wb.reservationsClosed": "Reservierungen geschlossen",
   "wb.competitionCreated": "Wettbewerb erstellt",
+  "wb.notifyAllUsers": "Nutzer im Land des Gewässers benachrichtigen",
+  "wb.notifyAllUsersHint": "E-Mail und App-Hinweis erhalten nur Nutzer aus demselben Land (oder mit dessen Sprache), in ihrer Sprache. Nutzer aus anderen Ländern und Nutzer, die Wettbewerbs-Benachrichtigungen deaktiviert haben, werden nicht benachrichtigt.",
   "wb.registrationClosed": "Anmeldung geschlossen",
   "wb.markedTransferred": "Als überwiesen markiert",
   "wb.ibanCopied": "IBAN kopiert",
@@ -1055,7 +1057,7 @@ export const de = {
     "am.allPagesHint": "Diese Banner/Slots werden als Ersatz auf jeder Seite angezeigt, die an dieser Position keine eigene Anzeige hat.",
     "am.fallbackTag": "(Ersatz — alle Seiten)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Letzte Aktualisierung: 17. September 2026",
+    "terms.lastUpdated": "Letzte Aktualisierung: 24. November 2026",
     "terms.s1.title": "1. Über die Anwendung",
     "terms.s1.p1": "CatchCount („Angeltagebuch“) ist eine mobile Webanwendung (PWA) zum Führen eines Angeltagebuchs, zum Entdecken von Gewässern und zur Teilnahme an Angelwettbewerben, verfügbar unter catchcount.app4.you. Diese Allgemeinen Geschäftsbedingungen regeln die Nutzung der Anwendung durch ihre registrierten Nutzer.",
     "terms.s2.title": "2. Freiwillige Weitergabe von Daten",
@@ -1081,6 +1083,8 @@ export const de = {
     "terms.s11.p1": "Diese Allgemeinen Geschäftsbedingungen unterliegen dem Recht der Republik Bulgarien sowie dem anwendbaren Recht der Europäischen Union (einschließlich der Datenschutz-Grundverordnung — DSGVO).",
     "terms.s12.title": "12. Kontakt",
     "terms.s12.p1": "Für Fragen zu diesen Allgemeinen Geschäftsbedingungen oder zu personenbezogenen Daten nutzen Sie bitte das Formular „Kontakt“ im Menü der Anwendung.",
+    "terms.s13.title": "13. Wettbewerbs-Benachrichtigungen",
+    "terms.s13.p1": "Mit der Registrierung erklären Sie sich damit einverstanden, E-Mails und Hinweise in der App über Wettbewerbe zu erhalten, die in Ihrem Land veranstaltet werden — wenn ein Gewässerbetreiber oder Händler einen neuen Wettbewerb ankündigt. Die Hinweise werden in der von Ihnen genutzten App-Sprache gesendet. Sie können diese Benachrichtigungen jederzeit deaktivieren, entweder über den Abmeldelink in jeder solchen E-Mail oder unter Profil → Wettbewerbs-Benachrichtigungen. Die Abmeldung betrifft nicht Servicenachrichten zu Ihrem Konto oder zu Wettbewerben, für die Sie sich angemeldet haben.",
     "nav.terms": "Allgemeine Geschäftsbedingungen",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Kontakt",
@@ -1315,6 +1319,9 @@ export const de = {
     "profile.yourPhone": "Ihre Telefonnummer",
     "profile.savePhone": "Telefon speichern",
     "profile.phoneUpdated": "Telefon aktualisiert",
+    "profile.compNotifications": "Wettbewerbs-Benachrichtigungen",
+    "profile.compNotificationsDesc": "E-Mails und Hinweise erhalten, wenn ein Gewässer oder Händler in Ihrem Land einen neuen Wettbewerb veranstaltet.",
+    "profile.compNotificationsSaved": "Einstellung gespeichert",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Händler in diesem Banner",
     "ca.merchantsHint": "Fügen Sie diesem Banner einen oder mehrere genehmigte Händler hinzu — er zeigt dann automatisch deren Logo und Namen anstelle des oben manuell eingegebenen Titels/Logos/Links.",

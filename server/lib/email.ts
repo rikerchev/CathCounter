@@ -18,6 +18,8 @@ export async function sendEmail(opts: {
   // "contact-competition-organizer" email) instead of the platform's
   // no-reply sender address.
   replyTo?: string;
+  // v3.165 — e.g. List-Unsubscribe for the competition announcement e-mails.
+  headers?: Record<string, string>;
 }): Promise<void> {
   const [host, port, secure, user, password, from] = await Promise.all([
     getConfig("SMTP_HOST"),
@@ -58,6 +60,7 @@ export async function sendEmail(opts: {
     from: from || "CatchCount <noreply@example.com>",
     to: opts.to,
     replyTo: opts.replyTo,
+    headers: opts.headers,
     subject: opts.subject,
     html: opts.html,
     text: opts.text,

@@ -1,5 +1,6 @@
 import { sql } from "../db.js";
 import { verifyToken } from "../lib/jwt.js";
+import { ensureNotifyColumn } from "../lib/competitionNotify.js";
 
 export interface AuthUser {
   id: string;
@@ -24,6 +25,9 @@ export interface AuthUser {
   // src/hooks/useLanguageSync.js); for marketing / reminder e-mails. null until
   // the account has opened the app on v3.160+ (or while the migration is pending).
   language: string | null;
+  // v3.165 — false = the user switched the new-competition announcements off
+  // (Профил → Известия за състезания, or the link in the e-mail). Default true.
+  notify_competitions: boolean;
   // v2.98 — null until the account has accepted the Terms & Conditions at
   // least once; App.jsx blocks the whole app behind TermsGate.jsx until this
   // is set. See routes/auth.ts's "accept-terms" action.
@@ -50,16 +54,19 @@ const BASE_USER_COLUMNS = [
 // probed independently below (rather than falling back to ALL-or-nothing)
 // so e.g. a pending v3.03 (phone) migration doesn't also blank out an
 // already-applied v2.98 (terms_accepted_at) for every request in that gap.
-const OPTIONAL_USER_COLUMNS = ["premium_until", "terms_accepted_at", "phone", "language"] as const;
+const OPTIONAL_USER_COLUMNS = ["premium_until", "terms_accepted_at", "phone", "language", "notify_competitions"] as const;
 type OptionalUserColumn = (typeof OPTIONAL_USER_COLUMNS)[number];
 
-function defaultForMissing(col: OptionalUserColumn): string | null {
+function defaultForMissing(col: OptionalUserColumn): string | boolean | null {
   // Non-null sentinel for terms_accepted_at specifically: with the column
   // not migrated yet, `null` would force EVERY account through TermsGate.jsx
   // the instant this code deploys, well before the admin has had a chance to
   // click "Приложи обновление" — worse than just not enforcing acceptance yet.
+  if (col === "notify_competitions") return true;
   return col === "terms_accepted_at" ? "pending-migration" : null;
 }
+
+let notifyColumnTried = false;
 
 async function selectUser(id: string, skip: OptionalUserColumn[]): Promise<AuthUser | null> {
   const columns = [...BASE_USER_COLUMNS, ...OPTIONAL_USER_COLUMNS.filter((c) => !skip.includes(c))];
@@ -83,6 +90,12 @@ async function selectUser(id: string, skip: OptionalUserColumn[]): Promise<AuthU
     const missing = OPTIONAL_USER_COLUMNS.find(
       (c) => !skip.includes(c) && e instanceof Error && new RegExp(c).test(e.message),
     );
+    if (missing === "notify_competitions" && !notifyColumnTried) {
+      // v3.165 — add the column once per server instance instead of failing
+      // this probe (and retrying without it) on every single request.
+      notifyColumnTried = true;
+      if (await ensureNotifyColumn()) return selectUser(id, skip);
+    }
     if (missing) return selectUser(id, [...skip, missing]);
     throw e;
   }

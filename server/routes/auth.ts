@@ -9,7 +9,11 @@ import { buildGoogleAuthUrl, exchangeGoogleCode, isGoogleConfigured } from "../l
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
 import { findRoleGroupId, DEFAULT_GROUP_KEY } from "../lib/roleGroups.js";
-import { recordLogin, touchLastSeen } from "../lib/userActivity.js";
+import { ipCountry, recordLogin, touchLastSeen } from "../lib/userActivity.js";
+import { unsubscribePageText } from "../lib/competitionMailText.js";
+import {
+  ensureNotifyColumn, isMissingNotifyColumn, setNotifyCompetitions, verifyUnsubscribeToken,
+} from "../lib/competitionNotify.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -31,6 +35,23 @@ function json(body: unknown, status = 200): Response {
 // identically as a redirect but keeps normal, mutable headers.
 function redirect(url: string, status = 302): Response {
   return new Response(null, { status, headers: { Location: url } });
+}
+
+// v3.165 — tiny standalone page shown after following the unsubscribe link in a
+// competition announcement e-mail (no login needed, so it is plain HTML).
+// v3.166 — in the language of the e-mail (`l` in the link).
+function unsubscribePage(lang: string, kind: "confirm" | "done" | "invalid", form?: { action: string }): Response {
+  const pt = unsubscribePageText(lang);
+  const title = kind === "confirm" ? pt.title : kind === "done" ? pt.doneTitle : "Invalid link";
+  const text = kind === "confirm" ? pt.confirm : kind === "done" ? pt.done
+    : "This unsubscribe link is invalid or incomplete. You can switch the notifications off in the app: Profile → Competition notifications.";
+  const appUrl = env.PUBLIC_APP_URL.replace(/\/+$/, "");
+  const html = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title}</title>` +
+    `<style>body{font-family:system-ui,sans-serif;background:#f1f5f9;margin:0;padding:24px;color:#0f172a}main{max-width:460px;margin:40px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.08)}h1{font-size:20px;margin:0 0 12px}p{line-height:1.5;color:#334155}button,a.btn{display:inline-block;margin-top:8px;background:#0891b2;color:#fff;border:0;border-radius:10px;padding:12px 18px;font-size:15px;text-decoration:none;cursor:pointer}</style></head>` +
+    `<body><main><h1>${title}</h1><p>${text}</p>` +
+    (form ? `<form method="POST" action="${form.action}"><button type="submit">${pt.button}</button></form>` : "") +
+    `<p><a class="btn" href="${appUrl}">${pt.app}</a></p></main></body></html>`;
+  return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8" } });
 }
 
 const OTP_TTL_MINUTES = 15;
@@ -345,7 +366,7 @@ export async function handleAuthRoute(
     void notifyAdminsOfNewUser({ email: u.email, full_name: u.full_name, phone: u.phone, referredBy });
 
     if (first) {
-      await recordLogin(u.id);
+      await recordLogin(u.id, ipCountry(req));
       const token = signToken({ sub: u.id, email: u.email, role: u.role });
       return json({ access_token: token, user: publicUser(u) });
     }
@@ -388,7 +409,7 @@ export async function handleAuthRoute(
       UPDATE users SET email_verified = TRUE WHERE email = ${email} RETURNING *
     `;
     const u = userRows[0];
-    await recordLogin(u.id);
+    await recordLogin(u.id, ipCountry(req));
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
     return json({ access_token: token });
   }
@@ -403,7 +424,7 @@ export async function handleAuthRoute(
     if (!u || !u.password_hash || !(await verifyPassword(password, u.password_hash))) {
       return json({ error: "Грешен имейл или парола" }, 401);
     }
-    await recordLogin(u.id);
+    await recordLogin(u.id, ipCountry(req));
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
     return json({ access_token: token, user: publicUser(u) });
   }
@@ -487,7 +508,7 @@ export async function handleAuthRoute(
       }
     }
     const u = rows[0];
-    await recordLogin(u.id);
+    await recordLogin(u.id, ipCountry(req));
     const token = signToken({ sub: u.id, email: u.email, role: u.role });
 
     // Full-page browser redirect back to the SPA; the frontend's base44Client
@@ -539,11 +560,36 @@ export async function handleAuthRoute(
     return json({ success: true });
   }
 
+  // ---- GET/POST /api/auth/unsubscribe-competitions?u=<user id>&t=<token> ----
+  // v3.165 — the unsubscribe link in the new-competition e-mails (also the
+  // List-Unsubscribe header's one-click POST). Authenticated by the HMAC token,
+  // not by login. GET only shows a confirmation button (so mail scanners that
+  // pre-open links cannot unsubscribe anyone); POST does the actual change.
+  if (action === "unsubscribe-competitions" && (req.method === "GET" || req.method === "POST")) {
+    const params = absoluteUrl(req).searchParams;
+    const uid = params.get("u") || "";
+    const tok = params.get("t") || "";
+    const l = (params.get("l") || "en").toLowerCase().replace(/[^a-z-]/g, "").slice(0, 8) || "en";
+    if (!verifyUnsubscribeToken(uid, tok)) return unsubscribePage(l, "invalid");
+    if (req.method === "GET") {
+      return unsubscribePage(l, "confirm", {
+        action: `/api/auth/unsubscribe-competitions?u=${encodeURIComponent(uid)}&t=${encodeURIComponent(tok)}&l=${encodeURIComponent(l)}`,
+      });
+    }
+    try {
+      await setNotifyCompetitions(uid, false);
+    } catch (e) {
+      console.error("unsubscribe-competitions failed:", e);
+      return unsubscribePage(l, "invalid");
+    }
+    return unsubscribePage(l, "done");
+  }
+
   // ---- GET /api/auth/me ----
   if (action === "me" && req.method === "GET") {
     if (!user) return json({ error: "Not authenticated" }, 401);
     // v3.163 — "last seen" for Admin → Управление на потребители (throttled).
-    await touchLastSeen(user.id);
+    await touchLastSeen(user.id, ipCountry(req));
     return json(publicUser(user));
   }
 
@@ -557,13 +603,22 @@ export async function handleAuthRoute(
     // v3.160 — "language": the app language the user is currently using, kept
     // for marketing / reminder e-mails (shown in Admin → Управление на
     // потребители). Sent by src/hooks/useLanguageSync.js.
-    const allowed = ["full_name", "phone", "country", "menu_group_id", "language"] as const;
+    const allowed = ["full_name", "phone", "country", "menu_group_id", "language", "notify_competitions"] as const;
     const set: Record<string, unknown> = {};
     for (const k of allowed) if (k in patch) set[k] = patch[k];
     if ("language" in set) {
       const lang = typeof set.language === "string" ? set.language.trim().toLowerCase() : "";
       if (/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/.test(lang)) set.language = lang;
       else delete set.language;
+    }
+    // v3.165 — Профил → Известия за състезания (boolean only).
+    if ("notify_competitions" in set) {
+      if (typeof set.notify_competitions === "boolean") {
+        // make sure the column exists before the generic UPDATE below
+        await ensureNotifyColumn();
+      } else {
+        delete set.notify_competitions;
+      }
     }
     set.updated_at = new Date();
     const keys = Object.keys(set);
@@ -578,6 +633,15 @@ export async function handleAuthRoute(
       `;
       return json(publicUser(rows[0]));
     } catch (e) {
+      if (isMissingNotifyColumn(e) && "notify_competitions" in set) {
+        // v3.165 — column could not be added: save the rest of the patch.
+        const { notify_competitions: _nc, ...rest } = set;
+        const restKeys = Object.keys(rest);
+        const rows = await sql<AuthUser[]>`
+          UPDATE users SET ${sql(rest, ...restKeys)} WHERE id = ${user.id} RETURNING *
+        `;
+        return json(publicUser(rows[0]));
+      }
       // v3.160 migration not applied yet. v3.162 — instead of silently dropping
       // the language (nothing then ever showed up in Admin → Управление на
       // потребители until an admin remembered to click the migration), add the

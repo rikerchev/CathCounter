@@ -485,6 +485,8 @@ export const ro = {
   "wb.needAtLeastOneBox": "Trebuie să adăugați cel puțin un post.",
   "wb.reservationsClosed": "Rezervări închise",
   "wb.competitionCreated": "Competiție creată",
+  "wb.notifyAllUsers": "Notifică utilizatorii din țara luciului de apă",
+  "wb.notifyAllUsersHint": "Doar utilizatorii din aceeași țară (sau care folosesc limba ei) primesc un e-mail și o notificare în aplicație, în limba lor. Utilizatorii din alte țări și cei care au dezactivat notificările despre competiții nu sunt notificați.",
   "wb.registrationClosed": "Înscriere închisă",
   "wb.markedTransferred": "Marcat ca transferat",
   "wb.ibanCopied": "IBAN copiat",
@@ -1055,7 +1057,7 @@ export const ro = {
     "am.allPagesHint": "Aceste bannere/locuri apar ca rezervă pe orice pagină care nu are propria reclamă pe această poziție.",
     "am.fallbackTag": "(rezervă — toate paginile)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Ultima actualizare: 17 septembrie 2026",
+    "terms.lastUpdated": "Ultima actualizare: 24 noiembrie 2026",
     "terms.s1.title": "1. Despre aplicație",
     "terms.s1.p1": "CatchCount („Jurnal de Pescuit”) este o aplicație web mobilă (PWA) pentru ținerea unui jurnal de pescuit, descoperirea bazinelor de apă și participarea la competiții de pescuit, disponibilă la catchcount.app4.you. Prezenții Termeni și Condiții reglementează utilizarea Aplicației de către utilizatorii săi înregistrați.",
     "terms.s2.title": "2. Partajarea voluntară a datelor",
@@ -1081,6 +1083,8 @@ export const ro = {
     "terms.s11.p1": "Prezenții Termeni și Condiții sunt guvernați de legislația Republicii Bulgaria și de dreptul aplicabil al Uniunii Europene (inclusiv Regulamentul general privind protecția datelor — GDPR).",
     "terms.s12.title": "12. Contact",
     "terms.s12.p1": "Pentru întrebări referitoare la prezenții Termeni și Condiții sau la datele personale, vă rugăm să utilizați formularul „Contact” din meniul Aplicației.",
+    "terms.s13.title": "13. Notificări despre competiții",
+    "terms.s13.p1": "Prin înregistrare, ești de acord să primești e-mailuri și notificări în aplicație despre competițiile organizate în țara ta — când proprietarul unui luciu de apă sau un comerciant anunță o nouă competiție. Notificările se trimit în limba aplicației pe care o folosești. Poți dezactiva aceste notificări oricând, prin linkul de dezabonare din orice astfel de e-mail sau din Profil → Notificări despre competiții. Dezabonarea nu afectează mesajele de serviciu legate de contul tău sau de competițiile la care te-ai înscris.",
     "nav.terms": "Termeni și Condiții",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Contactează-ne",
@@ -1315,6 +1319,9 @@ export const ro = {
     "profile.yourPhone": "Numărul dvs. de telefon",
     "profile.savePhone": "Salvează telefonul",
     "profile.phoneUpdated": "Telefonul a fost actualizat",
+    "profile.compNotifications": "Notificări despre competiții",
+    "profile.compNotificationsDesc": "Primește e-mailuri și notificări când un luciu de apă sau un comerciant din țara ta organizează o nouă competiție.",
+    "profile.compNotificationsSaved": "Setare salvată",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Comercianți în acest banner",
     "ca.merchantsHint": "Atașați unul sau mai mulți comercianți aprobați la acest banner — acesta va afișa apoi automat sigla și numele lor în locul titlului/siglei/linkului introduse manual mai sus.",

@@ -27,6 +27,14 @@ export default function TermsContent() {
           {n === 2 && <p>{t("terms.s2.p2")}</p>}
         </section>
       ))}
+
+      {/* v3.165 — consent to competition announcements + how to opt out. */}
+      <section className="space-y-1.5">
+        <h2 className="font-semibold text-slate-800 dark:text-foreground">
+          {t("terms.s13.title")}
+        </h2>
+        <p>{t("terms.s13.p1")}</p>
+      </section>
     </>
   );
 }

@@ -485,6 +485,8 @@ export const sr = {
   "wb.needAtLeastOneBox": "Morate dodati bar jedno mesto.",
   "wb.reservationsClosed": "Rezervacije zatvorene",
   "wb.competitionCreated": "Takmičenje kreirano",
+  "wb.notifyAllUsers": "Obavesti korisnike iz države vodne površine",
+  "wb.notifyAllUsersHint": "E-poštu i obaveštenje u aplikaciji dobijaju samo korisnici iz iste države (ili oni koji koriste njen jezik), na svom jeziku. Korisnici iz drugih država i oni koji su isključili obaveštenja o takmičenjima neće biti obavešteni.",
   "wb.registrationClosed": "Registracija zatvorena",
   "wb.markedTransferred": "Označeno kao preneto",
   "wb.ibanCopied": "IBAN kopiran",
@@ -1055,7 +1057,7 @@ export const sr = {
     "am.allPagesHint": "Ови банери/слотови се приказују као резерва на свакој страници која нема сопствену рекламу на тој позицији.",
     "am.fallbackTag": "(резервни — све странице)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Poslednje ažuriranje: 17. septembar 2026.",
+    "terms.lastUpdated": "Poslednje ažuriranje: 24. novembar 2026.",
     "terms.s1.title": "1. O aplikaciji",
     "terms.s1.p1": "CatchCount („Ribolovni dnevnik“) je mobilna veb aplikacija (PWA) za vođenje ribolovnog dnevnika, otkrivanje vodenih površina i učešće u ribolovnim takmičenjima, dostupna na catchcount.app4.you. Ovi opšti uslovi regulišu korišćenje Aplikacije od strane njenih registrovanih korisnika.",
     "terms.s2.title": "2. Dobrovoljno deljenje podataka",
@@ -1081,6 +1083,8 @@ export const sr = {
     "terms.s11.p1": "Ovi opšti uslovi se rukovode zakonima Republike Bugarske i primenljivim pravom Evropske unije (uključujući Opštu uredbu o zaštiti podataka — GDPR).",
     "terms.s12.title": "12. Kontakt",
     "terms.s12.p1": "Za pitanja u vezi sa ovim opštim uslovima ili ličnim podacima, koristite obrazac „Kontakt“ u meniju Aplikacije.",
+    "terms.s13.title": "13. Obaveštenja o takmičenjima",
+    "terms.s13.p1": "Registracijom pristajete da primate e-poštu i obaveštenja u Aplikaciji o takmičenjima organizovanim u vašoj državi — kada vlasnik vodne površine ili trgovac objavi novo takmičenje. Obaveštenja se šalju na jeziku aplikacije koji koristite. Ova obaveštenja možete isključiti u bilo kom trenutku, putem linka za odjavu u svakoj takvoj poruci ili u Profil → Obaveštenja o takmičenjima. Odjava ne utiče na servisne poruke vezane za vaš nalog ili za takmičenja na koja ste se prijavili.",
     "nav.terms": "Uslovi korišćenja",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Kontaktirajte nas",
@@ -1315,6 +1319,9 @@ export const sr = {
     "profile.yourPhone": "Vaš broj telefona",
     "profile.savePhone": "Sačuvaj telefon",
     "profile.phoneUpdated": "Telefon je ažuriran",
+    "profile.compNotifications": "Obaveštenja o takmičenjima",
+    "profile.compNotificationsDesc": "Primaj e-poštu i obaveštenja kada vodna površina ili trgovac iz tvoje države organizuje novo takmičenje.",
+    "profile.compNotificationsSaved": "Podešavanje je sačuvano",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Trgovci u ovom baneru",
     "ca.merchantsHint": "Povežite jednog ili više odobrenih trgovaca sa ovim banerom — tada će automatski prikazivati njihov logo i naziv umesto ručno unetog naslova/loga/linka iznad.",

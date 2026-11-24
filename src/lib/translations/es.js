@@ -485,6 +485,8 @@ export const es = {
   "wb.needAtLeastOneBox": "Debe añadir al menos un puesto.",
   "wb.reservationsClosed": "Reservas cerradas",
   "wb.competitionCreated": "Competición creada",
+  "wb.notifyAllUsers": "Avisar a los usuarios del país de la masa de agua",
+  "wb.notifyAllUsersHint": "Solo los usuarios del mismo país (o que usen su idioma) reciben un correo y un aviso en la aplicación, en su idioma. No se avisa a usuarios de otros países ni a quienes hayan desactivado las notificaciones de competiciones.",
   "wb.registrationClosed": "Inscripción cerrada",
   "wb.markedTransferred": "Marcado como transferido",
   "wb.ibanCopied": "IBAN copiado",
@@ -1055,7 +1057,7 @@ export const es = {
     "am.allPagesHint": "Estos banners/espacios aparecen como reserva en cualquier página que no tenga su propio anuncio en esa posición.",
     "am.fallbackTag": "(reserva — todas las páginas)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Última actualización: 17 de septiembre de 2026",
+    "terms.lastUpdated": "Última actualización: 24 de noviembre de 2026",
     "terms.s1.title": "1. Sobre la aplicación",
     "terms.s1.p1": "CatchCount («Diario de Pesca») es una aplicación web móvil (PWA) para llevar un diario de pesca, descubrir masas de agua y participar en competiciones de pesca, disponible en catchcount.app4.you. Estos Términos y Condiciones regulan el uso de la Aplicación por parte de sus usuarios registrados.",
     "terms.s2.title": "2. Compartición voluntaria de datos",
@@ -1081,6 +1083,8 @@ export const es = {
     "terms.s11.p1": "Estos Términos y Condiciones se rigen por la legislación de la República de Bulgaria y el derecho aplicable de la Unión Europea (incluido el Reglamento General de Protección de Datos — RGPD).",
     "terms.s12.title": "12. Contacto",
     "terms.s12.p1": "Para preguntas relacionadas con estos Términos y Condiciones o con datos personales, utilice el formulario «Contáctanos» en el menú de la Aplicación.",
+    "terms.s13.title": "13. Notificaciones de competiciones",
+    "terms.s13.p1": "Al registrarte, aceptas recibir correos electrónicos y avisos en la aplicación sobre las competiciones organizadas en tu país, cuando el propietario de una masa de agua o un comerciante anuncie una nueva competición. Los avisos se envían en el idioma de la aplicación que utilizas. Puedes desactivar estas notificaciones en cualquier momento, con el enlace para darte de baja de cualquiera de esos correos o en Perfil → Notificaciones de competiciones. La baja no afecta a los mensajes de servicio relacionados con tu cuenta o con las competiciones en las que te hayas inscrito.",
     "nav.terms": "Términos y Condiciones",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Contáctanos",
@@ -1315,6 +1319,9 @@ export const es = {
     "profile.yourPhone": "Su número de teléfono",
     "profile.savePhone": "Guardar teléfono",
     "profile.phoneUpdated": "Teléfono actualizado",
+    "profile.compNotifications": "Notificaciones de competiciones",
+    "profile.compNotificationsDesc": "Recibe correos y avisos cuando una masa de agua o un comerciante de tu país organice una nueva competición.",
+    "profile.compNotificationsSaved": "Ajuste guardado",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Comerciantes en este banner",
     "ca.merchantsHint": "Adjunte uno o más comerciantes aprobados a este banner — entonces mostrará automáticamente su logo y nombre en lugar del título/logo/enlace introducidos manualmente arriba.",

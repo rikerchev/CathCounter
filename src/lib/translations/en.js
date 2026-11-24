@@ -626,6 +626,8 @@ export const en = {
     "wb.needAtLeastOneBox": "You must add at least one box.",
     "wb.reservationsClosed": "Reservations closed",
     "wb.competitionCreated": "Competition created",
+    "wb.notifyAllUsers": "Notify users in the water body's country",
+    "wb.notifyAllUsersHint": "Only users in the same country (or using its language) get an e-mail and an in-app notice, in their own language. Users in other countries and users who switched competition notifications off are not notified.",
     "wb.registrationClosed": "Registration closed",
     "wb.markedTransferred": "Marked as transferred",
     "wb.ibanCopied": "IBAN copied",
@@ -1334,7 +1336,7 @@ export const en = {
     "merchant.noBanner": "No banner",
     "merchant.bonusSaved": "Saved",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Last updated: September 17, 2026",
+    "terms.lastUpdated": "Last updated: November 24, 2026",
     "terms.s1.title": "1. About the application",
     "terms.s1.p1": "CatchCount (\"Fishing Log\", \"the Application\") is a mobile web application (PWA) for keeping a fishing log, discovering water bodies and taking part in fishing competitions, available at catchcount.app4.you. These Terms and Conditions govern the use of the Application by its registered users.",
     "terms.s2.title": "2. Voluntary sharing of data",
@@ -1360,6 +1362,8 @@ export const en = {
     "terms.s11.p1": "These Terms and Conditions are governed by the laws of the Republic of Bulgaria and applicable European Union law (including the General Data Protection Regulation — GDPR).",
     "terms.s12.title": "12. Contact",
     "terms.s12.p1": "For questions related to these Terms and Conditions or to personal data, please use the \"Contact Us\" form in the Application's menu.",
+    "terms.s13.title": "13. Competition notifications",
+    "terms.s13.p1": "By registering, you agree to receive e-mails and in-app notices about competitions organized in your country — when a water body owner or merchant announces a new competition. Notices are sent in the app language you use. You can switch these notifications off at any time, either with the unsubscribe link in any such e-mail or in Profile → Competition notifications. Opting out does not affect service messages related to your account or to competitions you have registered for.",
     // v3.03: masked emails / mandatory phone / organizer<->participant messaging / admin new-user notification
     "comp.enterPhone": "Please enter a phone number",
     "comp.contactOrganizer": "Message the organizer",
@@ -1376,6 +1380,9 @@ export const en = {
     "profile.yourPhone": "Your phone number",
     "profile.savePhone": "Save phone",
     "profile.phoneUpdated": "Phone updated",
+    "profile.compNotifications": "Competition notifications",
+    "profile.compNotificationsDesc": "Receive e-mails and notices when a water body or merchant in your country organizes a new competition.",
+    "profile.compNotificationsSaved": "Setting saved",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Merchants in this banner",
     "ca.merchantsHint": "Attach one or more approved merchants to this banner — it will then automatically show their logo and name instead of the title/logo/link entered manually above.",

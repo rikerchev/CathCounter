@@ -485,6 +485,8 @@ export const it = {
   "wb.needAtLeastOneBox": "Devi aggiungere almeno una postazione.",
   "wb.reservationsClosed": "Prenotazioni chiuse",
   "wb.competitionCreated": "Competizione creata",
+  "wb.notifyAllUsers": "Avvisa gli utenti del paese dello specchio d'acqua",
+  "wb.notifyAllUsersHint": "Solo gli utenti dello stesso paese (o che ne usano la lingua) ricevono un'e-mail e una notifica nell'app, nella propria lingua. Gli utenti di altri paesi e chi ha disattivato le notifiche delle competizioni non vengono avvisati.",
   "wb.registrationClosed": "Iscrizione chiusa",
   "wb.markedTransferred": "Contrassegnato come trasferito",
   "wb.ibanCopied": "IBAN copiato",
@@ -1055,7 +1057,7 @@ export const it = {
     "am.allPagesHint": "Questi banner/slot vengono mostrati come riserva su ogni pagina priva di un proprio annuncio in questa posizione.",
     "am.fallbackTag": "(riserva — tutte le pagine)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Ultimo aggiornamento: 17 settembre 2026",
+    "terms.lastUpdated": "Ultimo aggiornamento: 24 novembre 2026",
     "terms.s1.title": "1. Informazioni sull'applicazione",
     "terms.s1.p1": "CatchCount («Diario di Pesca») è un'applicazione web mobile (PWA) per tenere un diario di pesca, scoprire specchi d'acqua e partecipare a competizioni di pesca, disponibile su catchcount.app4.you. I presenti Termini e Condizioni disciplinano l'uso dell'Applicazione da parte degli utenti registrati.",
     "terms.s2.title": "2. Condivisione volontaria dei dati",
@@ -1081,6 +1083,8 @@ export const it = {
     "terms.s11.p1": "I presenti Termini e Condizioni sono disciplinati dalla legge della Repubblica di Bulgaria e dal diritto applicabile dell'Unione Europea (compreso il Regolamento generale sulla protezione dei dati — GDPR).",
     "terms.s12.title": "12. Contatti",
     "terms.s12.p1": "Per domande relative ai presenti Termini e Condizioni o ai dati personali, si prega di utilizzare il modulo «Contattaci» nel menu dell'Applicazione.",
+    "terms.s13.title": "13. Notifiche delle competizioni",
+    "terms.s13.p1": "Registrandoti, accetti di ricevere e-mail e avvisi nell'app sulle competizioni organizzate nel tuo paese, quando il proprietario di uno specchio d'acqua o un commerciante annuncia una nuova competizione. Gli avvisi vengono inviati nella lingua dell'app che utilizzi. Puoi disattivare queste notifiche in qualsiasi momento, con il link di annullamento iscrizione presente in ogni e-mail di questo tipo oppure in Profilo → Notifiche delle competizioni. L'annullamento non riguarda i messaggi di servizio relativi al tuo account o alle competizioni a cui ti sei iscritto.",
     "nav.terms": "Termini e Condizioni",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Contattaci",
@@ -1315,6 +1319,9 @@ export const it = {
     "profile.yourPhone": "Il tuo numero di telefono",
     "profile.savePhone": "Salva telefono",
     "profile.phoneUpdated": "Telefono aggiornato",
+    "profile.compNotifications": "Notifiche delle competizioni",
+    "profile.compNotificationsDesc": "Ricevi e-mail e avvisi quando uno specchio d'acqua o un commerciante del tuo paese organizza una nuova competizione.",
+    "profile.compNotificationsSaved": "Impostazione salvata",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Commercianti in questo banner",
     "ca.merchantsHint": "Collega uno o più commercianti approvati a questo banner — mostrerà automaticamente il loro logo e nome al posto del titolo/logo/link inseriti manualmente sopra.",

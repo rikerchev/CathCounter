@@ -368,7 +368,7 @@ export default function WaterBodyManagement() {
   const [compForm, setCompForm] = useState({
     title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
     conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
-    sectors: [EMPTY_SECTOR_ROW], rounds_count: "1",
+    sectors: [EMPTY_SECTOR_ROW], rounds_count: "1", notify_users: false,
   });
   // v2.83 — editing one participant's name/phone/slot/payment status from
   // the organizer's participant list (see participantsFor below).
@@ -581,7 +581,7 @@ export default function WaterBodyManagement() {
     setCompForm({
       title: "", fishing_type: "", max_participants: "20", max_reserves: "5",
       conditions: "", prize_fund: "", fee: "", date: "", registration_deadline: "",
-      sectors: [EMPTY_SECTOR_ROW], rounds_count: "1",
+      sectors: [EMPTY_SECTOR_ROW], rounds_count: "1", notify_users: false,
     });
     setShowCompForm(true);
   }
@@ -1085,13 +1085,28 @@ export default function WaterBodyManagement() {
         toast({ title: t("wb.competitionUpdated") });
       } else {
         if (!compFor) return;
-        await base44.entities.Competition.create({
+        const created = await base44.entities.Competition.create({
           water_body_id: compFor.id,
           water_body_name: compFor.name,
           ...payload,
           status: "open",
         });
         toast({ title: t("wb.competitionCreated") });
+        // v3.165 — optional announcement to all users (e-mail + in-app notice),
+        // except those who switched competition notifications off in their
+        // Профил or via the unsubscribe link in the e-mail. Done after the
+        // competition is saved, so a notification failure never loses it.
+        if (compForm.notify_users && created?.id) {
+          try {
+            const res = await base44.functions.invoke("notify-competition-users", { competition_id: created.id });
+            toast({
+              title: `${t("comp.notifiedUsers")} ${res.notified} ${t("comp.users")}`,
+              description: res.country === "all" ? t("comp.allCountriesLabel") : res.country,
+            });
+          } catch (notifyErr) {
+            toast({ title: t("comp.errorNotifying"), description: notifyErr.message, variant: "destructive" });
+          }
+        }
       }
       setShowCompForm(false);
       setCompEditing(null);
@@ -2268,6 +2283,25 @@ export default function WaterBodyManagement() {
               <Label>{t("wb.conditions")}</Label>
               <Textarea value={compForm.conditions} onChange={(e) => setCompForm((f) => ({ ...f, conditions: e.target.value }))} rows={3} />
             </div>
+
+            {/* v3.165 — announce the new competition to all users. Only when
+                creating (editing never re-sends); users who switched
+                competition notifications off are skipped server-side. */}
+            {!compEditing && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-50 dark:bg-accent/50">
+                  <Label className="text-sm text-slate-700 dark:text-foreground cursor-pointer" htmlFor="comp-notify-users">
+                    {t("wb.notifyAllUsers")}
+                  </Label>
+                  <Switch
+                    id="comp-notify-users"
+                    checked={!!compForm.notify_users}
+                    onCheckedChange={(checked) => setCompForm((f) => ({ ...f, notify_users: checked }))}
+                  />
+                </div>
+                <p className="text-xs text-slate-400 dark:text-muted-foreground">{t("wb.notifyAllUsersHint")}</p>
+              </div>
+            )}
 
             {/* v2.83/2.84 — named sectors, each holding a list of
                 INDIVIDUALLY labeled boxes. Stored as JSON on

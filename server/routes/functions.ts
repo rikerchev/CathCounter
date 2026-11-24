@@ -4,6 +4,8 @@ import { env } from "../env.js";
 import { sendEmail } from "../lib/email.js";
 import type { AuthUser } from "../middleware/auth.js";
 import { isAdmin } from "../middleware/auth.js";
+import { organizerCountry, selectCompetitionRecipients, unsubscribeUrl } from "../lib/competitionNotify.js";
+import { escapeHtml, mailLangFor, mailTextFor } from "../lib/competitionMailText.js";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -66,54 +68,62 @@ export async function handleFunctionsRoute(
         (waterBody && waterBody.created_by_id === user.id);
       if (!isAuthorized) return json({ error: "Forbidden" }, 403);
 
-      const targetCountry = waterBody?.country || "";
+      // v3.166 — regional: only the organizer's country (see
+      // competitionNotify.ts). Unknown country → nobody (never "everyone").
+      const targetCountry = await organizerCountry(waterBody, competition);
       const fee = competition.fee ?? waterBody?.fee_per_person ?? 0;
 
-      const targetUsers = targetCountry
-        ? await sql`SELECT * FROM users WHERE country = ${targetCountry}`
-        : await sql`SELECT * FROM users`;
+      // Users who have not switched competition announcements off (Профил →
+      // Известия за състезания / unsubscribe link in the e-mail).
+      const targetUsers = await selectCompetitionRecipients(targetCountry);
 
-      if (!targetUsers.length) return json({ notified: 0, message: "No users found" });
+      if (!targetUsers.length) return json({ notified: 0, country: targetCountry || "—", fee, message: "No users found" });
 
       const registrationUrl = `${env.PUBLIC_APP_URL}/competitions?comp=${competition.id}`;
+      const safeTitle = escapeHtml(String(competition.title ?? ""));
 
       // v3.13 — respond immediately, keep sending in the background, via
       // Vercel's own `waitUntil()` (works for the Node.js Serverless
       // Functions runtime this app deploys on, not just Edge — see
-      // api/[...path].ts). A plain detached `(async () => {...})()` (the
-      // v3.10 approach this replaces) is NOT safe here: this is a one-shot
-      // serverless invocation, not a long-running process — once the
-      // Response below is returned, Vercel is free to freeze/recycle the
-      // execution environment before an un-awaited promise finishes, so the
-      // emails only actually went out once/if that same warm instance
-      // happened to be reused by a later request — which is exactly why
-      // reservation/competition emails were observed arriving up to ~10
-      // minutes late (or not at all on a cold instance) instead of
-      // immediately. `waitUntil()` tells the platform to keep this
-      // invocation alive until the given promise settles (bounded by the
-      // function's own maxDuration), so this now behaves the way the
-      // original comment here assumed it already did.
+      // api/[...path].ts). A plain detached `(async () => {...})()` is NOT
+      // safe here: once the Response below is returned, Vercel is free to
+      // freeze/recycle the execution environment before an un-awaited promise
+      // finishes. `waitUntil()` keeps this invocation alive until it settles.
       waitUntil((async () => {
         for (const u of targetUsers) {
+          // v3.166 — each recipient gets the announcement in their own app
+          // language, else the language of their country, else English.
+          const lang = mailLangFor(u.language, u.user_country || targetCountry);
+          const mt = mailTextFor(u.language, u.user_country || targetCountry);
+          const subject = `${mt.prefix}: ${competition.title}`;
+          const intro = mt.open.replace("{t}", String(competition.title ?? ""));
           try {
+            const unsubUrl = unsubscribeUrl(u.id, lang);
             await sendEmail({
               to: u.email,
-              subject: `Ново състезание: ${competition.title}`,
-              html: `<p>Ново състезание "${competition.title}" очаква регистрация.</p><p><a href="${registrationUrl}">Регистрирай се</a></p>`,
+              subject,
+              html: `<p>${escapeHtml(intro)}</p><p><a href="${registrationUrl}">${escapeHtml(mt.cta)}</a></p>` +
+                `<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 10px" />` +
+                `<p style="font-size:12px;color:#64748b">${escapeHtml(mt.f1)} ` +
+                `<a href="${unsubUrl}">${escapeHtml(mt.unsub)}</a>. ${escapeHtml(mt.f2)}</p>`,
+              headers: {
+                "List-Unsubscribe": `<${unsubUrl}>`,
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+              },
             });
           } catch { /* best-effort */ }
           try {
             await sql`
               INSERT INTO notifications (user_id, type, title, message, link, read, created_by_id)
-              VALUES (${u.id}, 'competition', ${`Ново състезание: ${competition.title}`},
-                      ${`Състезанието "${competition.title}" вече е отворено за регистрация.`},
+              VALUES (${u.id}, 'competition', ${subject},
+                      ${intro},
                       ${`/competitions?comp=${competition.id}`}, FALSE, ${user.id})
             `;
           } catch { /* best-effort */ }
         }
       })());
 
-      return json({ notified: targetUsers.length, country: targetCountry || "all", fee });
+      return json({ notified: targetUsers.length, country: targetCountry, fee });
     } catch (error) {
       return json({ error: (error as Error).message }, 500);
     }

@@ -485,6 +485,8 @@ export const pl = {
   "wb.needAtLeastOneBox": "Musisz dodać co najmniej jedno stanowisko.",
   "wb.reservationsClosed": "Rezerwacje zamknięte",
   "wb.competitionCreated": "Zawody utworzone",
+  "wb.notifyAllUsers": "Powiadom użytkowników z kraju łowiska",
+  "wb.notifyAllUsersHint": "E-mail i powiadomienie w aplikacji otrzymują tylko użytkownicy z tego samego kraju (lub używający jego języka), w swoim języku. Użytkownicy z innych krajów i ci, którzy wyłączyli powiadomienia o zawodach, nie zostaną powiadomieni.",
   "wb.registrationClosed": "Rejestracja zamknięta",
   "wb.markedTransferred": "Oznaczono jako przelane",
   "wb.ibanCopied": "Skopiowano IBAN",
@@ -1055,7 +1057,7 @@ export const pl = {
     "am.allPagesHint": "Te banery/sloty pojawiają się jako zapasowe na każdej stronie, która nie ma własnej reklamy w tej pozycji.",
     "am.fallbackTag": "(zapasowy — wszystkie strony)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Ostatnia aktualizacja: 17 września 2026 r.",
+    "terms.lastUpdated": "Ostatnia aktualizacja: 24 listopada 2026 r.",
     "terms.s1.title": "1. O aplikacji",
     "terms.s1.p1": "CatchCount („Dziennik Wędkarski”) to mobilna aplikacja internetowa (PWA) do prowadzenia dziennika wędkarskiego, odkrywania łowisk i udziału w zawodach wędkarskich, dostępna pod adresem catchcount.app4.you. Niniejszy Regulamin określa zasady korzystania z Aplikacji przez zarejestrowanych użytkowników.",
     "terms.s2.title": "2. Dobrowolne udostępnianie danych",
@@ -1081,6 +1083,8 @@ export const pl = {
     "terms.s11.p1": "Niniejszy Regulamin podlega prawu Republiki Bułgarii oraz obowiązującemu prawu Unii Europejskiej (w tym ogólnemu rozporządzeniu o ochronie danych — RODO).",
     "terms.s12.title": "12. Kontakt",
     "terms.s12.p1": "W przypadku pytań dotyczących niniejszego Regulaminu lub danych osobowych prosimy skorzystać z formularza „Kontakt” w menu Aplikacji.",
+    "terms.s13.title": "13. Powiadomienia o zawodach",
+    "terms.s13.p1": "Rejestrując się, zgadzasz się na otrzymywanie e-maili i powiadomień w aplikacji o zawodach organizowanych w Twoim kraju — gdy właściciel łowiska lub sprzedawca ogłasza nowe zawody. Powiadomienia są wysyłane w języku aplikacji, z którego korzystasz. Możesz wyłączyć te powiadomienia w dowolnym momencie, za pomocą linku do wypisania się w każdym takim e-mailu lub w Profil → Powiadomienia o zawodach. Wypisanie się nie dotyczy wiadomości serwisowych związanych z Twoim kontem ani z zawodami, na które się zapisałeś.",
     "nav.terms": "Regulamin",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Kontakt",
@@ -1315,6 +1319,9 @@ export const pl = {
     "profile.yourPhone": "Twój numer telefonu",
     "profile.savePhone": "Zapisz telefon",
     "profile.phoneUpdated": "Telefon zaktualizowany",
+    "profile.compNotifications": "Powiadomienia o zawodach",
+    "profile.compNotificationsDesc": "Otrzymuj e-maile i powiadomienia, gdy łowisko lub sprzedawca z Twojego kraju organizuje nowe zawody.",
+    "profile.compNotificationsSaved": "Ustawienie zapisane",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Kupcy w tym banerze",
     "ca.merchantsHint": "Dołącz jednego lub więcej zatwierdzonych kupców do tego banera — będzie on wtedy automatycznie pokazywał ich logo i nazwę zamiast ręcznie wpisanego powyżej tytułu/logo/linku.",

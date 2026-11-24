@@ -485,6 +485,8 @@ export const tr = {
   "wb.needAtLeastOneBox": "En az bir kutu eklemelisiniz.",
   "wb.reservationsClosed": "Rezervasyonlar kapatıldı",
   "wb.competitionCreated": "Yarışma oluşturuldu",
+  "wb.notifyAllUsers": "Su alanının ülkesindeki kullanıcıları bilgilendir",
+  "wb.notifyAllUsersHint": "E-posta ve uygulama içi bildirimi yalnızca aynı ülkedeki (veya o ülkenin dilini kullanan) kullanıcılar kendi dillerinde alır. Diğer ülkelerdeki ve yarışma bildirimlerini kapatan kullanıcılar bilgilendirilmez.",
   "wb.registrationClosed": "Kayıt kapatıldı",
   "wb.markedTransferred": "Transfer edildi olarak işaretlendi",
   "wb.ibanCopied": "IBAN kopyalandı",
@@ -1055,7 +1057,7 @@ export const tr = {
     "am.allPagesHint": "Bu bannerlar/slotlar, bu konumda kendi reklamı olmayan her sayfada yedek olarak gösterilir.",
     "am.fallbackTag": "(yedek — tüm sayfalar)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Son güncelleme: 17 Eylül 2026",
+    "terms.lastUpdated": "Son güncelleme: 24 Kasım 2026",
     "terms.s1.title": "1. Uygulama hakkında",
     "terms.s1.p1": "CatchCount (\"Balıkçılık Günlüğü\"), balıkçılık günlüğü tutmak, su alanlarını keşfetmek ve balıkçılık yarışmalarına katılmak için catchcount.app4.you adresinde bulunan mobil bir web uygulamasıdır (PWA). Bu Kullanım Koşulları, Uygulamanın kayıtlı kullanıcıları tarafından kullanılmasını düzenler.",
     "terms.s2.title": "2. Verilerin gönüllü olarak paylaşılması",
@@ -1081,6 +1083,8 @@ export const tr = {
     "terms.s11.p1": "Bu Kullanım Koşulları, Bulgaristan Cumhuriyeti yasalarına ve geçerli Avrupa Birliği hukukuna (Genel Veri Koruma Yönetmeliği — GDPR dahil) tabidir.",
     "terms.s12.title": "12. İletişim",
     "terms.s12.p1": "Bu Kullanım Koşulları veya kişisel verilerle ilgili sorularınız için lütfen Uygulamanın menüsündeki \"Bize Ulaşın\" formunu kullanın.",
+    "terms.s13.title": "13. Yarışma bildirimleri",
+    "terms.s13.p1": "Kayıt olarak, bir su alanı sahibi veya tüccar yeni bir yarışma duyurduğunda ülkenizde düzenlenen yarışmalar hakkında e-posta ve uygulama içi bildirim almayı kabul edersiniz. Bildirimler kullandığınız uygulama dilinde gönderilir. Bu bildirimleri istediğiniz zaman, her e-postadaki abonelikten çıkma bağlantısıyla veya Profil → Yarışma bildirimleri bölümünden kapatabilirsiniz. Abonelikten çıkmak, hesabınızla veya kayıt olduğunuz yarışmalarla ilgili hizmet mesajlarını etkilemez.",
     "nav.terms": "Kullanım Şartları",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Bize Ulaşın",
@@ -1315,6 +1319,9 @@ export const tr = {
     "profile.yourPhone": "Telefon numaranız",
     "profile.savePhone": "Telefonu kaydet",
     "profile.phoneUpdated": "Telefon güncellendi",
+    "profile.compNotifications": "Yarışma bildirimleri",
+    "profile.compNotificationsDesc": "Ülkenizdeki bir su alanı veya tüccar yeni bir yarışma düzenlediğinde e-posta ve bildirim alın.",
+    "profile.compNotificationsSaved": "Ayar kaydedildi",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Bu bannerdaki satıcılar",
     "ca.merchantsHint": "Bu bannere bir veya daha fazla onaylı satıcı ekleyin — böylece yukarıda elle girilen başlık/logo/bağlantı yerine otomatik olarak onların logosunu ve adını gösterir.",

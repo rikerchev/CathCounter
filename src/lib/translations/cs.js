@@ -485,6 +485,8 @@ export const cs = {
   "wb.needAtLeastOneBox": "Musíte přidat alespoň jeden box.",
   "wb.reservationsClosed": "Rezervace uzavřeny",
   "wb.competitionCreated": "Soutěž vytvořena",
+  "wb.notifyAllUsers": "Upozornit uživatele ve státě vodní plochy",
+  "wb.notifyAllUsersHint": "E-mail a oznámení v aplikaci dostanou jen uživatelé ze stejného státu (nebo používající jeho jazyk), v jejich jazyce. Uživatelé z jiných států a ti, kteří oznámení o soutěžích vypnuli, upozorněni nebudou.",
   "wb.registrationClosed": "Registrace uzavřena",
   "wb.markedTransferred": "Označeno jako převedeno",
   "wb.ibanCopied": "IBAN zkopírován",
@@ -1055,7 +1057,7 @@ export const cs = {
     "am.allPagesHint": "Tyto banery/sloty se zobrazují jako záloha na každé stránce, která na této pozici nemá vlastní reklamu.",
     "am.fallbackTag": "(záložní — všechny stránky)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Poslední aktualizace: 17. září 2026",
+    "terms.lastUpdated": "Poslední aktualizace: 24. listopadu 2026",
     "terms.s1.title": "1. O aplikaci",
     "terms.s1.p1": "CatchCount („Rybářský deník“) je mobilní webová aplikace (PWA) pro vedení rybářského deníku, objevování vodních ploch a účast v rybářských závodech, dostupná na catchcount.app4.you. Tyto obchodní podmínky upravují používání Aplikace jejími registrovanými uživateli.",
     "terms.s2.title": "2. Dobrovolné sdílení údajů",
@@ -1081,6 +1083,8 @@ export const cs = {
     "terms.s11.p1": "Tyto obchodní podmínky se řídí právem Bulharské republiky a platným právem Evropské unie (včetně obecného nařízení o ochraně osobních údajů — GDPR).",
     "terms.s12.title": "12. Kontakt",
     "terms.s12.p1": "V případě dotazů týkajících se těchto obchodních podmínek nebo osobních údajů použijte formulář „Kontakt“ v menu Aplikace.",
+    "terms.s13.title": "13. Oznámení o soutěžích",
+    "terms.s13.p1": "Registrací souhlasíte s tím, že budete dostávat e-maily a oznámení v aplikaci o soutěžích pořádaných ve vašem státě — když majitel vodní plochy nebo obchodník vyhlásí novou soutěž. Oznámení se posílají v jazyce aplikace, který používáte. Tato oznámení můžete kdykoli vypnout, a to odkazem pro odhlášení v každém takovém e-mailu nebo v Profil → Oznámení o soutěžích. Odhlášení se netýká servisních zpráv k vašemu účtu ani k soutěžím, do kterých jste se přihlásili.",
     "nav.terms": "Obchodní podmínky",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Kontaktujte nás",
@@ -1315,6 +1319,9 @@ export const cs = {
     "profile.yourPhone": "Vaše telefonní číslo",
     "profile.savePhone": "Uložit telefon",
     "profile.phoneUpdated": "Telefon byl aktualizován",
+    "profile.compNotifications": "Oznámení o soutěžích",
+    "profile.compNotificationsDesc": "Dostávejte e-maily a oznámení, když majitel vodní plochy nebo obchodník ve vašem státě pořádá novou soutěž.",
+    "profile.compNotificationsSaved": "Nastavení bylo uloženo",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Obchodníci v tomto banneru",
     "ca.merchantsHint": "Připojte k tomuto banneru jednoho nebo více schválených obchodníků — banner pak automaticky zobrazí jejich logo a název místo ručně zadaného titulku/loga/odkazu výše.",

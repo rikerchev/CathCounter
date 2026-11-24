@@ -485,6 +485,8 @@ export const fr = {
   "wb.needAtLeastOneBox": "Vous devez ajouter au moins un poste.",
   "wb.reservationsClosed": "Réservations fermées",
   "wb.competitionCreated": "Compétition créée",
+  "wb.notifyAllUsers": "Prévenir les utilisateurs du pays du plan d'eau",
+  "wb.notifyAllUsersHint": "Seuls les utilisateurs du même pays (ou utilisant sa langue) reçoivent un e-mail et une notification dans l'application, dans leur langue. Les utilisateurs d'autres pays et ceux qui ont désactivé les notifications de compétitions ne sont pas prévenus.",
   "wb.registrationClosed": "Inscription fermée",
   "wb.markedTransferred": "Marqué comme transféré",
   "wb.ibanCopied": "IBAN copié",
@@ -1055,7 +1057,7 @@ export const fr = {
     "am.allPagesHint": "Ces bannières/emplacements s'affichent en secours sur toute page qui n'a pas sa propre publicité à cette position.",
     "am.fallbackTag": "(secours — toutes les pages)",
     // v2.99: Terms & Conditions content (added for full-language translation)
-    "terms.lastUpdated": "Dernière mise à jour : 17 septembre 2026",
+    "terms.lastUpdated": "Dernière mise à jour : 24 novembre 2026",
     "terms.s1.title": "1. À propos de l'application",
     "terms.s1.p1": "CatchCount (« Journal de pêche ») est une application web mobile (PWA) permettant de tenir un journal de pêche, de découvrir des plans d'eau et de participer à des compétitions de pêche, disponible sur catchcount.app4.you. Les présentes conditions générales régissent l'utilisation de l'Application par ses utilisateurs enregistrés.",
     "terms.s2.title": "2. Partage volontaire de données",
@@ -1081,6 +1083,8 @@ export const fr = {
     "terms.s11.p1": "Les présentes conditions générales sont régies par le droit de la République de Bulgarie et le droit applicable de l'Union européenne (y compris le règlement général sur la protection des données — RGPD).",
     "terms.s12.title": "12. Contact",
     "terms.s12.p1": "Pour toute question relative aux présentes conditions générales ou aux données personnelles, veuillez utiliser le formulaire « Nous contacter » dans le menu de l'Application.",
+    "terms.s13.title": "13. Notifications de compétitions",
+    "terms.s13.p1": "En vous inscrivant, vous acceptez de recevoir des e-mails et des notifications dans l'application concernant les compétitions organisées dans votre pays, lorsqu'un propriétaire de plan d'eau ou un commerçant annonce une nouvelle compétition. Les notifications sont envoyées dans la langue de l'application que vous utilisez. Vous pouvez désactiver ces notifications à tout moment, via le lien de désinscription présent dans chacun de ces e-mails ou dans Profil → Notifications de compétitions. La désinscription n'affecte pas les messages de service liés à votre compte ou aux compétitions auxquelles vous êtes inscrit.",
     "nav.terms": "Conditions Générales",
     // v3.00: Contact Us content (added for full-language translation)
     "nav.contactUs": "Nous contacter",
@@ -1315,6 +1319,9 @@ export const fr = {
     "profile.yourPhone": "Votre numéro de téléphone",
     "profile.savePhone": "Enregistrer le téléphone",
     "profile.phoneUpdated": "Téléphone mis à jour",
+    "profile.compNotifications": "Notifications de compétitions",
+    "profile.compNotificationsDesc": "Recevez des e-mails et des notifications lorsqu'un plan d'eau ou un commerçant de votre pays organise une nouvelle compétition.",
+    "profile.compNotificationsSaved": "Réglage enregistré",
     // v3.26: admin-assigned merchant banner rotation (CustomAds.jsx "Търговци в банера")
     "ca.merchantsSection": "Commerçants dans cette bannière",
     "ca.merchantsHint": "Associez un ou plusieurs commerçants approuvés à cette bannière — elle affichera alors automatiquement leur logo et leur nom au lieu du titre/logo/lien saisis manuellement ci-dessus.",
