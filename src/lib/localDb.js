@@ -341,6 +341,34 @@ export async function updatePendingPhoto(id, fields) {
   });
 }
 
+// v3.169 — marks a catch as pushed ONLY if it has not been changed locally since
+// the snapshot that was sent (compared by updated_date). pushPendingCatches()
+// used to write its stale snapshot back with _synced:true after an UPDATE; if a
+// photo got linked to the catch (photo_url) while that request was in flight,
+// that write erased the link locally and told the sync it was done, so the
+// server never learned about the photo (it stayed in catch_photos with nothing
+// pointing at it: "несвързана снимка" in the global backup).
+export async function markCatchPushed(id, originalUpdatedDate, extra = {}) {
+  const store = await tx(CATCHES_STORE, "readwrite");
+  return new Promise((resolve, reject) => {
+    const getReq = store.get(id);
+    getReq.onsuccess = () => {
+      const record = getReq.result;
+      if (!record) return resolve(false);
+      if (originalUpdatedDate && record.updated_date !== originalUpdatedDate) return resolve(false);
+      const putReq = store.put({ ...record, ...extra, _synced: true });
+      putReq.onsuccess = () => resolve(true);
+      putReq.onerror = () => reject(putReq.error);
+    };
+    getReq.onerror = () => reject(getReq.error);
+  });
+}
+
+// v3.169 — catch ids whose photo link was already re-sent in this page's
+// lifetime (see mergeRemoteCatches), so a server that keeps ignoring it cannot
+// cause an update on every single sync.
+const photoRelinkTried = new Set();
+
 export async function replaceAllCatches(items) {
   const store = await tx(CATCHES_STORE, "readwrite");
   return new Promise((resolve, reject) => {
@@ -377,6 +405,14 @@ export async function mergeRemoteCatches(items) {
           const merged = { ...item, _synced: true };
           if (local.photo_url && !merged.photo_url) {
             merged.photo_url = local.photo_url;
+            // v3.169 — the server's copy has NO photo although this device
+            // has one: the link never reached the server (see markCatchPushed).
+            // Mark the catch as changed so the next push sends it — otherwise
+            // the photo stays "unlinked" in the database/global backup forever.
+            if (!String(local.id).startsWith("local_") && !photoRelinkTried.has(local.id)) {
+              photoRelinkTried.add(local.id);
+              merged._synced = false;
+            }
           }
           store.put(merged);
         }

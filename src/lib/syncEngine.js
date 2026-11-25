@@ -5,6 +5,7 @@ import {
   saveCatchLocal,
   deleteCatchLocal,
   markCatchSynced,
+  markCatchPushed,
   getPendingSync,
   removePendingSync,
   mergeRemoteCatches,
@@ -100,7 +101,9 @@ export async function pushPendingCatches() {
       } else {
         // Update existing record
         await base44.entities.Catch.update(catchItem.id, payload);
-        await saveCatchLocal({ ...catchItem, _synced: true });
+        // v3.169 — was saveCatchLocal({ ...catchItem, _synced: true }): that wrote
+        // the OLD snapshot back and wiped a photo_url linked in the meantime.
+        await markCatchPushed(catchItem.id, catchItem.updated_date);
       }
     } catch (e) {
       // v3.124 — the server has no such catch any more (deleted from another
@@ -122,7 +125,7 @@ export async function pushPendingCatches() {
           console.info(`Catch ${catchItem.id} was missing on the server — uploaded again.`);
         } catch {
           try {
-            await saveCatchLocal({ ...catchItem, _synced: true, _server_gone: true });
+            await markCatchPushed(catchItem.id, catchItem.updated_date, { _server_gone: true });
           } catch { /* ignore */ }
           console.warn(`Catch ${catchItem.id} no longer exists on the server — left as local-only.`);
         }
@@ -392,6 +395,9 @@ export async function syncAll() {
     ]);
     // v3.140 — put back what only this device still has
     await restoreMissingCatches(remoteCatchList);
+    // v3.169 — the pull may have flagged catches whose photo link the server
+    // lacks (see mergeRemoteCatches): send them now, not at the next sync.
+    await pushPendingCatches();
     // v3.148 — tell the open page the local store may have changed: the pages
     // read IndexedDB once when they open, i.e. often BEFORE this background
     // sync (6 s after start, on every focus) had delivered the newest data,
