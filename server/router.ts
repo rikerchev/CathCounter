@@ -100,9 +100,28 @@ async function route(req: Request): Promise<Response> {
     if (segments[1] === "community") {
       return await handleCommunityRoute(req, segments.slice(2), user);
     }
+    // v3.168 — "/api/health" stays a plain liveness check (no DB). With
+    // "?db=1" it also runs a trivial query: an external pinger (UptimeRobot /
+    // cron-job.org, every ~5 min) uses that to keep the serverless instance
+    // AND its database connection warm, so real users never pay the
+    // cold-start / stale-socket cost themselves. Public and harmless —
+    // returns nothing but ok/db status.
     if (segments[1] === "health") {
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { "content-type": "application/json" },
+      let db: boolean | undefined;
+      if (new URL(req.url, "http://x").searchParams.get("db") === "1") {
+        try {
+          await sql`SELECT 1`;
+          db = true;
+        } catch (e) {
+          console.warn("[health] db ping failed:", e);
+          return new Response(JSON.stringify({ ok: false, db: false }), {
+            status: 503,
+            headers: { "content-type": "application/json", "cache-control": "no-store" },
+          });
+        }
+      }
+      return new Response(JSON.stringify(db === undefined ? { ok: true } : { ok: true, db }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
       });
     }
     // Hit once a day by a Vercel Cron job (see vercel.json). Actually
