@@ -159,9 +159,36 @@ async function route(req: Request): Promise<Response> {
 // away so the *next* request gets a fresh one instead of reusing the
 // (probably dead) one — `sql` is a live-reassignable export (`export let`),
 // so every file importing it automatically picks up the replacement.
+//
+// v3.167 — two changes after Admin → Управление на потребители hung for ~25 s and
+// then failed until the page was refreshed:
+//  1. READS (GET and POST .../filter) now give up after 9 s, not 20 s. The app's
+//     own fetch gives up after 12 s and retries; with a 20 s server timeout that
+//     retry landed on the SAME instance whose database connections were still
+//     stale (reconnect() only ran at 20 s), hung again, and the page failed.
+//     With 9 s the connections are replaced BEFORE the client's retry arrives,
+//     and the 504 is itself retried by the client (see apiFetch's RETRY rules).
+//     Writes, functions, backups, migrations keep 20 s.
+//  2. When this instance has been idle for 20 s+ (Vercel may have frozen it and
+//     the sockets are probably dead — postgres.js would have closed idle ones
+//     after 20 s anyway), the connections are replaced up-front instead of
+//     letting the first query of the next request hang until the timeout.
 const REQUEST_TIMEOUT_MS = 20000;
+const READ_TIMEOUT_MS = 9000;
+const IDLE_RECONNECT_MS = 20000;
+
+let inflight = 0;
+let lastActivity = Date.now();
+
+function isReadRequest(req: Request): boolean {
+  if (req.method === "GET") return true;
+  return req.method === "POST" && /\/filter\/?$/.test(new URL(req.url, "http://x").pathname);
+}
 
 export async function handleRequest(req: Request): Promise<Response> {
+  if (inflight === 0 && Date.now() - lastActivity > IDLE_RECONNECT_MS) reconnect();
+  inflight++;
+  const timeoutMs = isReadRequest(req) ? READ_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const workPromise = route(req).then(withCors);
   // If the real work finishes late anyway, don't let that become an
@@ -179,12 +206,14 @@ export async function handleRequest(req: Request): Promise<Response> {
           }),
         ),
       );
-    }, REQUEST_TIMEOUT_MS);
+    }, timeoutMs);
   });
 
   try {
     return await Promise.race([workPromise, timeoutPromise]);
   } finally {
     clearTimeout(timeoutId);
+    inflight--;
+    lastActivity = Date.now();
   }
 }

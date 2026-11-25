@@ -187,17 +187,46 @@ export async function handleEntitiesRoute(
     const body = await req.json().catch(() => ({}));
     const criteria = sanitizePayload(entity, body);
 
-    let rows = await sql`SELECT * FROM ${sql(table)}`;
-    // Apply ownership scoping first, then in-memory filter for simplicity —
-    // entity tables here are small (per-user fishing logs, not analytics-scale).
     const rule = entity.rules.read;
-    if (rule.kind === "owner" && (!isAdmin(user) || ALWAYS_OWNER_SCOPED.has(entityName))) {
-      rows = rows.filter((r: Record<string, unknown>) => r[rule.field] === user?.id);
+    const scoped = rule.kind === "owner" && (!isAdmin(user) || ALWAYS_OWNER_SCOPED.has(entityName));
+
+    // v3.167 — the ownership scope and the simple criteria (string / number /
+    // boolean / null) are applied in SQL. This used to load the WHOLE table
+    // (every user's catches, every device's session_data JSON) and filter in
+    // memory — for every page that asks for "my" rows, and for the Admin Users
+    // page twice — which got slower with every new user. Anything that cannot
+    // be expressed (objects/arrays) and any SQL error (e.g. a value that does
+    // not fit the column type) falls back to the old behaviour below.
+    let rows: Record<string, any>[] | null = null;
+    try {
+      const conds: any[] = [];
+      if (scoped) conds.push(sql`${sql(rule.field)} = ${user?.id ?? "___none___"}`);
+      const rest: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(criteria)) {
+        if (v === null) conds.push(sql`${sql(k)} IS NULL`);
+        else if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") conds.push(sql`${sql(k)} = ${v}`);
+        else rest[k] = v;
+      }
+      const where = conds.length ? sql`WHERE ${conds.reduce((a, b) => sql`${a} AND ${b}`)}` : sql``;
+      rows = (await sql`SELECT * FROM ${sql(table)} ${where}`) as unknown as Record<string, any>[];
+      if (Object.keys(rest).length) {
+        rows = rows.filter((r) => Object.entries(rest).every(([k, v]) => r[k] === v));
+      }
+    } catch (e) {
+      console.warn(`[entities] SQL filter fell back to in-memory for ${entityName}:`, (e as Error)?.message);
+      rows = null;
     }
-    if (entityName === "SessionSync") await deactivateDeadSessions(rows as unknown as Record<string, any>[]);
-    rows = rows.filter((r: Record<string, unknown>) =>
-      Object.entries(criteria).every(([k, v]) => r[k] === v)
-    );
+    if (rows === null) {
+      let all = (await sql`SELECT * FROM ${sql(table)}`) as unknown as Record<string, any>[];
+      if (scoped) all = all.filter((r) => r[rule.field] === user?.id);
+      rows = all.filter((r) => Object.entries(criteria).every(([k, v]) => r[k] === v));
+    }
+    if (entityName === "SessionSync") {
+      // a dead session is flipped to inactive here, so criteria such as
+      // { is_active: true } must be applied again to what is returned
+      await deactivateDeadSessions(rows);
+      rows = rows.filter((r) => Object.entries(criteria).every(([k, v]) => r[k] === v));
+    }
     return json(rows);
   }
 

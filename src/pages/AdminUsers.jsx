@@ -46,6 +46,9 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  // v3.167 — a failed load used to leave only a short toast and an empty list
+  // ("0 от 0 потребители"); now the error stays on the page with a retry button.
+  const [loadError, setLoadError] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("user");
   const [tab, setTab] = useState("users");
@@ -204,10 +207,12 @@ export default function AdminUsers() {
   }
 
   async function loadUsers() {
+    setLoadError("");
     try {
       const data = await base44.entities.User.list();
       setUsers(data || []);
     } catch (e) {
+      setLoadError(e.message || "Грешка при зареждане");
       toast({ title: t("awb.error"), description: e.message });
     } finally {
       setLoading(false);
@@ -459,6 +464,13 @@ export default function AdminUsers() {
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="w-8 h-8 border-4 border-slate-200 border-t-cyan-600 rounded-full animate-spin" />
+            </div>
+          ) : loadError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900 p-4 space-y-3 text-center">
+              <p className="text-sm text-red-600 dark:text-red-300">Потребителите не се заредиха: {loadError}</p>
+              <Button onClick={() => { setLoading(true); loadUsers(); loadActivityStats(); }} className="bg-cyan-600 hover:bg-cyan-700">
+                Опитай отново
+              </Button>
             </div>
           ) : (
             <div className="space-y-2">
