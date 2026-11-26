@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Droplets, Compass, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
+import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Compass, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
 import { COMPASS, nearestOctant } from "@/lib/fishActivity";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -383,12 +383,6 @@ export default function EditCatch() {
                   <Gauge className="w-3 h-3" /> {t("weather.airPressure")} (hPa)
                 </Label>
                 <Input type="number" step="0.1" value={airPressure} onChange={(e) => setAirPressure(e.target.value)} placeholder="1013" className="h-9 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-slate-500 flex items-center gap-1">
-                  <Droplets className="w-3 h-3" /> {t("weather.waterTemp")}
-                </Label>
-                <Input type="number" step="0.5" value={waterTemp} onChange={(e) => setWaterTemp(e.target.value)} placeholder="18" className="h-9 text-sm" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500 flex items-center gap-1">

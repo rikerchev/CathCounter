@@ -15,6 +15,8 @@ const MAX_DISTANCE_KM = 100;                    // a reading from another region
 const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000; // refreshWeatherCache() at most this often
 const REFRESH_SAME_PLACE_KM = 5;
 const FETCH_TIMEOUT_MS = 8000;
+const HISTORY_KEY = "catchcount_weather_history_v1"; // v3.176: last 48 h (temperature, pressure, wind) for the chart
+const HISTORY_HOURS = 48;
 const WATER_MANUAL_KEY = "catchcount_water_temp_manual";
 const WATER_MANUAL_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const ADVICE_BASELINE_KEY = "catchcount_advice_baseline";
@@ -46,6 +48,31 @@ function writeCache(lat, lng, w) {
     localStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), lat, lng, w }));
   } catch {
     // storage unavailable — the weather just is not remembered
+  }
+}
+
+function writeHistory(lat, lng, points) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify({ t: Date.now(), lat, lng, points }));
+  } catch {
+    // storage unavailable — the chart just has no data
+  }
+}
+
+/**
+ * v3.176 — hourly readings of the last 48 hours [{ t (ms), temp (°C), press (hPa),
+ * wind (m/s) }] remembered with the last successful weather request, or null.
+ */
+export function getWeatherHistory(lat, lng) {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return null;
+    const h = JSON.parse(raw);
+    if (!h || !Array.isArray(h.points) || h.points.length < 2 || Date.now() - h.t > MAX_AGE_MS) return null;
+    if (lat != null && lng != null && h.lat != null && h.lng != null && distanceKm(lat, lng, h.lat, h.lng) > MAX_DISTANCE_KM) return null;
+    return h.points;
+  } catch {
+    return null;
   }
 }
 
@@ -101,7 +128,7 @@ export function setAdviceBaseline(w) {
  * Throws when there is no usable answer (network, timeout, empty data).
  */
 export async function fetchWeather(lat, lng) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,pressure_msl&past_days=7&forecast_days=1&wind_speed_unit=ms`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,pressure_msl,wind_speed_10m&past_days=7&forecast_days=1&wind_speed_unit=ms`;
   const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
   try {
@@ -145,11 +172,9 @@ export async function fetchWeather(lat, lng) {
         result.pressure_change_24h = Math.round((cur.pressure_msl - hPress[idx - 24]) * 10) / 10;
       }
     }
-    const manual = getManualWaterTemp();
-    if (manual != null) {
-      result.water_temperature = manual;
-      result.water_temperature_estimated = false;
-    } else if (idx >= 24) {
+    // v3.176 — the water temperature is always the ESTIMATE (nobody measures it);
+    // the old "measured by the angler" override is gone.
+    if (idx >= 24) {
       // water follows the air with a lag: exponentially weighted mean of the
       // last 7 days of hourly air temperature (time constant ~3 days)
       const alpha = 1 - Math.exp(-1 / WATER_TAU_HOURS);
@@ -163,6 +188,19 @@ export async function fetchWeather(lat, lng) {
         result.water_temperature = Math.round(Math.max(0, Math.min(32, ew)) * 2) / 2;
         result.water_temperature_estimated = true;
       }
+    }
+    // v3.176 — the last 48 hours, for the chart on the advice card
+    if (idx >= 0) {
+      const hWind = data.hourly?.wind_speed_10m || [];
+      const from = Math.max(0, idx - (HISTORY_HOURS - 1));
+      const pts = [];
+      for (let i = from; i <= idx; i++) {
+        const ms = Date.parse(`${times[i]}Z`);
+        if (Number.isNaN(ms)) continue;
+        const rd = (v) => (typeof v === "number" ? Math.round(v * 10) / 10 : null);
+        pts.push({ t: ms, temp: rd(hTemp[i]), press: rd(hPress[i]), wind: rd(hWind[i]) });
+      }
+      if (pts.length >= 2) writeHistory(lat, lng, pts);
     }
     writeCache(lat, lng, result);
     return result;

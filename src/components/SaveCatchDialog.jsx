@@ -16,9 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Fish, Loader2, Thermometer, Cloud, Wind, Gauge, Droplets, Compass } from "lucide-react";
+import { Camera, Fish, Loader2, Thermometer, Cloud, Wind, Gauge, Compass } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
-import { getWeatherForCatch, getLastKnownWeather, setManualWaterTemp } from "@/lib/weather";
+import { getWeatherForCatch, getLastKnownWeather } from "@/lib/weather";
 import { COMPASS, nearestOctant } from "@/lib/fishActivity";
 import { saveCatch } from "@/lib/catchRepository";
 import { savePendingPhoto } from "@/lib/pendingPhotos";
@@ -43,6 +43,8 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const [airPressure, setAirPressure] = useState("");
   // v3.174 — water temperature (estimated or measured), wind direction (degrees of the
   // nearest of 8 compass points) and the 3 h pressure change (from the reading).
+  // v3.176 — the water temperature is no longer typed in (nobody measures it): the
+  // estimate from the last days' air temperature is saved with the catch as it is.
   const [waterTemp, setWaterTemp] = useState("");
   const [windDir, setWindDir] = useState("");
   const weatherExtrasRef = useRef({});
@@ -149,12 +151,6 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
           if (nearestOctant(known.wind_direction) != null && !windDirV) windDirV = String(nearestOctant(known.wind_direction));
           if (pressureTrendV == null) pressureTrendV = known.pressure_trend;
         }
-      }
-      // a water temperature the angler typed in himself (differs from the estimate
-      // that was filled in) is remembered for 12 h: it replaces the estimate in the
-      // next readings and advice.
-      if (waterTempV && waterTempV !== prefilledWaterRef.current && !Number.isNaN(parseFloat(waterTempV))) {
-        setManualWaterTemp(parseFloat(waterTempV));
       }
       const payload = {
         ...catchData,
@@ -380,19 +376,6 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
                   value={airPressure}
                   onChange={(e) => setAirPressure(e.target.value)}
                   placeholder="1013"
-                  className="h-9 text-sm"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-slate-500 flex items-center gap-1">
-                  <Droplets className="w-3 h-3" /> {t("weather.waterTemp")}
-                </Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={waterTemp}
-                  onChange={(e) => setWaterTemp(e.target.value)}
-                  placeholder="18"
                   className="h-9 text-sm"
                 />
               </div>

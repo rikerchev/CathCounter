@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Droplets, Compass, Fish, Navigation, MapPin } from "lucide-react";
+import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Compass, Fish, Navigation, MapPin } from "lucide-react";
 import { COMPASS, nearestOctant } from "@/lib/fishActivity";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -45,7 +45,6 @@ export default function LogCatch() {
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
   const [airPressure, setAirPressure] = useState("");
-  const [waterTemp, setWaterTemp] = useState("");
   const [windDir, setWindDir] = useState("");
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -138,7 +137,6 @@ export default function LogCatch() {
         cloudiness: cloudiness || undefined,
         wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
         air_pressure: airPressure ? parseFloat(airPressure) : undefined,
-        water_temperature: waterTemp ? parseFloat(waterTemp) : undefined,
         wind_direction: windDir !== "" ? parseInt(windDir, 10) : undefined,
         notes: notes || undefined,
         // photo_url intentionally left unset — the photo (if any) is linked
@@ -321,12 +319,6 @@ export default function LogCatch() {
                   <Gauge className="w-3 h-3" /> {t("weather.airPressure")} (hPa)
                 </Label>
                 <Input type="number" step="0.1" value={airPressure} onChange={(e) => setAirPressure(e.target.value)} placeholder="1013" className="h-9 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-slate-500 flex items-center gap-1">
-                  <Droplets className="w-3 h-3" /> {t("weather.waterTemp")}
-                </Label>
-                <Input type="number" step="0.5" value={waterTemp} onChange={(e) => setWaterTemp(e.target.value)} placeholder="18" className="h-9 text-sm" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500 flex items-center gap-1">

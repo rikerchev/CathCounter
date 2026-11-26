@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
-import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
-import { refreshWeatherCache, fetchWeather, getLastKnownWeather, getAdviceBaseline, setAdviceBaseline, setManualWaterTemp } from "@/lib/weather";
-import { buildAdvice } from "@/lib/fishActivity";
+import { getCurrentLocation, distanceMeters, lookupWaterCenter } from "@/lib/geolocation";
+import { refreshWeatherCache, fetchWeather, getLastKnownWeather, getAdviceBaseline, setAdviceBaseline, getWeatherHistory } from "@/lib/weather";
+import { buildAdvice, bearingDeg } from "@/lib/fishActivity";
 import FishAdvice from "@/components/FishAdvice";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch, updateCatchLocation, listCatchesByUser } from "@/lib/catchRepository";
@@ -225,7 +225,26 @@ export default function ActiveSession() {
   //  "change" — after a landed fish, online: only if the weather changed drastically
   //             since the last advice (at most one check per 5 minutes);
   //  "dry"    — every 10th cast without a catch: fresh weather (online) + advice.
-  const [adviceList, setAdviceList] = useState([]);
+  // The cards are kept in sessionStorage so they are still there when the angler
+  // goes to another page and comes back (or reloads) during the same session.
+  const [adviceList, setAdviceListState] = useState(() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("catchcount_advice_cards") || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const setAdviceList = useCallback((update) => {
+    setAdviceListState((prev) => {
+      const next = typeof update === "function" ? update(prev) : update;
+      try {
+        sessionStorage.setItem("catchcount_advice_cards", JSON.stringify(next));
+      } catch {
+        // sessionStorage unavailable
+      }
+      return next;
+    });
+  }, []);
   const castsSinceCatchRef = useRef(0);
   const lastAdviceFetchRef = useRef(0);
 
@@ -245,13 +264,29 @@ export default function ActiveSession() {
     if (!cur && kind !== "change") cur = getLastKnownWeather(weatherLat, weatherLng);
     if (!cur) return;
     const prev = kind === "start" ? null : getAdviceBaseline();
-    const advice = buildAdvice({ kind, prev, cur, t });
+    // v3.176 — which bank am I on: the direction from the middle of the nearest
+    // standing water to my position (cached; given at most 4 s, otherwise the wind
+    // advice simply makes no claim about the bank and the lookup finishes for next time)
+    let bankBearing = null;
+    try {
+      const wc = await Promise.race([
+        lookupWaterCenter(weatherLat, weatherLng),
+        new Promise((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+      if (wc && wc.status === "ok" && wc.extent >= 60 && distanceMeters(wc.center.lat, wc.center.lng, weatherLat, weatherLng) >= 25) {
+        bankBearing = bearingDeg(wc.center.lat, wc.center.lng, weatherLat, weatherLng);
+      }
+    } catch {
+      bankBearing = null;
+    }
+    const history = getWeatherHistory(weatherLat, weatherLng);
+    const advice = buildAdvice({ kind, prev, cur, t, extra: { bankBearing, history } });
     if (!advice) return;
     setAdviceBaseline(cur);
     setAdviceList((list) =>
       [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, kind, ...advice }, ...list.filter((x) => kind !== "start" || x.kind !== "start")].slice(0, 3),
     );
-  }, [weatherLat, weatherLng, t]);
+  }, [weatherLat, weatherLng, t, setAdviceList]);
 
   useEffect(() => {
     if (!sessionActive) {
@@ -501,10 +536,8 @@ export default function ActiveSession() {
       <FishAdvice
         items={adviceList}
         onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
-        onWaterTemp={(v) => {
-          setManualWaterTemp(v);
-          runAdvice("start");
-        }}
+        lat={weatherLat}
+        lng={weatherLng}
       />
 
       {/* v3.158 — competition mode switch */}
