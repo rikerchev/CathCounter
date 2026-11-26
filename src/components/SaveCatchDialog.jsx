@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Fish, Loader2, Thermometer, Cloud, Wind } from "lucide-react";
+import { Camera, Fish, Loader2, Thermometer, Cloud, Wind, Gauge } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import { getWeatherForCatch, getLastKnownWeather } from "@/lib/weather";
 import { saveCatch } from "@/lib/catchRepository";
@@ -39,6 +39,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const [airTemp, setAirTemp] = useState("");
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
+  const [airPressure, setAirPressure] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
@@ -55,6 +56,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
       setAirTemp("");
       setCloudiness("");
       setWindSpeed("");
+      setAirPressure("");
       setPhotoPreview(null);
       setPhotoFile(null);
     }
@@ -75,6 +77,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         setAirTemp((v) => v || String(w.air_temperature));
         setCloudiness((v) => v || w.cloudiness);
         setWindSpeed((v) => v || String(w.wind_speed));
+        if (w.air_pressure != null) setAirPressure((v) => v || String(w.air_pressure));
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setFetchingWeather(false); });
@@ -113,12 +116,14 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
       let airTempV = airTemp;
       let cloudinessV = cloudiness;
       let windSpeedV = windSpeed;
-      if (!airTempV && !cloudinessV && !windSpeedV) {
+      let airPressureV = airPressure;
+      if (!airTempV && !cloudinessV && !windSpeedV && !airPressureV) {
         const known = getLastKnownWeather(catchData?.lat ?? null, catchData?.lng ?? null);
         if (known) {
           airTempV = String(known.air_temperature);
           cloudinessV = known.cloudiness;
           windSpeedV = String(known.wind_speed);
+          if (known.air_pressure != null) airPressureV = String(known.air_pressure);
         }
       }
       const payload = {
@@ -129,6 +134,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         air_temperature: airTempV ? parseFloat(airTempV) : undefined,
         cloudiness: cloudinessV || undefined,
         wind_speed: windSpeedV ? parseFloat(windSpeedV) : undefined,
+        air_pressure: airPressureV ? parseFloat(airPressureV) : undefined,
         // photo_url intentionally left unset — the photo (if any) is saved
         // locally below, linked to the catch's id, and gets its photo_url
         // filled in once the background upload completes.
@@ -289,7 +295,7 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
                 <Loader2 className="w-3 h-3 animate-spin" /> {t("saveCatch.fetchingWeather")}
               </div>
             )}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500 flex items-center gap-1">
                   <Thermometer className="w-3 h-3" /> {t("saveCatch.airTemp")}
@@ -328,6 +334,19 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
                   value={windSpeed}
                   onChange={(e) => setWindSpeed(e.target.value)}
                   placeholder="3.5"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Gauge className="w-3 h-3" /> {t("weather.airPressure")} (hPa)
+                </Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={airPressure}
+                  onChange={(e) => setAirPressure(e.target.value)}
+                  placeholder="1013"
                   className="h-9 text-sm"
                 />
               </div>

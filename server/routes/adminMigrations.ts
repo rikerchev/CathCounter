@@ -580,6 +580,12 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT`);
     },
   },
+  "v3.173-catch-air-pressure": {
+    label: "v3.173 — Атмосферно налягане на улова (catches.air_pressure)",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS air_pressure DOUBLE PRECISION`);
+    },
+  },
   "v3.155-catch-feeder-basket": {
     label: "v3.155 — Хранилка в таймера на въдицата (catches.feeder_basket)",
     run: async () => {
@@ -918,6 +924,14 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'language'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.173-catch-air-pressure") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'catches'
+            AND column_name = 'air_pressure'
+        `;
+        applied = (rows[0]?.n ?? 0) >= 1;
       }
       if (id === "v3.155-catch-feeder-basket") {
         const rows = await sql<{ n: number }[]>`

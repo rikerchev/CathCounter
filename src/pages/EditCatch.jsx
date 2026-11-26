@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Loader2, Thermometer, Cloud, Wind, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
+import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation } from "@/lib/geolocation";
@@ -51,6 +51,7 @@ export default function EditCatch() {
   const [airTemp, setAirTemp] = useState("");
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
+  const [airPressure, setAirPressure] = useState("");
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -86,6 +87,7 @@ export default function EditCatch() {
         setAirTemp(c.air_temperature != null ? String(c.air_temperature) : "");
         setCloudiness(c.cloudiness || "");
         setWindSpeed(c.wind_speed != null ? String(c.wind_speed) : "");
+        setAirPressure(c.air_pressure != null ? String(c.air_pressure) : "");
         setNotes(c.notes || "");
         setPhotoUrl(c.photo_url || null);
         setPhotoPreview(c.photo_url || null);
@@ -206,6 +208,7 @@ export default function EditCatch() {
         air_temperature: airTemp ? parseFloat(airTemp) : undefined,
         cloudiness: cloudiness || undefined,
         wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
+        air_pressure: airPressure ? parseFloat(airPressure) : undefined,
         notes: notes || undefined,
         photo_url: photoUrl || undefined,
       });
@@ -342,7 +345,7 @@ export default function EditCatch() {
           {/* Weather */}
           <div className="rounded-xl bg-sky-50/50 border border-sky-100 p-3 space-y-2">
             <Label className="text-sm font-medium text-sky-700">{t("saveCatch.weather")}</Label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-xs text-slate-500 flex items-center gap-1">
                   <Thermometer className="w-3 h-3" /> {t("logCatch.airTemp")}
@@ -367,6 +370,12 @@ export default function EditCatch() {
                   <Wind className="w-3 h-3" /> {t("logCatch.windSpeed")}
                 </Label>
                 <Input type="number" step="0.1" value={windSpeed} onChange={(e) => setWindSpeed(e.target.value)} placeholder="3.5" className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Gauge className="w-3 h-3" /> {t("weather.airPressure")} (hPa)
+                </Label>
+                <Input type="number" step="0.1" value={airPressure} onChange={(e) => setAirPressure(e.target.value)} placeholder="1013" className="h-9 text-sm" />
               </div>
             </div>
           </div>

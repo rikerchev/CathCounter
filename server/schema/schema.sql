@@ -1075,3 +1075,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_competitions BOOLEAN NOT NULL 
 -- app start; used to send new-competition announcements only to the organizer's
 -- country. Also added on demand by the server (server/lib/competitionNotify.ts).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT;
+
+-- v3.173 — atmospheric pressure (hPa, sea level) of the catch. Also added on demand by
+-- the server (server/routes/entities.ts); this is the same statement.
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS air_pressure DOUBLE PRECISION;

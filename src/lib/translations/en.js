@@ -170,6 +170,7 @@ export const en = {
     "sessions.catches": "Catches",
     "sessions.avgTemp": "Avg Temp",
     "sessions.avgWind": "Avg Wind",
+    "sessions.avgPressure": "Avg pressure",
     "sessions.totalWeight": "Total Weight",
     "sessions.biggestFish": "Biggest Fish",
     "sessions.totalCasts": "Total Casts",
@@ -348,6 +349,7 @@ export const en = {
     "rod.noFeeder": "— No feeder —",
 
     "weather.airTemp": "Air Temp (°C)",
+    "weather.airPressure": "Air pressure",
     "weather.cloudiness": "Cloudiness",
     "weather.windSpeed": "Wind (m/s)",
     "weather.selectCloudiness": "Select",

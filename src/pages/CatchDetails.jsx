@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Loader2, ChevronLeft, MapPin, Clock, Tag, Ruler, Weight, Fish, Trash2, Calendar, Anchor, Thermometer, Cloud, Wind, Waves, Pencil, ImageIcon } from "lucide-react";
+import { Loader2, ChevronLeft, MapPin, Clock, Tag, Ruler, Weight, Fish, Trash2, Calendar, Anchor, Thermometer, Cloud, Wind, Gauge, Waves, Pencil, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
@@ -183,6 +183,7 @@ export default function CatchDetails() {
         )}
         <InfoRow icon={Cloud} label={t("details.cloudiness")} value={catchItem.cloudiness ? t(`cloudiness.${catchItem.cloudiness}`) : "—"} />
         <InfoRow icon={Wind} label={t("details.windSpeed")} value={catchItem.wind_speed != null ? `${catchItem.wind_speed} m/s` : "—"} />
+        <InfoRow icon={Gauge} label={t("weather.airPressure")} value={catchItem.air_pressure != null ? `${catchItem.air_pressure} hPa` : "—"} />
         {catchItem.notes && (
           <div className="pt-3">
             <div className="text-xs text-slate-400 mb-1">{t("details.notes")}</div>

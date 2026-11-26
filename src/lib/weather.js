@@ -9,7 +9,7 @@
 
 // v3.172 — "_v2": readings remembered by v3.171 hold the wind in km/h; the new
 // key keeps them from being mixed with the m/s ones.
-const CACHE_KEY = "catchcount_last_weather_v2";
+const CACHE_KEY = "catchcount_last_weather_v2"; // v3.173: readings now also carry air_pressure
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;        // older than this is no longer "the weather around now"
 const MAX_DISTANCE_KM = 100;                    // a reading from another region is not used
 const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000; // refreshWeatherCache() at most this often
@@ -46,11 +46,11 @@ function writeCache(lat, lng, w) {
 
 /**
  * Fetches current weather for given coordinates from Open-Meteo.
- * Returns { air_temperature, cloudiness, wind_speed } and remembers it.
+ * Returns { air_temperature, cloudiness, wind_speed, air_pressure } and remembers it.
  * Throws when there is no usable answer (network, timeout, empty data).
  */
 export async function fetchWeather(lat, lng) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m&wind_speed_unit=ms`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m,pressure_msl&wind_speed_unit=ms`;
   const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
   try {
@@ -74,6 +74,10 @@ export async function fetchWeather(lat, lng) {
       cloudiness,
       wind_speed: Math.round((cur.wind_speed_10m ?? 0) * 10) / 10,
     };
+    // v3.173 — atmospheric pressure, hPa, reduced to sea level (pressure_msl):
+    // what weather sites and barometers show. Optional: no pressure in the
+    // answer just leaves it out (never a made-up 0).
+    if (typeof cur.pressure_msl === "number") result.air_pressure = Math.round(cur.pressure_msl * 10) / 10;
     writeCache(lat, lng, result);
     return result;
   } finally {

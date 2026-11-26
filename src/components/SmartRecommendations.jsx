@@ -25,6 +25,8 @@ export default function SmartRecommendations({ catches }) {
   const [tempMax, setTempMax] = useState("");
   const [windMin, setWindMin] = useState("");
   const [windMax, setWindMax] = useState("");
+  const [pressureMin, setPressureMin] = useState("");
+  const [pressureMax, setPressureMax] = useState("");
 
   const waterBodies = useApprovedWaterBodies();
   const placeIndex = useMemo(
@@ -46,9 +48,11 @@ export default function SmartRecommendations({ catches }) {
       if (tempMax && (c.air_temperature == null || c.air_temperature > parseFloat(tempMax))) return false;
       if (windMin && (c.wind_speed == null || c.wind_speed < parseFloat(windMin))) return false;
       if (windMax && (c.wind_speed == null || c.wind_speed > parseFloat(windMax))) return false;
+      if (pressureMin && (c.air_pressure == null || c.air_pressure < parseFloat(pressureMin))) return false;
+      if (pressureMax && (c.air_pressure == null || c.air_pressure > parseFloat(pressureMax))) return false;
       return true;
     });
-  }, [catches, placeIndex, filterLocation, filterDistance, filterCloudiness, tempMin, tempMax, windMin, windMax]);
+  }, [catches, placeIndex, filterLocation, filterDistance, filterCloudiness, tempMin, tempMax, windMin, windMax, pressureMin, pressureMax]);
 
   const topItem = (key) => {
     const map = {};
@@ -148,6 +152,15 @@ export default function SmartRecommendations({ catches }) {
             <div className="flex gap-1">
               <Input type="number" value={windMin} onChange={(e) => setWindMin(e.target.value)} placeholder="0" className="h-9 text-sm" />
               <Input type="number" value={windMax} onChange={(e) => setWindMax(e.target.value)} placeholder="10" className="h-9 text-sm" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-500 flex items-center gap-1">
+              <Gauge className="w-3 h-3" /> {t("weather.airPressure")} hPa (min–max)
+            </Label>
+            <div className="flex gap-1">
+              <Input type="number" value={pressureMin} onChange={(e) => setPressureMin(e.target.value)} placeholder="990" className="h-9 text-sm" />
+              <Input type="number" value={pressureMax} onChange={(e) => setPressureMax(e.target.value)} placeholder="1030" className="h-9 text-sm" />
             </div>
           </div>
         </div>

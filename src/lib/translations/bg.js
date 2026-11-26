@@ -303,6 +303,7 @@ export const bg = {
     "rod.noFeeder": "— Без хранилка —",
 
     "weather.airTemp": "Възд. Темп. (°C)",
+    "weather.airPressure": "Атмосферно налягане",
     "weather.cloudiness": "Облачност",
     "weather.windSpeed": "Вятър (m/s)",
     "weather.selectCloudiness": "Избери",
@@ -407,6 +408,7 @@ export const bg = {
     "sessions.catches": "Улови",
     "sessions.avgTemp": "Средна темп.",
     "sessions.avgWind": "Среден вятър",
+    "sessions.avgPressure": "Ср. налягане",
     "sessions.totalWeight": "Общо тегло",
     "sessions.biggestFish": "Най-голяма риба",
     "sessions.totalCasts": "Общо замятания",

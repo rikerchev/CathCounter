@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import {
   Loader2, MapPin, Thermometer, Wind, Clock, Weight, Trophy,
   ChevronRight, ChevronDown, ChevronUp, Trash2, CalendarArrowDown as CalendarDown,
-  Fish, Target,
+  Fish, Target, Gauge,
 } from "lucide-react";
 import Thumbnail from "@/components/Thumbnail";
 import { Button } from "@/components/ui/button";
@@ -83,6 +83,7 @@ function SessionCard({ session, sessionNumber, casts, t, expanded, onToggle, onD
 
   const temperatures = session.map((c) => c.air_temperature);
   const windSpeeds = session.map((c) => c.wind_speed);
+  const pressures = session.map((c) => c.air_pressure);
   const weights = session.map((c) => c.weight);
 
   const biggestFish = weights.some((w) => w != null)
@@ -97,6 +98,7 @@ function SessionCard({ session, sessionNumber, casts, t, expanded, onToggle, onD
 
   const avgTemp = avg(temperatures);
   const avgWind = avg(windSpeeds);
+  const avgPressure = avg(pressures);
   const totalWeight = sum(weights);
 
   // v3.108 — total casts (every "Старт" press, win or not) for this
@@ -161,6 +163,7 @@ function SessionCard({ session, sessionNumber, casts, t, expanded, onToggle, onD
       <div className="grid grid-cols-2 gap-px bg-slate-50">
         <StatCell icon={Thermometer} label={t("sessions.avgTemp")} value={avgTemp != null ? `${avgTemp.toFixed(1)}°C` : "—"} />
         <StatCell icon={Wind} label={t("sessions.avgWind")} value={avgWind != null ? `${avgWind.toFixed(1)} m/s` : "—"} />
+        <StatCell icon={Gauge} label={t("sessions.avgPressure")} value={avgPressure != null ? `${avgPressure.toFixed(1)} hPa` : "—"} />
         <StatCell icon={Weight} label={t("sessions.totalWeight")} value={totalWeight ? `${totalWeight.toFixed(2)} kg` : "—"} />
         <StatCell icon={Trophy} label={t("sessions.biggestFish")} value={biggestFish ? `${biggestFish.weight} kg` : "—"} />
         <StatCell icon={Target} label={t("sessions.totalCasts")} value={totalCasts ? String(totalCasts) : "—"} />

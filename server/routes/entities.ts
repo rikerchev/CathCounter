@@ -54,10 +54,31 @@ function sanitizePayload(entity: EntityDef, body: Record<string, unknown>) {
 // instead, so a deploy can never break saving; once the migration is applied
 // they start being stored (the column list is re-read every minute).
 const dbColumnsCache = new Map<string, { cols: Set<string>; at: number }>();
+
+// v3.173 — catches.air_pressure is created on first use, so a forgotten
+// migration can never cost the value: without the column it would be stripped
+// below, and the next pull would then wipe it from the device as well.
+let catchAirPressureEnsured: Promise<void> | null = null;
+function ensureCatchAirPressureColumn(): Promise<void> {
+  if (!catchAirPressureEnsured) {
+    catchAirPressureEnsured = Promise.resolve(
+      sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS air_pressure DOUBLE PRECISION`),
+    )
+      .then(() => {
+        dbColumnsCache.delete("catches");
+      })
+      .catch((e) => {
+        console.warn("[entities] could not add catches.air_pressure:", e);
+      });
+  }
+  return catchAirPressureEnsured;
+}
+
 async function stripMissingColumns(
   table: string,
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  if (table === "catches" && "air_pressure" in payload) await ensureCatchAirPressureColumn();
   try {
     let entry = dbColumnsCache.get(table);
     if (!entry || Date.now() - entry.at > 60_000) {

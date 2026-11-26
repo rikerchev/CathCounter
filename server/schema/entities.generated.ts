@@ -184,6 +184,9 @@ export const ENTITIES: Record<string, EntityDef> = {
       { name: "air_temperature", type: "number", required: false },
       { name: "cloudiness", type: "enum", required: false, enumValues: ["clear", "partly_cloudy", "cloudy", "overcast"] },
       { name: "wind_speed", type: "number", required: false },
+      // v3.173 — atmospheric pressure, hPa (sea level). Column is also added on
+      // demand by entities.ts, and by the v3.173 migration.
+      { name: "air_pressure", type: "number", required: false },
       { name: "notes", type: "string", required: false },
       { name: "date", type: "string", required: false },
     ],
