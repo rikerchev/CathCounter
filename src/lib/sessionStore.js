@@ -43,6 +43,71 @@ let reconcileSettled = false; // the first attempt finished (success or not)
 let reconcilePromise = null;
 const PENDING_CLOSE_KEY = "catchcount_pending_close";
 
+// v3.181 — CLOSING A SESSION IS ONE GLOBAL EVENT.
+//  * Sessions are identified by their start time. Every device remembers the
+//    sessions it knows to be closed (CLOSED_KEY) and never adopts or writes one
+//    again — a closed session can no longer come back from the cloud (it did when
+//    the "closed" message to the cloud failed, e.g. on a 504, and another device
+//    still held the old session).
+//  * Closing resets this device at once. The OTHER devices are told only when
+//    everything of the session has been uploaded (catches, casts, bait,
+//    deletions, photos — or after CLOSE_WAIT_MS at the latest, so one stuck item
+//    cannot keep a dead session alive on the other devices): a "closed" record
+//    ({closed, sessionStartTime, closedAt}) replaces the cloud session. It is
+//    retried after every sync, when the connection returns and from the poll.
+//  * A device that sees such a record resets itself: its live session if it is
+//    that session, and — if it is idle — any tackle/rod/groundbait settings that
+//    were last changed BEFORE the close (leftovers must not carry into the next
+//    session). Settings changed after the close are kept.
+const CLOSED_KEY = "catchcount_closed_sessions";
+const CLOSE_WAIT_MS = 30 * 60 * 1000;
+const CLOSE_KICK_MIN_MS = 60 * 1000;
+
+function readClosedList() {
+  try {
+    const a = JSON.parse(localStorage.getItem(CLOSED_KEY) || "[]");
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberClosed(start, closedAt) {
+  if (start == null) return;
+  const list = readClosedList();
+  const e = list.find((x) => x.start === start);
+  if (e) e.closedAt = Math.max(Number(e.closedAt) || 0, Number(closedAt) || 0);
+  else list.push({ start, closedAt: Number(closedAt) || Date.now() });
+  try {
+    localStorage.setItem(CLOSED_KEY, JSON.stringify(list.slice(-30)));
+  } catch {
+    // ignore
+  }
+}
+
+function isClosedStart(start) {
+  return start != null && readClosedList().some((x) => x.start === start);
+}
+
+function readPendingClose() {
+  try {
+    const raw = localStorage.getItem(PENDING_CLOSE_KEY);
+    if (!raw) return null;
+    if (raw[0] === "{") {
+      const p = JSON.parse(raw);
+      return p && p.start != null ? p : null;
+    }
+    // v3.180 and older stored just the start time
+    const start = Number(raw);
+    if (!start) return null;
+    const p = { start, closedAt: Date.now() };
+    localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify(p));
+    return p;
+  } catch {
+    return null;
+  }
+}
+
 function getDeviceId() {
   try {
     let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -141,6 +206,7 @@ function evaluateRemote(row, localMs) {
   if (row.is_active) {
     if (!isValidState(data)) return "keep";
     if (isStaleSessionData(data)) return "keep";
+    if (isClosedStart(data.sessionStartTime)) return "keep"; // v3.181 — closed sessions never come back
     if (state.sessionStartTime == null || rowMs(row, data) > localMs) {
       adoptRemote(row, data);
       return "adopted";
@@ -156,24 +222,98 @@ function evaluateRemote(row, localMs) {
   return "keep";
 }
 
-// Closed on another device (inactive row of the very same session)?
-function findClosedRow(rows) {
-  if (state.sessionStartTime == null) return null;
-  return rows.find(
-    (r) => !r.is_active && r.device_id !== getDeviceId() &&
-      (parseData(r) || {}).sessionStartTime === state.sessionStartTime
-  ) || null;
+// Settings of rods/groundbait that nobody has changed since a session was closed.
+function hasLeftovers() {
+  const rods = state.rods || [];
+  return (
+    rods.length > 1 ||
+    rods.some((r) => r && r.config && Object.keys(r.config).length > 0) ||
+    (state.mixedGroundbaits || []).length > 0
+  );
+}
+
+// Applies the "closed" records among the account's cloud rows. Returns true when
+// the local state was reset (live session closed elsewhere, or idle leftovers).
+function applyClosures(rows) {
+  let newest = 0;
+  for (const r of rows) {
+    if (r.is_active) continue;
+    const d = parseData(r);
+    if (!d || d.sessionStartTime == null) continue;
+    const closedAt = Number(d.closedAt) || rowMs(r, d);
+    rememberClosed(d.sessionStartTime, closedAt);
+    if (state.sessionStartTime != null && d.sessionStartTime === state.sessionStartTime) {
+      resetLocalSession();
+      return true;
+    }
+    if (closedAt > newest) newest = closedAt;
+  }
+  if (state.sessionStartTime == null && newest && hasLeftovers() && newest > (state.updatedAt || 0) + 1000) {
+    resetLocalSession();
+    return true;
+  }
+  return false;
 }
 
 async function retryPendingClose() {
-  let start = null;
+  await finalizePendingClose(false);
+}
+
+let finalizing = false;
+let lastKick = 0;
+
+// Tells the other devices that the session closed here is over — but only when
+// everything of it has been uploaded (see the v3.181 note at the top). Returns
+// true when the "closed" record has been written. fromSync: called at the end of
+// a sync, so it must not start another one.
+export async function finalizePendingClose(fromSync = false) {
+  const p = readPendingClose();
+  if (!p || finalizing) return false;
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+  finalizing = true;
   try {
-    start = localStorage.getItem(PENDING_CLOSE_KEY);
+    if (Date.now() - p.closedAt < CLOSE_WAIT_MS) {
+      const eng = await import("@/lib/syncEngine");
+      if (await eng.hasUnsyncedData()) {
+        if (!fromSync && Date.now() - lastKick > CLOSE_KICK_MIN_MS) {
+          lastKick = Date.now();
+          eng.syncAll().catch(() => {});
+        }
+        return false;
+      }
+    }
+    const rows = await fetchMyRows();
+    if (rows === null) return false; // not signed in / request failed — retried later
+    const body = {
+      is_active: false,
+      device_id: getDeviceId(),
+      session_data: JSON.stringify({ closed: true, sessionStartTime: p.start, closedAt: p.closedAt }),
+    };
+    const ids = rows
+      .filter((r) => {
+        if (!r.is_active) return false;
+        const d = parseData(r);
+        return !d || d.sessionStartTime == null || d.sessionStartTime === p.start;
+      })
+      .map((r) => r.id);
+    if (ids.length > 0) {
+      await Promise.all(ids.map((id) => base44.entities.SessionSync.update(id, body)));
+    } else if (!rows.some((r) => !r.is_active && (parseData(r) || {}).sessionStartTime === p.start && (parseData(r) || {}).closed)) {
+      // no cloud row of that session is active any more (e.g. it was never pushed): the
+      // record is still needed so idle devices clear their leftovers
+      await base44.entities.SessionSync.create(body);
+    }
+    try {
+      localStorage.removeItem(PENDING_CLOSE_KEY);
+    } catch {
+      // ignore
+    }
+    return true;
   } catch {
-    // ignore
+    return false; // retried after the next sync / poll / reconnect
+  } finally {
+    finalizing = false;
   }
-  if (!start) return;
-  await closeCloudSession(Number(start) || null, true);
 }
 
 // First comparison with the cloud (see the v3.147 note above). Resolves to
@@ -187,6 +327,7 @@ export function reconcileFromCloud() {
       await retryPendingClose();
       const rows = await fetchMyRows();
       if (rows) {
+        applyClosures(rows);
         const active = rows.find((r) => r.is_active);
         if (active) {
           cloudSessionId = active.id;
@@ -194,9 +335,6 @@ export function reconcileFromCloud() {
           // page load: automatic persists made since then must not make a
           // stale session look "newer" than the live one.
           adopted = evaluateRemote(active, loadedUpdatedAt) === "adopted";
-        } else {
-          const closed = findClosedRow(rows);
-          if (closed) evaluateRemote(closed, 0);
         }
         reconciled = true;
         if (adopted) unpushed = false;
@@ -252,7 +390,7 @@ function syncToCloud() {
     cloudSyncTimer = null;
     // An idle device (no running session) has nothing to mirror; writing its
     // empty default state would wipe the live session of the other device.
-    // Closing a session is handled by closeCloudSession().
+    // Closing a session is handled by finalizePendingClose().
     if (state.sessionStartTime == null) {
       unpushed = false;
       return;
@@ -303,46 +441,6 @@ export async function resumeFromCloud(cloudSession) {
   }
 }
 
-// Deactivates the cloud row(s) of the session that was just closed — NOT the
-// live session of another device (closedStart = that session's start time).
-export async function closeCloudSession(closedStart, isRetry) {
-  if (cloudSyncTimer) {
-    clearTimeout(cloudSyncTimer);
-    cloudSyncTimer = null;
-  }
-  unpushed = false;
-  try {
-    const rows = await fetchMyRows();
-    if (rows === null) throw new Error("not signed in");
-    const ids = [];
-    for (const r of rows) {
-      if (!r.is_active) continue;
-      const d = parseData(r);
-      if (closedStart == null || !d || d.sessionStartTime == null || d.sessionStartTime === closedStart) ids.push(r.id);
-    }
-    await Promise.all(
-      ids.map((id) => base44.entities.SessionSync.update(id, { is_active: false, device_id: getDeviceId() }))
-    );
-    try {
-      localStorage.removeItem(PENDING_CLOSE_KEY);
-    } catch {
-      // ignore
-    }
-  } catch {
-    // Offline/failed: remember it, so the other device (or this one, after a
-    // reload) is not handed the closed session again; retried by reconcile.
-    if (!isRetry && closedStart != null) {
-      try {
-        localStorage.setItem(PENDING_CLOSE_KEY, String(closedStart));
-      } catch {
-        // ignore
-      }
-    }
-  }
-  // The poll keeps running while the page is open (it is stopped when
-  // ActiveSession unmounts) so a session started on the other device shows up.
-}
-
 // --- Continuous cross-device sync ---
 // Polls the account's own cloud session every CROSS_DEVICE_POLL_MS for changes
 // from other devices (a newer version is adopted, a session closed there is
@@ -367,6 +465,7 @@ async function pollCrossDeviceOnce() {
     if (!rows) return;
     // Local changes made while the request was running win this round.
     if (cloudSyncTimer || unpushed) return;
+    applyClosures(rows);
     const active = rows.find((r) => r.is_active);
     if (active) {
       cloudSessionId = active.id;
@@ -382,8 +481,6 @@ async function pollCrossDeviceOnce() {
       }
       return;
     }
-    const closed = findClosedRow(rows);
-    if (closed) evaluateRemote(closed, 0);
   } catch {
     // Silently fail — cross-device sync is best-effort
   }
@@ -405,6 +502,17 @@ if (typeof window !== "undefined" && state.sessionStartTime != null) {
   );
   window.addEventListener("online", () => {
     if (!reconciled) reconcileFromCloud();
+  });
+}
+
+// v3.181 — a close that has not reached the cloud yet is retried after start-up
+// and whenever the connection returns (also after every sync, see syncEngine.js).
+if (typeof window !== "undefined") {
+  if (readPendingClose()) {
+    [2000, 10000, 30000, 90000].forEach((ms) => setTimeout(() => finalizePendingClose(false), ms));
+  }
+  window.addEventListener("online", () => {
+    if (readPendingClose()) finalizePendingClose(false);
   });
 }
 
@@ -507,6 +615,7 @@ export function isSessionActive() {
 
 export function closeSession(endTime) {
   const closedStart = state.sessionStartTime;
+  const closedAt = Date.now();
   let duration = 0;
   const end = endTime || Date.now();
   if (state.sessionStartTime) {
@@ -519,8 +628,17 @@ export function closeSession(endTime) {
   state.lastCatchTime = null;
   state.lastCatchLocation = null;
   state.competition = defaultCompetition();
+  if (closedStart != null) {
+    // v3.181 — remembered here at once; the other devices are told after the upload
+    rememberClosed(closedStart, closedAt);
+    try {
+      localStorage.setItem(PENDING_CLOSE_KEY, JSON.stringify({ start: closedStart, closedAt }));
+    } catch {
+      // ignore
+    }
+  }
   persist();
-  closeCloudSession(closedStart);
+  if (closedStart != null) finalizePendingClose(false);
   return duration;
 }
 

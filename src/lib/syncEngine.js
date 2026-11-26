@@ -14,6 +14,7 @@ import {
   deleteBaitLocal,
   mergeRemoteBait,
   getAllRodCasts,
+  getAllPendingPhotos,
   saveRodCastLocal,
   deleteRodCastLocal,
   mergeRemoteRodCasts
@@ -230,6 +231,26 @@ export async function pullRemoteRodCasts() {
 // quick pushOnly() after a catch save deliberately leaves them alone.
 let pushingCasts = false;
 const CAST_BATCH = 50;
+
+// v3.181 — is anything of this device's data still waiting to be uploaded?
+// (catches, bait, casts, deletions, photos not uploaded yet). The cross-device
+// "session closed" signal is only sent once this is false (see sessionStore.js).
+export async function hasUnsyncedData() {
+  const [catches, bait, casts, ops, photos] = await Promise.all([
+    getAllCatches(),
+    getAllBait(),
+    getAllRodCasts(),
+    getPendingSync(),
+    getAllPendingPhotos().catch(() => []),
+  ]);
+  return (
+    catches.some((c) => !c._synced) ||
+    bait.some((b) => !b._synced) ||
+    casts.some((c) => !c._synced) ||
+    ops.length > 0 ||
+    photos.some((p) => !p.cloud_url)
+  );
+}
 
 export async function pushPendingRodCasts() {
   if (pushingCasts || !isOnline) return;
@@ -456,6 +477,11 @@ export async function syncAll() {
       syncAll();
     } else {
       resolveLocationNamesInBackground();
+      // v3.181 — a session closed here (or offline) can tell the other devices
+      // now that everything has been uploaded
+      import("@/lib/sessionStore")
+        .then((m) => m.finalizePendingClose(true))
+        .catch(() => {});
     }
   }
 }
