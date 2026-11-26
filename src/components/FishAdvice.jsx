@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lightbulb, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Lightbulb, X } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import Weather48Chart, { seriesColor, useIsDark } from "@/components/Weather48Chart";
 
@@ -22,9 +22,8 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
   const dark = useIsDark();
   // which element's chart is open, per card: { [cardId]: "temp" | "press" | "wind" }
   const [open, setOpen] = useState({});
-  // v3.185 — cards are collapsed by default (title, level and the conclusion only) so
-  // they do not push the rod controls off the screen; tap the title to see the analysis.
-  const [expanded, setExpanded] = useState({});
+  // v3.186 — a card is read once and closed, so it is always shown in full (the
+  // v3.185 collapsed mode is gone); the chips still open the 48 h chart.
   if (!items || items.length === 0) return null;
 
   const toggle = (cardId, id) => setOpen((s) => ({ ...s, [cardId]: s[cardId] === id ? null : id }));
@@ -37,25 +36,14 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
         const chips = a.chips || [];
         const conclusion = a.conclusion || a.action;
         const sel = open[a.id] || null;
-        const isOpen = !!expanded[a.id];
         return (
           <div key={a.id} className="rounded-xl bg-white dark:bg-card border border-cyan-100 dark:border-border shadow-sm px-3 py-2 space-y-2">
             <div className="flex items-start justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => setExpanded((s) => ({ ...s, [a.id]: !s[a.id] }))}
-                aria-expanded={isOpen}
-                className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1 text-left"
-              >
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0 flex-1">
                 <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0" />
                 <span className="text-sm font-semibold text-slate-800 dark:text-foreground">{t("fa.title." + a.kind)}</span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${LEVEL_STYLE[a.level] || ""}`}>{a.activity}</span>
-                {isOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                )}
-              </button>
+              </div>
               <button
                 type="button"
                 onClick={() => onDismiss(a.id)}
@@ -66,8 +54,6 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
               </button>
             </div>
 
-            {isOpen && (
-            <div className="space-y-2">
             {chips.length > 0 ? (
               <div>
                 <div className="flex flex-wrap gap-1.5">
@@ -131,9 +117,6 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
                 </div>
               ))}
             </div>
-
-            </div>
-            )}
 
             <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-2">{conclusion}</p>
           </div>

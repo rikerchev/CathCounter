@@ -571,6 +571,14 @@ export default function ActiveSession() {
       </Button>
       </div>
 
+      {/* v3.174 — fish-activity advice, right under the button (v3.186) */}
+      <FishAdvice
+        items={adviceList}
+        onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
+        lat={weatherLat}
+        lng={weatherLng}
+      />
+
       {competition.enabled && (
         <CompetitionPanel competition={competition} rods={rods} rodStats={rodStats} />
       )}
@@ -598,14 +606,6 @@ export default function ActiveSession() {
           {t("session.getMyLocation")}
         </Button>
       </div>
-
-      {/* v3.174 — fish-activity advice */}
-      <FishAdvice
-        items={adviceList}
-        onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
-        lat={weatherLat}
-        lng={weatherLng}
-      />
 
       {/* Mixed groundbaits summary */}
       {mixedGroundbaits.length > 0 && (

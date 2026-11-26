@@ -72,9 +72,9 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
   }
 
   return (
-    <div className="rounded-2xl bg-white border border-slate-100 shadow-sm overflow-hidden">
-      <div className={`${bar} px-4 py-2 flex items-center justify-between`}>
-        <span className="font-bold text-white flex items-center gap-1.5">
+    <div className="rounded-xl bg-white dark:bg-card border border-slate-100 dark:border-border shadow-sm overflow-hidden">
+      <div className={`${bar} px-3 py-1 flex items-center justify-between`}>
+        <span className="font-bold text-sm text-white flex items-center gap-1.5">
           <Trophy className="w-4 h-4" /> {t("sesscomp.title")}
         </span>
         <button
@@ -87,25 +87,25 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-2.5 space-y-2">
         {/* Current stage countdown */}
-        <div className="text-center py-2 rounded-xl bg-slate-900">
-          <div className="text-5xl font-black tabular-nums text-white">{big}</div>
-          <p className="text-xs text-white/80 mt-1">{caption}</p>
+        <div className="flex items-center justify-between gap-3 px-3 py-1.5 rounded-lg bg-slate-900">
+          <div className="text-3xl font-black tabular-nums text-white leading-none">{big}</div>
+          <p className="text-[11px] leading-tight text-white/80 text-right min-w-0">{caption}</p>
         </div>
 
         {/* Time left until the end of the race + total catch */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-slate-100 px-3 py-2 text-center">
-            <p className="text-[11px] text-slate-500">{t("sesscomp.untilEnd")}</p>
-            <p className="text-xl font-bold tabular-nums text-slate-800">
+        <div className="grid grid-cols-2 gap-1.5">
+          <div className="rounded-lg bg-slate-100 dark:bg-accent px-2 py-1 text-center">
+            <p className="text-[10px] leading-tight text-slate-500 dark:text-muted-foreground">{t("sesscomp.untilEnd")}</p>
+            <p className="text-base font-bold tabular-nums text-slate-800 dark:text-foreground leading-tight">
               {info.raceEndRemaining != null ? formatCountdown(info.raceEndRemaining) : "—"}
             </p>
           </div>
-          <div className="rounded-xl bg-slate-100 px-3 py-2 text-center">
-            <p className="text-[11px] text-slate-500">{t("sesscomp.totalCatch")}</p>
-            <p className="text-xl font-bold text-slate-800 flex items-center justify-center gap-1">
-              <Fish className="w-4 h-4" />
+          <div className="rounded-lg bg-slate-100 dark:bg-accent px-2 py-1 text-center">
+            <p className="text-[10px] leading-tight text-slate-500 dark:text-muted-foreground">{t("sesscomp.totalCatch")}</p>
+            <p className="text-base font-bold text-slate-800 dark:text-foreground flex items-center justify-center gap-1 leading-tight">
+              <Fish className="w-3.5 h-3.5" />
               {totalCount}
               {totalWeight > 0 && <span className="text-sm font-semibold">· ~{totalWeight.toFixed(1)} kg</span>}
             </p>
@@ -114,7 +114,7 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
 
         {/* Stages */}
         {info.anyTimes && (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {info.segs
               .filter((s) => s.from != null && s.to != null)
               .map((s) => {
@@ -123,8 +123,8 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
                 return (
                   <div
                     key={s.key}
-                    className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg ${
-                      isActive ? `${bar} text-white font-semibold` : done ? "text-slate-400 line-through" : "text-slate-600"
+                    className={`flex items-center justify-between text-[11px] px-2 py-0.5 rounded-md ${
+                      isActive ? `${bar} text-white font-semibold` : done ? "text-slate-400 line-through" : "text-slate-600 dark:text-muted-foreground"
                     }`}
                   >
                     <span>{t(STAGE_LABEL[s.key])}</span>
@@ -139,15 +139,15 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
 
         {/* Time inputs */}
         {showTimes && (
-          <div className="grid grid-cols-2 gap-2 pt-1">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-1">
             {COMP_KEYS.map((k) => (
-              <div key={k} className="space-y-1">
-                <Label className="text-xs text-slate-600">{t(INPUT_LABEL[k])}</Label>
+              <div key={k} className="space-y-0.5">
+                <Label className="text-[11px] leading-tight text-slate-600 dark:text-muted-foreground">{t(INPUT_LABEL[k])}</Label>
                 <Input
                   type="time"
                   value={competition.hm[k] || ""}
                   onChange={(e) => sessionStore.setCompetitionTime(k, e.target.value)}
-                  className="h-9 text-sm"
+                  className="h-8 px-2 text-sm"
                 />
               </div>
             ))}
@@ -155,15 +155,15 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
         )}
 
         {/* Rods: how many, which one is in use, its name */}
-        <div className="space-y-2 pt-3 border-t border-slate-100">
+        <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-border">
           <div className="grid grid-cols-[auto_1fr] gap-2 items-end">
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-600">{t("sesscomp.rodCount")}</Label>
+            <div className="space-y-0.5">
+              <Label className="text-[11px] leading-tight text-slate-600 dark:text-muted-foreground">{t("sesscomp.rodCount")}</Label>
               <Select
                 value={String(rods.length)}
                 onValueChange={(v) => sessionStore.setCompetitionRodCount(Number(v))}
               >
-                <SelectTrigger className="h-9 w-20 text-sm">
+                <SelectTrigger className="h-8 w-16 px-2 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -175,13 +175,13 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-slate-600">{t("sesscomp.activeRod")}</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[11px] leading-tight text-slate-600 dark:text-muted-foreground">{t("sesscomp.activeRod")}</Label>
               <Select
                 value={String(activeRod ? activeRod.id : "")}
                 onValueChange={(v) => sessionStore.setCompetitionActiveRod(Number(v))}
               >
-                <SelectTrigger className="h-9 text-sm">
+                <SelectTrigger className="h-8 px-2 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,15 +202,15 @@ export default function CompetitionPanel({ competition, rods, rodStats }) {
             </div>
           </div>
           {activeRod && (
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-600">{t("sesscomp.rodName")}</Label>
+            <div className="space-y-0.5">
+              <Label className="text-[11px] leading-tight text-slate-600 dark:text-muted-foreground">{t("sesscomp.rodName")}</Label>
               <Input
                 key={activeRod.id}
                 defaultValue={activeRod.name || ""}
                 onChange={(e) => sessionStore.setRodName(activeRod.id, e.target.value)}
                 placeholder={`${t("rod.rod")} ${activeRod.id}`}
                 maxLength={40}
-                className="h-9 text-sm"
+                className="h-8 px-2 text-sm"
               />
             </div>
           )}
