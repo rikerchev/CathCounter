@@ -366,6 +366,7 @@ export const en = {
     "fa.title.change": "Conditions changed",
     "fa.title.dry": "10 casts without a catch",
     "fa.btn": "Advice",
+    "fa.btnClose": "Close",
     "fa.title.manual": "Advice for now",
     "fa.noLocation": "No location yet — set it with the location button.",
     "fa.noWeather": "No weather data — an internet connection is needed at least once.",
