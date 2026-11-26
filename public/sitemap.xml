@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url><loc>https://catchcount.app/</loc><lastmod>2026-10-19</lastmod><priority>1.0</priority></url>
-  <url><loc>https://catchcount.app/ribolovno-prilozhenie</loc><lastmod>2026-11-09</lastmod><priority>0.9</priority>
+  <url><loc>https://catchcount.app/ribolovno-prilozhenie</loc><lastmod>2026-11-26</lastmod><priority>0.9</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -21,7 +21,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/cs/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/cs/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -41,7 +41,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/de/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/de/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -61,7 +61,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/en/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/en/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -81,7 +81,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/es/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/es/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -101,7 +101,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/fr/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/fr/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -121,7 +121,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/hu/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/hu/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -141,7 +141,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/it/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/it/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -161,7 +161,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/mk/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/mk/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -181,7 +181,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/nl/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/nl/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -201,7 +201,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/pl/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/pl/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -221,7 +221,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/ro/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/ro/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -241,7 +241,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/ru/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/ru/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -261,7 +261,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/sk/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/sk/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -281,7 +281,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/sr/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/sr/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -301,7 +301,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/tr/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/tr/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -321,7 +321,7 @@
     <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/ribolovno-prilozhenie"/>
   </url>
-  <url><loc>https://catchcount.app/uk/fishing-app</loc><lastmod>2026-11-09</lastmod><priority>0.8</priority>
+  <url><loc>https://catchcount.app/uk/fishing-app</loc><lastmod>2026-11-26</lastmod><priority>0.8</priority>
     <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/ribolovno-prilozhenie"/>
     <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-app"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-app"/>
@@ -2382,4 +2382,685 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/kontakti"/>
   </url>
   <url><loc>https://catchcount.app/terms</loc><lastmod>2026-10-19</lastmod><priority>0.3</priority></url>
+  <!-- v3.189 competition-mode and fishing-advice pages -->
+  <url><loc>https://catchcount.app/rezhim-sastezanie</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/cs/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/de/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/en/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/es/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/fr/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/hu/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/it/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/mk/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/nl/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/pl/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/ro/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/ru/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/sk/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/sr/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/tr/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/uk/competition-mode</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/rezhim-sastezanie"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/competition-mode"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/rezhim-sastezanie"/>
+  </url>
+  <url><loc>https://catchcount.app/saveti-za-ribolov</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/cs/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/de/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/en/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/es/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/fr/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/hu/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/it/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/mk/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/nl/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/pl/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/ro/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/ru/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/sk/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/sr/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/tr/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
+  <url><loc>https://catchcount.app/uk/fishing-advice</loc><lastmod>2026-11-26</lastmod><priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="bg" href="https://catchcount.app/saveti-za-ribolov"/>
+    <xhtml:link rel="alternate" hreflang="cs" href="https://catchcount.app/cs/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://catchcount.app/de/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://catchcount.app/en/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://catchcount.app/es/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://catchcount.app/fr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="hu" href="https://catchcount.app/hu/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://catchcount.app/it/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="mk" href="https://catchcount.app/mk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://catchcount.app/nl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="pl" href="https://catchcount.app/pl/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ro" href="https://catchcount.app/ro/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://catchcount.app/ru/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sk" href="https://catchcount.app/sk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="sr-Latn" href="https://catchcount.app/sr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://catchcount.app/tr/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="uk" href="https://catchcount.app/uk/fishing-advice"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://catchcount.app/saveti-za-ribolov"/>
+  </url>
 </urlset>
