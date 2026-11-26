@@ -4,7 +4,7 @@ import RodTimer from "@/components/RodTimer";
 import CompetitionPanel from "@/components/CompetitionPanel";
 import SaveCatchDialog from "@/components/SaveCatchDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy, Lightbulb } from "lucide-react";
+import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy, Lightbulb, X } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
@@ -287,8 +287,15 @@ export default function ActiveSession() {
 
   // the "Съвет" button
   const [adviceBusy, setAdviceBusy] = useState(false);
+  // v3.187 — the button toggles: while advice is on the screen it closes it, otherwise
+  // it fetches a fresh analysis.
+  const adviceShown = adviceList.length > 0;
   const handleAdviceButton = async () => {
     if (adviceBusy) return;
+    if (adviceShown) {
+      setAdviceList([]);
+      return;
+    }
     if (weatherLat == null || weatherLng == null) {
       toast({ title: t("fa.noLocation"), variant: "destructive" });
       return;
@@ -566,8 +573,14 @@ export default function ActiveSession() {
       </label>
       {/* v3.183 — advice on request: a fresh analysis of the current weather */}
       <Button variant="outline" onClick={handleAdviceButton} disabled={adviceBusy} className="flex-shrink-0 text-xs min-h-[36px] h-auto px-3 rounded-xl">
-        {adviceBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5 mr-1 text-amber-500" />}
-        {t("fa.btn")}
+        {adviceBusy ? (
+          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+        ) : adviceShown ? (
+          <X className="w-3.5 h-3.5 mr-1" />
+        ) : (
+          <Lightbulb className="w-3.5 h-3.5 mr-1 text-amber-500" />
+        )}
+        {adviceShown ? t("fa.btnClose") : t("fa.btn")}
       </Button>
       </div>
 
