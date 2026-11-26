@@ -580,7 +580,7 @@ export default function ActiveSession() {
         ) : (
           <Lightbulb className="w-3.5 h-3.5 mr-1 text-amber-500" />
         )}
-        {adviceShown ? t("fa.btnClose") : t("fa.btn")}
+        {t("fa.btn")}
       </Button>
       </div>
 
