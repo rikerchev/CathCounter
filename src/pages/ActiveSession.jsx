@@ -4,7 +4,7 @@ import RodTimer from "@/components/RodTimer";
 import CompetitionPanel from "@/components/CompetitionPanel";
 import SaveCatchDialog from "@/components/SaveCatchDialog";
 import { Button } from "@/components/ui/button";
-import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy } from "lucide-react";
+import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy, Lightbulb } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
@@ -248,10 +248,12 @@ export default function ActiveSession() {
   const castsSinceCatchRef = useRef(0);
   const lastAdviceFetchRef = useRef(0);
 
+  // v3.183 — kind "manual": the "Съвет" button — a fresh analysis on request. Resolves
+  // to true when a card was shown.
   const runAdvice = useCallback(async (kind) => {
-    if (weatherLat == null || weatherLng == null) return;
+    if (weatherLat == null || weatherLng == null) return false;
     const online = typeof navigator === "undefined" || navigator.onLine !== false;
-    if (kind === "change" && (!online || Date.now() - lastAdviceFetchRef.current < 5 * 60 * 1000)) return;
+    if (kind === "change" && (!online || Date.now() - lastAdviceFetchRef.current < 5 * 60 * 1000)) return false;
     let cur = null;
     if (online) {
       lastAdviceFetchRef.current = Date.now();
@@ -262,16 +264,43 @@ export default function ActiveSession() {
       }
     }
     if (!cur && kind !== "change") cur = getLastKnownWeather(weatherLat, weatherLng);
-    if (!cur) return;
-    const prev = kind === "start" ? null : getAdviceBaseline();
+    if (!cur) return false;
+    const prev = kind === "start" || kind === "manual" ? null : getAdviceBaseline();
     const history = getWeatherHistory(weatherLat, weatherLng);
     const advice = buildAdvice({ kind, prev, cur, t, extra: { history } });
-    if (!advice) return;
+    if (!advice) return false;
+    // offline: the reading is the last one taken while online — say so
+    if (cur.last_known_at) {
+      const time = new Date(cur.last_known_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const note = t("fa.lastKnown").replace("{time}", time);
+      advice.intro = advice.intro ? `${advice.intro} ${note}` : note;
+    }
     setAdviceBaseline(cur);
     setAdviceList((list) =>
-      [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, kind, ...advice }, ...list.filter((x) => kind !== "start" || x.kind !== "start")].slice(0, 3),
+      [
+        { id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, kind, ...advice },
+        ...list.filter((x) => !((kind === "start" || kind === "manual") && x.kind === kind)),
+      ].slice(0, 3),
     );
+    return true;
   }, [weatherLat, weatherLng, t, setAdviceList]);
+
+  // the "Съвет" button
+  const [adviceBusy, setAdviceBusy] = useState(false);
+  const handleAdviceButton = async () => {
+    if (adviceBusy) return;
+    if (weatherLat == null || weatherLng == null) {
+      toast({ title: t("fa.noLocation"), variant: "destructive" });
+      return;
+    }
+    setAdviceBusy(true);
+    try {
+      const shown = await runAdvice("manual");
+      if (!shown) toast({ title: t("fa.noWeather"), variant: "destructive" });
+    } finally {
+      setAdviceBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!sessionActive) {
@@ -546,6 +575,12 @@ export default function ActiveSession() {
         <CompetitionPanel competition={competition} rods={rods} rodStats={rodStats} />
       )}
 
+      {/* v3.183 — advice on request: a fresh analysis of the current weather */}
+      <Button variant="outline" onClick={handleAdviceButton} disabled={adviceBusy} className="w-full text-sm min-h-[44px]">
+        {adviceBusy ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Lightbulb className="w-4 h-4 mr-1.5 text-amber-500" />}
+        {t("fa.btn")}
+      </Button>
+
       {/* Session controls */}
       <div className="grid grid-cols-2 gap-2">
         {!competition.enabled && (
@@ -635,4 +670,4 @@ export default function ActiveSession() {
       )}
     </div>
   );
-}
+}

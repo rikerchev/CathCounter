@@ -243,7 +243,8 @@ function effectOf(asked, before, after) {
 
 /**
  * kind: "start" (session start) | "change" (after a catch) | "dry" (10 casts
- * without a catch). prev = the reading the last advice was based on.
+ * without a catch) | "manual" (the "Съвет" button, v3.183: like "start" — a fresh
+ * analysis of the current weather, no comparison with an earlier reading). prev = the reading the last advice was based on.
  * extra = { history (48 h hourly readings) }.
  * Returns null for "change" when nothing changed drastically.
  */
@@ -253,7 +254,7 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
   const n = (v) => String(r1(v)).replace(".", dec);
   const airD24 = airChange24(extra.history);
   const r = rateConditions(cur, { month, airD24 });
-  const changes = kind === "start" ? [] : detectChanges(prev, cur, t, n);
+  const changes = kind === "start" || kind === "manual" ? [] : detectChanges(prev, cur, t, n);
   if (kind === "change" && changes.length === 0) return null;
 
   const zone = decideZone(r, cur, month);
