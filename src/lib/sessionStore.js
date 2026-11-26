@@ -232,6 +232,20 @@ function hasLeftovers() {
   );
 }
 
+// v3.182 — this device was told that its session was closed elsewhere (it may
+// have been offline at the time). Only the LIVE state is reset; everything it
+// recorded offline (catches, casts, photos) stays in its local store and is
+// uploaded right now — it joins the session it belongs to by itself, because a
+// session is not a stored record but is built from the catches' times and the
+// casts' own session_start (see src/lib/sessions.js).
+function pushOwnDataAfterRemoteClose() {
+  import("@/lib/syncEngine")
+    .then(async (m) => {
+      if (await m.hasUnsyncedData()) await m.syncAll();
+    })
+    .catch(() => {});
+}
+
 // Applies the "closed" records among the account's cloud rows. Returns true when
 // the local state was reset (live session closed elsewhere, or idle leftovers).
 function applyClosures(rows) {
@@ -244,6 +258,7 @@ function applyClosures(rows) {
     rememberClosed(d.sessionStartTime, closedAt);
     if (state.sessionStartTime != null && d.sessionStartTime === state.sessionStartTime) {
       resetLocalSession();
+      pushOwnDataAfterRemoteClose();
       return true;
     }
     if (closedAt > newest) newest = closedAt;
