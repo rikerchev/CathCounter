@@ -9,7 +9,7 @@
 //   1. TEMPERATURE (air -> water)          — the base; 50 of 100 points; it sets the
 //                                            starting depth/distance and can LOCK it
 //   2. PRESSURE (level, sharp/gradual)     — 30 points; may shift the result one step
-//   3. WIND (speed, direction, which bank) — 20 points; may shift it one more step
+//   3. WIND (speed + the bank it blows toward) — 20 points; may shift it one more step
 // The depth/distance is a single scale: 0 = close to the bank / shallow,
 // 1 = middle distance and depth, 2 = far out / deep. Every line of the card says
 // what that component does to the result ("moves it", "confirms it", "does not
@@ -20,7 +20,8 @@
 //    high pressure) switches the fish off and sends it to the bottom / cover;
 //  - wind: 2-5 m/s is ideal, S/SW/W warms, N/NE/E cools, a flat calm in summer
 //    starves the water of oxygen; in spring and summer the fish gather on the
-//    bank the waves hit (more oxygen and food there);
+//    bank the waves hit (more oxygen and food there) — that is the bank the wind
+//    blows TOWARD (wind from the east -> the west bank), whatever the angler's own position;
 //  - water temperature: 18-24 C is optimal, below 8-10 C it is torpid, above
 //    26-28 C it feeds only at night / early morning / deeper.
 
@@ -47,36 +48,6 @@ export function fmt(text, params) {
 const r1 = (n) => Math.round(n * 10) / 10;
 const r0 = (n) => Math.round(n);
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-
-/** Initial bearing (degrees, 0 = north) from point 1 to point 2. */
-export function bearingDeg(lat1, lng1, lat2, lng2) {
-  const toRad = (d) => (d * Math.PI) / 180;
-  const f1 = toRad(lat1);
-  const f2 = toRad(lat2);
-  const dl = toRad(lng2 - lng1);
-  const y = Math.sin(dl) * Math.cos(f2);
-  const x = Math.cos(f1) * Math.sin(f2) - Math.sin(f1) * Math.cos(f2) * Math.cos(dl);
-  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
-}
-
-function angleDiff(a, b) {
-  return Math.abs((((a - b) % 360) + 540) % 360 - 180);
-}
-
-/**
- * How the wind meets the angler's bank. windFrom = degrees the wind blows FROM,
- * bankBearing = direction from the middle of the water to the angler.
- * The waves hit the bank the wind blows TOWARD (windFrom + 180).
- * -> "on" (the waves hit his bank) | "off" (the wind blows away from his bank, the
- * waves hit the opposite one) | "side" | null (unknown bank, or no waves < 2 m/s)
- */
-export function bankRelation(windFrom, speed, bankBearing) {
-  if (windFrom == null || bankBearing == null || speed == null || speed < 2) return null;
-  const diff = angleDiff((Number(windFrom) + 180) % 360, bankBearing);
-  if (diff <= 60) return "on";
-  if (diff >= 120) return "off";
-  return "side";
-}
 
 export function pressureState(p, d3) {
   if (d3 != null && d3 <= -3) return "fastFall";
@@ -111,6 +82,11 @@ function waterClass(w) {
   return "hot";
 }
 
+// the bank the waves hit = the direction the wind blows TOWARD (e.g. from E -> W)
+export function waveBank(windFrom) {
+  return compassKey((Number(windFrom) + 180) % 360);
+}
+
 const isSummer = (month) => month >= 5 && month <= 7;
 // spring and summer (Mar-Aug): the fish follow the waves to the bank
 const isBankSeason = (month) => month >= 2 && month <= 7;
@@ -127,8 +103,8 @@ export function airChange24(history) {
 /**
  * c = { air_pressure, pressure_trend, pressure_change_24h, wind_speed, wind_direction,
  *       water_temperature, air_temperature }
- * ctx = { month, bankBearing, airD24 }
- * -> { score 0..100, level, ps, wc, dc, tc, rel }
+ * ctx = { month, airD24 }
+ * -> { score 0..100, level, ps, wc, dc, tc, waves }
  */
 export function rateConditions(c, ctx = {}) {
   const month = ctx.month ?? new Date().getMonth();
@@ -137,7 +113,10 @@ export function rateConditions(c, ctx = {}) {
   const dc = dirClass(c.wind_direction, c.wind_speed);
   const w = c.water_temperature;
   const tc = waterClass(w);
-  const rel = bankRelation(c.wind_direction, c.wind_speed, ctx.bankBearing);
+  // waves that make the fish gather on the bank they hit: spring/summer, water 10-26 C, 2-8 m/s
+  const waves =
+    c.wind_direction != null && c.wind_speed != null && c.wind_speed >= 2 && c.wind_speed <= 8 &&
+    isBankSeason(month) && (w == null || (w >= 10 && w <= 26));
 
   // 1. temperature — 0..50
   let temp;
@@ -179,12 +158,12 @@ export function rateConditions(c, ctx = {}) {
     if (dc === "good") wind += hot ? -2 : 3; // warming wind
     else if (dc === "bad") wind += hot ? 2 : -3; // cooling wind
   }
-  if (rel === "on" && isBankSeason(month) && (w == null || w >= 10) && c.wind_speed <= 8) wind += 2;
+  if (waves) wind += 2;
   wind = clamp(wind, 0, 20);
 
   const score = clamp(Math.round(temp + press + wind), 0, 100);
   const level = score >= 80 ? "high" : score >= 62 ? "good" : score >= 42 ? "medium" : "low";
-  return { score, level, ps, wc, dc, tc, rel };
+  return { score, level, ps, wc, dc, tc, waves };
 }
 
 /** Lines describing what changed between two readings (only the drastic ones). */
@@ -241,12 +220,10 @@ function decideZone(r, c, month) {
     press: { slowFall: -1, stable: 0, slowRise: 0, fastFall: 1, fastRise: 1, high: 1 }[r.ps],
     wind: 0,
   };
-  // wind: strong -> shelter/deeper; waves on my bank in spring/summer -> close to the
-  // bank; waves on the far bank -> farther out; calm summer heat -> deeper; cold wind -> deeper
-  const bankRule = isBankSeason(month) && (w == null || w >= 10);
+  // wind: strong -> shelter/deeper; waves in spring/summer -> close to the bank they
+  // hit; calm summer heat -> deeper; cold wind -> deeper
   if (r.wc === "strong") asked.wind = 1;
-  else if (r.rel === "on" && bankRule) asked.wind = -1;
-  else if (r.rel === "off" && bankRule && c.wind_speed >= 3) asked.wind = 1;
+  else if (r.waves) asked.wind = -1;
   else if (r.wc === "calm" && isSummer(month) && (w == null || w >= 18)) asked.wind = 1;
   else if (r.dc === "bad" && w != null && w <= 24 && c.wind_speed >= 2) asked.wind = 1;
 
@@ -267,7 +244,7 @@ function effectOf(asked, before, after) {
 /**
  * kind: "start" (session start) | "change" (after a catch) | "dry" (10 casts
  * without a catch). prev = the reading the last advice was based on.
- * extra = { bankBearing (deg, from the water's middle to the angler), history (48 h) }.
+ * extra = { history (48 h hourly readings) }.
  * Returns null for "change" when nothing changed drastically.
  */
 export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
@@ -275,7 +252,7 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
   const dec = t("fa.dec") === "fa.dec" ? "." : t("fa.dec");
   const n = (v) => String(r1(v)).replace(".", dec);
   const airD24 = airChange24(extra.history);
-  const r = rateConditions(cur, { month, bankBearing: extra.bankBearing, airD24 });
+  const r = rateConditions(cur, { month, airD24 });
   const changes = kind === "start" ? [] : detectChanges(prev, cur, t, n);
   if (kind === "change" && changes.length === 0) return null;
 
@@ -322,15 +299,14 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
   // ---- 3. wind ----------------------------------------------------------------
   let windText = "";
   if (cur.wind_speed != null) {
-    const bankRule = isBankSeason(month) && (w == null || w >= 10);
+    const bank = cur.wind_direction != null ? t("fa.bank." + waveBank(cur.wind_direction)) : "";
     let key;
     if (r.wc === "calm") key = isSummer(month) ? "fa.a.w.calmSummer" : "fa.a.w.calm";
     else if (r.wc === "strong") key = "fa.a.w.strong";
-    else if (r.rel === "on") key = bankRule ? "fa.a.w.on" : "fa.a.w.onCold";
-    else if (r.rel === "off") key = bankRule ? "fa.a.w.off" : "fa.a.w.offCold";
-    else if (r.rel === "side") key = "fa.a.w.side";
-    else key = cur.wind_speed >= 2 ? "fa.a.w.noBank" : "fa.a.w.light";
-    windText = fmt(t(key), { v: n(cur.wind_speed), dir: dirLabel || "—" });
+    else if (cur.wind_speed < 2) key = "fa.a.w.light";
+    else if (cur.wind_direction == null) key = "fa.a.w.noBank";
+    else key = r.waves ? "fa.a.w.on" : w != null && w > 26 ? "fa.a.w.onHot" : "fa.a.w.onCold";
+    windText = fmt(t(key), { v: n(cur.wind_speed), dir: dirLabel || "—", bank });
     if (cur.wind_speed >= 2 && cur.wind_direction != null && r.dc !== "neutral") {
       windText += " " + fmt(t(r.dc === "good" ? "fa.a.dirWarm" : "fa.a.dirCool"), { dir: dirLabel });
     }
@@ -339,8 +315,8 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
 
   // ---- conclusion: ONE recommendation + which factor decided it ----------------
   let conclusion = t(["fa.z.near", "fa.z.mid", "fa.z.deep"][zone.zone]);
-  if (zone.z2 < zone.z1 && r.rel === "on") conclusion += " " + t("fa.z.waveNear");
-  else if (zone.z2 > zone.z1 && r.rel === "off") conclusion += " " + t("fa.z.waveFar");
+  // which way to cast: toward the bank the waves hit (only when the verdict is not "far/deep")
+  if (r.waves && zone.zone <= 1) conclusion += " " + fmt(t("fa.z.waveNear"), { bank: t("fa.bank." + waveBank(cur.wind_direction)) });
   const moved = zone.z1 !== zone.z0 || zone.z2 !== zone.z1;
   conclusion += " " + t(zone.locked ? "fa.z.d.locked" : moved ? "fa.z.d.adjust" : "fa.z.d.base");
 

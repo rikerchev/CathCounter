@@ -154,7 +154,28 @@ export async function pushPendingBait() {
         await saveBaitLocal({ ...baitItem, _synced: true });
       }
     } catch (e) {
-      console.error(`Failed to sync bait ${baitItem.id}:`, e);
+      // v3.178 — same as for catches (v3.124/v3.140): the server has no such bait
+      // any more (deleted elsewhere, a database reset, ...). The UPDATE could never
+      // succeed and failed — with a red 404 in the console — on every sync. The bait
+      // is created again on the server (new id; nothing refers to a bait by id), and
+      // if even that fails it is left as local-only instead of being retried forever.
+      const gone = !String(baitItem.id).startsWith("local_") && (e?.status === 404 || /not found/i.test(String(e?.message || e)));
+      if (gone) {
+        try {
+          const { id: _oldId, _synced: _s, _server_gone, ...fresh } = baitItem;
+          const created = await base44.entities.Bait.create(fresh);
+          await saveBaitLocal({ ...fresh, id: created.id, _synced: true });
+          await deleteBaitLocal(baitItem.id);
+          console.info(`Bait ${baitItem.id} was missing on the server — uploaded again.`);
+        } catch {
+          try {
+            await saveBaitLocal({ ...baitItem, _synced: true, _server_gone: true });
+          } catch { /* ignore */ }
+          console.warn(`Bait ${baitItem.id} no longer exists on the server — left as local-only.`);
+        }
+      } else {
+        console.error(`Failed to sync bait ${baitItem.id}:`, e);
+      }
     }
   }
 }

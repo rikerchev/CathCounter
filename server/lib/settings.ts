@@ -86,20 +86,58 @@ const CACHE_TTL_MS = 15_000;
 // comment in db.ts). Reusing a single in-flight load for all concurrent
 // callers means only one query ever goes out at a time.
 let loadingPromise: Promise<Map<string, string>> | null = null;
+// v3.179 — one hung load used to block EVERY settings request on the instance:
+// all callers shared `loadingPromise`, and when its query hung on a stale
+// connection (the router gives up after 9 s and swaps the connection, but this
+// promise was still the old, never-settling one) every following caller
+// (/api/settings/adsense, /api/admin/settings, ...) waited on it too and got a
+// 504 — repeatedly, even after the connection had been replaced (Vercel logs,
+// 26 Nov: adsense/admin-settings 504 for 20+ s while other routes answered 200).
+// Now: (1) once the settings have been read, an expired cache is served at
+// once and refreshed in the background (settings change rarely; saving them
+// still clears the cache, so the saver always reads fresh values), (2) a load
+// is abandoned after LOAD_TIMEOUT_MS and no longer blocks the next callers.
+const LOAD_TIMEOUT_MS = 4000;
+let loadStartedAt = 0;
 
-async function loadCache(): Promise<Map<string, string>> {
-  if (cache && Date.now() - cacheLoadedAt < CACHE_TTL_MS) return cache;
-  if (loadingPromise) return loadingPromise;
-  loadingPromise = (async () => {
+function startLoad(): Promise<Map<string, string>> {
+  const p = (async () => {
     const rows = await sql<{ key: string; value: string }[]>`SELECT key, value FROM app_settings`;
     cache = new Map(rows.map((r) => [r.key, r.value]));
     cacheLoadedAt = Date.now();
     return cache;
   })();
+  loadingPromise = p;
+  loadStartedAt = Date.now();
+  const clear = () => {
+    if (loadingPromise === p) loadingPromise = null;
+  };
+  p.then(clear, clear);
+  return p;
+}
+
+async function loadCache(): Promise<Map<string, string>> {
+  if (cache && Date.now() - cacheLoadedAt < CACHE_TTL_MS) return cache;
+  // a load that has been running longer than the timeout is hung: start a new one
+  const p = loadingPromise && Date.now() - loadStartedAt < LOAD_TIMEOUT_MS ? loadingPromise : startLoad();
+  if (cache) {
+    // expired, but we have values: answer now, refresh in the background
+    p.catch(() => {});
+    return cache;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await loadingPromise;
+    return await Promise.race([
+      p,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("settings load timed out")), LOAD_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (e) {
+    if (loadingPromise === p) loadingPromise = null; // do not let a hung load block the next callers
+    throw e;
   } finally {
-    loadingPromise = null;
+    if (timer) clearTimeout(timer);
   }
 }
 

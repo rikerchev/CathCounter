@@ -216,6 +216,13 @@ export async function handleRequest(req: Request): Promise<Response> {
 
   const timeoutPromise = new Promise<Response>((resolve) => {
     timeoutId = setTimeout(() => {
+      // v3.179 — the 504 used to leave no trace; now the route and the instance's
+      // load are in the Vercel logs (filter: "[timeout]")
+      try {
+        console.warn(`[timeout] ${req.method} ${new URL(req.url, "http://x").pathname} > ${timeoutMs} ms (inflight ${inflight})`);
+      } catch {
+        // logging must never break the response
+      }
       reconnect();
       resolve(
         withCors(
