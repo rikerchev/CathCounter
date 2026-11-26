@@ -524,11 +524,11 @@ export default function ActiveSession() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">{t("session.title")}</h1>
-        <p className="text-sm text-slate-400">{t("session.subtitle")}</p>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 px-3 py-1.5 rounded-lg bg-slate-900">
+    <div className="max-w-2xl mx-auto px-4 py-3 space-y-2.5">
+      {/* v3.185 — compact header: title and timer/location on one line (the subtitle is gone) */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h1 className="text-lg font-bold text-slate-800 dark:text-foreground leading-tight">{t("session.title")}</h1>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-2.5 py-1 rounded-lg bg-slate-900 min-w-0">
           {sessionActive ? (
             <p className="text-xs text-white flex items-center gap-1">
               <Timer className="w-3.5 h-3.5" />
@@ -539,23 +539,17 @@ export default function ActiveSession() {
           )}
           {sessionLocation && (
             <p className="text-xs text-white/90 flex items-center gap-1">
-              <Navigation className="w-3 h-3" />
-              {sessionLocation}
+              <Navigation className="w-3 h-3 flex-shrink-0" />
+              <span className="truncate max-w-[55vw]">{sessionLocation}</span>
             </p>
           )}
         </div>
       </div>
 
-      {/* v3.174 — fish-activity advice */}
-      <FishAdvice
-        items={adviceList}
-        onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
-        lat={weatherLat}
-        lng={weatherLng}
-      />
-
       {/* v3.158 — competition mode switch */}
-      <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-100 shadow-sm cursor-pointer select-none">
+      {/* v3.185 — competition switch and the advice button share one row */}
+      <div className="flex items-stretch gap-2">
+      <label className="flex flex-1 min-w-0 items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white dark:bg-card border border-slate-100 dark:border-border shadow-sm cursor-pointer select-none">
         <input
           type="checkbox"
           checked={competition.enabled}
@@ -568,42 +562,50 @@ export default function ActiveSession() {
           className="w-4 h-4 accent-cyan-600"
         />
         <Trophy className="w-4 h-4 text-amber-500" />
-        <span className="text-sm font-medium text-slate-700">{t("sesscomp.title")}</span>
+        <span className="text-xs font-medium text-slate-700 dark:text-foreground truncate">{t("sesscomp.title")}</span>
       </label>
+      {/* v3.183 — advice on request: a fresh analysis of the current weather */}
+      <Button variant="outline" onClick={handleAdviceButton} disabled={adviceBusy} className="flex-shrink-0 text-xs min-h-[36px] h-auto px-3 rounded-xl">
+        {adviceBusy ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5 mr-1 text-amber-500" />}
+        {t("fa.btn")}
+      </Button>
+      </div>
 
       {competition.enabled && (
         <CompetitionPanel competition={competition} rods={rods} rodStats={rodStats} />
       )}
 
-      {/* v3.183 — advice on request: a fresh analysis of the current weather */}
-      <Button variant="outline" onClick={handleAdviceButton} disabled={adviceBusy} className="w-full text-sm min-h-[44px]">
-        {adviceBusy ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Lightbulb className="w-4 h-4 mr-1.5 text-amber-500" />}
-        {t("fa.btn")}
-      </Button>
-
       {/* Session controls */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         {!competition.enabled && (
-          <Button variant="outline" onClick={addRod} className="text-xs min-h-[40px] px-2">
+          <Button variant="outline" onClick={addRod} className="text-xs min-h-[34px] h-auto py-1 px-2">
             <Plus className="w-3.5 h-3.5 mr-1" /> {t("session.addRod")}
           </Button>
         )}
-        <Button variant="outline" onClick={() => setMixerOpen(true)} className="text-xs min-h-[40px] px-2">
+        <Button variant="outline" onClick={() => setMixerOpen(true)} className="text-xs min-h-[34px] h-auto py-1 px-2">
           <Waves className="w-3.5 h-3.5 mr-1" /> {t("rod.groundbait")}
         </Button>
-        <Button variant="outline" onClick={resetTrip} disabled={!sessionActive} className="text-xs min-h-[40px] px-2">
+        <Button variant="outline" onClick={resetTrip} disabled={!sessionActive} className="text-xs min-h-[34px] h-auto py-1 px-2">
           <RotateCcw className="w-3.5 h-3.5 mr-1" /> {t("session.closeSession")}
         </Button>
         <Button
           variant="outline"
           onClick={getAllLocations}
           disabled={locatingAll}
-          className="text-xs min-h-[40px] px-2"
+          className="text-xs min-h-[34px] h-auto py-1 px-2"
         >
           {locatingAll ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Navigation className="w-3.5 h-3.5 mr-1" />}
           {t("session.getMyLocation")}
         </Button>
       </div>
+
+      {/* v3.174 — fish-activity advice */}
+      <FishAdvice
+        items={adviceList}
+        onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
+        lat={weatherLat}
+        lng={weatherLng}
+      />
 
       {/* Mixed groundbaits summary */}
       {mixedGroundbaits.length > 0 && (
