@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Camera, Fish, Loader2, Thermometer, Cloud, Wind } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
-import { fetchWeather } from "@/lib/weather";
+import { getWeatherForCatch, getLastKnownWeather } from "@/lib/weather";
 import { saveCatch } from "@/lib/catchRepository";
 import { savePendingPhoto } from "@/lib/pendingPhotos";
 import { syncAll } from "@/lib/syncEngine";
@@ -60,18 +60,25 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
     }
   }, [open]);
 
+  // v3.171 — live weather when online; when the device is offline (or the
+  // request fails / is slow) the last known reading, from the moment the device
+  // was last online. Never overwrites something the user already typed.
   useEffect(() => {
-    if (open && catchData?.lat && catchData?.lng) {
-      setFetchingWeather(true);
-      fetchWeather(catchData.lat, catchData.lng)
-        .then((w) => {
-          setAirTemp(String(w.air_temperature));
-          setCloudiness(w.cloudiness);
-          setWindSpeed(String(w.wind_speed));
-        })
-        .catch(() => {})
-        .finally(() => setFetchingWeather(false));
-    }
+    if (!open) return;
+    const lat = catchData?.lat ?? null;
+    const lng = catchData?.lng ?? null;
+    let cancelled = false;
+    setFetchingWeather(true);
+    getWeatherForCatch(lat, lng)
+      .then((w) => {
+        if (cancelled || !w) return;
+        setAirTemp((v) => v || String(w.air_temperature));
+        setCloudiness((v) => v || w.cloudiness);
+        setWindSpeed((v) => v || String(w.wind_speed));
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setFetchingWeather(false); });
+    return () => { cancelled = true; };
   }, [open, catchData]);
 
   const handlePhotoClick = () => {
@@ -101,14 +108,27 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const handleSave = async () => {
     setSaving(true);
     try {
+      // v3.171 — Save tapped before the weather arrived (slow/no connection):
+      // use the last known reading instead of saving the catch without weather.
+      let airTempV = airTemp;
+      let cloudinessV = cloudiness;
+      let windSpeedV = windSpeed;
+      if (!airTempV && !cloudinessV && !windSpeedV) {
+        const known = getLastKnownWeather(catchData?.lat ?? null, catchData?.lng ?? null);
+        if (known) {
+          airTempV = String(known.air_temperature);
+          cloudinessV = known.cloudiness;
+          windSpeedV = String(known.wind_speed);
+        }
+      }
       const payload = {
         ...catchData,
         species: species === "other" ? (customSpecies.trim() || undefined) : (species || undefined),
         notes: notes.trim() || undefined,
         weight: weight ? parseFloat(weight) : undefined,
-        air_temperature: airTemp ? parseFloat(airTemp) : undefined,
-        cloudiness: cloudiness || undefined,
-        wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
+        air_temperature: airTempV ? parseFloat(airTempV) : undefined,
+        cloudiness: cloudinessV || undefined,
+        wind_speed: windSpeedV ? parseFloat(windSpeedV) : undefined,
         // photo_url intentionally left unset — the photo (if any) is saved
         // locally below, linked to the catch's id, and gets its photo_url
         // filled in once the background upload completes.

@@ -8,6 +8,7 @@ import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy } from "luci
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
+import { refreshWeatherCache } from "@/lib/weather";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch, updateCatchLocation, listCatchesByUser } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
@@ -194,6 +195,28 @@ export default function ActiveSession() {
         });
     }
   }, [sessionActive, lang, t, toast]);
+
+  // v3.171 — keep a recent weather reading on the device while the session runs
+  // and there is a connection, so a catch made later while OFFLINE gets the
+  // weather from the moment the device was last online (see lib/weather.js).
+  // One small request per ~30 min, only while the page is visible and online.
+  const weatherCfg = rods.map((r) => r.config).find((c) => c?.lat != null && c?.lng != null);
+  const weatherLat = weatherCfg?.lat ?? null;
+  const weatherLng = weatherCfg?.lng ?? null;
+  useEffect(() => {
+    if (!sessionActive || weatherLat == null || weatherLng == null) return undefined;
+    const refresh = () => {
+      if (document.hidden) return;
+      refreshWeatherCache(weatherLat, weatherLng);
+    };
+    refresh();
+    const id = setInterval(refresh, 30 * 60 * 1000);
+    window.addEventListener("online", refresh);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("online", refresh);
+    };
+  }, [sessionActive, weatherLat, weatherLng]);
 
   const loadTackle = useCallback(async () => {
     try {

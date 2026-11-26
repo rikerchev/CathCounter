@@ -10,6 +10,7 @@ import { calculateCountryPrice } from "@/lib/pricing";
 import { useAuth } from "@/lib/AuthContext";
 import { exportUserData, importUserData } from "@/lib/dataPortability";
 import { exportGlobalBackup, importGlobalBackup, readGlobalBackupManifest } from "@/lib/globalBackup";
+import UnlinkedPhotosPanel from "@/components/UnlinkedPhotosPanel";
 
 export default function AdminDataExport() {
   const { toast } = useToast();
@@ -455,6 +456,7 @@ export default function AdminDataExport() {
             Поправи адреси на снимки
           </Button>
         </div>
+        <UnlinkedPhotosPanel disabled={exporting !== "" || importing !== ""} />
         <input
           ref={globalFileInputRef}
           type="file"

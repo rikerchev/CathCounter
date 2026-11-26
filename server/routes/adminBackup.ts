@@ -220,6 +220,132 @@ export async function handleAdminBackupRoute(
     return json({ updated: rows.length });
   }
 
+  // GET  /api/admin/backup/unlinked-photos        -> proposals, changes nothing
+  // POST /api/admin/backup/unlinked-photos/link   -> { links:[{photo_id,catch_id}] }
+  //
+  // v3.170 — "несвързани" photos: they ARE in catch_photos (uploaded by their
+  // owner) but no catch points at them any more — the link got lost between
+  // the device and the server (see claude/unlinked-photos-sync-race-fix-3.169).
+  // The photo row keeps its owner (created_by_id) and upload time, so each one
+  // can be matched to that owner's catches that still have NO photo, by the
+  // time the catch was made (catches.date). Proposals only — the admin looks
+  // at the thumbnails and confirms; applying re-checks everything server-side.
+  const CATCH_BEFORE_UPLOAD_MS = 14 * 24 * 60 * 60 * 1000; // an offline catch can be uploaded days later
+  const CLOCK_SKEW_MS = 10 * 60 * 1000;                     // device clock vs server clock
+  const CONFIDENT_MS = 15 * 60 * 1000;
+  const MAX_CANDIDATES = 15;
+
+  function catchTime(c: { date?: unknown; created_at?: unknown }): number {
+    const d = c.date;
+    if (d) {
+      let str = String(d);
+      if (str.includes("T") && !str.endsWith("Z") && !/[+-]\d{2}:\d{2}$/.test(str)) str += "Z";
+      const t = Date.parse(str);
+      if (!Number.isNaN(t)) return t;
+    }
+    return new Date(c.created_at as string).getTime();
+  }
+
+  if (req.method === "GET" && path[0] === "unlinked-photos") {
+    const ids = await findOrCleanOrphanedPhotos(true);
+    if (ids.length === 0) return json({ photos: [] });
+    const photos = (await sql`
+      SELECT id, created_by_id, created_at, size_bytes FROM catch_photos
+      WHERE id IN ${sql(ids)} ORDER BY created_at ASC
+    `) as unknown as { id: string; created_by_id: string | null; created_at: string; size_bytes: number }[];
+    const owners = [...new Set(photos.map((p) => p.created_by_id).filter((x): x is string => !!x))];
+
+    let users: { id: string; email: string; full_name: string | null }[] = [];
+    let catchesByOwner = new Map<string, { id: string; t: number; species: unknown; weight: unknown; location: unknown; rod: unknown }[]>();
+    if (owners.length) {
+      users = (await sql`SELECT id, email, full_name FROM users WHERE id IN ${sql(owners)}`) as unknown as typeof users;
+      const rows = (await sql`
+        SELECT id, created_by_id, date, created_at, species, weight, location, water_name, rod
+        FROM catches
+        WHERE created_by_id IN ${sql(owners)} AND (photo_url IS NULL OR photo_url = '')
+      `) as unknown as Record<string, any>[];
+      for (const r of rows) {
+        const list = catchesByOwner.get(r.created_by_id) ?? [];
+        list.push({ id: r.id, t: catchTime(r), species: r.species, weight: r.weight, location: r.water_name || r.location, rod: r.rod });
+        catchesByOwner.set(r.created_by_id, list);
+      }
+    }
+    const userById = new Map(users.map((u) => [u.id, u]));
+
+    // Candidates per photo + one-to-one greedy assignment by smallest time gap
+    // (catch made BEFORE the upload; small tolerance for clock differences).
+    type Pair = { photoId: string; catchId: string; diff: number };
+    const pairs: Pair[] = [];
+    const candidatesByPhoto = new Map<string, { id: string; t: number; species: unknown; weight: unknown; location: unknown; rod: unknown; diff: number }[]>();
+    for (const p of photos) {
+      if (!p.created_by_id) continue;
+      const up = new Date(p.created_at).getTime();
+      const cands = (catchesByOwner.get(p.created_by_id) ?? [])
+        .map((c) => ({ ...c, diff: up - c.t }))
+        .filter((c) => c.diff >= -CLOCK_SKEW_MS && c.diff <= CATCH_BEFORE_UPLOAD_MS)
+        .sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff))
+        .slice(0, MAX_CANDIDATES);
+      candidatesByPhoto.set(p.id, cands);
+      for (const c of cands) pairs.push({ photoId: p.id, catchId: c.id, diff: Math.abs(c.diff) });
+    }
+    pairs.sort((a, b) => a.diff - b.diff);
+    const proposal = new Map<string, Pair>();
+    const takenCatches = new Set<string>();
+    for (const pr of pairs) {
+      if (proposal.has(pr.photoId) || takenCatches.has(pr.catchId)) continue;
+      proposal.set(pr.photoId, pr);
+      takenCatches.add(pr.catchId);
+    }
+
+    return json({
+      photos: photos.map((p) => {
+        const u = p.created_by_id ? userById.get(p.created_by_id) : undefined;
+        const pr = proposal.get(p.id);
+        return {
+          id: p.id,
+          created_at: p.created_at,
+          size_bytes: p.size_bytes,
+          owner: p.created_by_id ? { id: p.created_by_id, label: u?.full_name || u?.email || p.created_by_id } : null,
+          proposal: pr ? pr.catchId : null,
+          diff_min: pr ? Math.round(pr.diff / 60000) : null,
+          confident: pr ? pr.diff <= CONFIDENT_MS : false,
+          candidates: (candidatesByPhoto.get(p.id) ?? []).map((c) => ({
+            id: c.id, t: c.t, species: c.species, weight: c.weight, location: c.location, rod: c.rod,
+          })),
+        };
+      }),
+    });
+  }
+
+  if (req.method === "POST" && path[0] === "unlinked-photos" && path[1] === "link") {
+    const body = await req.json().catch(() => ({ links: [] }));
+    const links: { photo_id?: string; catch_id?: string }[] = Array.isArray(body.links) ? body.links.slice(0, 300) : [];
+    const unlinkedIds = new Set(await findOrCleanOrphanedPhotos(true));
+    const origin = env.PUBLIC_API_URL || absoluteUrl(req).origin;
+    let linked = 0;
+    const skipped: { photo_id: string; reason: string }[] = [];
+    for (const l of links) {
+      const photoId = String(l.photo_id || "");
+      const catchId = String(l.catch_id || "");
+      if (!photoId || !catchId) continue;
+      if (!unlinkedIds.has(photoId)) { skipped.push({ photo_id: photoId, reason: "снимката вече е свързана или не съществува" }); continue; }
+      const photo = (await sql`SELECT created_by_id FROM catch_photos WHERE id = ${photoId}`) as unknown as { created_by_id: string | null }[];
+      const owner = photo[0]?.created_by_id;
+      if (!owner) { skipped.push({ photo_id: photoId, reason: "снимката няма собственик" }); continue; }
+      // Same owner, and the catch must still have no photo (also protects
+      // against two photos being sent to one catch).
+      const url = `${origin}/api/catch-photos/${photoId}`;
+      const done = (await sql`
+        UPDATE catches SET photo_url = ${url}, updated_at = now()
+        WHERE id = ${catchId} AND created_by_id = ${owner} AND (photo_url IS NULL OR photo_url = '')
+        RETURNING id
+      `) as unknown as { id: string }[];
+      if (done.length) linked++;
+      else skipped.push({ photo_id: photoId, reason: "уловът не е на същия потребител или вече има снимка" });
+    }
+    return json({ linked, skipped });
+  }
+
   if (req.method === "POST" && path[0] === "restore" && path[1] === "photos") {
     const body = await req.json().catch(() => ({ photos: [] }));
     const photos: Array<{

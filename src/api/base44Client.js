@@ -335,6 +335,11 @@ export const base44 = {
       // ("cath-counter" instead of "catch-counter") — see
       // server/routes/adminBackup.ts's wrong-domain-photo-urls handler.
       // Re-derives the correct URL from each photo's own id.
+      // v3.170 — "несвързани" photos: proposals to match them to their owner's
+      // catches that have no photo, and applying the confirmed ones.
+      unlinkedPhotos: () => apiFetch("/api/admin/backup/unlinked-photos", { timeoutMs: 25000 }),
+      linkUnlinkedPhotos: (links) =>
+        apiFetch("/api/admin/backup/unlinked-photos/link", { method: "POST", body: { links }, timeoutMs: 25000 }),
       wrongDomainPhotoUrlsCount: () => apiFetch("/api/admin/backup/wrong-domain-photo-urls", { timeoutMs: 25000 }),
       fixWrongDomainPhotoUrls: () =>
         apiFetch("/api/admin/backup/wrong-domain-photo-urls/fix", { method: "POST", timeoutMs: 25000 }),
