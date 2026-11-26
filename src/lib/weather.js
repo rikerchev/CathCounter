@@ -15,6 +15,11 @@ const MAX_DISTANCE_KM = 100;                    // a reading from another region
 const REFRESH_MIN_INTERVAL_MS = 10 * 60 * 1000; // refreshWeatherCache() at most this often
 const REFRESH_SAME_PLACE_KM = 5;
 const FETCH_TIMEOUT_MS = 8000;
+const WATER_MANUAL_KEY = "catchcount_water_temp_manual";
+const WATER_MANUAL_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const ADVICE_BASELINE_KEY = "catchcount_advice_baseline";
+const ADVICE_BASELINE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+const WATER_TAU_HOURS = 72; // the water follows the air temperature with a lag of ~3 days
 
 function distanceKm(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -44,13 +49,59 @@ function writeCache(lat, lng, w) {
   }
 }
 
+/** The water temperature the angler measured himself (valid for 12 h), or null. */
+export function getManualWaterTemp() {
+  try {
+    const raw = localStorage.getItem(WATER_MANUAL_KEY);
+    if (!raw) return null;
+    const m = JSON.parse(raw);
+    if (!m || typeof m.v !== "number" || Date.now() - m.t > WATER_MANUAL_MAX_AGE_MS) return null;
+    return m.v;
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers a measured water temperature (null clears it). */
+export function setManualWaterTemp(v) {
+  try {
+    if (v == null || Number.isNaN(Number(v))) localStorage.removeItem(WATER_MANUAL_KEY);
+    else localStorage.setItem(WATER_MANUAL_KEY, JSON.stringify({ v: Number(v), t: Date.now() }));
+  } catch {
+    // storage unavailable
+  }
+}
+
+/** The reading the last fish-activity advice was based on (valid for 12 h), or null. */
+export function getAdviceBaseline() {
+  try {
+    const raw = localStorage.getItem(ADVICE_BASELINE_KEY);
+    if (!raw) return null;
+    const b = JSON.parse(raw);
+    return b && b.w && Date.now() - b.t <= ADVICE_BASELINE_MAX_AGE_MS ? b.w : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setAdviceBaseline(w) {
+  try {
+    localStorage.setItem(ADVICE_BASELINE_KEY, JSON.stringify({ t: Date.now(), w }));
+  } catch {
+    // storage unavailable
+  }
+}
+
 /**
  * Fetches current weather for given coordinates from Open-Meteo.
- * Returns { air_temperature, cloudiness, wind_speed, air_pressure } and remembers it.
+ * Returns { air_temperature, cloudiness, wind_speed, air_pressure, wind_direction,
+ * pressure_trend (hPa over the last 3 h), pressure_change_24h, water_temperature
+ * (measured by the angler if given in the last 12 h, otherwise ESTIMATED from the
+ * last 7 days of air temperature), water_temperature_estimated } and remembers it.
  * Throws when there is no usable answer (network, timeout, empty data).
  */
 export async function fetchWeather(lat, lng) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m,pressure_msl&wind_speed_unit=ms`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m,pressure_msl&hourly=temperature_2m,pressure_msl&past_days=7&forecast_days=1&wind_speed_unit=ms`;
   const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
   const timer = ctrl ? setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS) : null;
   try {
@@ -78,6 +129,41 @@ export async function fetchWeather(lat, lng) {
     // what weather sites and barometers show. Optional: no pressure in the
     // answer just leaves it out (never a made-up 0).
     if (typeof cur.pressure_msl === "number") result.air_pressure = Math.round(cur.pressure_msl * 10) / 10;
+    if (typeof cur.wind_direction_10m === "number") result.wind_direction = Math.round(cur.wind_direction_10m);
+
+    // v3.174 — hourly history: pressure trend + a water temperature estimate.
+    const times = data.hourly?.time || [];
+    const hTemp = data.hourly?.temperature_2m || [];
+    const hPress = data.hourly?.pressure_msl || [];
+    const nowHour = typeof cur.time === "string" ? cur.time.slice(0, 13) : null;
+    const idx = nowHour ? times.findIndex((t) => String(t).slice(0, 13) === nowHour) : -1;
+    if (idx >= 0 && typeof cur.pressure_msl === "number") {
+      if (idx >= 3 && typeof hPress[idx - 3] === "number") {
+        result.pressure_trend = Math.round((cur.pressure_msl - hPress[idx - 3]) * 10) / 10;
+      }
+      if (idx >= 24 && typeof hPress[idx - 24] === "number") {
+        result.pressure_change_24h = Math.round((cur.pressure_msl - hPress[idx - 24]) * 10) / 10;
+      }
+    }
+    const manual = getManualWaterTemp();
+    if (manual != null) {
+      result.water_temperature = manual;
+      result.water_temperature_estimated = false;
+    } else if (idx >= 24) {
+      // water follows the air with a lag: exponentially weighted mean of the
+      // last 7 days of hourly air temperature (time constant ~3 days)
+      const alpha = 1 - Math.exp(-1 / WATER_TAU_HOURS);
+      let ew = null;
+      for (let i = Math.max(0, idx - 167); i <= idx; i++) {
+        const v = hTemp[i];
+        if (typeof v !== "number") continue;
+        ew = ew == null ? v : ew + alpha * (v - ew);
+      }
+      if (ew != null) {
+        result.water_temperature = Math.round(Math.max(0, Math.min(32, ew)) * 2) / 2;
+        result.water_temperature_estimated = true;
+      }
+    }
     writeCache(lat, lng, result);
     return result;
   } finally {

@@ -55,30 +55,31 @@ function sanitizePayload(entity: EntityDef, body: Record<string, unknown>) {
 // they start being stored (the column list is re-read every minute).
 const dbColumnsCache = new Map<string, { cols: Set<string>; at: number }>();
 
-// v3.173 — catches.air_pressure is created on first use, so a forgotten
-// migration can never cost the value: without the column it would be stripped
-// below, and the next pull would then wipe it from the device as well.
-let catchAirPressureEnsured: Promise<void> | null = null;
-function ensureCatchAirPressureColumn(): Promise<void> {
-  if (!catchAirPressureEnsured) {
-    catchAirPressureEnsured = Promise.resolve(
-      sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS air_pressure DOUBLE PRECISION`),
-    )
-      .then(() => {
-        dbColumnsCache.delete("catches");
-      })
-      .catch((e) => {
-        console.warn("[entities] could not add catches.air_pressure:", e);
-      });
+// v3.173/v3.174 — the weather columns added after the first release are created on
+// first use, so a forgotten migration can never cost the value: without the column it
+// would be stripped below, and the next pull would then wipe it from the device too.
+const CATCH_WEATHER_COLUMNS = ["air_pressure", "water_temperature", "wind_direction", "pressure_trend"];
+let catchWeatherColumnsEnsured: Promise<void> | null = null;
+function ensureCatchWeatherColumns(): Promise<void> {
+  if (!catchWeatherColumnsEnsured) {
+    catchWeatherColumnsEnsured = (async () => {
+      // names come from the constant above, never from a request
+      for (const col of CATCH_WEATHER_COLUMNS) {
+        await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS ${col} DOUBLE PRECISION`);
+      }
+      dbColumnsCache.delete("catches");
+    })().catch((e) => {
+      console.warn("[entities] could not add the catches weather columns:", e);
+    });
   }
-  return catchAirPressureEnsured;
+  return catchWeatherColumnsEnsured;
 }
 
 async function stripMissingColumns(
   table: string,
   payload: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  if (table === "catches" && "air_pressure" in payload) await ensureCatchAirPressureColumn();
+  if (table === "catches" && CATCH_WEATHER_COLUMNS.some((col) => col in payload)) await ensureCatchWeatherColumns();
   try {
     let entry = dbColumnsCache.get(table);
     if (!entry || Date.now() - entry.at > 60_000) {

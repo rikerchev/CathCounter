@@ -16,9 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Fish, Loader2, Thermometer, Cloud, Wind, Gauge } from "lucide-react";
+import { Camera, Fish, Loader2, Thermometer, Cloud, Wind, Gauge, Droplets, Compass } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
-import { getWeatherForCatch, getLastKnownWeather } from "@/lib/weather";
+import { getWeatherForCatch, getLastKnownWeather, setManualWaterTemp } from "@/lib/weather";
+import { COMPASS, nearestOctant } from "@/lib/fishActivity";
 import { saveCatch } from "@/lib/catchRepository";
 import { savePendingPhoto } from "@/lib/pendingPhotos";
 import { syncAll } from "@/lib/syncEngine";
@@ -40,6 +41,12 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
   const [airPressure, setAirPressure] = useState("");
+  // v3.174 — water temperature (estimated or measured), wind direction (degrees of the
+  // nearest of 8 compass points) and the 3 h pressure change (from the reading).
+  const [waterTemp, setWaterTemp] = useState("");
+  const [windDir, setWindDir] = useState("");
+  const weatherExtrasRef = useRef({});
+  const prefilledWaterRef = useRef("");
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [processingPhoto, setProcessingPhoto] = useState(false);
@@ -57,6 +64,10 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
       setCloudiness("");
       setWindSpeed("");
       setAirPressure("");
+      setWaterTemp("");
+      setWindDir("");
+      weatherExtrasRef.current = {};
+      prefilledWaterRef.current = "";
       setPhotoPreview(null);
       setPhotoFile(null);
     }
@@ -78,6 +89,13 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         setCloudiness((v) => v || w.cloudiness);
         setWindSpeed((v) => v || String(w.wind_speed));
         if (w.air_pressure != null) setAirPressure((v) => v || String(w.air_pressure));
+        weatherExtrasRef.current = { pressure_trend: w.pressure_trend };
+        if (w.water_temperature != null) {
+          prefilledWaterRef.current = String(w.water_temperature);
+          setWaterTemp((v) => v || String(w.water_temperature));
+        }
+        const oct = nearestOctant(w.wind_direction);
+        if (oct != null) setWindDir((v) => v || String(oct));
       })
       .catch(() => {})
       .finally(() => { if (!cancelled) setFetchingWeather(false); });
@@ -117,6 +135,9 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
       let cloudinessV = cloudiness;
       let windSpeedV = windSpeed;
       let airPressureV = airPressure;
+      let waterTempV = waterTemp;
+      let windDirV = windDir;
+      let pressureTrendV = weatherExtrasRef.current.pressure_trend;
       if (!airTempV && !cloudinessV && !windSpeedV && !airPressureV) {
         const known = getLastKnownWeather(catchData?.lat ?? null, catchData?.lng ?? null);
         if (known) {
@@ -124,7 +145,16 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
           cloudinessV = known.cloudiness;
           windSpeedV = String(known.wind_speed);
           if (known.air_pressure != null) airPressureV = String(known.air_pressure);
+          if (known.water_temperature != null && !waterTempV) waterTempV = String(known.water_temperature);
+          if (nearestOctant(known.wind_direction) != null && !windDirV) windDirV = String(nearestOctant(known.wind_direction));
+          if (pressureTrendV == null) pressureTrendV = known.pressure_trend;
         }
+      }
+      // a water temperature the angler typed in himself (differs from the estimate
+      // that was filled in) is remembered for 12 h: it replaces the estimate in the
+      // next readings and advice.
+      if (waterTempV && waterTempV !== prefilledWaterRef.current && !Number.isNaN(parseFloat(waterTempV))) {
+        setManualWaterTemp(parseFloat(waterTempV));
       }
       const payload = {
         ...catchData,
@@ -135,6 +165,9 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
         cloudiness: cloudinessV || undefined,
         wind_speed: windSpeedV ? parseFloat(windSpeedV) : undefined,
         air_pressure: airPressureV ? parseFloat(airPressureV) : undefined,
+        water_temperature: waterTempV ? parseFloat(waterTempV) : undefined,
+        wind_direction: windDirV !== "" ? parseInt(windDirV, 10) : undefined,
+        pressure_trend: pressureTrendV != null ? pressureTrendV : undefined,
         // photo_url intentionally left unset — the photo (if any) is saved
         // locally below, linked to the catch's id, and gets its photo_url
         // filled in once the background upload completes.
@@ -349,6 +382,34 @@ export default function SaveCatchDialog({ open, onOpenChange, catchData, onSave 
                   placeholder="1013"
                   className="h-9 text-sm"
                 />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Droplets className="w-3 h-3" /> {t("weather.waterTemp")}
+                </Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={waterTemp}
+                  onChange={(e) => setWaterTemp(e.target.value)}
+                  placeholder="18"
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Compass className="w-3 h-3" /> {t("weather.windDirection")}
+                </Label>
+                <Select value={windDir} onValueChange={setWindDir}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder={t("weather.windDirection")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPASS.map((k, i) => (
+                      <SelectItem key={k} value={String(i * 45)}>{t(`compass.${k}`)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

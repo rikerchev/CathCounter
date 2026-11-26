@@ -69,6 +69,12 @@ export default function RodTimer({ rodNumber, name, config, onConfigChange, onLa
     // closed one just because its last catch happens to still be within
     // the usual 4-hour session-gap window.
     logRodCast(rodNumber, sessionStore.getState().sessionStartTime).catch(() => {});
+    // v3.174 — the live-session page counts casts without a catch (advice after 10).
+    try {
+      window.dispatchEvent(new Event("catchcount:cast"));
+    } catch {
+      // non-browser environment
+    }
     forceRender();
   };
 

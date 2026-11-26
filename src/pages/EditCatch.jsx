@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
+import { Camera, Loader2, Thermometer, Cloud, Wind, Gauge, Droplets, Compass, Fish, Navigation, ChevronLeft, Trash2 } from "lucide-react";
+import { COMPASS, nearestOctant } from "@/lib/fishActivity";
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation } from "@/lib/geolocation";
@@ -52,6 +53,8 @@ export default function EditCatch() {
   const [cloudiness, setCloudiness] = useState("");
   const [windSpeed, setWindSpeed] = useState("");
   const [airPressure, setAirPressure] = useState("");
+  const [waterTemp, setWaterTemp] = useState("");
+  const [windDir, setWindDir] = useState("");
   const [notes, setNotes] = useState("");
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -88,6 +91,8 @@ export default function EditCatch() {
         setCloudiness(c.cloudiness || "");
         setWindSpeed(c.wind_speed != null ? String(c.wind_speed) : "");
         setAirPressure(c.air_pressure != null ? String(c.air_pressure) : "");
+        setWaterTemp(c.water_temperature != null ? String(c.water_temperature) : "");
+        setWindDir(c.wind_direction != null ? String(nearestOctant(c.wind_direction)) : "");
         setNotes(c.notes || "");
         setPhotoUrl(c.photo_url || null);
         setPhotoPreview(c.photo_url || null);
@@ -209,6 +214,8 @@ export default function EditCatch() {
         cloudiness: cloudiness || undefined,
         wind_speed: windSpeed ? parseFloat(windSpeed) : undefined,
         air_pressure: airPressure ? parseFloat(airPressure) : undefined,
+        water_temperature: waterTemp ? parseFloat(waterTemp) : undefined,
+        wind_direction: windDir !== "" ? parseInt(windDir, 10) : undefined,
         notes: notes || undefined,
         photo_url: photoUrl || undefined,
       });
@@ -376,6 +383,25 @@ export default function EditCatch() {
                   <Gauge className="w-3 h-3" /> {t("weather.airPressure")} (hPa)
                 </Label>
                 <Input type="number" step="0.1" value={airPressure} onChange={(e) => setAirPressure(e.target.value)} placeholder="1013" className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Droplets className="w-3 h-3" /> {t("weather.waterTemp")}
+                </Label>
+                <Input type="number" step="0.5" value={waterTemp} onChange={(e) => setWaterTemp(e.target.value)} placeholder="18" className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-500 flex items-center gap-1">
+                  <Compass className="w-3 h-3" /> {t("weather.windDirection")}
+                </Label>
+                <Select value={windDir} onValueChange={setWindDir}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder={t("weather.windDirection")} /></SelectTrigger>
+                  <SelectContent>
+                    {COMPASS.map((k, i) => (
+                      <SelectItem key={k} value={String(i * 45)}>{t(`compass.${k}`)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

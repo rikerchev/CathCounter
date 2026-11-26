@@ -1079,3 +1079,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_country TEXT;
 -- v3.173 — atmospheric pressure (hPa, sea level) of the catch. Also added on demand by
 -- the server (server/routes/entities.ts); this is the same statement.
 ALTER TABLE catches ADD COLUMN IF NOT EXISTS air_pressure DOUBLE PRECISION;
+
+-- v3.174 — conditions saved with each catch: estimated/measured water temperature (C),
+-- wind direction (degrees, where the wind comes from) and the pressure change over the
+-- last 3 hours (hPa). Also added on demand by the server (server/routes/entities.ts).
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS water_temperature DOUBLE PRECISION;
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS wind_direction DOUBLE PRECISION;
+ALTER TABLE catches ADD COLUMN IF NOT EXISTS pressure_trend DOUBLE PRECISION;

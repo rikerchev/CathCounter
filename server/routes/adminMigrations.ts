@@ -580,6 +580,14 @@ const MIGRATIONS: Record<string, { label: string; run: () => Promise<void> }> = 
       await sql.unsafe(`ALTER TABLE users ADD COLUMN IF NOT EXISTS language TEXT`);
     },
   },
+  "v3.174-catch-conditions": {
+    label: "v3.174 — Условия при улова: температура на водата, посока на вятъра, промяна на налягането",
+    run: async () => {
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS water_temperature DOUBLE PRECISION`);
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS wind_direction DOUBLE PRECISION`);
+      await sql.unsafe(`ALTER TABLE catches ADD COLUMN IF NOT EXISTS pressure_trend DOUBLE PRECISION`);
+    },
+  },
   "v3.173-catch-air-pressure": {
     label: "v3.173 — Атмосферно налягане на улова (catches.air_pressure)",
     run: async () => {
@@ -924,6 +932,14 @@ export async function handleAdminMigrationsRoute(
           WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'language'
         `;
         applied = (rows[0]?.n ?? 0) > 0;
+      }
+      if (id === "v3.174-catch-conditions") {
+        const rows = await sql<{ n: number }[]>`
+          SELECT COUNT(*)::int AS n FROM information_schema.columns
+          WHERE table_schema = 'public' AND table_name = 'catches'
+            AND column_name IN ('water_temperature', 'wind_direction', 'pressure_trend')
+        `;
+        applied = (rows[0]?.n ?? 0) >= 3;
       }
       if (id === "v3.173-catch-air-pressure") {
         const rows = await sql<{ n: number }[]>`

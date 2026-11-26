@@ -8,7 +8,9 @@ import { Plus, RotateCcw, Navigation, Loader2, Timer, Waves, Trophy } from "luci
 import { useToast } from "@/components/ui/use-toast";
 import { useLanguage } from "@/lib/i18n";
 import { getCurrentLocation, distanceMeters } from "@/lib/geolocation";
-import { refreshWeatherCache } from "@/lib/weather";
+import { refreshWeatherCache, fetchWeather, getLastKnownWeather, getAdviceBaseline, setAdviceBaseline, setManualWaterTemp } from "@/lib/weather";
+import { buildAdvice } from "@/lib/fishActivity";
+import FishAdvice from "@/components/FishAdvice";
 import { listBait } from "@/lib/baitRepository";
 import { saveCatch, updateCatchLocation, listCatchesByUser } from "@/lib/catchRepository";
 import { parseCatchDate } from "@/lib/dateUtils";
@@ -218,6 +220,67 @@ export default function ActiveSession() {
     };
   }, [sessionActive, weatherLat, weatherLng]);
 
+  // v3.174 — fish-activity advice (see lib/fishActivity.js). Three triggers:
+  //  "start"  — the session became active and the weather is known;
+  //  "change" — after a landed fish, online: only if the weather changed drastically
+  //             since the last advice (at most one check per 5 minutes);
+  //  "dry"    — every 10th cast without a catch: fresh weather (online) + advice.
+  const [adviceList, setAdviceList] = useState([]);
+  const castsSinceCatchRef = useRef(0);
+  const lastAdviceFetchRef = useRef(0);
+
+  const runAdvice = useCallback(async (kind) => {
+    if (weatherLat == null || weatherLng == null) return;
+    const online = typeof navigator === "undefined" || navigator.onLine !== false;
+    if (kind === "change" && (!online || Date.now() - lastAdviceFetchRef.current < 5 * 60 * 1000)) return;
+    let cur = null;
+    if (online) {
+      lastAdviceFetchRef.current = Date.now();
+      try {
+        cur = await fetchWeather(weatherLat, weatherLng);
+      } catch {
+        cur = null;
+      }
+    }
+    if (!cur && kind !== "change") cur = getLastKnownWeather(weatherLat, weatherLng);
+    if (!cur) return;
+    const prev = kind === "start" ? null : getAdviceBaseline();
+    const advice = buildAdvice({ kind, prev, cur, t });
+    if (!advice) return;
+    setAdviceBaseline(cur);
+    setAdviceList((list) =>
+      [{ id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, kind, ...advice }, ...list.filter((x) => kind !== "start" || x.kind !== "start")].slice(0, 3),
+    );
+  }, [weatherLat, weatherLng, t]);
+
+  useEffect(() => {
+    if (!sessionActive) {
+      setAdviceList([]);
+      return;
+    }
+    if (weatherLat == null || weatherLng == null) return;
+    const startedAt = String(sessionStore.getState().sessionStartTime || 0);
+    let done = false;
+    try {
+      done = sessionStorage.getItem("catchcount_advice_start_for") === startedAt;
+      if (!done) sessionStorage.setItem("catchcount_advice_start_for", startedAt);
+    } catch {
+      // sessionStorage unavailable — advice may repeat after a reload
+    }
+    if (done) return;
+    castsSinceCatchRef.current = 0;
+    runAdvice("start");
+  }, [sessionActive, weatherLat, weatherLng, runAdvice]);
+
+  useEffect(() => {
+    const onCast = () => {
+      castsSinceCatchRef.current += 1;
+      if (castsSinceCatchRef.current % 10 === 0) runAdvice("dry");
+    };
+    window.addEventListener("catchcount:cast", onCast);
+    return () => window.removeEventListener("catchcount:cast", onCast);
+  }, [runAdvice]);
+
   const loadTackle = useCallback(async () => {
     try {
       setTackle(await listBait());
@@ -367,6 +430,10 @@ export default function ActiveSession() {
       sessionStore.recordCatchTime();
       refreshRodStats();
       toast({ title: `${t("saveCatch.catchLogged")} — ${formatDuration(data.duration || 0)}` });
+      // v3.174 — a fish was landed: the "casts without a catch" count starts over and,
+      // online, the weather is compared with the one the last advice was based on.
+      castsSinceCatchRef.current = 0;
+      runAdvice("change");
 
       // Fetch GPS location in the background and update if different.
       if (created?.id) {
@@ -429,6 +496,16 @@ export default function ActiveSession() {
           )}
         </div>
       </div>
+
+      {/* v3.174 — fish-activity advice */}
+      <FishAdvice
+        items={adviceList}
+        onDismiss={(id) => setAdviceList((list) => list.filter((x) => x.id !== id))}
+        onWaterTemp={(v) => {
+          setManualWaterTemp(v);
+          runAdvice("start");
+        }}
+      />
 
       {/* v3.158 — competition mode switch */}
       <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-100 shadow-sm cursor-pointer select-none">

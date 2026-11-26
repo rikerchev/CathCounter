@@ -187,6 +187,11 @@ export const ENTITIES: Record<string, EntityDef> = {
       // v3.173 — atmospheric pressure, hPa (sea level). Column is also added on
       // demand by entities.ts, and by the v3.173 migration.
       { name: "air_pressure", type: "number", required: false },
+      // v3.174 — estimated/measured water temperature (C), wind direction (degrees,
+      // where the wind comes FROM) and the pressure change over the last 3 h (hPa).
+      { name: "water_temperature", type: "number", required: false },
+      { name: "wind_direction", type: "number", required: false },
+      { name: "pressure_trend", type: "number", required: false },
       { name: "notes", type: "string", required: false },
       { name: "date", type: "string", required: false },
     ],
