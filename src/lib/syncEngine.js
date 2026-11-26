@@ -136,9 +136,42 @@ export async function pushPendingCatches() {
   }
 }
 
+// v3.178/v3.180 — a bait the server no longer has (deleted elsewhere, a database
+// reset, ...) is created again (new id; nothing refers to a bait by id). If even
+// that fails it stays local-only instead of being retried forever.
+async function recreateBait(baitItem) {
+  try {
+    const { id: _oldId, _synced: _s, _server_gone, ...fresh } = baitItem;
+    const created = await base44.entities.Bait.create(fresh);
+    await saveBaitLocal({ ...fresh, id: created.id, _synced: true });
+    await deleteBaitLocal(baitItem.id);
+    console.info(`Bait ${baitItem.id} was missing on the server — uploaded again.`);
+  } catch {
+    try {
+      await saveBaitLocal({ ...baitItem, _synced: true, _server_gone: true });
+    } catch { /* ignore */ }
+    console.warn(`Bait ${baitItem.id} no longer exists on the server — left as local-only.`);
+  }
+}
+
 export async function pushPendingBait() {
   const localBait = await getAllBait();
   const unsynced = localBait.filter(b => !b._synced);
+  if (unsynced.length === 0) return;
+
+  // v3.180 — which bait does the server have? One cheap list request BEFORE any
+  // update, so a bait that is gone is created again straight away instead of
+  // first sending an UPDATE that can only answer 404 (a red error in the console).
+  // At 500 rows the list may be cut off, so then nothing is concluded from it.
+  let remoteIds = null;
+  if (unsynced.some(b => !String(b.id).startsWith("local_"))) {
+    try {
+      const list = await base44.entities.Bait.list("-created_date", 500);
+      if (Array.isArray(list) && list.length < 500) remoteIds = new Set(list.map(x => x.id));
+    } catch {
+      remoteIds = null; // no answer: fall back to the plain update below
+    }
+  }
 
   for (const baitItem of unsynced) {
     try {
@@ -149,33 +182,17 @@ export async function pushPendingBait() {
         const created = await base44.entities.Bait.create(payload);
         await saveBaitLocal({ ...baitItem, id: created.id, _synced: true });
         await deleteBaitLocal(baitItem.id);
+      } else if (remoteIds && !remoteIds.has(baitItem.id)) {
+        await recreateBait(baitItem);
       } else {
         await base44.entities.Bait.update(baitItem.id, payload);
         await saveBaitLocal({ ...baitItem, _synced: true });
       }
     } catch (e) {
-      // v3.178 — same as for catches (v3.124/v3.140): the server has no such bait
-      // any more (deleted elsewhere, a database reset, ...). The UPDATE could never
-      // succeed and failed — with a red 404 in the console — on every sync. The bait
-      // is created again on the server (new id; nothing refers to a bait by id), and
-      // if even that fails it is left as local-only instead of being retried forever.
+      // the list could be stale (deleted in between): same handling for a 404
       const gone = !String(baitItem.id).startsWith("local_") && (e?.status === 404 || /not found/i.test(String(e?.message || e)));
-      if (gone) {
-        try {
-          const { id: _oldId, _synced: _s, _server_gone, ...fresh } = baitItem;
-          const created = await base44.entities.Bait.create(fresh);
-          await saveBaitLocal({ ...fresh, id: created.id, _synced: true });
-          await deleteBaitLocal(baitItem.id);
-          console.info(`Bait ${baitItem.id} was missing on the server — uploaded again.`);
-        } catch {
-          try {
-            await saveBaitLocal({ ...baitItem, _synced: true, _server_gone: true });
-          } catch { /* ignore */ }
-          console.warn(`Bait ${baitItem.id} no longer exists on the server — left as local-only.`);
-        }
-      } else {
-        console.error(`Failed to sync bait ${baitItem.id}:`, e);
-      }
+      if (gone) await recreateBait(baitItem);
+      else console.error(`Failed to sync bait ${baitItem.id}:`, e);
     }
   }
 }

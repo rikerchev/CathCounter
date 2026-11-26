@@ -204,41 +204,77 @@ function isReadRequest(req: Request): boolean {
   return req.method === "POST" && /\/filter\/?$/.test(new URL(req.url, "http://x").pathname);
 }
 
+// v3.180 — a read that hangs on a stale database connection is now retried ONCE,
+// inside the same request, on a fresh connection, instead of answering 504 and
+// leaving the retry to the browser (Vercel logs, 26 Nov: /api/settings/* kept
+// answering 504 after 9 s while the next request a moment later answered 200).
+// Only for cheap, idempotent reads (GET and POST .../filter under /api/settings
+// and /api/entities): first attempt 4 s, then a new connection and a second
+// attempt of 5 s — the same 9 s budget as before. Writes and heavy routes
+// (functions, backups, migrations, ...) are unchanged.
+const RETRY_FIRST_MS = 4000;
+const RETRY_SECOND_MS = 5000;
+
+function canRetryRead(req: Request): boolean {
+  if (!isReadRequest(req)) return false;
+  return /^\/api\/(settings|entities)\//.test(new URL(req.url, "http://x").pathname);
+}
+
+// resolves to the response, or to null when it took longer than `ms`
+async function attempt(req: Request, ms: number): Promise<Response | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const work = route(req).then(withCors);
+  // if the work finishes late anyway, that must not become an unhandled rejection
+  work.catch(() => {});
+  try {
+    return await Promise.race([
+      work,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function logTimeout(req: Request, ms: number, what: string): void {
+  // the 504 used to leave no trace; now the route and the load are in the Vercel
+  // logs (filter: "[timeout]")
+  try {
+    console.warn(`[timeout] ${what} ${req.method} ${new URL(req.url, "http://x").pathname} > ${ms} ms (inflight ${inflight})`);
+  } catch {
+    // logging must never break the response
+  }
+}
+
 export async function handleRequest(req: Request): Promise<Response> {
   if (inflight === 0 && Date.now() - lastActivity > IDLE_RECONNECT_MS) reconnect();
   inflight++;
-  const timeoutMs = isReadRequest(req) ? READ_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const workPromise = route(req).then(withCors);
-  // If the real work finishes late anyway, don't let that become an
-  // unhandled rejection just because we stopped waiting on it below.
-  workPromise.catch(() => {});
-
-  const timeoutPromise = new Promise<Response>((resolve) => {
-    timeoutId = setTimeout(() => {
-      // v3.179 — the 504 used to leave no trace; now the route and the instance's
-      // load are in the Vercel logs (filter: "[timeout]")
-      try {
-        console.warn(`[timeout] ${req.method} ${new URL(req.url, "http://x").pathname} > ${timeoutMs} ms (inflight ${inflight})`);
-      } catch {
-        // logging must never break the response
-      }
-      reconnect();
-      resolve(
-        withCors(
-          new Response(JSON.stringify({ error: "Заявката отне твърде дълго време" }), {
-            status: 504,
-            headers: { "content-type": "application/json" },
-          }),
-        ),
-      );
-    }, timeoutMs);
-  });
-
   try {
-    return await Promise.race([workPromise, timeoutPromise]);
+    const retry = canRetryRead(req);
+    const firstMs = retry ? RETRY_FIRST_MS : isReadRequest(req) ? READ_TIMEOUT_MS : REQUEST_TIMEOUT_MS;
+    // the body of a POST .../filter can be read only once: keep a copy for the retry
+    const spare = retry ? req.clone() : null;
+
+    let res = await attempt(req, firstMs);
+    if (res) return res;
+    logTimeout(req, firstMs, spare ? "1st attempt" : "request");
+    reconnect();
+
+    if (spare) {
+      res = await attempt(spare, RETRY_SECOND_MS);
+      if (res) return res;
+      logTimeout(req, RETRY_SECOND_MS, "retry");
+      reconnect();
+    }
+    return withCors(
+      new Response(JSON.stringify({ error: "Заявката отне твърде дълго време" }), {
+        status: 504,
+        headers: { "content-type": "application/json" },
+      }),
+    );
   } finally {
-    clearTimeout(timeoutId);
     inflight--;
     lastActivity = Date.now();
   }
