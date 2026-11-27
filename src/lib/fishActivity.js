@@ -291,6 +291,9 @@ export function phaseIndex(h) {
   return 5;
 }
 
+// pressure state -> arrow shown on the compact pressure chip (v3.192)
+const PS_ARROW = { fastFall: "↓↓", slowFall: "↓", stable: "→", slowRise: "↑", fastRise: "↑↑", high: "→" };
+
 /** the "where and when" block: { items: [{ id, h, text }], note } */
 export function buildWhere({ zone, season, now, t }) {
   const hour = now.getHours();
@@ -388,20 +391,21 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
   conclusion += " " + t(zone.locked ? "fa.z.d.locked" : moved ? "fa.z.d.adjust" : "fa.z.d.base");
 
   // ---- chips (tap -> the 48 h chart) -----------------------------------------
+  // v3.192 — compact: no label words (the icon says what it is), so all three fit on one row
   const chips = [];
   if (cur.air_temperature != null || w != null) {
     chips.push({
       id: "temp",
       text:
         cur.air_temperature != null && w != null
-          ? fmt(t("fa.chip.temp"), { a: n(cur.air_temperature), w: n(w) })
+          ? fmt(t("fa.chip.s.temp"), { a: r0(cur.air_temperature), w: r0(w) })
           : cur.air_temperature != null
-            ? fmt(t("fa.chip.air"), { a: n(cur.air_temperature) })
-            : fmt(t("fa.chip.water"), { w: n(w) }),
+            ? fmt(t("fa.chip.s.air"), { a: r0(cur.air_temperature) })
+            : fmt(t("fa.chip.water"), { w: r0(w) }),
     });
   }
-  if (cur.air_pressure != null) chips.push({ id: "press", text: fmt(t("fa.chip.press"), { v: r0(cur.air_pressure), s: t("fa.ps." + r.ps) }) });
-  if (cur.wind_speed != null) chips.push({ id: "wind", text: fmt(t("fa.chip.wind"), { v: n(cur.wind_speed), dir: dirLabel && cur.wind_speed >= 1 ? " · " + dirLabel : "" }) });
+  if (cur.air_pressure != null) chips.push({ id: "press", text: fmt(t("fa.chip.s.press"), { v: r0(cur.air_pressure), s: PS_ARROW[r.ps] || "" }) });
+  if (cur.wind_speed != null) chips.push({ id: "wind", text: fmt(t("fa.chip.s.wind"), { v: n(cur.wind_speed), dir: dirLabel && cur.wind_speed >= 1 ? " " + dirLabel : "" }) });
 
   const lines = [];
   if (tempText) lines.push({ id: "temp", text: tempText });

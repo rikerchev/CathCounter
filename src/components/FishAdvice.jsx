@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Lightbulb, X } from "lucide-react";
+import { Lightbulb, X, Thermometer, Gauge, Wind } from "lucide-react";
 import { useLanguage } from "@/lib/i18n";
 import Weather48Chart, { seriesColor, useIsDark } from "@/components/Weather48Chart";
 
@@ -7,10 +7,13 @@ import Weather48Chart, { seriesColor, useIsDark } from "@/components/Weather48Ch
 // src/lib/fishActivity.js for the rules and ActiveSession.jsx for when they
 // appear): session start, a drastic weather change after a landed fish, and
 // 10 casts without a catch.
+// v3.192 — compact chips (icon + short text, one row), smaller summary font.
 // v3.191 — layout: header, weather chips, the SUMMARY, then the details in a small scroll box (the rod timer stays in view).
 // v3.190 — a "where and when" section (relief, bottom type, best spot, time of day).
 // v3.176 — one integrated analysis (temperature -> pressure -> wind) with ONE
 // recommendation; the three readings are tappable chips that open a 48 h chart.
+
+const CHIP_ICON = { temp: Thermometer, press: Gauge, wind: Wind };
 
 const LEVEL_STYLE = {
   high: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300",
@@ -58,19 +61,25 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
 
             {chips.length > 0 ? (
               <div>
-                <div className="flex flex-wrap gap-1.5">
-                  {chips.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => toggle(a.id, c.id)}
-                      aria-pressed={sel === c.id}
-                      style={{ borderColor: seriesColor(c.id, dark), color: seriesColor(c.id, dark) }}
-                      className={`text-xs px-2.5 py-1 rounded-full border min-h-[32px] ${sel === c.id ? "bg-slate-100 dark:bg-accent font-semibold" : "bg-white dark:bg-card"}`}
-                    >
-                      {c.text}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-1">
+                  {chips.map((c) => {
+                    const Icon = CHIP_ICON[c.id];
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggle(a.id, c.id)}
+                        aria-pressed={sel === c.id}
+                        aria-label={t("fa.h." + c.id) + ": " + c.text}
+                        title={t("fa.h." + c.id)}
+                        style={{ borderColor: seriesColor(c.id, dark), color: seriesColor(c.id, dark) }}
+                        className={`inline-flex items-center gap-1 text-[11px] leading-none px-2 py-1 rounded-full border min-h-[26px] ${sel === c.id ? "bg-slate-100 dark:bg-accent font-semibold" : "bg-white dark:bg-card"}`}
+                      >
+                        {Icon && <Icon className="w-3 h-3 flex-shrink-0" />}
+                        {c.text}
+                      </button>
+                    );
+                  })}
                 </div>
                 {!sel && <p className="text-[11px] text-slate-500 dark:text-muted-foreground mt-1">{t("fa.chart.hint")}</p>}
               </div>
@@ -89,7 +98,7 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
 
             {/* v3.191 — the summary comes right after the weather data; every detail sits in
                 a small scroll box so the rod timer below stays in view */}
-            <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-2">{conclusion}</p>
+            <p className="text-[13px] leading-snug font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-1.5">{conclusion}</p>
             <div className="max-h-32 overflow-y-auto overscroll-contain rounded-lg border border-slate-200 dark:border-border bg-slate-50/60 dark:bg-muted/20 px-2.5 py-2 space-y-2" tabIndex={0}>
               {a.intro && <p className="text-sm text-slate-600 dark:text-muted-foreground">{a.intro}</p>}
 
