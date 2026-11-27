@@ -3,6 +3,8 @@
 // expected-activity rating and advice on where/how to fish. Pure functions; all
 // texts come from the translation files (keys "fa.*" and "compass.*").
 //
+// v3.190 — plus a "where and when" block (relief, bottom type, time of day), see buildWhere below.
+//
 // v3.176 — ONE integrated analysis instead of a list of independent tips. The
 // three components are weighed in a fixed order of importance and can never
 // contradict each other:
@@ -241,6 +243,70 @@ function effectOf(asked, before, after) {
   return "limited"; // the water temperature does not allow it
 }
 
+// ---------------------------------------------------------------------------
+// v3.190 — WHERE and WHEN. On top of the weather verdict (depth/distance zone) the
+// card says what RELIEF and BOTTOM TYPE to look for and what TIME OF DAY is best
+// for the current season (general rules for the carp family; the angler judges the
+// relief and the bottom of his own spot and chooses where to cast):
+//  - relief follows the zone verdict: 0 shallows (bays, plateaus, weed edge),
+//    1 transitions (ledges, foot of bars, old river-bed slopes), 2 deep (pits, holes,
+//    the deepest old river bed);
+//  - bottom type follows the season: spring = thin living silt in warm bays; summer =
+//    thin silt + weed edge, mussel beds; autumn = hard/silt transitions on slopes;
+//    winter = hard or slightly silty bottom in the deepest pits; great heat = hard or
+//    thinly silted ledges/pits and oxygen near plants. Thick stagnant silt and bare
+//    sand are always poor;
+//  - the best spot is a border between two zones (hard/silt, weed edge, foot of a bar);
+//  - time of day: winter midday/afternoon; spring late morning-afternoon; summer dawn,
+//    dusk and night; great heat only night/dawn/dusk; autumn the whole day.
+// ---------------------------------------------------------------------------
+
+/** "winter" | "spring" | "summer" | "hot" | "autumn" — water temperature first, then the month */
+export function habitatSeason(month, w) {
+  if (w != null && w < 8) return "winter";
+  if (w != null && w > 26) return "hot";
+  if (month >= 2 && month <= 4) return "spring";
+  if (month >= 5 && month <= 7) return "summer";
+  if (month >= 8 && month <= 10) return "autumn";
+  // Dec-Feb with water of 8 C or more: Feb is already spring-like, Dec/Jan are cool autumn
+  if (w == null) return "winter";
+  return month === 1 ? "spring" : "autumn";
+}
+
+// [night 21-5, dawn 5-8, morning 8-11, midday 11-16, afternoon 16-19, evening 19-21]: 2 best, 1 fair, 0 weak
+const PHASE_RATING = {
+  winter: [0, 0, 1, 2, 2, 0],
+  spring: [0, 1, 1, 2, 2, 1],
+  summer: [2, 2, 1, 0, 1, 2],
+  hot: [2, 2, 1, 0, 0, 2],
+  autumn: [1, 1, 2, 2, 2, 2],
+};
+
+export function phaseIndex(h) {
+  if (h >= 21 || h < 5) return 0;
+  if (h < 8) return 1;
+  if (h < 11) return 2;
+  if (h < 16) return 3;
+  if (h < 19) return 4;
+  return 5;
+}
+
+/** the "where and when" block: { items: [{ id, h, text }], note } */
+export function buildWhere({ zone, season, now, t }) {
+  const hour = now.getHours();
+  const time = String(hour).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const rating = PHASE_RATING[season][phaseIndex(hour)];
+  return {
+    items: [
+      { id: "relief", h: t("fa.w.h.relief"), text: t("fa.w.rel." + zone) },
+      { id: "bottom", h: t("fa.w.h.bottom"), text: t("fa.w.bot." + season) },
+      { id: "edge", h: t("fa.w.h.edge"), text: t("fa.w.edge") },
+      { id: "time", h: t("fa.w.h.time"), text: t("fa.w.time." + season) + " " + fmt(t("fa.w.now." + rating), { time }) },
+    ],
+    note: t("fa.w.note"),
+  };
+}
+
 /**
  * kind: "start" (session start) | "change" (after a catch) | "dry" (10 casts
  * without a catch) | "manual" (the "Съвет" button, v3.183: like "start" — a fresh
@@ -342,6 +408,9 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
   if (pressText) lines.push({ id: "press", text: pressText });
   if (windText) lines.push({ id: "wind", text: windText });
 
+  // v3.190 — relief / bottom type / time of day for the season and the zone verdict
+  const where = buildWhere({ zone: zone.zone, season: habitatSeason(month, w), now: extra.now ? new Date(extra.now) : new Date(), t });
+
   return {
     level: r.level,
     score: r.score,
@@ -351,6 +420,7 @@ export function buildAdvice({ kind, prev, cur, t, extra = {} }) {
     changes,
     noChange: kind === "dry" && changes.length === 0 ? t("fa.dry.noChange") : "",
     lines,
+    where,
     conclusion,
   };
 }

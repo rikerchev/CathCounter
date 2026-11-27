@@ -7,6 +7,7 @@ import Weather48Chart, { seriesColor, useIsDark } from "@/components/Weather48Ch
 // src/lib/fishActivity.js for the rules and ActiveSession.jsx for when they
 // appear): session start, a drastic weather change after a landed fish, and
 // 10 casts without a catch.
+// v3.190 — a "where and when" section (relief, bottom type, best spot, time of day).
 // v3.176 — one integrated analysis (temperature -> pressure -> wind) with ONE
 // recommendation; the three readings are tappable chips that open a 48 h chart.
 
@@ -117,6 +118,19 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
                 </div>
               ))}
             </div>
+
+            {a.where && a.where.items && a.where.items.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{t("fa.h.where")}</p>
+                {a.where.items.map((it) => (
+                  <div key={it.id} className="text-sm text-slate-700 dark:text-foreground">
+                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{it.h}</p>
+                    <p>{it.text}</p>
+                  </div>
+                ))}
+                {a.where.note && <p className="text-[11px] text-slate-500 dark:text-muted-foreground">{a.where.note}</p>}
+              </div>
+            )}
 
             <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-2">{conclusion}</p>
           </div>
