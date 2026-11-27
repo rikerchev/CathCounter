@@ -7,6 +7,7 @@ import Weather48Chart, { seriesColor, useIsDark } from "@/components/Weather48Ch
 // src/lib/fishActivity.js for the rules and ActiveSession.jsx for when they
 // appear): session start, a drastic weather change after a landed fish, and
 // 10 casts without a catch.
+// v3.191 — layout: header, weather chips, the SUMMARY, then the details in a small scroll box (the rod timer stays in view).
 // v3.190 — a "where and when" section (relief, bottom type, best spot, time of day).
 // v3.176 — one integrated analysis (temperature -> pressure -> wind) with ONE
 // recommendation; the three readings are tappable chips that open a 48 h chart.
@@ -86,53 +87,57 @@ export default function FishAdvice({ items, onDismiss, lat, lng }) {
               </div>
             )}
 
-            {a.intro && <p className="text-sm text-slate-600 dark:text-muted-foreground">{a.intro}</p>}
+            {/* v3.191 — the summary comes right after the weather data; every detail sits in
+                a small scroll box so the rod timer below stays in view */}
+            <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-2">{conclusion}</p>
+            <div className="max-h-32 overflow-y-auto overscroll-contain rounded-lg border border-slate-200 dark:border-border bg-slate-50/60 dark:bg-muted/20 px-2.5 py-2 space-y-2" tabIndex={0}>
+              {a.intro && <p className="text-sm text-slate-600 dark:text-muted-foreground">{a.intro}</p>}
 
-            {a.changes && a.changes.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground mb-0.5">{t("fa.whatChanged")}</p>
-                <ul className="text-sm text-slate-700 dark:text-foreground space-y-0.5 list-disc pl-4">
-                  {a.changes.map((c, i) => (
-                    <li key={i}>{c}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {a.noChange && <p className="text-sm text-slate-700 dark:text-foreground">{a.noChange}</p>}
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{t("fa.h.analysis")}</p>
-              {lines.map((l, i) => (
-                <div key={i} className="text-sm text-slate-700 dark:text-foreground">
-                  {l.id && (
-                    <button
-                      type="button"
-                      onClick={() => toggle(a.id, l.id)}
-                      style={{ color: seriesColor(l.id, dark) }}
-                      className="text-xs font-semibold block text-left"
-                    >
-                      {i + 1}. {t("fa.h." + l.id)}
-                    </button>
-                  )}
-                  <p>{l.text}</p>
+              {a.changes && a.changes.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground mb-0.5">{t("fa.whatChanged")}</p>
+                  <ul className="text-sm text-slate-700 dark:text-foreground space-y-0.5 list-disc pl-4">
+                    {a.changes.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
                 </div>
-              ))}
-            </div>
+              )}
+              {a.noChange && <p className="text-sm text-slate-700 dark:text-foreground">{a.noChange}</p>}
 
-            {a.where && a.where.items && a.where.items.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{t("fa.h.where")}</p>
-                {a.where.items.map((it) => (
-                  <div key={it.id} className="text-sm text-slate-700 dark:text-foreground">
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{it.h}</p>
-                    <p>{it.text}</p>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{t("fa.h.analysis")}</p>
+                {lines.map((l, i) => (
+                  <div key={i} className="text-sm text-slate-700 dark:text-foreground">
+                    {l.id && (
+                      <button
+                        type="button"
+                        onClick={() => toggle(a.id, l.id)}
+                        style={{ color: seriesColor(l.id, dark) }}
+                        className="text-xs font-semibold block text-left"
+                      >
+                        {i + 1}. {t("fa.h." + l.id)}
+                      </button>
+                    )}
+                    <p>{l.text}</p>
                   </div>
                 ))}
-                {a.where.note && <p className="text-[11px] text-slate-500 dark:text-muted-foreground">{a.where.note}</p>}
               </div>
-            )}
 
-            <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-900/30 rounded-lg px-3 py-2">{conclusion}</p>
+              {a.where && a.where.items && a.where.items.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-slate-500 dark:text-muted-foreground">{t("fa.h.where")}</p>
+                  {a.where.items.map((it) => (
+                    <div key={it.id} className="text-sm text-slate-700 dark:text-foreground">
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{it.h}</p>
+                      <p>{it.text}</p>
+                    </div>
+                  ))}
+                  {a.where.note && <p className="text-[11px] text-slate-500 dark:text-muted-foreground">{a.where.note}</p>}
+                </div>
+              )}
+              <div aria-hidden="true" className="pointer-events-none sticky bottom-0 h-3 -mx-2.5 bg-gradient-to-t from-slate-50 dark:from-card to-transparent" />
+            </div>
           </div>
         );
       })}
