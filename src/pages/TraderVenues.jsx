@@ -386,7 +386,8 @@ export default function TraderVenues() {
       )}
 
       <Dialog open={showForm} onOpenChange={(open) => { setShowForm(open); if (!open) setEditingVenue(null); }}>
-        <DialogContent>
+        {/* v3.193 — the form is taller than a phone screen: the dialog itself must scroll */}
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("tv.editVenue")}</DialogTitle>
           </DialogHeader>
