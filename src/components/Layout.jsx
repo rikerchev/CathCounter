@@ -32,6 +32,7 @@ import {
   Languages,
   Store,
   Mail,
+  ClipboardCheck,
 } from "lucide-react";
 import { LanguageSelector, useLanguage } from "@/lib/i18n";
 import { useAuth } from "@/lib/AuthContext";
@@ -53,6 +54,7 @@ import { DEFAULT_MENU_ORDER, normalizeMenuOrder, applyOrder } from "@/lib/menuOr
 const navItems = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, end: true },
   { to: "/active-session", labelKey: "nav.activeSession", icon: Timer },
+  { to: "/be-prepared", labelKey: "nav.beReady", icon: ClipboardCheck },
   { to: "/log-catch", labelKey: "nav.logCatch", icon: PlusCircle },
   { to: "/catch-history", labelKey: "nav.catchHistory", icon: History },
   { to: "/sessions", labelKey: "nav.sessions", icon: CalendarRange },

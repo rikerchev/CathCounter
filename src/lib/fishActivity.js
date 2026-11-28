@@ -204,7 +204,7 @@ function detectChanges(prev, cur, t, n) {
  * 2 = far out / deep. Order of weight: temperature (base + locks), pressure (one
  * step), wind (one more step). Returns the result and what each factor asked for.
  */
-function decideZone(r, c, month) {
+export function decideZone(r, c, month) {
   const w = c.water_temperature;
   // the base, and the range the water temperature allows at all
   let base = 1;
@@ -292,7 +292,7 @@ export function phaseIndex(h) {
 }
 
 // pressure state -> arrow shown on the compact pressure chip (v3.192)
-const PS_ARROW = { fastFall: "↓↓", slowFall: "↓", stable: "→", slowRise: "↑", fastRise: "↑↑", high: "→" };
+export const PS_ARROW = { fastFall: "↓↓", slowFall: "↓", stable: "→", slowRise: "↑", fastRise: "↑↑", high: "→" };
 
 /** the "where and when" block: { items: [{ id, h, text }], note } */
 export function buildWhere({ zone, season, now, t }) {

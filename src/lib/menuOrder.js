@@ -45,7 +45,7 @@ export const GROUP_DEFS = [
 // appended at the end (see orderKnownKeys below) rather than lost.
 export const DEFAULT_MENU_ORDER = {
   top: [
-    "/", "/active-session",
+    "/", "/active-session", "/be-prepared",
     "group:inventory",
     "/log-catch", "/catch-history", "/sessions", "/statistics", "/locations", "/personal-best",
     "/commercial-venues", "/water-bodies", "/competitions", "/sector-reservations",

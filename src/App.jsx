@@ -20,6 +20,7 @@ import ResetPassword from './pages/ResetPassword';
 import Layout from '@/components/Layout';
 import Home from './pages/Home';
 import ActiveSession from './pages/ActiveSession';
+import BePrepared from './pages/BePrepared';
 import LogCatch from './pages/LogCatch';
 import CatchHistory from './pages/CatchHistory';
 import Sessions from './pages/Sessions';
@@ -121,6 +122,7 @@ const AuthenticatedApp = () => {
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/active-session" element={<ActiveSession />} />
+          <Route path="/be-prepared" element={<BePrepared />} />
           <Route path="/log-catch" element={<LogCatch />} />
           <Route path="/catch-history" element={<CatchHistory />} />
           <Route path="/sessions" element={<Sessions />} />

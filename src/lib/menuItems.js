@@ -3,6 +3,7 @@
 export const ALL_MENU_ITEMS = [
   { path: "/", labelKey: "nav.dashboard" },
   { path: "/active-session", labelKey: "nav.activeSession" },
+  { path: "/be-prepared", labelKey: "nav.beReady" },
   { path: "/log-catch", labelKey: "nav.logCatch" },
   { path: "/catch-history", labelKey: "nav.catchHistory" },
   { path: "/sessions", labelKey: "nav.sessions" },

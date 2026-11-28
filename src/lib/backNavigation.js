@@ -30,7 +30,7 @@ const SUBMENU_OF = {
 // (login, register, terms, 404 …) keeps the browser's normal back behaviour.
 const APP_PAGES = new Set([
   "/",
-  "/active-session", "/log-catch", "/catch-history", "/sessions", "/catch-details",
+  "/active-session", "/be-prepared", "/log-catch", "/catch-history", "/sessions", "/catch-details",
   "/edit-catch", "/statistics", "/locations", "/personal-best", "/profile",
   "/commercial-venues", "/water-bodies", "/water-body-request", "/merchant-request",
   "/competitions", "/sector-reservations", "/contact-us",
